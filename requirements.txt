@@ -1,0 +1,3 @@
+segno>=1.6
+# optional, for --window (the app in its own window instead of the browser):
+# pywebview>=5.0
