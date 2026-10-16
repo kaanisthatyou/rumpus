@@ -1,0 +1,202 @@
+{
+  "common": {
+    "continue": "Continue",
+    "back": "Back",
+    "finish": "Finish",
+    "close": "Close",
+    "change": "Change",
+    "useDefault": "Default",
+    "copy": "Copy",
+    "copied": "Copied",
+    "rescan": "Scan again",
+    "scanning": "Scanning",
+    "docs": "Docs",
+    "notYet": "Not active in this version yet."
+  },
+  "launcher": {
+    "step": "Setup · {{n}} / {{total}}",
+    "steps": {
+      "language": "Language",
+      "appearance": "Appearance",
+      "profile": "Profile",
+      "data": "Data folder",
+      "agents": "CLI agents",
+      "team": "Team connection"
+    },
+    "tagline": "A shared workspace for people and CLI agents.",
+    "language": {
+      "body": "Interface language. Can be changed in Settings."
+    },
+    "appearance": {
+      "body": "The accent marks only what is active or selected.",
+      "theme": "Theme",
+      "accent": "Accent",
+      "motion": "Motion",
+      "preview": "Preview",
+      "previewJob": "Sample job",
+      "previewState": "Running"
+    },
+    "profile": {
+      "body": "Team members and agents see this name.",
+      "name": "Display name",
+      "placeholder": "Name",
+      "required": "A name is required."
+    },
+    "data": {
+      "body": "Workspaces, records and history are kept in this folder. Data stays on this computer; in a team it syncs only between members, over Tailscale.",
+      "folder": "Folder",
+      "isDefault": "Default location"
+    },
+    "agents": {
+      "body": "Lonca runs the CLI agents installed on this computer. Sign-in happens in each CLI's own screen; Lonca has no access to credentials.",
+      "readyCount_one": "{{count}} agent ready",
+      "readyCount_other": "{{count}} agents ready",
+      "none": "No agent is ready. Setup can be completed later in Settings."
+    },
+    "team": {
+      "body": "Not needed for single use. Team members connect to each other with Tailscale; no server or account is involved.",
+      "solo": "Single use needs no further setup."
+    }
+  },
+  "agent": {
+    "kind": {
+      "claude-code": "Claude Code",
+      "codex": "Codex CLI",
+      "opencode": "OpenCode",
+      "gemini": "Gemini CLI",
+      "antigravity": "Antigravity CLI"
+    },
+    "state": {
+      "ready": "Ready",
+      "signed-out": "Signed out",
+      "needs-key": "API key required",
+      "unknown": "State unknown",
+      "missing": "Not installed"
+    },
+    "auth": {
+      "subscription": "subscription",
+      "api-key": "API key",
+      "vertex": "Vertex"
+    },
+    "login": "Sign in",
+    "installCommand": "Install command",
+    "loginOpened": "Sign-in opened in a separate window. The list is scanned again on return to Lonca.",
+    "googleNote": "Google does not allow Gemini account sign-in to be used by third-party apps. This CLI runs only with GEMINI_API_KEY or Vertex."
+  },
+  "tailscale": {
+    "name": "Tailscale",
+    "state": {
+      "running": "Connected",
+      "stopped": "Off",
+      "needs-login": "Sign-in required",
+      "missing": "Not installed",
+      "unknown": "State unknown"
+    },
+    "hint": {
+      "running": "This computer is on the tailnet. Team invites become active in a later version.",
+      "stopped": "The connection is made in the Tailscale app.",
+      "needs-login": "Sign-in happens in the Tailscale app.",
+      "missing": "Team use requires Tailscale.",
+      "unknown": "The Tailscale state could not be read."
+    },
+    "download": "Download page"
+  },
+  "shell": {
+    "workspaces": "Workspaces",
+    "workspace": "Personal",
+    "newWorkspace": "New workspace",
+    "storage": "Local storage",
+    "search": "Search or command",
+    "channels": "Channels",
+    "board": "Board",
+    "tasks": "Tasks",
+    "goals": "Goals",
+    "records": "Records",
+    "ideas": "Ideas",
+    "references": "References",
+    "commands": "Commands",
+    "memory": "Memory",
+    "defaultChannel": "general",
+    "channelTopic": "Personal workspace",
+    "empty": {
+      "channel": "No messages in this channel.",
+      "tasks": "No tasks.",
+      "goals": "No goals.",
+      "ideas": "No ideas.",
+      "references": "No references.",
+      "commands": "No saved commands.",
+      "memory": "Memory is empty."
+    },
+    "composer": "Message · #{{channel}}",
+    "voice": "Push to talk",
+    "attach": "Attach a file or reference",
+    "send": "Send",
+    "crew": "In the workspace",
+    "invite": "Invite",
+    "workers": "Workers",
+    "advisors": "Advisors",
+    "members": "Members",
+    "noWorkers": "No CLI agent is ready.",
+    "noAdvisors": "No advisors.",
+    "role": {
+      "admin": "Admin",
+      "editor": "Editor",
+      "viewer": "Viewer"
+    },
+    "settings": "Settings",
+    "shortcuts": "Shortcuts"
+  },
+  "settings": {
+    "title": "Settings",
+    "tabs": {
+      "general": "General",
+      "appearance": "Appearance",
+      "agents": "CLI agents",
+      "team": "Team connection",
+      "updates": "Updates",
+      "about": "About"
+    },
+    "language": "Language",
+    "name": "Display name",
+    "dataFolder": "Data folder",
+    "version": "Version {{version}}",
+    "license": "Apache-2.0 license",
+    "source": "Source code"
+  },
+  "theme": {
+    "dark": "Dark",
+    "light": "Light",
+    "system": "System"
+  },
+  "accent": {
+    "lime": "Lime",
+    "blue": "Blue",
+    "orange": "Orange",
+    "violet": "Violet"
+  },
+  "motion": {
+    "system": "System setting",
+    "reduced": "Reduced"
+  },
+  "update": {
+    "disabled": "Updates are off in development builds.",
+    "idle": "Not checked yet.",
+    "checking": "Checking",
+    "available": "New version found: {{version}}",
+    "downloading": "Downloading · {{percent}}%",
+    "ready": "Version {{version}} ready",
+    "none": "Up to date.",
+    "error": "The update check failed.",
+    "check": "Check",
+    "restart": "Restart"
+  },
+  "errors": {
+    "bad_request": "Invalid request.",
+    "unknown_method": "Unknown request.",
+    "invalid_settings": "Setting not saved: invalid value.",
+    "not_installed": "The CLI was not found on this computer.",
+    "login_unavailable": "The sign-in window could not be opened.",
+    "internal": "Unexpected error.",
+    "core_offline": "The core process is not responding."
+  }
+}

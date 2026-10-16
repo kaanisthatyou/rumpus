@@ -1,7 +1,7 @@
 # Lonca v2: plan
 
-Status: **planning** (2026-10-16). Owners: Kaan and Arda. Nothing below is built yet; v0.1 (the Python chat
-server in `lonca/`) is the starting point for ideas and the security model, not for code.
+Status: **Phase 0 built** (2026-10-16); see "Phase 0 status" under section 8. Owners: Kaan and Arda. v0.1 (the
+Python chat server, tag `v0.1.0`) was the starting point for ideas and the security model, not for code.
 
 Research behind this plan: `docs/research/` (Claude Desktop, Antigravity, Hermes Agent + Jan, CLI agents, platform:
 connectors, voice, networking). Theme: Grafit & tek vurgu, artboard 2 of the "Lonca theme directions" canvas
@@ -473,6 +473,33 @@ Each phase ends with something installable that the two of you use for real.
 | **3. Team** | Peer sync over Tailscale, invites, approval, role certificates, members panel, cross-member jobs, notifications, phone companion | Kaan and Arda run a project together on Lonca instead of Fabrika's team tab |
 | **4. Memory, voice, connectors** | Memory layers and recall line, voice (local and cloud, custom servers), connector store with OAuth and MCPB | A connector installs in one click and a job is started by voice |
 | **5. Public 1.0** | OpenCode and the generic ACP driver, Linux packages, docs site, contribution guide, security review | Strangers install and use it without help |
+
+### Phase 0 status (2026-10-16)
+
+Built and verified on Windows:
+
+- pnpm monorepo (`apps/desktop`, `packages/protocol`, `packages/core`, `packages/ui`), Electron 44, TypeScript,
+  React 19, Motion, Biome, Vitest; dependencies pinned and at least 7 days old.
+- Design system "Grafit & tek vurgu" as tokens (dark, light, four accents), components and line icons.
+- Electron shell: sandboxed renderer, core in a utility process over MessagePorts, custom title bar, window state,
+  single instance, IPC limited to the app's own page.
+- First-run launcher: language, appearance, profile, data folder, CLI agents (found, version, login state without
+  spending tokens, the CLI's own login in a console, install commands), Tailscale state. Settings dialog with the
+  same parts.
+- The empty shell (rail, sidebar, channel, "Loncadakiler" panel) with installed agents listed.
+- Turkish and English, impersonal copy checked by `pnpm check:copy`.
+- Tests: 26 unit tests; the real app through launcher, shell, settings and restart (`pnpm e2e`), also as the
+  packaged build; an update found and downloaded from a local feed (`e2e/update.mjs`).
+- Windows installer (NSIS, per user) and Linux targets (AppImage, deb) configured; CI and a tag-driven release
+  workflow.
+
+Still open for Phase 0's "done when":
+
+- **Signing:** the installer is unsigned (SmartScreen warns). SignPath's free program needs the public repo.
+- **Real auto-update:** works against GitHub Releases only once the repo is public. Verified with a local feed:
+  0.2.0-alpha.0 found 0.2.0-alpha.1, downloaded it, offered the restart, and (by accident, before the test hook
+  turned install-on-quit off) installed it silently when it closed.
+- **Linux:** configured, not yet built or run on Linux; the CI's Ubuntu job is the first check.
 
 ## 9. Risks
 

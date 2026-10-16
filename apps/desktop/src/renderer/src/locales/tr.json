@@ -1,0 +1,202 @@
+{
+  "common": {
+    "continue": "Devam",
+    "back": "Geri",
+    "finish": "Bitir",
+    "close": "Kapat",
+    "change": "Değiştir",
+    "useDefault": "Varsayılan",
+    "copy": "Kopyala",
+    "copied": "Kopyalandı",
+    "rescan": "Yeniden tara",
+    "scanning": "Taranıyor",
+    "docs": "Belgeler",
+    "notYet": "Bu sürümde henüz etkin değil."
+  },
+  "launcher": {
+    "step": "Kurulum · {{n}} / {{total}}",
+    "steps": {
+      "language": "Dil",
+      "appearance": "Görünüm",
+      "profile": "Profil",
+      "data": "Veri klasörü",
+      "agents": "CLI agentları",
+      "team": "Ekip bağlantısı"
+    },
+    "tagline": "İnsanlar ve CLI agentları için ortak çalışma alanı.",
+    "language": {
+      "body": "Arayüz dili. Ayarlar'dan değiştirilebilir."
+    },
+    "appearance": {
+      "body": "Vurgu rengi yalnızca etkin ve seçili öğeleri işaretler.",
+      "theme": "Tema",
+      "accent": "Vurgu rengi",
+      "motion": "Hareket",
+      "preview": "Önizleme",
+      "previewJob": "Örnek iş",
+      "previewState": "Çalışıyor"
+    },
+    "profile": {
+      "body": "Ekip üyelerine ve agentlara bu ad gösterilir.",
+      "name": "Görünen ad",
+      "placeholder": "Ad",
+      "required": "Ad gerekli."
+    },
+    "data": {
+      "body": "Çalışma alanları, kayıtlar ve geçmiş bu klasörde tutulur. Veri bu bilgisayarda kalır; ekip kullanımında yalnızca üyeler arasında Tailscale üzerinden eşitlenir.",
+      "folder": "Klasör",
+      "isDefault": "Varsayılan konum"
+    },
+    "agents": {
+      "body": "Lonca bu bilgisayarda kurulu CLI agentlarını çalıştırır. Girişler her CLI'ın kendi ekranında yapılır; Lonca giriş bilgilerine erişmez.",
+      "readyCount_one": "{{count}} agent hazır",
+      "readyCount_other": "{{count}} agent hazır",
+      "none": "Hazır agent yok. Kurulum sonradan Ayarlar'dan tamamlanabilir."
+    },
+    "team": {
+      "body": "Tek kişilik kullanımda gerekmez. Ekip üyeleri birbirine Tailscale ile bağlanır; sunucu ya da hesap kullanılmaz.",
+      "solo": "Tek kişilik kullanım için ek kurulum gerekmez."
+    }
+  },
+  "agent": {
+    "kind": {
+      "claude-code": "Claude Code",
+      "codex": "Codex CLI",
+      "opencode": "OpenCode",
+      "gemini": "Gemini CLI",
+      "antigravity": "Antigravity CLI"
+    },
+    "state": {
+      "ready": "Hazır",
+      "signed-out": "Giriş yok",
+      "needs-key": "API anahtarı gerekli",
+      "unknown": "Durum okunamadı",
+      "missing": "Kurulu değil"
+    },
+    "auth": {
+      "subscription": "abonelik",
+      "api-key": "API anahtarı",
+      "vertex": "Vertex"
+    },
+    "login": "Giriş yap",
+    "installCommand": "Kurulum komutu",
+    "loginOpened": "Giriş ayrı bir pencerede açıldı. Lonca'ya dönülünce liste yeniden taranır.",
+    "googleNote": "Google, Gemini hesap girişinin üçüncü taraf uygulamalarda kullanılmasına izin vermiyor. Bu CLI yalnızca GEMINI_API_KEY ya da Vertex ile çalıştırılır."
+  },
+  "tailscale": {
+    "name": "Tailscale",
+    "state": {
+      "running": "Bağlı",
+      "stopped": "Kapalı",
+      "needs-login": "Giriş gerekli",
+      "missing": "Kurulu değil",
+      "unknown": "Durum okunamadı"
+    },
+    "hint": {
+      "running": "Bu bilgisayar tailnet'te. Ekip davetleri sonraki bir sürümde etkinleşir.",
+      "stopped": "Tailscale uygulamasından bağlanılır.",
+      "needs-login": "Tailscale uygulamasından giriş yapılır.",
+      "missing": "Ekip kullanımı için Tailscale kurulur.",
+      "unknown": "Tailscale durumu okunamadı."
+    },
+    "download": "İndirme sayfası"
+  },
+  "shell": {
+    "workspaces": "Loncalar",
+    "workspace": "Kişisel",
+    "newWorkspace": "Yeni lonca",
+    "storage": "Yerel depo",
+    "search": "Ara ya da komut",
+    "channels": "Kanallar",
+    "board": "Pano",
+    "tasks": "Görevler",
+    "goals": "Hedefler",
+    "records": "Kayıtlar",
+    "ideas": "Fikirler",
+    "references": "Referanslar",
+    "commands": "Komutlar",
+    "memory": "Bellek",
+    "defaultChannel": "genel",
+    "channelTopic": "Kişisel çalışma alanı",
+    "empty": {
+      "channel": "Kanalda mesaj yok.",
+      "tasks": "Görev yok.",
+      "goals": "Hedef yok.",
+      "ideas": "Fikir yok.",
+      "references": "Referans yok.",
+      "commands": "Kayıtlı komut yok.",
+      "memory": "Bellek boş."
+    },
+    "composer": "Mesaj · #{{channel}}",
+    "voice": "Bas-konuş",
+    "attach": "Dosya ya da referans ekle",
+    "send": "Gönder",
+    "crew": "Loncadakiler",
+    "invite": "Davet",
+    "workers": "İşçiler",
+    "advisors": "Danışmanlar",
+    "members": "Üyeler",
+    "noWorkers": "Hazır CLI agentı yok.",
+    "noAdvisors": "Danışman yok.",
+    "role": {
+      "admin": "Yönetici",
+      "editor": "Düzenleyici",
+      "viewer": "Görüntüleyici"
+    },
+    "settings": "Ayarlar",
+    "shortcuts": "Kısayollar"
+  },
+  "settings": {
+    "title": "Ayarlar",
+    "tabs": {
+      "general": "Genel",
+      "appearance": "Görünüm",
+      "agents": "CLI agentları",
+      "team": "Ekip bağlantısı",
+      "updates": "Güncelleme",
+      "about": "Hakkında"
+    },
+    "language": "Dil",
+    "name": "Görünen ad",
+    "dataFolder": "Veri klasörü",
+    "version": "Sürüm {{version}}",
+    "license": "Apache-2.0 lisansı",
+    "source": "Kaynak kodu"
+  },
+  "theme": {
+    "dark": "Koyu",
+    "light": "Açık",
+    "system": "Sistem"
+  },
+  "accent": {
+    "lime": "Limon",
+    "blue": "Mavi",
+    "orange": "Turuncu",
+    "violet": "Mor"
+  },
+  "motion": {
+    "system": "Sistem ayarı",
+    "reduced": "Azaltılmış"
+  },
+  "update": {
+    "disabled": "Geliştirme sürümünde güncelleme kapalı.",
+    "idle": "Güncelleme denetlenmedi.",
+    "checking": "Denetleniyor",
+    "available": "Yeni sürüm bulundu: {{version}}",
+    "downloading": "İndiriliyor · %{{percent}}",
+    "ready": "Sürüm {{version}} hazır",
+    "none": "Sürüm güncel.",
+    "error": "Güncelleme denetlenemedi.",
+    "check": "Denetle",
+    "restart": "Yeniden başlat"
+  },
+  "errors": {
+    "bad_request": "Geçersiz istek.",
+    "unknown_method": "Bilinmeyen istek.",
+    "invalid_settings": "Ayar kaydedilemedi: geçersiz değer.",
+    "not_installed": "CLI bu bilgisayarda bulunamadı.",
+    "login_unavailable": "Giriş penceresi açılamadı.",
+    "internal": "Beklenmeyen hata.",
+    "core_offline": "Çekirdek süreci yanıt vermiyor."
+  }
+}

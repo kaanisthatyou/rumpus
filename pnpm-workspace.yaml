@@ -1,0 +1,13 @@
+packages:
+  - apps/*
+  - packages/*
+
+# Install scripts run only for packages listed here as true.
+allowBuilds:
+  electron: true
+  electron-winstaller: false
+  esbuild: true
+
+# Supply chain: only install versions that have been public for a week, and pin them exactly.
+minimumReleaseAge: 10080
+savePrefix: ''

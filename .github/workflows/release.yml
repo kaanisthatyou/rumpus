@@ -1,0 +1,34 @@
+name: Release
+
+# Pushing a tag like v0.2.0-alpha.1 builds the installers and uploads them to a GitHub release, which is
+# where the app's updater looks. The tag must match apps/desktop/package.json's version.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Tag matches the app version
+        shell: bash
+        run: test "v$(node -p "require('./apps/desktop/package.json').version")" = "$GITHUB_REF_NAME"
+      - run: pnpm check
+      - name: Build and publish
+        working-directory: apps/desktop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm exec electron-vite build && pnpm exec electron-builder --config electron-builder.yml --publish always

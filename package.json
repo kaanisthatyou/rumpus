@@ -1,0 +1,31 @@
+{
+  "name": "lonca",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "packageManager": "pnpm@12.5.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @lonca/desktop dev",
+    "build": "pnpm --filter @lonca/desktop build",
+    "dist": "pnpm --filter @lonca/desktop dist",
+    "typecheck": "pnpm -r typecheck",
+    "test": "vitest run",
+    "e2e": "pnpm --filter @lonca/desktop e2e",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "check:copy": "node scripts/check-copy.mjs",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm check:copy",
+    "icon": "node scripts/make-icon.mjs"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "@resvg/resvg-js": "2.6.2",
+    "@types/node": "26.6.4",
+    "playwright-core": "1.64.0",
+    "typescript": "7.0.2",
+    "vitest": "5.0.3"
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "name": "@lonca/desktop",
+  "productName": "Lonca",
+  "private": true,
+  "version": "0.2.0-alpha.0",
+  "description": "Open-source hub where people and their CLI coding agents work together",
+  "license": "Apache-2.0",
+  "author": "Lonca contributors",
+  "homepage": "https://github.com/kaanisthatyou/lonca",
+  "type": "module",
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "dist": "electron-vite build && electron-builder --config electron-builder.yml --publish never",
+    "typecheck": "tsc -p tsconfig.node.json && tsc -p tsconfig.preload.json && tsc -p tsconfig.web.json",
+    "e2e": "electron-vite build && node e2e/smoke.mjs"
+  },
+  "dependencies": {
+    "@lonca/core": "workspace:*",
+    "@lonca/protocol": "workspace:*",
+    "@lonca/ui": "workspace:*",
+    "electron-updater": "6.8.9"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "5.2.0",
+    "electron": "44.7.0",
+    "electron-builder": "26.15.3",
+    "electron-vite": "5.0.0",
+    "i18next": "26.4.2",
+    "motion": "14.0.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-i18next": "17.0.16",
+    "vite": "7.3.7",
+    "zustand": "5.0.15"
+  }
+}

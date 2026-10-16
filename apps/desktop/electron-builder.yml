@@ -1,0 +1,43 @@
+appId: io.github.kaanisthatyou.lonca
+productName: Lonca
+copyright: Copyright 2026 Lonca contributors
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**/*
+  - package.json
+asar: true
+# The workspace package is "@lonca/desktop"; inside the app it is plain "lonca", which names the install folder
+# (%LOCALAPPDATA%\Programs\lonca) and the updater cache.
+extraMetadata:
+  name: lonca
+
+win:
+  icon: build/icon.ico
+  target:
+    - target: nsis
+      arch: [x64]
+  artifactName: Lonca-Setup-${version}.${ext}
+
+nsis:
+  # Per-user install without admin rights, like Discord or VS Code's user installer.
+  oneClick: true
+  perMachine: false
+  shortcutName: Lonca
+  deleteAppDataOnUninstall: false
+
+linux:
+  icon: build/icon.png
+  target:
+    - AppImage
+    - deb
+  category: Development
+  maintainer: Lonca contributors <kaanisthatyou@users.noreply.github.com>
+  artifactName: Lonca-${version}-${arch}.${ext}
+
+publish:
+  provider: github
+  owner: kaanisthatyou
+  repo: lonca
+  releaseType: release

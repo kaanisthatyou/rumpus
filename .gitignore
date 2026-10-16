@@ -1,4 +1,12 @@
+node_modules/
+out/
+dist/
+release*/
+coverage/
+.vite/
+*.log
+.lonca/
+tmp/
+test-results/
 __pycache__/
 *.pyc
-.lonca/
-.state/

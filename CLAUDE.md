@@ -1,38 +1,65 @@
 # Lonca — rules for Claude
 
-**v2 is being planned in `PLAN.md`** (Electron + TypeScript, open source, Apache-2.0). Read it first for any v2
-work; the layout and rules below describe v0.1, the Python chat server. Two v2 rules that are easy to miss: the
-UI's own text is **impersonal** (PLAN.md 7.1: no "sen/siz", no "!", no emoji, the app never speaks as itself), and
-there is **no relay or hosted server**: teams connect over Tailscale.
+An open-source (Apache-2.0) desktop hub where people and the CLI coding agents they already have work together.
+It is the general version of roblox-factory's Fabrika app. Owners: Kaan and Arda. This repo is separate on
+purpose; never change roblox-factory for it.
 
-The general version of roblox-factory's Fabrika app: a chat server where people call agents that run on their
-own computers. Owners: Kaan and Arda. This repo is separate on purpose; never change roblox-factory for it.
-
-- Reply to the user in **Turkish**. Everything in the repo is **English**; the UI has both (`STR` in `ui/app.js`).
-- Read `README.md` first: what exists, how it is built, what is not there yet.
+- Reply to the user in **Turkish**. Everything in the repo is **English**. The UI has both languages
+  (`apps/desktop/src/renderer/src/locales/tr.json` and `en.json`, always both).
+- **Read `PLAN.md` first**: decisions, principles, phases, and what the current phase contains. Research behind it
+  is in `docs/research/`.
+- Lonca has **no agent of its own**. It drives the user's own CLIs (Claude Code, Codex, OpenCode...). Model calls
+  of its own are only for advisors, memory upkeep and voice, on the user's API keys.
+- **No relay and no hosted server**, now or later: solo needs nothing, teams connect over Tailscale.
 
 ## Layout
 
 | What | Where |
 |---|---|
-| Server: members, devices, invites, channels, messages, jobs, HTTP + SSE | `lonca/hub.py` |
-| A member's machine: connects out, runs requests | `lonca/node.py` |
-| How one request runs (Claude Code, any command), modes | `lonca/agents.py` |
-| Addresses to listen on and hand out, QR | `lonca/net.py` |
-| Files under `~/.lonca` | `lonca/store.py` |
-| Commands (`host`, `join`, `agent`, `invite`, `phone`) | `lonca/__main__.py` |
-| The one page for desktop and phone | `lonca/ui/` |
+| Contract between core and clients: settings schema, RPC methods and events, error codes | `packages/protocol` |
+| Core logic, transport-agnostic: CLI detection, settings store, Tailscale status, RPC server | `packages/core` |
+| Design system "Grafit & tek vurgu": tokens, base CSS, components, line icons, motion presets | `packages/ui` |
+| Electron main process: window, security, updater, IPC for what only main can do | `apps/desktop/src/main` |
+| The core as an Electron utility process (one MessagePort per window) | `apps/desktop/src/core` |
+| Preload bridge (`window.lonca`) | `apps/desktop/src/preload`, types in `src/shared/bridge.ts` |
+| The UI: launcher, shell, settings, store, RPC client | `apps/desktop/src/renderer` |
+| Real-app tests (launcher, shell, settings, restart; update from a local feed) | `apps/desktop/e2e` |
+| Copy rules check, icon renderer | `scripts/` |
 
 ## Rules
 
-- No dependencies in the hub and node beyond the standard library (`segno` and `pywebview` are optional extras).
-- The security model in the README is the product. Do not weaken a default (read-only, owner only, one-time
-  codes, hashed tokens, the custom header on posts) and keep agent configuration on the owner's machine: the
-  hub must never be able to change what an agent may do.
-- Only a person's message starts a job. An agent's answer never does.
-- Every refusal is a code (`HubError("name_taken")`) that the UI translates; add both languages.
-- UI: icons are line SVGs from the sprite in `index.html` (no emoji or symbols as icons), system font, the phone
-  layout is the `max-width: 760px` block, touch targets 44px. Nothing from the server goes into `innerHTML`
-  except through `MD.render`, which escapes.
-- After a change: `python -m unittest discover -s tests`, then try it in the real app with its own data folder
-  (`LONCA_HOME=<temp folder>`, another `--port`) in a desktop and a phone-sized browser before saying it works.
+- **Principles in PLAN.md section 3 are the product.** Safe defaults (agents read-only and owner-only), the owner's
+  machine decides what an agent may do, only a person's message starts work, Lonca never reads or copies a CLI's
+  login files, no "Sign in with Claude/Gemini". Do not weaken them.
+- **UI copy is impersonal** (PLAN.md 7.1): no `sen`/`siz` or `you`/`your`, no `!`, no emoji, no greetings or
+  praise, the app never speaks as itself. Buttons are plain verbs or nouns. `pnpm check:copy` enforces part of it.
+- Every refusal is a code (`CoreError('not_installed')`, list in `packages/protocol`) with a line in both locales
+  under `errors.`.
+- Icons are line SVGs from `packages/ui/src/icons.tsx`; never emoji or symbol characters as icons. Native controls
+  (`<button>`, `<input type="radio">` in a `<label>`) over ARIA roles on divs.
+- Motion explains state changes, stays short, and respects `prefers-reduced-motion` and the Motion setting.
+- Renderer: sandboxed, context-isolated; it talks to the core over the MessagePort and to main only through
+  `window.lonca`. Main checks that IPC comes from the app's own page. Keep it that way.
+- Supply chain: pnpm installs only versions older than 7 days (`minimumReleaseAge`) and pins them exactly. Install
+  scripts run only for packages in `allowBuilds` (`pnpm-workspace.yaml`).
+
+## After a change
+
+1. `pnpm check` (Biome, TypeScript, Vitest, copy rules).
+2. `pnpm e2e`: the real app with a temporary `LONCA_HOME`, through the launcher, shell, settings and a restart.
+   Look at the screenshots in `apps/desktop/test-results/` before saying a UI change works.
+3. Packaging changes: `pnpm dist`, then `E2E_EXE=release/win-unpacked/Lonca.exe node e2e/smoke.mjs` in
+   `apps/desktop`. Updater changes: `e2e/update.mjs` (see its header).
+
+## Gotchas
+
+- An update test must never install what it downloaded: the local test feed turns off install-on-quit. If a test
+  build gets installed anyway, remove it with its own uninstaller from PowerShell.
+- Git Bash rewrites `/S`-style arguments into paths. Run Windows installers, `taskkill` and similar from
+  PowerShell (or set `MSYS_NO_PATHCONV=1`).
+- Playwright's `page.screenshot` can hang on Electron windows; the e2e scripts use `webContents.capturePage()`.
+- electron-builder's icon converter can fail for lack of memory; `pnpm icon` builds `icon.png` and `icon.ico`
+  itself from `apps/desktop/build/icon.svg`.
+- Releases: tag `v<version>` (matching `apps/desktop/package.json`) and the Release workflow publishes the
+  installers. While the repo is private, installed apps cannot read the releases, so auto-update works only
+  after the repo goes public (planned after Phase 1).
