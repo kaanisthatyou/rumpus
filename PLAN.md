@@ -499,7 +499,8 @@ Still open for Phase 0's "done when":
 - **Real auto-update:** works against GitHub Releases only once the repo is public. Verified with a local feed:
   0.2.0-alpha.0 found 0.2.0-alpha.1, downloaded it, offered the restart, and (by accident, before the test hook
   turned install-on-quit off) installed it silently when it closed.
-- **Linux:** configured, not yet built or run on Linux; the CI's Ubuntu job is the first check.
+- **Linux:** CI passes on Ubuntu (lint, types, tests, build); the AppImage and deb packages have not been built
+  or run on Linux yet (the first tagged release builds them).
 
 ## 9. Risks
 
