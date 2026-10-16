@@ -1,5 +1,10 @@
 # Lonca — rules for Claude
 
+**v2 is being planned in `PLAN.md`** (Electron + TypeScript, open source, Apache-2.0). Read it first for any v2
+work; the layout and rules below describe v0.1, the Python chat server. Two v2 rules that are easy to miss: the
+UI's own text is **impersonal** (PLAN.md 7.1: no "sen/siz", no "!", no emoji, the app never speaks as itself), and
+there is **no relay or hosted server**: teams connect over Tailscale.
+
 The general version of roblox-factory's Fabrika app: a chat server where people call agents that run on their
 own computers. Owners: Kaan and Arda. This repo is separate on purpose; never change roblox-factory for it.
 
