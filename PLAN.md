@@ -47,7 +47,7 @@ From the Q&A on 2026-10-16.
 | System prompts | Fabrika-like defaults for every role (worker, advisor, goal step, ...), editable by the people using them, in layers (5.14) |
 | Phase order | Team (Phase 3) before memory, voice and the connector store (Phase 4) |
 | Viewer role | Reads and posts messages; cannot task agents or edit the board and records |
-| Public repo | Private until Phase 1 is done, set up as open source from the first commit |
+| Repo | `github.com/kaanisthatyou/lonca`, private until Phase 1 is done, set up as open source from the first commit |
 | Telemetry | None. Lonca sends nothing |
 | v0.1 code | Removed from `main` when the v2 skeleton lands; tag `v0.1.0` kept |
 | Theme | **Grafit & tek vurgu** (direction 2 on the canvas) |
@@ -491,4 +491,4 @@ Each phase ends with something installable that the two of you use for real.
 
 ## 10. Open questions
 
-1. GitHub org and repo name.
+None at the end of planning (2026-10-16). Next step: Phase 0.
