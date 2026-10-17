@@ -1,10 +1,12 @@
 // Ctrl K: one box to reach channels, agents, views, actions and messages.
-import type { Message } from '@lonca/protocol';
+import type { Message, ShortcutAction } from '@lonca/protocol';
 import { Icon, IconButton, type IconName, Kbd } from '@lonca/ui';
 import { motion } from 'motion/react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { bindings, comboLabel } from '../keys';
 import { core } from '../rpc';
+import { ACTION_LABEL } from '../settings/ShortcutsPanel';
 import { useApp, type View } from '../store';
 
 interface Item {
@@ -199,14 +201,13 @@ export function ShortcutsDialog() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [setShortcuts]);
+  const settings = useApp((s) => s.settings);
+  const map = bindings(settings);
   const rows: [string, string][] = [
-    ['Ctrl K', t('shortcuts.palette')],
-    ['Ctrl ,', t('shortcuts.settings')],
-    ['Alt ↑', t('shortcuts.prevChannel')],
-    ['Alt ↓', t('shortcuts.nextChannel')],
-    ['Ctrl .', t('shortcuts.stop')],
-    ['Ctrl Shift ↓', t('shortcuts.nextWaiting')],
-    ['Ctrl /', t('shortcuts.list')],
+    ...(Object.keys(map) as ShortcutAction[]).map((a): [string, string] => [
+      comboLabel(map[a]),
+      t(`shortcuts.${ACTION_LABEL[a]}`),
+    ]),
     ['Enter', t('shortcuts.send')],
     ['Shift Enter', t('shortcuts.newline')],
     ['@', t('shortcuts.mention')],

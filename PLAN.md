@@ -541,10 +541,11 @@ Built and verified (unit tests, and the real app driven against a fake Claude Co
   Deny on its card, a "Bekleyenler" count in the sidebar, an OS notification when Lonca is in the background, and
   `Ctrl Shift ↑ / ↓` to go through waiting jobs. Control requests Lonca does not handle get an error answer.
 
+- Pinned commands as buttons above the message box; shortcuts rebindable in Settings (recorded by pressing them,
+  conflicts refused, back to default), the shortcut list showing the current keys.
+
 Still to do in Phase 1:
 
-- Command tiles pinned above the composer.
-- Rebindable shortcuts.
 
 ## 9. Risks
 

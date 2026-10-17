@@ -143,6 +143,8 @@ export interface RecordItem {
   image?: { blob: string; mime: string; width?: number; height?: number };
   /** The message it was saved from, if any. */
   sourceId?: string;
+  /** Commands: shown as a button above the message box. */
+  pinned?: boolean;
   created: number;
   updated: number;
 }
@@ -159,6 +161,7 @@ export interface RecordInput {
   width?: number;
   height?: number;
   sourceId?: string;
+  pinned?: boolean;
 }
 
 export const CARD_STATUSES = ['todo', 'doing', 'review', 'done'] as const;

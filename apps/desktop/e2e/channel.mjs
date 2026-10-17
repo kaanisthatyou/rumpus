@@ -179,10 +179,32 @@ try {
   await page.getByRole('button', { name: L.records.new.command }).click();
   await page.getByLabel(L.records.title).fill('Özet');
   await page.getByLabel(L.records.body.command).fill('{channel} kanalını özetle');
+  await page.getByRole('switch', { name: L.records.pin }).click();
   await page.getByRole('button', { name: L.records.save, exact: true }).click();
   await page.getByRole('button', { name: L.records.use }).click();
   await until(async () => (await composer.inputValue()) === 'genel kanalını özetle', 'command in the message box');
   await composer.fill('');
+  // The pinned command as a button above the message box.
+  await page.locator('.tile', { hasText: 'Özet' }).click();
+  await until(async () => (await composer.inputValue()) === 'genel kanalını özetle', 'tile in the message box');
+  await composer.fill('');
+
+  // A rebound shortcut: the palette on Ctrl J, then back to the default.
+  await page.keyboard.press('Control+Comma');
+  const prefs = page.getByRole('dialog', { name: L.settings.title });
+  await prefs.getByRole('button', { name: L.settings.tabs.shortcuts }).click();
+  await prefs.getByRole('button', { name: L.shortcuts.change }).first().click();
+  await page.keyboard.press('Control+j');
+  await prefs.getByText('Ctrl J').waitFor();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Control+j');
+  await page.getByRole('textbox', { name: L.palette.placeholder }).waitFor();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Control+Comma');
+  await prefs.getByRole('button', { name: L.settings.tabs.shortcuts }).click();
+  await prefs.getByRole('button', { name: L.shortcuts.reset }).click();
+  await prefs.getByText('Ctrl K').waitFor();
+  await page.keyboard.press('Escape');
 
   // Instructions: edit the worker template, see it in the preview, go back to the default.
   await page.keyboard.press('Control+Comma');

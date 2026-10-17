@@ -156,7 +156,8 @@
       "team": "Ekip bağlantısı",
       "updates": "Güncelleme",
       "about": "Hakkında",
-      "instructions": "Talimatlar"
+      "instructions": "Talimatlar",
+      "shortcuts": "Kısayollar"
     },
     "language": "Dil",
     "name": "Görünen ad",
@@ -371,7 +372,14 @@
     "newline": "Yeni satır",
     "mention": "Agent çağır",
     "command": "Komut",
-    "nextWaiting": "Sıradaki onay bekleyen iş"
+    "nextWaiting": "Sıradaki onay bekleyen iş",
+    "prevWaiting": "Önceki onay bekleyen iş",
+    "change": "Değiştir",
+    "press": "Yeni tuş birleşimi · Esc vazgeçer",
+    "taken": "Bu birleşim kullanımda: {{action}}",
+    "needsModifier": "Ctrl ya da Alt ile birlikte basılır.",
+    "reset": "Varsayılan",
+    "fixed": "Mesaj kutusu tuşları sabittir."
   },
   "records": {
     "new": {
@@ -414,7 +422,8 @@
     "pasted": "Yapıştırılan görsel",
     "saveMessage": "Fikir olarak kaydet",
     "remove": "Çıkar",
-    "select": "Soldan bir kayıt seçilir ya da yenisi eklenir."
+    "select": "Soldan bir kayıt seçilir ya da yenisi eklenir.",
+    "pin": "Mesaj kutusunun üstüne sabitle"
   },
   "instructions": {
     "core": "Lonca çekirdek kuralları",

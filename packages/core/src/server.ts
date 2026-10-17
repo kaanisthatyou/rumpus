@@ -697,6 +697,7 @@ export class Core {
       tags,
       ...(status ? { status } : {}),
       ...(image ? { image } : {}),
+      ...(kind === 'command' && (typeof p.pinned === 'boolean' ? p.pinned : existing?.pinned) ? { pinned: true } : {}),
       ...(typeof p.sourceId === 'string'
         ? { sourceId: p.sourceId }
         : existing?.sourceId

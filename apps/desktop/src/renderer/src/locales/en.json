@@ -156,7 +156,8 @@
       "team": "Team connection",
       "updates": "Updates",
       "about": "About",
-      "instructions": "Instructions"
+      "instructions": "Instructions",
+      "shortcuts": "Shortcuts"
     },
     "language": "Language",
     "name": "Display name",
@@ -371,7 +372,14 @@
     "newline": "New line",
     "mention": "Call an agent",
     "command": "Command",
-    "nextWaiting": "Next job waiting for approval"
+    "nextWaiting": "Next job waiting for approval",
+    "prevWaiting": "Previous job waiting for approval",
+    "change": "Change",
+    "press": "New key combination · Esc cancels",
+    "taken": "This combination is in use: {{action}}",
+    "needsModifier": "Pressed together with Ctrl or Alt.",
+    "reset": "Default",
+    "fixed": "Message box keys are fixed."
   },
   "records": {
     "new": {
@@ -414,7 +422,8 @@
     "pasted": "Pasted image",
     "saveMessage": "Save as idea",
     "remove": "Remove",
-    "select": "A record is chosen on the left, or a new one is added."
+    "select": "A record is chosen on the left, or a new one is added.",
+    "pin": "Pin above the message box"
   },
   "instructions": {
     "core": "Lonca's core rules",

@@ -2,6 +2,7 @@ import { Mark } from '@lonca/ui';
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import { useCallback, useEffect, useState } from 'react';
 import { AgentDialog } from './agents/AgentDialog';
+import { actionFor } from './keys';
 import { Launcher } from './launcher/Launcher';
 import { Palette, ShortcutsDialog } from './palette/Palette';
 import { SettingsDialog } from './settings/SettingsDialog';
@@ -38,40 +39,55 @@ export function App() {
     const onKey = (e: KeyboardEvent) => {
       if (!onboarded) return;
       const s = useApp.getState();
-      if (e.ctrlKey && e.key === ',') {
+      // While a shortcut is being recorded in Settings, keys belong to the recorder.
+      if (s.recording) return;
+      const action = actionFor(e, s.settings);
+      if (!action) return;
+      const go = (fn: () => void) => {
         e.preventDefault();
-        setSettingsOpen((open) => !open);
-      } else if (e.ctrlKey && (e.key === 'k' || e.key === 'K')) {
-        e.preventDefault();
-        s.setPalette(!s.paletteOpen);
-      } else if (e.ctrlKey && e.key === '/') {
-        e.preventDefault();
-        s.setShortcuts(!s.shortcutsOpen);
-      } else if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
-        // Channels in sidebar order, wrapping around.
-        const list = s.workspace?.channels ?? [];
-        if (list.length === 0) return;
-        e.preventDefault();
-        const i = list.findIndex((c) => c.id === s.channelId);
-        const next = list[(i + (e.key === 'ArrowDown' ? 1 : list.length - 1) + list.length) % list.length];
-        if (next) void s.openChannel(next.id);
-      } else if (e.ctrlKey && e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
-        // Jobs waiting on a person, oldest first, wrapping around.
-        const waiting = Object.values(s.jobs)
+        fn();
+      };
+      const waiting = () =>
+        Object.values(s.jobs)
           .filter((j) => j.state === 'attention')
           .sort((a, b) => a.started - b.started);
-        if (waiting.length === 0) return;
-        e.preventDefault();
-        const i = waiting.findIndex((j) => j.id === s.watching);
-        const next = waiting[(i + (e.key === 'ArrowDown' ? 1 : waiting.length - 1) + waiting.length) % waiting.length];
-        if (next) void s.openJob(next.id);
-      } else if (e.ctrlKey && e.key === '.') {
-        const running = Object.values(s.jobs)
-          .filter((j) => j.channelId === s.channelId && j.state === 'running')
-          .sort((a, b) => b.started - a.started)[0];
-        if (running) {
-          e.preventDefault();
-          void s.stopJob(running.id);
+      const step = <T,>(list: T[], current: number, down: boolean) =>
+        list[(current + (down ? 1 : list.length - 1) + list.length) % list.length];
+      switch (action) {
+        case 'settings':
+          return go(() => setSettingsOpen((open) => !open));
+        case 'palette':
+          return go(() => s.setPalette(!s.paletteOpen));
+        case 'shortcuts':
+          return go(() => s.setShortcuts(!s.shortcutsOpen));
+        case 'prevChannel':
+        case 'nextChannel': {
+          const list = s.workspace?.channels ?? [];
+          if (list.length === 0) return;
+          const next = step(
+            list,
+            list.findIndex((c) => c.id === s.channelId),
+            action === 'nextChannel',
+          );
+          return go(() => next && void s.openChannel(next.id));
+        }
+        case 'prevWaiting':
+        case 'nextWaiting': {
+          const list = waiting();
+          if (list.length === 0) return;
+          const next = step(
+            list,
+            list.findIndex((j) => j.id === s.watching),
+            action === 'nextWaiting',
+          );
+          return go(() => next && void s.openJob(next.id));
+        }
+        case 'stop': {
+          const running = Object.values(s.jobs)
+            .filter((j) => j.channelId === s.channelId && (j.state === 'running' || j.state === 'attention'))
+            .sort((a, b) => b.started - a.started)[0];
+          if (running) go(() => void s.stopJob(running.id));
+          return;
         }
       }
     };

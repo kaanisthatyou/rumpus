@@ -38,6 +38,8 @@ export const SettingsSchema = z.object({
   /** Where workspaces, records and history live. Empty means the default inside the app's data folder. */
   dataDir: z.string(),
   onboarded: z.boolean(),
+  /** Rebound shortcuts: action → combo like `Ctrl+Shift+K`. Missing actions use the defaults. */
+  shortcuts: z.record(z.string(), z.string().max(40)).default({}),
 });
 export type Settings = z.infer<typeof SettingsSchema>;
 export type Language = Settings['language'];
@@ -49,6 +51,19 @@ export const SettingsPatchSchema = SettingsSchema.omit({ v: true })
   .partial();
 export type SettingsPatch = z.infer<typeof SettingsPatchSchema>;
 
+/** Actions with a shortcut, and their defaults (PLAN.md 5.10). */
+export const SHORTCUTS = {
+  palette: 'Ctrl+K',
+  settings: 'Ctrl+,',
+  shortcuts: 'Ctrl+/',
+  prevChannel: 'Alt+ArrowUp',
+  nextChannel: 'Alt+ArrowDown',
+  stop: 'Ctrl+.',
+  prevWaiting: 'Ctrl+Shift+ArrowUp',
+  nextWaiting: 'Ctrl+Shift+ArrowDown',
+} as const;
+export type ShortcutAction = keyof typeof SHORTCUTS;
+
 export function defaultSettings(language: Language = 'en'): Settings {
   return {
     v: 1,
@@ -59,6 +74,7 @@ export function defaultSettings(language: Language = 'en'): Settings {
     profile: { name: '' },
     dataDir: '',
     onboarded: false,
+    shortcuts: {},
   };
 }
 

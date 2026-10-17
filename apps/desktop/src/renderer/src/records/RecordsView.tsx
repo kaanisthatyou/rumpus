@@ -1,6 +1,6 @@
 // Records (Kayıtlar): ideas, reference images, saved commands. One list with an editor next to it.
 import { IDEA_STATUSES, type IdeaStatus, type RecordItem, type RecordKind } from '@lonca/protocol';
-import { Button, Chip, Icon, type IconName, Segmented, TextField } from '@lonca/ui';
+import { Button, Chip, Icon, type IconName, Segmented, Switch, TextField } from '@lonca/ui';
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -71,6 +71,7 @@ function Editor({
   const [body, setBody] = useState(record?.body ?? '');
   const [tags, setTags] = useState(record?.tags.join(', ') ?? '');
   const [status, setStatus] = useState<IdeaStatus>(record?.status ?? 'new');
+  const [pinned, setPinned] = useState(record?.pinned === true);
 
   const save = async () => {
     const saved = await saveRecord({
@@ -83,6 +84,7 @@ function Editor({
         .map((x) => x.trim())
         .filter(Boolean),
       ...(kind === 'idea' ? { status } : {}),
+      ...(kind === 'command' ? { pinned } : {}),
     });
     if (saved) {
       flash(t('records.saved'));
@@ -127,6 +129,12 @@ function Editor({
         hint={t('records.tagsHint')}
         onChange={(e) => setTags(e.target.value)}
       />
+      {kind === 'command' && (
+        <div className="row-field">
+          <Switch checked={pinned} onChange={setPinned} label={t('records.pin')} />
+          <span>{t('records.pin')}</span>
+        </div>
+      )}
       {kind === 'idea' && (
         <div className="l-field">
           <span className="l-field__label">{t('records.status')}</span>

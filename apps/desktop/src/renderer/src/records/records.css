@@ -239,3 +239,34 @@
 .picker__none {
   padding: 8px;
 }
+
+.composer__tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 6px;
+}
+.tile {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 13px;
+  border: 1px solid var(--line-2);
+  background: var(--card);
+  color: var(--mute);
+  font-size: 12px;
+  transition:
+    color var(--t-fast),
+    border-color var(--t-fast),
+    transform 300ms var(--spring);
+}
+.tile:hover {
+  color: var(--ink);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  transform: translateY(-1px);
+}
+.tile .l-icon {
+  color: var(--accent-ink);
+}

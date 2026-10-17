@@ -55,6 +55,8 @@ interface AppState {
   /** Text to put into the message box of the open channel (a saved command). */
   inject?: { text: string; at: number };
   paletteOpen: boolean;
+  /** A shortcut is being recorded in Settings: global shortcuts pause. */
+  recording?: boolean;
   shortcutsOpen: boolean;
   /** A short confirmation line, cleared after a few seconds. */
   note?: string;

@@ -261,3 +261,23 @@
   background: color-mix(in srgb, var(--ok) 10%, var(--side));
   border: 1px solid color-mix(in srgb, var(--ok) 30%, transparent);
 }
+
+.shortcuts__list--edit {
+  padding: 0;
+}
+.shortcuts__list--edit .shortcuts__row {
+  gap: 10px;
+  min-height: 42px;
+}
+.shortcuts__list--edit dt {
+  width: 190px;
+}
+.shortcuts__rec {
+  font-size: 12px;
+  color: var(--accent-ink);
+}
+.shortcuts__problem {
+  margin: 0;
+  color: var(--bad);
+  font-size: 12.5px;
+}
