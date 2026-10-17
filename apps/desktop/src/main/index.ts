@@ -14,6 +14,7 @@ import {
   utilityProcess,
 } from 'electron';
 import type { UpdateState } from '../shared/bridge.js';
+import { errorCode, Providers } from './providers.js';
 import { Updater } from './updater.js';
 import { loadWindowState, trackWindowState } from './window-state.js';
 
@@ -30,6 +31,7 @@ let core: UtilityProcess | undefined;
 let quitting = false;
 let coreRestarts = 0;
 const updater = new Updater();
+let providers: Providers | undefined;
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -51,6 +53,7 @@ function startCore(): void {
       LONCA_LOCALE: process.env.LONCA_LANG ?? app.getLocale(),
     },
   });
+  providers?.attach(core);
   core.on('exit', () => {
     core = undefined;
     if (quitting || coreRestarts > 5) return;
@@ -112,6 +115,36 @@ function registerIpc(): void {
     });
     n.show();
   });
+  // Providers: a refusal travels as its error code in the message.
+  const guarded =
+    <A extends unknown[], T>(fn: (...args: A) => T | Promise<T>) =>
+    async (_e: IpcMainInvokeEvent, ...args: unknown[]) => {
+      try {
+        return await fn(...(args as A));
+      } catch (e) {
+        throw new Error(errorCode(e));
+      }
+    };
+  handle(
+    'providers:state',
+    guarded(() => providers?.state()),
+  );
+  handle(
+    'providers:save',
+    guarded((input: unknown) => providers?.save(input)),
+  );
+  handle(
+    'providers:remove',
+    guarded((id: unknown) => providers?.remove(id)),
+  );
+  handle(
+    'providers:removeKey',
+    guarded((id: unknown, keyId: unknown) => providers?.removeKey(id, keyId)),
+  );
+  handle(
+    'providers:models',
+    guarded((id: unknown) => providers?.models(id)),
+  );
   handle('update:state', () => updater.get());
   handle('update:check', () => updater.check());
   handle('update:install', () => updater.install());
@@ -167,6 +200,10 @@ function createWindow(): BrowserWindow {
 }
 
 function start(): void {
+  providers = new Providers(appDir);
+  providers.onChange((state) => {
+    if (win && !win.isDestroyed()) win.webContents.send('providers:changed', state);
+  });
   hardenSessions();
   registerIpc();
   startCore();

@@ -556,6 +556,17 @@ Left open from Phase 1: a logged-in Codex run (no Codex login on the dev machine
 public, which waits for the owners' go.
 
 
+### Phase 2 status (started 2026-10-18)
+
+- Providers: presets (Groq, Anthropic, Gemini, NVIDIA NIM, DeepSeek, OpenRouter, OpenAI, Ollama, LM Studio,
+  llama.cpp, any OpenAI-compatible URL), kept by the main process in `<app>/providers.json` with keys sealed by
+  `safeStorage` (Linux without a keychain is shown as weak protection; with no encryption keys are refused). The
+  page sends keys in and gets back only their last four characters. Two wires: OpenAI chat completions and
+  Anthropic messages, both streamed; a key chain that moves on after 401, 403 or 429; `GET /models` read
+  tolerantly; plain http only for loopback, private networks and Tailscale addresses. The core asks the main
+  process for completions over its parent port (`PortLlm`). Tested against a local stand-in server (unit tests and
+  `e2e/advisors.mjs`).
+
 ## 9. Risks
 
 - **Terms and billing move** (Anthropic's billing for `claude -p` changed twice in 2026; Google bans OAuth reuse):

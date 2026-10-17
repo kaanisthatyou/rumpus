@@ -11,7 +11,8 @@
     "rescan": "Scan again",
     "scanning": "Scanning",
     "docs": "Docs",
-    "notYet": "Not active in this version yet."
+    "notYet": "Not active in this version yet.",
+    "cancel": "Cancel"
   },
   "launcher": {
     "step": "Setup · {{n}} / {{total}}",
@@ -157,7 +158,8 @@
       "updates": "Updates",
       "about": "About",
       "instructions": "Instructions",
-      "shortcuts": "Shortcuts"
+      "shortcuts": "Shortcuts",
+      "providers": "Providers"
     },
     "language": "Language",
     "name": "Display name",
@@ -206,7 +208,18 @@
     "handle_taken": "This name is in use.",
     "folder_missing": "Folder not found.",
     "cli_missing": "The CLI was not found on this computer.",
-    "busy": "The job is no longer running."
+    "busy": "The job is no longer running.",
+    "provider_bad_url": "Address refused: https is required; http only for this computer, the local network and Tailscale.",
+    "provider_bad_key": "The key format is invalid.",
+    "provider_storage": "Keys cannot be stored on this system.",
+    "provider_no_key": "No usable key for this provider.",
+    "provider_auth": "The provider refused the key.",
+    "provider_rate_limited": "The provider's rate limit is reached; it can be retried later.",
+    "provider_unreachable": "The provider could not be reached.",
+    "provider_timeout": "The provider did not answer in time.",
+    "provider_cancelled": "Request stopped.",
+    "provider_bad_response": "The provider's answer could not be read.",
+    "provider_refused": "The provider refused the request."
   },
   "channel": {
     "newSession": "New session",
@@ -443,5 +456,40 @@
     "previewHint": "The whole system prompt the chosen agent receives.",
     "noAgent": "A preview needs an agent.",
     "saved": "Saved."
+  },
+  "providers": {
+    "intro": "Advisors, memory and voice run on these providers' models. Workers run on their own CLI logins.",
+    "protection": {
+      "os": "Keys stay on this computer, encrypted with the operating system's keychain, and are sent only to their own provider.",
+      "weak": "No keychain on this system: keys are encrypted with a fixed password, which is weak protection.",
+      "none": "Encryption is not available on this system, so keys cannot be stored. Local servers work without keys."
+    },
+    "add": "Add provider",
+    "empty": "No providers.",
+    "pick": "Choose a provider",
+    "custom": "OpenAI-compatible",
+    "cloud": "Cloud",
+    "local": "Local",
+    "name": "Name",
+    "baseUrl": "Base URL",
+    "baseUrlHint": "https; http only for this computer, the local network and Tailscale.",
+    "wire": "Protocol",
+    "key": "API key",
+    "keyAdd": "Add key",
+    "keyHint": "Several keys are tried in order: after a 401, 403 or 429 the next key is used.",
+    "keyOptional": "Not needed for local servers.",
+    "getKey": "Get a key",
+    "noKey": "No key",
+    "noKeyLocal": "No key needed",
+    "removeKey": "Remove key ···{{hint}}",
+    "models_one": "{{count}} model",
+    "models_other": "{{count}} models",
+    "noModels": "Model list not fetched",
+    "fetch": "Fetch models",
+    "fetched": "Model list updated: {{count}} models.",
+    "save": "Save",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleteConfirm": "Delete the provider and its keys?"
   }
 }

@@ -33,6 +33,7 @@ import { Gateway, type Tool, type ToolContent } from './gateway.js';
 import { newId } from './ids.js';
 import { Instructions } from './instructions.js';
 import { Jobs } from './jobs.js';
+import type { Llm } from './llm.js';
 import { type Launch, openConsole, type Runner } from './proc.js';
 import { CORE_RULES, systemPrompt } from './prompts.js';
 import { SettingsStore } from './settings.js';
@@ -57,6 +58,8 @@ export interface CoreOptions {
   /** Replaced in tests: fake CLIs instead of real ones. */
   drivers?: Partial<Record<CliKind, OpenSession>>;
   launch?: (path: string) => Launch;
+  /** Model providers (the main process in the app). */
+  llm?: Llm;
 }
 
 type Handler<M extends MethodName> = (params: CoreMethods[M]['params']) => Promise<CoreMethods[M]['result']>;

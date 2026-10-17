@@ -11,7 +11,8 @@
     "rescan": "Yeniden tara",
     "scanning": "Taranıyor",
     "docs": "Belgeler",
-    "notYet": "Bu sürümde henüz etkin değil."
+    "notYet": "Bu sürümde henüz etkin değil.",
+    "cancel": "Vazgeç"
   },
   "launcher": {
     "step": "Kurulum · {{n}} / {{total}}",
@@ -157,7 +158,8 @@
       "updates": "Güncelleme",
       "about": "Hakkında",
       "instructions": "Talimatlar",
-      "shortcuts": "Kısayollar"
+      "shortcuts": "Kısayollar",
+      "providers": "Sağlayıcılar"
     },
     "language": "Dil",
     "name": "Görünen ad",
@@ -206,7 +208,18 @@
     "handle_taken": "Bu ad kullanımda.",
     "folder_missing": "Klasör bulunamadı.",
     "cli_missing": "CLI bu bilgisayarda bulunamadı.",
-    "busy": "İş artık çalışmıyor."
+    "busy": "İş artık çalışmıyor.",
+    "provider_bad_url": "Adres kabul edilmedi: https gerekir; http yalnızca bu bilgisayar, yerel ağ ve Tailscale için.",
+    "provider_bad_key": "Anahtar biçimi geçersiz.",
+    "provider_storage": "Bu sistemde anahtar saklanamıyor.",
+    "provider_no_key": "Bu sağlayıcı için kullanılabilir anahtar yok.",
+    "provider_auth": "Sağlayıcı anahtarı kabul etmedi.",
+    "provider_rate_limited": "Sağlayıcının sınırı doldu; daha sonra yeniden denenebilir.",
+    "provider_unreachable": "Sağlayıcıya ulaşılamadı.",
+    "provider_timeout": "Sağlayıcı zamanında yanıt vermedi.",
+    "provider_cancelled": "İstek durduruldu.",
+    "provider_bad_response": "Sağlayıcının yanıtı okunamadı.",
+    "provider_refused": "Sağlayıcı isteği reddetti."
   },
   "channel": {
     "newSession": "Yeni oturum",
@@ -443,5 +456,40 @@
     "previewHint": "Seçilen agenta giden tam sistem istemi.",
     "noAgent": "Önizleme için bir agent gerekir.",
     "saved": "Kaydedildi."
+  },
+  "providers": {
+    "intro": "Danışmanlar, bellek ve ses bu sağlayıcıların modelleriyle çalışır. İşçiler kendi CLI girişleriyle çalışır.",
+    "protection": {
+      "os": "Anahtarlar bu bilgisayarda, işletim sisteminin anahtar deposuyla şifrelenmiş durur ve yalnızca kendi sağlayıcısına gönderilir.",
+      "weak": "Bu sistemde anahtar deposu yok: anahtarlar sabit bir parolayla şifrelenir, bu zayıf bir korumadır.",
+      "none": "Bu sistemde şifreleme kullanılamıyor, anahtar saklanamaz. Yerel sunucular anahtarsız çalışır."
+    },
+    "add": "Sağlayıcı ekle",
+    "empty": "Sağlayıcı yok.",
+    "pick": "Sağlayıcı seç",
+    "custom": "OpenAI uyumlu",
+    "cloud": "Bulut",
+    "local": "Yerel",
+    "name": "Ad",
+    "baseUrl": "Adres",
+    "baseUrlHint": "https; http yalnızca bu bilgisayar, yerel ağ ve Tailscale için.",
+    "wire": "Protokol",
+    "key": "API anahtarı",
+    "keyAdd": "Anahtar ekle",
+    "keyHint": "Birden çok anahtar sırayla denenir: 401, 403 ya da 429 alan anahtardan sonrakine geçilir.",
+    "keyOptional": "Yerel sunucular için gerekmez.",
+    "getKey": "Anahtar al",
+    "noKey": "Anahtar yok",
+    "noKeyLocal": "Anahtarsız",
+    "removeKey": "···{{hint}} anahtarını kaldır",
+    "models_one": "{{count}} model",
+    "models_other": "{{count}} model",
+    "noModels": "Model listesi alınmadı",
+    "fetch": "Modelleri getir",
+    "fetched": "Model listesi güncellendi: {{count}} model.",
+    "save": "Kaydet",
+    "edit": "Düzenle",
+    "delete": "Sil",
+    "deleteConfirm": "Sağlayıcı ve anahtarları silinsin mi?"
   }
 }

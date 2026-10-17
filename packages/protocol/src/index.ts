@@ -17,6 +17,7 @@ import type {
   WorkspaceState,
 } from './workspace.js';
 
+export * from './providers.js';
 export * from './workspace.js';
 
 // ---------------------------------------------------------------- settings
@@ -200,6 +201,17 @@ export const ERROR_CODES = [
   'folder_missing',
   'cli_missing',
   'busy',
+  'provider_bad_url',
+  'provider_bad_key',
+  'provider_storage',
+  'provider_no_key',
+  'provider_auth',
+  'provider_rate_limited',
+  'provider_unreachable',
+  'provider_timeout',
+  'provider_cancelled',
+  'provider_bad_response',
+  'provider_refused',
   'internal',
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];

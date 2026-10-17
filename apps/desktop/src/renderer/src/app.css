@@ -962,3 +962,130 @@
   background: var(--card);
   color: var(--ink);
 }
+
+/* Settings → Providers */
+.prov__protect {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--r);
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--mute);
+  font-size: 12.5px;
+}
+.prov__protect .l-icon {
+  flex: none;
+  margin-top: 2px;
+}
+.prov__protect--os .l-icon {
+  color: var(--ok);
+}
+.prov__protect--weak,
+.prov__protect--none {
+  border-color: color-mix(in srgb, var(--warn) 40%, transparent);
+}
+.prov__protect--weak .l-icon,
+.prov__protect--none .l-icon {
+  color: var(--warn);
+}
+.prov__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.prov {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+}
+.prov__head,
+.prov__models,
+.prov__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.prov__url {
+  font-size: 12px;
+  color: var(--meta);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.prov__keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12px;
+}
+.keychip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 4px 0 8px;
+  border-radius: 6px;
+  border: 1px solid var(--line-2);
+  background: var(--card-2);
+  color: var(--ink-2);
+}
+.keychip .l-icon {
+  color: var(--accent-ink);
+}
+.keychip__x {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  color: var(--meta);
+}
+.keychip__x:hover {
+  background: var(--active);
+  color: var(--ink);
+}
+.prov__sub {
+  margin: 0;
+}
+.prov__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+.prov__preset {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: var(--r);
+  border: 1px solid var(--line);
+  background: var(--card);
+  text-align: left;
+  font-size: 12px;
+  transition:
+    border-color var(--t-fast),
+    transform 300ms var(--spring);
+}
+.prov__preset b {
+  font-size: 13px;
+  color: var(--ink);
+}
+.prov__preset:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  transform: translateY(-1px);
+}
+.prov__form {
+  max-width: 520px;
+}
+.prov__url-field .l-input {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}

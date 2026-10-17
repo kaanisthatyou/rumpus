@@ -1,3 +1,4 @@
+import type { ProvidersState } from '@lonca/protocol';
 import { contextBridge, ipcRenderer } from 'electron';
 import type { LoncaBridge, UpdateState } from '../shared/bridge.js';
 
@@ -14,6 +15,18 @@ const bridge: LoncaBridge = {
     appInfo: () => ipcRenderer.invoke('shell:appInfo'),
     setTitleBar: (colors) => ipcRenderer.invoke('shell:setTitleBar', colors),
     notify: (title, body) => ipcRenderer.invoke('shell:notify', title, body),
+  },
+  providers: {
+    state: () => ipcRenderer.invoke('providers:state'),
+    save: (input) => ipcRenderer.invoke('providers:save', input),
+    remove: (id) => ipcRenderer.invoke('providers:remove', id),
+    removeKey: (id, keyId) => ipcRenderer.invoke('providers:removeKey', id, keyId),
+    models: (id) => ipcRenderer.invoke('providers:models', id),
+    onChange: (listener) => {
+      const h = (_e: unknown, state: ProvidersState) => listener(state);
+      ipcRenderer.on('providers:changed', h);
+      return () => ipcRenderer.off('providers:changed', h);
+    },
   },
   updates: {
     state: () => ipcRenderer.invoke('update:state'),

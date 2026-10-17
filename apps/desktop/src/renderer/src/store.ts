@@ -7,6 +7,9 @@ import type {
   CliKind,
   Job,
   Message,
+  ProviderInfo,
+  ProviderInput,
+  ProvidersState,
   Quota,
   RecordInput,
   RecordItem,
@@ -16,6 +19,7 @@ import type {
   TailscaleInfo,
   WorkspaceState,
 } from '@lonca/protocol';
+import { ERROR_CODES } from '@lonca/protocol';
 import { create } from 'zustand';
 import type { AppInfo, UpdateState } from '../../shared/bridge';
 import i18n from './i18n';
@@ -31,6 +35,7 @@ interface AppState {
   system?: Result<'system.info'>;
   app?: AppInfo;
   update: UpdateState;
+  providers?: ProvidersState;
   /** Error code of the last failed action, shown as a translated line. */
   error?: string;
   /** Set when a CLI login console was opened; CLIs are scanned again when the window regains focus. */
@@ -95,6 +100,10 @@ interface AppState {
   setPalette(open: boolean): void;
   setShortcuts(open: boolean): void;
   flash(note: string): void;
+  saveProvider(input: ProviderInput): Promise<ProviderInfo | undefined>;
+  removeProvider(id: string): Promise<void>;
+  removeProviderKey(id: string, keyId: string): Promise<void>;
+  fetchModels(id: string): Promise<void>;
   saveRecord(input: RecordInput): Promise<RecordItem | undefined>;
   deleteRecord(id: string): Promise<void>;
   attach(id: string): void;
@@ -103,7 +112,12 @@ interface AppState {
   putInComposer(text: string): void;
 }
 
-const codeOf = (err: unknown) => (err instanceof RpcError ? err.code : 'internal');
+/** An RPC refusal carries its code; a main-process refusal arrives as "Error invoking …: Error: <code>". */
+const codeOf = (err: unknown): string => {
+  if (err instanceof RpcError) return err.code;
+  const code = /Error: ([a-z_]+)$/.exec(String((err as Error)?.message ?? ''))?.[1];
+  return code && (ERROR_CODES as readonly string[]).includes(code) ? code : 'internal';
+};
 
 /** The last open channel, a per-window convenience; storage may be unavailable, so every access is guarded. */
 const lastChannel = {
@@ -212,6 +226,8 @@ export const useApp = create<AppState>((set, get) => {
       );
       core.on('record.deleted', ({ id }) => set((s) => ({ records: s.records.filter((r) => r.id !== id) })));
       window.lonca.updates.onChange((update) => set({ update }));
+      window.lonca.providers.onChange((providers) => set({ providers }));
+      void window.lonca.providers.state().then((providers) => set({ providers }));
 
       const [settings, app, update] = await Promise.all([
         core.call('settings.get'),
@@ -460,6 +476,20 @@ export const useApp = create<AppState>((set, get) => {
 
     putInComposer(text) {
       set({ view: 'channel', inject: { text, at: Date.now() } });
+    },
+
+    async saveProvider(input) {
+      return attempt(() => window.lonca.providers.save(input));
+    },
+    async removeProvider(id) {
+      await attempt(() => window.lonca.providers.remove(id));
+    },
+    async removeProviderKey(id, keyId) {
+      await attempt(() => window.lonca.providers.removeKey(id, keyId));
+    },
+    async fetchModels(id) {
+      const info = await attempt(() => window.lonca.providers.models(id));
+      if (info) get().flash(i18n.t('providers.fetched', { count: info.models.length }));
     },
 
     flash(note) {
