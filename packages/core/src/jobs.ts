@@ -16,7 +16,7 @@ import type {
 } from '@lonca/protocol';
 import { openClaude } from './drivers/claude.js';
 import { openCodex } from './drivers/codex.js';
-import type { AgentSession, DriverEvent, OpenSession } from './drivers/types.js';
+import type { AgentSession, Attachment, DriverEvent, OpenSession } from './drivers/types.js';
 import { newId } from './ids.js';
 import { type Launch, resolveLaunch } from './proc.js';
 import { systemPrompt, turnPrompt } from './prompts.js';
@@ -37,6 +37,8 @@ export interface JobsDeps {
   emitQuota: (kind: CliKind, quota: Quota) => void;
   drivers?: Partial<Record<CliKind, OpenSession>>;
   launch?: (path: string) => Launch;
+  /** The records a message refers to: their notes for the prompt, their images as attachments. */
+  refs?: (ids: string[]) => { notes: string[]; images: Attachment[] };
 }
 
 interface Live {
@@ -203,7 +205,9 @@ export class Jobs {
     live.lastText = '';
     live.queue = [];
     const context = this.contextFor(agent, channel, request);
-    live.session.send(turnPrompt(request, context, channel.name));
+    const refs = request.refs?.length && this.deps.refs ? this.deps.refs(request.refs) : { notes: [], images: [] };
+    const notes = refs.notes.length ? `\n\n<references>\n${refs.notes.join('\n')}\n</references>` : '';
+    live.session.send(turnPrompt(request, context, channel.name) + notes, refs.images);
   }
 
   /** Messages since the agent last answered in this channel (others' words, marked as context). */

@@ -6,6 +6,7 @@ import type { AgentMode, Quota, Usage } from '@lonca/protocol';
 import { killTree } from '../proc.js';
 import {
   type AgentSession,
+  type Attachment,
   cliEnv,
   type DriverEvent,
   LineReader,
@@ -253,9 +254,13 @@ class ClaudeSession implements AgentSession {
     this.idle.unref?.();
   }
 
-  send(text: string): void {
+  send(text: string, images: Attachment[] = []): void {
     clearTimeout(this.idle);
-    const line = `${JSON.stringify({ type: 'user', message: { role: 'user', content: [{ type: 'text', text }] } })}\n`;
+    const content = [
+      { type: 'text', text },
+      ...images.map((i) => ({ type: 'image', source: { type: 'base64', media_type: i.mime, data: i.data } })),
+    ];
+    const line = `${JSON.stringify({ type: 'user', message: { role: 'user', content } })}\n`;
     const proc = this.proc && this.proc.exitCode === null ? this.proc : this.spawn();
     this.turn = true;
     proc.stdin?.write(line);

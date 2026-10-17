@@ -59,6 +59,8 @@ export interface Message {
   edited?: number;
   /** For an agent's answer: the job it ends. */
   jobId?: string;
+  /** References attached to the message; a job started by it gets their images. */
+  refs?: string[];
 }
 
 /** idle is never stored: a job is running, waiting on a person, or over. */
@@ -120,6 +122,41 @@ export interface WorkspaceState {
   agents: Agent[];
   /** Jobs still running or waiting, so a reloaded window shows them. */
   active: Job[];
+}
+
+export const RECORD_KINDS = ['idea', 'reference', 'command'] as const;
+export type RecordKind = (typeof RECORD_KINDS)[number];
+export const IDEA_STATUSES = ['new', 'later', 'doing', 'done', 'dropped'] as const;
+export type IdeaStatus = (typeof IDEA_STATUSES)[number];
+
+/** Saved things (Kayıtlar): ideas, reference images with notes, commands (prompts with {variables}). */
+export interface RecordItem {
+  id: string;
+  kind: RecordKind;
+  title: string;
+  body: string;
+  tags: string[];
+  status?: IdeaStatus;
+  /** References: the image file in the workspace's blob folder. */
+  image?: { blob: string; mime: string; width?: number; height?: number };
+  /** The message it was saved from, if any. */
+  sourceId?: string;
+  created: number;
+  updated: number;
+}
+
+export interface RecordInput {
+  id?: string;
+  kind: RecordKind;
+  title: string;
+  body?: string;
+  tags?: string[];
+  status?: IdeaStatus;
+  /** A new image for a reference, as a data URL (png, jpeg, webp, gif; at most 10 MB). */
+  imageData?: string;
+  width?: number;
+  height?: number;
+  sourceId?: string;
 }
 
 export const CARD_STATUSES = ['todo', 'doing', 'review', 'done'] as const;

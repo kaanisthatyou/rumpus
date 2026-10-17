@@ -10,6 +10,9 @@ import type {
   Job,
   Message,
   Quota,
+  RecordInput,
+  RecordItem,
+  RecordKind,
   TranscriptEntry,
   WorkspaceState,
 } from './workspace.js';
@@ -118,7 +121,7 @@ export interface CoreMethods {
     params: { channelId: string; before?: number; limit?: number };
     result: { messages: Message[]; jobs: Job[] };
   };
-  'messages.send': { params: { channelId: string; text: string }; result: Message };
+  'messages.send': { params: { channelId: string; text: string; refs?: string[] }; result: Message };
   'messages.edit': { params: { id: string; text: string }; result: Message };
   'messages.delete': { params: { id: string }; result: { ok: true } };
   'messages.search': { params: { query: string; limit?: number }; result: Message[] };
@@ -137,6 +140,10 @@ export interface CoreMethods {
   };
   'cards.delete': { params: { id: string }; result: { ok: true } };
   'cards.run': { params: { id: string }; result: Card };
+  'records.list': { params: { kind?: RecordKind }; result: RecordItem[] };
+  'records.save': { params: RecordInput; result: RecordItem };
+  'records.delete': { params: { id: string }; result: { ok: true } };
+  'records.image': { params: { id: string }; result: string };
 }
 
 export interface CoreEvents {
@@ -150,6 +157,8 @@ export interface CoreEvents {
   'quota.changed': { kind: CliKind; quota: Quota };
   'card.changed': Card;
   'card.deleted': { id: string };
+  'record.changed': RecordItem;
+  'record.deleted': { id: string };
 }
 
 export type MethodName = keyof CoreMethods;

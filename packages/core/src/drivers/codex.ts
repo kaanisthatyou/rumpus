@@ -6,6 +6,7 @@ import type { AgentMode, Usage } from '@lonca/protocol';
 import { killTree } from '../proc.js';
 import {
   type AgentSession,
+  type Attachment,
   cliEnv,
   type DriverEvent,
   LineReader,
@@ -18,7 +19,7 @@ export function codexSandbox(mode: AgentMode): string {
   return mode === 'full' ? 'danger-full-access' : mode === 'edit' ? 'workspace-write' : 'read-only';
 }
 
-export function codexArgs(opts: SessionOptions): string[] {
+export function codexArgs(opts: SessionOptions, images: string[] = []): string[] {
   return [
     'exec',
     '--json',
@@ -26,6 +27,7 @@ export function codexArgs(opts: SessionOptions): string[] {
     '--sandbox',
     codexSandbox(opts.mode),
     ...(opts.model ? ['-m', opts.model] : []),
+    ...images.flatMap((p) => ['--image', p]),
     ...(opts.resume ? ['resume', opts.resume] : []),
     '-',
   ];
@@ -118,10 +120,14 @@ class CodexSession implements AgentSession {
     return this.proc !== undefined;
   }
 
-  send(text: string): void {
+  send(text: string, images: Attachment[] = []): void {
     if (this.proc) return;
     const opts = { ...this.opts, ...(this.threadId ? { resume: this.threadId } : {}) };
-    const child = spawn(opts.launch.file, [...opts.launch.args, ...codexArgs(opts)], {
+    const args = codexArgs(
+      opts,
+      images.map((i) => i.path),
+    );
+    const child = spawn(opts.launch.file, [...opts.launch.args, ...args], {
       cwd: opts.cwd,
       env: cliEnv(opts),
       windowsHide: true,

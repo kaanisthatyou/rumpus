@@ -1,7 +1,7 @@
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { Card, Frame, Response } from '@lonca/protocol';
+import type { Card, Frame, RecordItem, Response } from '@lonca/protocol';
 import { describe, expect, it } from 'vitest';
 import type { AgentSession, DriverEvent, OpenSession } from '../src/drivers/types.js';
 import { Core } from '../src/server.js';
@@ -11,14 +11,17 @@ const tmp = (p: string) => mkdtempSync(join(tmpdir(), p));
 function setup() {
   const bin = tmp('lonca-bin-');
   writeFileSync(join(bin, 'claude'), '');
-  const sessions: { emit: (e: DriverEvent) => void; sent: string[] }[] = [];
+  const sessions: { emit: (e: DriverEvent) => void; sent: string[]; images: number[] }[] = [];
   const open: OpenSession = (_o, emit) => {
-    const s = { emit, sent: [] as string[] };
+    const s = { emit, sent: [] as string[], images: [] as number[] };
     sessions.push(s);
     const session: AgentSession = {
       steering: 'live',
       busy: false,
-      send: (t) => s.sent.push(t),
+      send: (t, images) => {
+        s.sent.push(t);
+        s.images.push(images?.length ?? 0);
+      },
       stop: () => {},
       dispose: () => {},
     };
@@ -90,5 +93,49 @@ describe('board', () => {
     await expect(call('cards.run', { id: card.id })).rejects.toThrow('not_found');
     await call('cards.delete', { id: card.id });
     expect(await call<Card[]>('cards.list')).toEqual([]);
+  });
+});
+
+const PNG =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
+describe('records', () => {
+  it('saves ideas and references, and gives a job the references of its request', async () => {
+    const { call, sessions } = setup();
+    const idea = await call<RecordItem>('records.save', {
+      kind: 'idea',
+      title: 'Karanlık mod',
+      body: 'Gece için',
+      tags: ['UI', 'ui'],
+    });
+    expect(idea).toMatchObject({ kind: 'idea', status: 'new', tags: ['ui'] });
+    const ref = await call<RecordItem>('records.save', {
+      kind: 'reference',
+      title: 'Ödeme ekranı',
+      imageData: PNG,
+      width: 1,
+      height: 1,
+    });
+    expect(ref.image).toMatchObject({ mime: 'image/png', width: 1 });
+    expect(await call<string>('records.image', { id: ref.id })).toBe(PNG);
+    await expect(call('records.save', { kind: 'reference', title: 'boş' })).rejects.toThrow('bad_request');
+    await expect(
+      call('records.save', { kind: 'reference', title: 'x', imageData: 'data:text/html;base64,PGI+' }),
+    ).rejects.toThrow('bad_request');
+    expect((await call<RecordItem[]>('records.list', { kind: 'idea' })).map((r) => r.id)).toEqual([idea.id]);
+
+    const folder = tmp('lonca-proj-');
+    await call('agents.save', { kind: 'claude-code', name: 'Claude', handle: 'claude', folder, mode: 'read' });
+    const { channels } = await call<{ channels: { id: string; kind: string }[] }>('workspace.get');
+    const general = channels.find((c) => c.kind === 'channel');
+    await call('messages.send', { channelId: general?.id, text: '@claude buna göre yap', refs: [ref.id, idea.id] });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(sessions[0]?.sent[0]).toMatch(
+      /<references>\n- reference "Ödeme ekranı" \(image attached\)\n- idea "Karanlık mod": Gece için\n<\/references>$/,
+    );
+    expect(sessions[0]?.images[0]).toBe(1);
+    await expect(call('messages.send', { channelId: general?.id, text: 'x', refs: ['nope'] })).rejects.toThrow(
+      'bad_request',
+    );
   });
 });

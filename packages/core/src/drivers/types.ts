@@ -28,11 +28,18 @@ export interface SessionOptions {
   env?: NodeJS.ProcessEnv;
 }
 
+/** An image given to the agent with a message: the bytes for CLIs that take them inline, the file for others. */
+export interface Attachment {
+  mime: string;
+  data: string;
+  path: string;
+}
+
 export interface AgentSession {
   /** `live`: a message sent during a turn reaches the agent at its next break. `queue`: it waits for the next turn. */
   readonly steering: 'live' | 'queue';
   readonly busy: boolean;
-  send(text: string): void;
+  send(text: string, images?: Attachment[]): void;
   stop(): void;
   dispose(): void;
 }

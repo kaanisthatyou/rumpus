@@ -17,13 +17,17 @@ import {
   type CoreMethods,
   type EventName,
   type Frame,
+  IDEA_STATUSES,
   isRequest,
   type Language,
   type Message,
   type MethodName,
+  RECORD_KINDS,
+  type RecordItem,
   type WorkspaceState,
 } from '@lonca/protocol';
 import { detectAgents, loginCommand } from './agents.js';
+import { Blobs } from './blobs.js';
 import type { OpenSession } from './drivers/types.js';
 import { newId } from './ids.js';
 import { Jobs } from './jobs.js';
@@ -78,7 +82,7 @@ export class Core {
   private readonly deviceId: string;
   private clis: CliInfo[] | undefined;
   private detecting: Promise<CliInfo[]> | undefined;
-  private ws: { dir: string; store: WorkspaceStore; jobs: Jobs } | undefined;
+  private ws: { dir: string; store: WorkspaceStore; jobs: Jobs; blobs: Blobs } | undefined;
   private readonly handlers: { [M in MethodName]: Handler<M> };
 
   constructor(private readonly opts: CoreOptions) {
@@ -120,7 +124,7 @@ export class Core {
         const ids = messages.map((m) => m.id);
         return { messages, jobs: store.jobsFor(ids) };
       },
-      'messages.send': async (p) => this.send(p?.channelId, p?.text),
+      'messages.send': async (p) => this.send(p?.channelId, p?.text, p?.refs),
       'messages.edit': async (p) => this.editMessage(p?.id, p?.text),
       'messages.delete': async (p) => this.deleteMessage(p?.id),
       'messages.search': async (p) => {
@@ -155,6 +159,21 @@ export class Core {
         return { ok: true as const };
       },
       'cards.run': async (p) => this.runCard(p?.id),
+      'records.list': async (p) => this.workspace().store.records(typeof p?.kind === 'string' ? p.kind : undefined),
+      'records.save': async (p) => this.saveRecord(p),
+      'records.delete': async (p) => {
+        const { store } = this.workspace();
+        if (typeof p?.id !== 'string' || !store.record(p.id)) throw new CoreError('not_found');
+        store.commit({ type: 'record.deleted', data: { id: p.id } });
+        this.emit('record.deleted', { id: p.id });
+        return { ok: true as const };
+      },
+      'records.image': async (p) => {
+        const { store, blobs } = this.workspace();
+        const record = typeof p?.id === 'string' ? store.record(p.id) : undefined;
+        if (!record?.image) throw new CoreError('not_found');
+        return blobs.dataUrl(record.image.blob, record.image.mime);
+      },
     };
   }
 
@@ -249,7 +268,7 @@ export class Core {
 
   // ---------------------------------------------------------------- workspace
 
-  private workspace(): { dir: string; store: WorkspaceStore; jobs: Jobs } {
+  private workspace(): { dir: string; store: WorkspaceStore; jobs: Jobs; blobs: Blobs } {
     if (this.ws) return this.ws;
     const dir = join(this.dataDir(), 'workspaces', 'personal');
     const store = new WorkspaceStore(join(dir, 'lonca.db'), this.deviceId);
@@ -266,9 +285,11 @@ export class Core {
       };
       store.commit({ type: 'channel.created', data: channel });
     }
+    const blobs = new Blobs(join(dir, 'blobs'));
     const jobs = new Jobs({
       store,
       dir,
+      refs: (ids) => this.refsFor(ids),
       clis: () => this.listClis(false),
       me: () => ({ ...this.me(), language: this.settings.get().language }),
       emitJob: (job) => {
@@ -280,7 +301,7 @@ export class Core {
       ...(this.opts.drivers ? { drivers: this.opts.drivers } : {}),
       ...(this.opts.launch ? { launch: this.opts.launch } : {}),
     });
-    this.ws = { dir, store, jobs };
+    this.ws = { dir, store, jobs, blobs };
     return this.ws;
   }
 
@@ -309,7 +330,7 @@ export class Core {
 
   private createChannel(name: unknown): Channel {
     const { store } = this.workspace();
-    const clean = typeof name === 'string' ? name.trim().toLocaleLowerCase('tr').replace(/\s+/g, '-') : '';
+    const clean = typeof name === 'string' ? name.trim().replace(/İ/g, 'i').toLowerCase().replace(/\s+/g, '-') : '';
     if (!CHANNEL_NAME.test(clean)) throw new CoreError('bad_request', 'name');
     if (store.channels().some((c) => c.kind === 'channel' && c.name === clean)) throw new CoreError('handle_taken');
     const channel: Channel = { id: newId(), name: clean, kind: 'channel', topic: '', created: Date.now() };
@@ -322,7 +343,7 @@ export class Core {
     const { store } = this.workspace();
     const channel = typeof id === 'string' ? store.channel(id) : undefined;
     if (channel?.kind !== 'channel') throw new CoreError('not_found');
-    const clean = typeof name === 'string' ? name.trim().toLocaleLowerCase('tr').replace(/\s+/g, '-') : '';
+    const clean = typeof name === 'string' ? name.trim().replace(/İ/g, 'i').toLowerCase().replace(/\s+/g, '-') : '';
     if (!CHANNEL_NAME.test(clean)) throw new CoreError('bad_request', 'name');
     store.commit({ type: 'channel.renamed', data: { id: channel.id, name: clean } });
     this.changed();
@@ -339,10 +360,12 @@ export class Core {
     return { ok: true };
   }
 
-  private send(channelId: unknown, value: unknown): Message {
+  private send(channelId: unknown, value: unknown, refs?: unknown): Message {
     const { store, jobs } = this.workspace();
     const channel = typeof channelId === 'string' ? store.channel(channelId) : undefined;
     if (!channel) throw new CoreError('not_found');
+    const refIds = Array.isArray(refs) ? [...new Set(refs.filter((r): r is string => typeof r === 'string'))] : [];
+    if (refIds.length > 8 || refIds.some((id) => !store.record(id))) throw new CoreError('bad_request', 'refs');
     const me = this.me();
     const message: Message = {
       id: newId(),
@@ -350,6 +373,7 @@ export class Core {
       author: { kind: 'person', id: me.id, name: me.name },
       text: text(value),
       created: Date.now(),
+      ...(refIds.length ? { refs: refIds } : {}),
     };
     store.commit({ type: 'message.posted', data: message });
     this.emit('message.added', message);
@@ -429,6 +453,90 @@ export class Core {
     if (own) store.commit({ type: 'channel.deleted', data: { id: own.id } });
     this.changed();
     return { ok: true };
+  }
+
+  // ---------------------------------------------------------------- records
+
+  private saveRecord(input: unknown): RecordItem {
+    const { store, blobs } = this.workspace();
+    const p = (input ?? {}) as Record<string, unknown>;
+    if (!(RECORD_KINDS as readonly unknown[]).includes(p.kind)) throw new CoreError('bad_request', 'kind');
+    const existing = typeof p.id === 'string' ? store.record(p.id) : undefined;
+    if (p.id !== undefined && !existing) throw new CoreError('not_found');
+    const title = typeof p.title === 'string' ? p.title.trim() : '';
+    if (!title || title.length > 200) throw new CoreError('bad_request', 'title');
+    const body = typeof p.body === 'string' ? p.body : (existing?.body ?? '');
+    if (body.length > MAX_TEXT) throw new CoreError('bad_request', 'body');
+    const tags = Array.isArray(p.tags)
+      ? [
+          ...new Set(
+            p.tags
+              .filter((t): t is string => typeof t === 'string')
+              .map((t) => t.trim().replace(/İ/g, 'i').toLowerCase())
+              .filter(Boolean),
+          ),
+        ].slice(0, 12)
+      : (existing?.tags ?? []);
+    const kind = p.kind as RecordItem['kind'];
+    let image = existing?.image;
+    if (typeof p.imageData === 'string') {
+      const saved = blobs.saveDataUrl(p.imageData);
+      image = {
+        blob: saved.name,
+        mime: saved.mime,
+        ...(typeof p.width === 'number' ? { width: Math.round(p.width) } : {}),
+        ...(typeof p.height === 'number' ? { height: Math.round(p.height) } : {}),
+      };
+    }
+    if (kind === 'reference' && !image) throw new CoreError('bad_request', 'image');
+    const status =
+      kind === 'idea'
+        ? (IDEA_STATUSES as readonly unknown[]).includes(p.status)
+          ? (p.status as RecordItem['status'])
+          : (existing?.status ?? 'new')
+        : undefined;
+    const now = Date.now();
+    const record: RecordItem = {
+      id: existing?.id ?? newId(),
+      kind,
+      title,
+      body,
+      tags,
+      ...(status ? { status } : {}),
+      ...(image ? { image } : {}),
+      ...(typeof p.sourceId === 'string'
+        ? { sourceId: p.sourceId }
+        : existing?.sourceId
+          ? { sourceId: existing.sourceId }
+          : {}),
+      created: existing?.created ?? now,
+      updated: now,
+    };
+    store.commit({ type: 'record.saved', data: record });
+    this.emit('record.changed', record);
+    return record;
+  }
+
+  /** What a job gets for the records its request refers to. */
+  private refsFor(ids: string[]): { notes: string[]; images: { mime: string; data: string; path: string }[] } {
+    const { store, blobs } = this.workspace();
+    const notes: string[] = [];
+    const images: { mime: string; data: string; path: string }[] = [];
+    for (const id of ids) {
+      const r = store.record(id);
+      if (!r) continue;
+      notes.push(
+        `- ${r.kind} "${r.title}"${r.body.trim() ? `: ${r.body.trim().slice(0, 2000)}` : ''}${r.image ? ' (image attached)' : ''}`,
+      );
+      if (r.image) {
+        try {
+          images.push({ mime: r.image.mime, data: blobs.base64(r.image.blob), path: blobs.path(r.image.blob) });
+        } catch {
+          // a missing file leaves the note only
+        }
+      }
+    }
+    return { notes, images };
   }
 
   // ---------------------------------------------------------------- board

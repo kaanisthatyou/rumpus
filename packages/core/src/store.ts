@@ -4,7 +4,7 @@
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import type { Agent, Author, Card, Channel, Job, Message } from '@lonca/protocol';
+import type { Agent, Author, Card, Channel, Job, Message, RecordItem } from '@lonca/protocol';
 import { Clock, newId } from './ids.js';
 
 type Row = Record<string, unknown>;
@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS agents (
 );
 CREATE TABLE IF NOT EXISTS messages (
   id TEXT PRIMARY KEY, channel_id TEXT NOT NULL, author TEXT NOT NULL, text TEXT NOT NULL,
-  created INTEGER NOT NULL, edited INTEGER, deleted INTEGER NOT NULL DEFAULT 0, job_id TEXT
+  created INTEGER NOT NULL, edited INTEGER, deleted INTEGER NOT NULL DEFAULT 0, job_id TEXT, refs TEXT
 );
 CREATE INDEX IF NOT EXISTS messages_by_channel ON messages (channel_id, created);
 CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
@@ -46,6 +46,9 @@ CREATE INDEX IF NOT EXISTS jobs_by_channel ON jobs (channel_id, started);
 CREATE TABLE IF NOT EXISTS cards (
   id TEXT PRIMARY KEY, data TEXT NOT NULL, created INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS records (
+  id TEXT PRIMARY KEY, kind TEXT NOT NULL, data TEXT NOT NULL, created INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0
+);
 CREATE TABLE IF NOT EXISTS sessions (
   agent_id TEXT NOT NULL, channel_id TEXT NOT NULL, session_id TEXT NOT NULL, PRIMARY KEY (agent_id, channel_id)
 );
@@ -61,7 +64,9 @@ export type WorkspaceEvent =
   | { type: 'message.edited'; data: { id: string; text: string; edited: number } }
   | { type: 'message.deleted'; data: { id: string } }
   | { type: 'card.saved'; data: Card }
-  | { type: 'card.deleted'; data: { id: string } };
+  | { type: 'card.deleted'; data: { id: string } }
+  | { type: 'record.saved'; data: RecordItem }
+  | { type: 'record.deleted'; data: { id: string } };
 
 const json = <T>(text: unknown): T => JSON.parse(String(text)) as T;
 
@@ -85,6 +90,7 @@ function toMessage(r: Row): Message {
     created: Number(r.created),
     ...(r.edited ? { edited: Number(r.edited) } : {}),
     ...(r.job_id ? { jobId: String(r.job_id) } : {}),
+    ...(r.refs ? { refs: json<string[]>(r.refs) } : {}),
   };
 }
 
@@ -99,6 +105,8 @@ export class WorkspaceStore {
     mkdirSync(dirname(file), { recursive: true });
     this.db = new DatabaseSync(file);
     this.db.exec(SCHEMA);
+    const columns = (this.db.prepare('PRAGMA table_info(messages)').all() as Row[]).map((r) => String(r.name));
+    if (!columns.includes('refs')) this.db.exec('ALTER TABLE messages ADD COLUMN refs TEXT');
     this.clock = new Clock(deviceId);
   }
 
@@ -165,9 +173,17 @@ export class WorkspaceStore {
         const m = e.data;
         this.db
           .prepare(
-            'INSERT OR IGNORE INTO messages (id, channel_id, author, text, created, job_id) VALUES (?, ?, ?, ?, ?, ?)',
+            'INSERT OR IGNORE INTO messages (id, channel_id, author, text, created, job_id, refs) VALUES (?, ?, ?, ?, ?, ?, ?)',
           )
-          .run(m.id, m.channelId, JSON.stringify(m.author), m.text, m.created, m.jobId ?? null);
+          .run(
+            m.id,
+            m.channelId,
+            JSON.stringify(m.author),
+            m.text,
+            m.created,
+            m.jobId ?? null,
+            m.refs?.length ? JSON.stringify(m.refs) : null,
+          );
         return;
       }
       case 'message.edited':
@@ -187,6 +203,16 @@ export class WorkspaceStore {
         return;
       case 'card.deleted':
         this.db.prepare('UPDATE cards SET deleted = 1 WHERE id = ?').run(e.data.id);
+        return;
+      case 'record.saved':
+        this.db
+          .prepare(
+            'INSERT INTO records (id, kind, data, created) VALUES (?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET data = excluded.data, deleted = 0',
+          )
+          .run(e.data.id, e.data.kind, JSON.stringify(e.data), e.data.created);
+        return;
+      case 'record.deleted':
+        this.db.prepare('UPDATE records SET deleted = 1 WHERE id = ?').run(e.data.id);
         return;
     }
   }
@@ -255,6 +281,18 @@ export class WorkspaceStore {
     return (this.db.prepare('SELECT data FROM cards WHERE deleted = 0 ORDER BY created').all() as Row[]).map((r) =>
       json<Card>(r.data),
     );
+  }
+
+  records(kind?: string): RecordItem[] {
+    const rows = kind
+      ? this.db.prepare('SELECT data FROM records WHERE deleted = 0 AND kind = ? ORDER BY created DESC').all(kind)
+      : this.db.prepare('SELECT data FROM records WHERE deleted = 0 ORDER BY created DESC').all();
+    return (rows as Row[]).map((r) => json<RecordItem>(r.data));
+  }
+
+  record(id: string): RecordItem | undefined {
+    const r = this.db.prepare('SELECT data FROM records WHERE id = ? AND deleted = 0').get(id) as Row | undefined;
+    return r ? json<RecordItem>(r.data) : undefined;
   }
 
   card(id: string): Card | undefined {
