@@ -13,6 +13,7 @@ export type DriverEvent =
   | { type: 'usage'; usage: Partial<Usage> }
   | { type: 'quota'; quota: Quota }
   | { type: 'auth_failed'; text: string }
+  | { type: 'approval'; id: string; label: string; arg?: string; detail?: string }
   | { type: 'notice'; code: string; text?: string }
   | { type: 'end'; ok: boolean; final?: string; error?: string; cost?: number; usage?: Usage; more?: boolean }
   | { type: 'exit'; code: number | null; stderr: string };
@@ -42,6 +43,8 @@ export interface AgentSession {
   readonly steering: 'live' | 'queue';
   readonly busy: boolean;
   send(text: string, images?: Attachment[]): void;
+  /** Answers a pending approval (drivers that can ask). */
+  answer?(id: string, allow: boolean): void;
   stop(): void;
   dispose(): void;
 }

@@ -97,6 +97,8 @@ export interface Job {
   cost?: number;
   /** An error code (`auth_failed`, `cli_missing`, `exited`, ...) or the CLI's own text. */
   error?: string;
+  /** While the job waits on a person: the tool call that needs approval. */
+  approval?: { id: string; label: string; arg?: string; detail?: string };
   started: number;
   ended?: number;
 }

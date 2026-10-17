@@ -79,6 +79,7 @@ interface AppState {
   newSession(agentId: string, channelId: string): Promise<void>;
   stopJob(id: string): Promise<void>;
   steerJob(id: string, text: string): Promise<boolean>;
+  answerJob(id: string, allow: boolean): Promise<void>;
   watch(jobId: string | undefined): void;
   openAgentDialog(target: AppState['agentDialog']): void;
   createCard(title: string, opts?: { channelId?: string; agentHandle?: string }): Promise<boolean>;
@@ -179,7 +180,18 @@ export const useApp = create<AppState>((set, get) => {
           messages: { ...s.messages, [channelId]: (s.messages[channelId] ?? []).filter((m) => m.id !== id) },
         })),
       );
-      core.on('job.updated', (job) => set((s) => ({ jobs: { ...s.jobs, [job.id]: job } })));
+      core.on('job.updated', (job) => {
+        const before = get().jobs[job.id];
+        set((s) => ({ jobs: { ...s.jobs, [job.id]: job } }));
+        // A job that starts waiting on a person while Lonca is in the background: an OS notification.
+        if (job.state === 'attention' && before?.state !== 'attention' && !document.hasFocus()) {
+          const agent = get().workspace?.agents.find((a) => a.id === job.agentId);
+          const what = [job.approval?.label ? i18n.t(`job.tool.${job.approval.label}`) : '', job.approval?.arg ?? '']
+            .filter(Boolean)
+            .join(' · ');
+          void window.lonca.shell.notify(i18n.t('job.approval.notifyTitle'), `${agent?.name ?? ''}: ${what}`);
+        }
+      });
       core.on('quota.changed', ({ kind, quota }) => set((s) => ({ quota: { ...s.quota, [kind]: quota } })));
       core.on('card.changed', (card) =>
         set((s) => ({
@@ -355,6 +367,10 @@ export const useApp = create<AppState>((set, get) => {
 
     async steerJob(id, text) {
       return Boolean(await attempt(() => core.call('jobs.steer', { id, text })));
+    },
+
+    async answerJob(id, allow) {
+      await attempt(() => core.call('jobs.answer', { id, allow }));
     },
 
     watch(jobId) {

@@ -148,6 +148,11 @@ export class Core {
         return { ok: true as const };
       },
       'jobs.steer': async (p) => this.steer(p?.id, p?.text),
+      'jobs.answer': async (p) => {
+        if (typeof p?.id !== 'string' || typeof p.allow !== 'boolean') throw new CoreError('bad_request');
+        if (!this.workspace().jobs.answer(p.id, p.allow)) throw new CoreError('busy');
+        return { ok: true as const };
+      },
       'jobs.transcript': async (p) => {
         if (typeof p?.id !== 'string') throw new CoreError('bad_request');
         return this.workspace().jobs.readTranscript(p.id);

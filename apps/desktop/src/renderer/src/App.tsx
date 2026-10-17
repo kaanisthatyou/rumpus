@@ -55,6 +55,16 @@ export function App() {
         const i = list.findIndex((c) => c.id === s.channelId);
         const next = list[(i + (e.key === 'ArrowDown' ? 1 : list.length - 1) + list.length) % list.length];
         if (next) void s.openChannel(next.id);
+      } else if (e.ctrlKey && e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+        // Jobs waiting on a person, oldest first, wrapping around.
+        const waiting = Object.values(s.jobs)
+          .filter((j) => j.state === 'attention')
+          .sort((a, b) => a.started - b.started);
+        if (waiting.length === 0) return;
+        e.preventDefault();
+        const i = waiting.findIndex((j) => j.id === s.watching);
+        const next = waiting[(i + (e.key === 'ArrowDown' ? 1 : waiting.length - 1) + waiting.length) % waiting.length];
+        if (next) void s.openJob(next.id);
       } else if (e.ctrlKey && e.key === '.') {
         const running = Object.values(s.jobs)
           .filter((j) => j.channelId === s.channelId && j.state === 'running')

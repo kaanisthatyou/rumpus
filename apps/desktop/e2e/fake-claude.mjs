@@ -45,8 +45,34 @@ let started = false;
 let busy = false;
 let n = 0;
 
+// Answers to permission questions (control_request can_use_tool), by request id.
+const waiting = new Map();
+const canAsk = args.includes('--permission-prompt-tool');
+let asked = 0;
+function ask(toolUseId, input) {
+  const id = `q${++asked}`;
+  out({
+    type: 'control_request',
+    request_id: id,
+    request: {
+      subtype: 'can_use_tool',
+      tool_name: 'Bash',
+      input,
+      description: 'Build the project',
+      tool_use_id: toolUseId,
+    },
+  });
+  return new Promise((resolve) => waiting.set(id, resolve));
+}
+
 createInterface({ input: process.stdin }).on('line', (line) => {
   const msg = JSON.parse(line);
+  if (msg.type === 'control_response') {
+    const id = msg.response?.request_id;
+    waiting.get(id)?.(msg.response?.response?.behavior === 'allow');
+    waiting.delete(id);
+    return;
+  }
   queue.push(msg.message.content.map((b) => b.text ?? '').join(''));
   if (!busy) void run();
 });
@@ -55,6 +81,37 @@ async function run() {
   busy = true;
   while (queue.length > 0) {
     const text = queue.shift();
+    if (canAsk && /onay iste/i.test(text)) {
+      // A command that needs approval: ask Lonca, then go on with its answer.
+      n += 1;
+      if (!started) {
+        out({ type: 'system', subtype: 'init', session_id: session, tools: ['Bash'] });
+        started = true;
+      }
+      const input = { command: 'npm run build' };
+      out({ type: 'assistant', message: { content: [{ type: 'tool_use', id: `a${n}`, name: 'Bash', input }] } });
+      const allowed = await ask(`a${n}`, input);
+      out({
+        type: 'user',
+        message: {
+          content: [
+            { type: 'tool_result', tool_use_id: `a${n}`, content: allowed ? 'built' : 'denied', is_error: !allowed },
+          ],
+        },
+      });
+      const answer = allowed ? 'Derleme tamam.' : 'Derleme reddedildi, komut çalıştırılmadı.';
+      out({ type: 'assistant', message: { content: [{ type: 'text', text: answer }] } });
+      out({
+        type: 'result',
+        subtype: 'success',
+        is_error: false,
+        result: answer,
+        total_cost_usd: 0,
+        usage: { input_tokens: 5, output_tokens: 5 },
+        queued_turn_count: queue.length,
+      });
+      continue;
+    }
     if (mcp && /panoyu güncelle/i.test(text)) {
       // The board through Lonca's tools: list the cards, move the first one to done, leave a note.
       n += 1;

@@ -21,7 +21,10 @@ const READ_TOOLS = ['Read', 'Grep', 'Glob', 'WebSearch', 'WebFetch', 'TodoWrite'
 const EDIT_TOOLS = [...READ_TOOLS, 'Edit', 'Write', 'NotebookEdit', 'Bash'];
 const IDLE_MS = 20 * 60 * 1000;
 
-/** The autonomy ladder in Claude Code's terms. Read and edit run with no one to ask: what would prompt is refused. */
+/**
+ * The autonomy ladder in Claude Code's terms. At read and edit, what would prompt is asked of Lonca over stdio
+ * (`control_request` / `can_use_tool`) and shown on the job card for a person to allow or deny.
+ */
 export function claudeModeArgs(mode: AgentMode): string[] {
   if (mode === 'full') return ['--permission-mode', 'bypassPermissions'];
   return [
@@ -30,7 +33,9 @@ export function claudeModeArgs(mode: AgentMode): string[] {
     '--permission-mode',
     mode === 'edit' ? 'acceptEdits' : 'manual',
     '--permission-prompts',
-    'none',
+    'host',
+    '--permission-prompt-tool',
+    'stdio',
   ];
 }
 
@@ -91,9 +96,14 @@ export class ClaudeParser {
   private quota: Quota | undefined;
   private readonly toolInputs = new Map<string, { label: string; arg?: string }>();
 
+  /** Inputs of tool calls waiting for approval, by request id (the answer must carry them back). */
+  readonly pending = new Map<string, unknown>();
+
   constructor(
     private readonly cwd: string,
     private readonly emit: (e: DriverEvent) => void,
+    /** Control requests Lonca does not handle get an error answer, so the CLI never waits on them. */
+    private readonly unsupported: (requestId: string) => void = () => {},
   ) {}
 
   line(raw: string): void {
@@ -105,6 +115,25 @@ export class ClaudeParser {
     }
     const type = ev.type;
     const nested = Boolean(ev.parent_tool_use_id);
+    if (type === 'control_request') {
+      const req = (ev.request ?? {}) as Record<string, unknown>;
+      const id = String(ev.request_id ?? '');
+      if (req.subtype === 'can_use_tool' && id) {
+        const name = String(req.tool_name ?? '');
+        const arg = toolArg(name, req.input, this.cwd);
+        this.pending.set(id, req.input);
+        this.emit({
+          type: 'approval',
+          id,
+          label: toolLabel(name),
+          ...(arg ? { arg } : {}),
+          ...(typeof req.description === 'string' ? { detail: req.description } : {}),
+        });
+      } else if (id) {
+        this.unsupported(id);
+      }
+      return;
+    }
     if (type === 'rate_limit_event') {
       const quota = quotaFrom((ev.rate_limit_info as Record<string, unknown>) ?? {}, this.quota);
       if (quota) {
@@ -208,6 +237,7 @@ class ClaudeSession implements AgentSession {
   private idle: NodeJS.Timeout | undefined;
   private stderr = '';
   private warnedTrust = false;
+  private parser: ClaudeParser | undefined;
 
   constructor(
     private readonly opts: SessionOptions,
@@ -229,12 +259,22 @@ class ClaudeSession implements AgentSession {
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     this.stderr = '';
-    const parser = new ClaudeParser(opts.cwd, (e) => {
-      if (e.type === 'session') this.sessionId = e.id;
-      if (e.type === 'end' && !e.more) this.turn = false;
-      this.emit(e);
-      if (e.type === 'end' && !e.more) this.armIdle();
-    });
+    const write = (obj: unknown) => child.stdin?.write(`${JSON.stringify(obj)}\n`);
+    const parser = new ClaudeParser(
+      opts.cwd,
+      (e) => {
+        if (e.type === 'session') this.sessionId = e.id;
+        if (e.type === 'end' && !e.more) this.turn = false;
+        this.emit(e);
+        if (e.type === 'end' && !e.more) this.armIdle();
+      },
+      (requestId) =>
+        write({
+          type: 'control_response',
+          response: { subtype: 'error', request_id: requestId, error: 'unsupported' },
+        }),
+    );
+    this.parser = parser;
     const lines = new LineReader((line) => parser.line(line));
     child.stdout?.on('data', (c: Buffer) => lines.push(c));
     child.stderr?.on('data', (c: Buffer) => {
@@ -277,6 +317,17 @@ class ClaudeSession implements AgentSession {
     const proc = this.proc && this.proc.exitCode === null ? this.proc : this.spawn();
     this.turn = true;
     proc.stdin?.write(line);
+  }
+
+  answer(id: string, allow: boolean): void {
+    const input = this.parser?.pending.get(id);
+    this.parser?.pending.delete(id);
+    const response = allow
+      ? { behavior: 'allow', updatedInput: input ?? {} }
+      : { behavior: 'deny', message: 'A person denied this in Lonca.' };
+    this.proc?.stdin?.write(
+      `${JSON.stringify({ type: 'control_response', response: { subtype: 'success', request_id: id, response } })}\n`,
+    );
   }
 
   stop(): void {

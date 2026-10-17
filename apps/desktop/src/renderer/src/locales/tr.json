@@ -144,7 +144,8 @@
       "viewer": "Görüntüleyici"
     },
     "settings": "Ayarlar",
-    "shortcuts": "Kısayollar"
+    "shortcuts": "Kısayollar",
+    "waiting": "Bekleyenler"
   },
   "settings": {
     "title": "Ayarlar",
@@ -267,6 +268,12 @@
       "driver_missing": "Bu CLI henüz iş çalıştıramıyor.",
       "stopped": "Durduruldu.",
       "failed": "İş hatayla bitti."
+    },
+    "approval": {
+      "title": "Onay bekliyor",
+      "allow": "İzin ver",
+      "deny": "Reddet",
+      "notifyTitle": "Onay bekleniyor"
     }
   },
   "agentForm": {
@@ -363,7 +370,8 @@
     "send": "Gönder",
     "newline": "Yeni satır",
     "mention": "Agent çağır",
-    "command": "Komut"
+    "command": "Komut",
+    "nextWaiting": "Sıradaki onay bekleyen iş"
   },
   "records": {
     "new": {

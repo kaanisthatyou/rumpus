@@ -536,11 +536,14 @@ Built and verified (unit tests, and the real app driven against a fake Claude Co
   `--allowedTools mcp__lonca`; checked with a real Claude Code call (connected, tool called without a prompt).
   Codex does not get it yet (its per-run MCP config needs a test install).
 
+- Approvals: at read and edit, Claude Code asks Lonca over stdio (`--permission-prompt-tool stdio`,
+  `control_request` / `can_use_tool`, checked with a real call); the job waits as "Onay bekliyor" with Allow and
+  Deny on its card, a "Bekleyenler" count in the sidebar, an OS notification when Lonca is in the background, and
+  `Ctrl Shift ↑ / ↓` to go through waiting jobs. Control requests Lonca does not handle get an error answer.
+
 Still to do in Phase 1:
 
 - Command tiles pinned above the composer.
-- Needs-attention approvals: Claude Code's `--permission-prompts host` refused instead of asking in a first
-  probe; until that works, read and edit levels refuse what would need approval and the card shows it.
 - Rebindable shortcuts.
 
 ## 9. Risks

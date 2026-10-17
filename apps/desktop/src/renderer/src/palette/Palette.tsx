@@ -205,6 +205,7 @@ export function ShortcutsDialog() {
     ['Alt ↑', t('shortcuts.prevChannel')],
     ['Alt ↓', t('shortcuts.nextChannel')],
     ['Ctrl .', t('shortcuts.stop')],
+    ['Ctrl Shift ↓', t('shortcuts.nextWaiting')],
     ['Ctrl /', t('shortcuts.list')],
     ['Enter', t('shortcuts.send')],
     ['Shift Enter', t('shortcuts.newline')],

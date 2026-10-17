@@ -13,6 +13,7 @@ const bridge: LoncaBridge = {
     copy: (text) => ipcRenderer.invoke('shell:copy', text),
     appInfo: () => ipcRenderer.invoke('shell:appInfo'),
     setTitleBar: (colors) => ipcRenderer.invoke('shell:setTitleBar', colors),
+    notify: (title, body) => ipcRenderer.invoke('shell:notify', title, body),
   },
   updates: {
     state: () => ipcRenderer.invoke('update:state'),

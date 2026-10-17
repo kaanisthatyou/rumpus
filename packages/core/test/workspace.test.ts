@@ -240,6 +240,10 @@ class FakeSession implements AgentSession {
   sent: string[] = [];
   stopped = 0;
   busy = false;
+  answers: [string, boolean][] = [];
+  answer(id: string, allow: boolean) {
+    this.answers.push([id, allow]);
+  }
   constructor(
     readonly steering: 'live' | 'queue',
     readonly emit: (e: DriverEvent) => void,
@@ -376,5 +380,56 @@ describe('Jobs', () => {
       channel({ id: 'c2', kind: 'agent', agentId: 'a1', name: 'claude' }),
     );
     expect(sessions).toHaveLength(1);
+  });
+});
+
+describe('approvals', () => {
+  it('turns can_use_tool into an approval and answers unknown control requests with an error', () => {
+    const events: DriverEvent[] = [];
+    const unsupported: string[] = [];
+    const p = new ClaudeParser(
+      'C:work',
+      (e) => events.push(e),
+      (id) => unsupported.push(id),
+    );
+    p.line(
+      JSON.stringify({
+        type: 'control_request',
+        request_id: 'r1',
+        request: {
+          subtype: 'can_use_tool',
+          tool_name: 'Bash',
+          input: { command: 'mkdir build' },
+          description: 'Create build',
+        },
+      }),
+    );
+    p.line(JSON.stringify({ type: 'control_request', request_id: 'r2', request: { subtype: 'hook_callback' } }));
+    expect(events).toEqual([
+      { type: 'approval', id: 'r1', label: 'command', arg: 'mkdir build', detail: 'Create build' },
+    ]);
+    expect(p.pending.get('r1')).toEqual({ command: 'mkdir build' });
+    expect(unsupported).toEqual(['r2']);
+  });
+
+  it('waits on a person: attention, then running again after allow, a denied step after deny', async () => {
+    for (const allow of [true, false]) {
+      const { s, jobs, sessions } = jobsWith();
+      const r = msg({ text: '@claude derle' });
+      s.commit({ type: 'message.posted', data: r });
+      await jobs.onMessage(r, channel());
+      const f = sessions[0] as FakeSession;
+      f.emit({ type: 'tool', id: 't1', label: 'command', arg: 'npm run build' });
+      f.emit({ type: 'approval', id: 'q1', label: 'command', arg: 'npm run build' });
+      const waiting = jobs.active()[0];
+      expect(waiting).toMatchObject({ state: 'attention', approval: { id: 'q1', arg: 'npm run build' } });
+      expect(jobs.answer(waiting?.id ?? '', allow)).toBe(true);
+      expect(f.answers).toEqual([['q1', allow]]);
+      const after = jobs.active()[0];
+      expect(after?.state).toBe('running');
+      expect(after?.approval).toBeUndefined();
+      expect(after?.steps.some((st) => st.kind === 'denied')).toBe(!allow);
+      expect(jobs.answer(after?.id ?? '', true)).toBe(false);
+    }
   });
 });

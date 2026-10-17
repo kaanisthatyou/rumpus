@@ -207,6 +207,22 @@ try {
   await search.press('Enter');
   await composer.waitFor();
 
+  // Approvals: a command that needs approval waits on a person; allowed once, denied once.
+  await page.getByRole('button', { name: '@claude', exact: true }).click();
+  const agentBox = page.getByRole('textbox', { name: 'Mesaj · @claude' });
+  await agentBox.fill('onay iste');
+  await agentBox.press('Enter');
+  await page.getByText(L.job.approval.title).first().waitFor();
+  await page.getByRole('button', { name: L.shell.waiting }).waitFor();
+  await shot(page, 'approval');
+  await page.getByRole('button', { name: L.job.approval.allow }).click();
+  await page.getByText('Derleme tamam.').waitFor();
+  await agentBox.fill('onay iste');
+  await agentBox.press('Enter');
+  await page.getByRole('button', { name: L.job.approval.deny }).click();
+  await page.getByText('Derleme reddedildi').waitFor();
+  assert.equal(await page.getByRole('button', { name: L.shell.waiting }).count(), 0);
+
   // In the agent's own channel: a slow job, steered, then stopped.
   await page.getByRole('button', { name: '@claude', exact: true }).click();
   const agentComposer = page.getByRole('textbox', { name: 'Mesaj · @claude' });

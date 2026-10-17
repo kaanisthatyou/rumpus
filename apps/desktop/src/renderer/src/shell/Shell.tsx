@@ -104,6 +104,9 @@ function Sidebar({ onSettings }: { onSettings: () => void }) {
   const [name, setName] = useState('');
   const channels = workspace?.channels.filter((c) => c.kind === 'channel') ?? [];
   const agentChannels = workspace?.channels.filter((c) => c.kind === 'agent') ?? [];
+  const waiting = Object.values(jobs)
+    .filter((j) => j.state === 'attention')
+    .sort((a, b) => a.started - b.started);
   const running = new Set(
     Object.values(jobs)
       .filter((j) => j.state === 'running')
@@ -179,6 +182,19 @@ function Sidebar({ onSettings }: { onSettings: () => void }) {
               onClick={() => void openChannel(c.id)}
             />
           ))}
+        </div>
+      )}
+      {waiting.length > 0 && (
+        <div className="grp">
+          <button
+            type="button"
+            className="nav nav--waiting"
+            onClick={() => waiting[0] && void useApp.getState().openJob(waiting[0].id)}
+          >
+            <Icon name="alert" size={14} />
+            <span className="grow">{t('shell.waiting')}</span>
+            <span className="badge-count">{waiting.length}</span>
+          </button>
         </div>
       )}
       <div className="grp">
@@ -274,7 +290,12 @@ function Crew() {
   const agents = workspace?.agents ?? [];
   const busy = new Set(
     Object.values(jobs)
-      .filter((j) => j.state === 'running')
+      .filter((j) => j.state === 'running' || j.state === 'attention')
+      .map((j) => j.agentId),
+  );
+  const asking = new Set(
+    Object.values(jobs)
+      .filter((j) => j.state === 'attention')
       .map((j) => j.agentId),
   );
   const used = new Set(agents.map((a) => a.kind));
@@ -306,7 +327,13 @@ function Crew() {
           const cli = clis?.find((c) => c.kind === a.kind);
           const missing = !cli || cli.state === 'missing';
           const channel = workspace?.channels.find((c) => c.kind === 'agent' && c.agentId === a.id);
-          const state = missing ? t('crew.cliMissing') : busy.has(a.id) ? t('crew.running') : t('crew.idle');
+          const state = missing
+            ? t('crew.cliMissing')
+            : asking.has(a.id)
+              ? t('job.approval.title')
+              : busy.has(a.id)
+                ? t('crew.running')
+                : t('crew.idle');
           return (
             <motion.li key={a.id} variants={popIn} className={`who ${missing ? 'is-off' : ''}`}>
               <button type="button" className="who__open" onClick={() => channel && void openChannel(channel.id)}>

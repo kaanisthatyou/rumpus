@@ -130,6 +130,7 @@ export interface CoreMethods {
   'agents.newSession': { params: { agentId: string; channelId: string }; result: { ok: true } };
   'jobs.stop': { params: { id: string }; result: { ok: true } };
   'jobs.steer': { params: { id: string; text: string }; result: { ok: true } };
+  'jobs.answer': { params: { id: string; allow: boolean }; result: { ok: true } };
   'jobs.transcript': { params: { id: string }; result: TranscriptEntry[] };
   'quota.get': { params: undefined; result: Partial<Record<CliKind, Quota>> };
   'cards.list': { params: undefined; result: Card[] };

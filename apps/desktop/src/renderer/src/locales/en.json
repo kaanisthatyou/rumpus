@@ -144,7 +144,8 @@
       "viewer": "Viewer"
     },
     "settings": "Settings",
-    "shortcuts": "Shortcuts"
+    "shortcuts": "Shortcuts",
+    "waiting": "Waiting"
   },
   "settings": {
     "title": "Settings",
@@ -267,6 +268,12 @@
       "driver_missing": "This CLI cannot run jobs yet.",
       "stopped": "Stopped.",
       "failed": "The job ended with an error."
+    },
+    "approval": {
+      "title": "Waiting for approval",
+      "allow": "Allow",
+      "deny": "Deny",
+      "notifyTitle": "Approval needed"
     }
   },
   "agentForm": {
@@ -363,7 +370,8 @@
     "send": "Send",
     "newline": "New line",
     "mention": "Call an agent",
-    "command": "Command"
+    "command": "Command",
+    "nextWaiting": "Next job waiting for approval"
   },
   "records": {
     "new": {

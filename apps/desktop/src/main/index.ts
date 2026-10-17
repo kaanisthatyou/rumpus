@@ -7,6 +7,7 @@ import {
   type IpcMainInvokeEvent,
   ipcMain,
   MessageChannelMain,
+  Notification,
   session,
   shell,
   type UtilityProcess,
@@ -99,6 +100,17 @@ function registerIpc(): void {
     if (!win || typeof c?.background !== 'string' || typeof c.symbols !== 'string') return;
     if (process.platform !== 'darwin') win.setTitleBarOverlay({ color: c.background, symbolColor: c.symbols });
     win.setBackgroundColor(c.background);
+  });
+  handle('shell:notify', (_e, title, body) => {
+    if (typeof title !== 'string' || typeof body !== 'string' || !Notification.isSupported()) return;
+    const n = new Notification({ title: title.slice(0, 120), body: body.slice(0, 300), silent: false });
+    n.on('click', () => {
+      if (!win) return;
+      if (win.isMinimized()) win.restore();
+      win.show();
+      win.focus();
+    });
+    n.show();
   });
   handle('update:state', () => updater.get());
   handle('update:check', () => updater.check());

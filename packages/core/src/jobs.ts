@@ -253,6 +253,35 @@ export class Jobs {
     return true;
   }
 
+  /** A person's answer to the approval a job waits on. */
+  answer(jobId: string, allow: boolean): boolean {
+    const live = [...this.live.values()].find((l) => l.job?.id === jobId);
+    const job = live?.job;
+    if (!live || !job || job.state !== 'attention' || !job.approval || !live.session.answer) return false;
+    live.session.answer(job.approval.id, allow);
+    const { approval, ...rest } = job;
+    live.job = { ...rest, state: 'running' };
+    this.transcript(job.id, { t: 'notice', text: allow ? 'approved' : 'denied', at: this.now() });
+    if (!allow) {
+      live.job = {
+        ...live.job,
+        steps: [
+          ...live.job.steps,
+          {
+            id: newId(),
+            kind: 'denied',
+            label: approval.label,
+            ...(approval.arg ? { arg: approval.arg } : {}),
+            ok: false,
+            at: this.now(),
+          },
+        ],
+      };
+    }
+    this.save(live.job, true);
+    return true;
+  }
+
   stop(jobId: string): boolean {
     const live = [...this.live.values()].find((l) => l.job?.id === jobId);
     if (!live?.job || (live.job.state !== 'running' && live.job.state !== 'attention')) return false;
@@ -385,6 +414,21 @@ export class Jobs {
       case 'auth_failed':
         next = { ...job, error: 'auth_failed' };
         break;
+      case 'approval':
+        next = {
+          ...job,
+          state: 'attention',
+          approval: {
+            id: e.id,
+            label: e.label,
+            ...(e.arg ? { arg: e.arg } : {}),
+            ...(e.detail ? { detail: e.detail } : {}),
+          },
+        };
+        this.transcript(job.id, { t: 'notice', text: `approval: ${e.label} ${e.arg ?? ''}`.trim(), at });
+        this.save(next, true);
+        live.job = next;
+        return;
       case 'end': {
         if (e.more) {
           live.job = { ...job, ...(e.usage ? { usage: addUsage(job.usage, e.usage) } : {}) };
@@ -400,8 +444,9 @@ export class Jobs {
           this.save(live.job, true);
           return;
         }
+        const { approval: _done, ...settled } = job;
         const ended: Job = {
-          ...job,
+          ...settled,
           state: e.ok ? 'done' : 'failed',
           preview: undefined,
           ended: at,
