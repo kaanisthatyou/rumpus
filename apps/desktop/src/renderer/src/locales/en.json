@@ -197,6 +197,121 @@
     "not_installed": "The CLI was not found on this computer.",
     "login_unavailable": "The sign-in window could not be opened.",
     "internal": "Unexpected error.",
-    "core_offline": "The core process is not responding."
+    "core_offline": "The core process is not responding.",
+    "not_found": "Not found.",
+    "invalid_agent": "Agent not saved: a field is missing or invalid.",
+    "handle_taken": "This name is in use.",
+    "folder_missing": "Folder not found.",
+    "cli_missing": "The CLI was not found on this computer.",
+    "busy": "The job is no longer running."
+  },
+  "channel": {
+    "newSession": "New session",
+    "newSessionHint": "The agent leaves the earlier conversation in this channel behind.",
+    "agentChannelHint": "Every message in this channel goes to @{{handle}}.",
+    "channelHint": "Agents are called with @ in a message.",
+    "composerAgent": "Message · @{{handle}}",
+    "create": "Create channel",
+    "namePlaceholder": "channel-name",
+    "edit": "Edit",
+    "delete": "Delete",
+    "save": "Save",
+    "cancel": "Cancel",
+    "edited": "edited",
+    "agents": "Agents",
+    "today": "Today",
+    "yesterday": "Yesterday"
+  },
+  "job": {
+    "state": {
+      "running": "Running",
+      "attention": "Waiting for approval",
+      "done": "Done",
+      "failed": "Error",
+      "stopped": "Stopped"
+    },
+    "tool": {
+      "read": "Read",
+      "search": "Searched",
+      "edit": "Edited",
+      "write": "Wrote",
+      "command": "Command",
+      "web": "Web search",
+      "fetch": "Fetched",
+      "plan": "Plan",
+      "subagent": "Subagent",
+      "tool": "Tool",
+      "steer": "Steer",
+      "untrusted_folder": "Folder not trusted in Claude Code",
+      "compacted": "Context compacted"
+    },
+    "denied": "Refused",
+    "more_one": "{{count}} more step",
+    "more_other": "{{count}} more steps",
+    "usage": "{{in}} new · {{cached}} cached · {{out}} output",
+    "watch": "Watch live",
+    "steer": "Steer",
+    "stop": "Stop",
+    "steerPlaceholder": "Steer · sent with Enter",
+    "answer": "Answer of the job",
+    "live": "Live view",
+    "noTranscript": "No transcript.",
+    "error": {
+      "cli_missing": "The CLI was not found on this computer.",
+      "folder_missing": "The agent's folder was not found.",
+      "auth_failed": "The CLI sign-in is not valid. Sign in again under Settings → CLI agents.",
+      "exited": "The CLI closed unexpectedly.",
+      "app_closed": "The job was cut off when the app closed.",
+      "driver_missing": "This CLI cannot run jobs yet.",
+      "stopped": "Stopped.",
+      "failed": "The job ended with an error."
+    }
+  },
+  "agentForm": {
+    "new": "New agent",
+    "edit": "Agent settings",
+    "cli": "CLI",
+    "name": "Name",
+    "handle": "Handle",
+    "handleHint": "Called with @{{handle}} in channels.",
+    "folder": "Folder",
+    "folderHint": "The agent works in this folder.",
+    "pick": "Choose",
+    "mode": "Permission level",
+    "modes": {
+      "read": "Read",
+      "edit": "Edit",
+      "full": "Full"
+    },
+    "modeHint": {
+      "read": "Reads and searches files; changes nothing, runs no commands.",
+      "edit": "Edits files in the folder; commands that need approval are refused.",
+      "full": "Uses every tool without approval. Only in trusted folders."
+    },
+    "model": "Model",
+    "modelHint": "Empty uses the CLI's default model.",
+    "instructions": "Instructions",
+    "instructionsHint": "Given to the agent with every job.",
+    "save": "Save",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "noCli": "No installed CLI can run jobs. Setup is under Settings → CLI agents."
+  },
+  "crew": {
+    "addAgent": "Add agent",
+    "suggest": "Installed, not an agent",
+    "add": "Add",
+    "idle": "Idle",
+    "running": "Running",
+    "cliMissing": "CLI missing"
+  },
+  "quota": {
+    "title": "{{cli}} quota",
+    "window": {
+      "five_hour": "5 hours",
+      "seven_day": "Week",
+      "seven_day_opus": "Week · Opus",
+      "seven_day_sonnet": "Week · Sonnet"
+    }
   }
 }

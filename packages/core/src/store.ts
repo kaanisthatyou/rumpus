@@ -183,9 +183,9 @@ export class WorkspaceStore {
   // ---------------------------------------------------------------- reads
 
   channels(): Channel[] {
-    return (this.db.prepare('SELECT * FROM channels WHERE deleted = 0 ORDER BY kind, created').all() as Row[]).map(
-      toChannel,
-    );
+    // Normal channels first, then agents' own channels; each in the order they were made.
+    const sql = "SELECT * FROM channels WHERE deleted = 0 ORDER BY CASE kind WHEN 'channel' THEN 0 ELSE 1 END, created";
+    return (this.db.prepare(sql).all() as Row[]).map(toChannel);
   }
 
   channel(id: string): Channel | undefined {

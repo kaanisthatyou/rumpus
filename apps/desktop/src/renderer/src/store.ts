@@ -1,12 +1,27 @@
-import type { CliInfo, CliKind, Result, Settings, SettingsPatch, TailscaleInfo } from '@lonca/protocol';
+import type {
+  Agent,
+  AgentInput,
+  CliInfo,
+  CliKind,
+  Job,
+  Message,
+  Quota,
+  Result,
+  Settings,
+  SettingsPatch,
+  TailscaleInfo,
+  WorkspaceState,
+} from '@lonca/protocol';
 import { create } from 'zustand';
 import type { AppInfo, UpdateState } from '../../shared/bridge';
 import i18n from './i18n';
 import { core, RpcError } from './rpc';
 
+export type View = 'channel' | 'tasks' | 'goals' | 'ideas' | 'references' | 'commands' | 'memory';
+
 interface AppState {
   settings?: Settings;
-  agents?: CliInfo[];
+  clis?: CliInfo[];
   scanning: boolean;
   tailscale?: TailscaleInfo;
   system?: Result<'system.info'>;
@@ -14,8 +29,20 @@ interface AppState {
   update: UpdateState;
   /** Error code of the last failed action, shown as a translated line. */
   error?: string;
-  /** Set when a CLI login console was opened; agents are scanned again when the window regains focus. */
+  /** Set when a CLI login console was opened; CLIs are scanned again when the window regains focus. */
   loginPending: boolean;
+
+  workspace?: WorkspaceState;
+  view: View;
+  channelId?: string;
+  messages: Record<string, Message[]>;
+  jobs: Record<string, Job>;
+  quota: Partial<Record<CliKind, Quota>>;
+  /** The job shown in the live view, if any. */
+  watching?: string;
+  /** The agent dialog: an agent to edit, `new` for a new one, or closed. */
+  agentDialog?: Agent | 'new' | { kind: CliKind };
+
   init(): Promise<void>;
   patch(patch: SettingsPatch): Promise<void>;
   scan(): Promise<void>;
@@ -23,95 +50,260 @@ interface AppState {
   refreshTailscale(): Promise<void>;
   refreshSystem(): Promise<void>;
   clearError(): void;
+
+  loadWorkspace(): Promise<void>;
+  setView(view: View): void;
+  openChannel(id: string): Promise<void>;
+  send(text: string): Promise<boolean>;
+  editMessage(id: string, text: string): Promise<boolean>;
+  deleteMessage(id: string): Promise<void>;
+  createChannel(name: string): Promise<boolean>;
+  saveAgent(input: AgentInput): Promise<boolean>;
+  deleteAgent(id: string): Promise<void>;
+  newSession(agentId: string, channelId: string): Promise<void>;
+  stopJob(id: string): Promise<void>;
+  steerJob(id: string, text: string): Promise<boolean>;
+  watch(jobId: string | undefined): void;
+  openAgentDialog(target: AppState['agentDialog']): void;
 }
 
 const codeOf = (err: unknown) => (err instanceof RpcError ? err.code : 'internal');
 
-export const useApp = create<AppState>((set, get) => ({
-  scanning: false,
-  update: { status: 'disabled' },
-  loginPending: false,
-
-  async init() {
-    core.on('settings.changed', (settings) => {
-      set({ settings });
-      void i18n.changeLanguage(settings.language);
-    });
-    core.on('clis.changed', (agents) => set({ agents }));
-    window.lonca.updates.onChange((update) => set({ update }));
-    const [settings, app, update] = await Promise.all([
-      core.call('settings.get'),
-      window.lonca.shell.appInfo(),
-      window.lonca.updates.state(),
-    ]);
-    await i18n.changeLanguage(settings.language);
-    set({ settings, app, update });
-    void get().refreshSystem();
-    void get().scan();
-    void get().refreshTailscale();
-    // The core may restart; read its state again when a new connection arrives.
-    core.onConnect(() => {
-      void core.call('settings.get').then((s) => set({ settings: s }));
-    });
-  },
-
-  async patch(patch) {
-    // Show the change at once; the core's answer confirms it, a refusal puts the old value back.
-    const before = get().settings;
-    if (before) {
-      set({ settings: { ...before, ...patch, profile: { ...before.profile, ...patch.profile } } });
-      if (patch.language) void i18n.changeLanguage(patch.language);
-    }
+/** The last open channel, a per-window convenience; storage may be unavailable, so every access is guarded. */
+const lastChannel = {
+  get(): string | undefined {
     try {
-      const settings = await core.call('settings.update', patch);
-      set({ settings, error: undefined });
-      if (patch.dataDir !== undefined) void get().refreshSystem();
-    } catch (err) {
-      set({ error: codeOf(err), ...(before ? { settings: before } : {}) });
-      if (before) void i18n.changeLanguage(before.language);
-    }
-  },
-
-  async scan() {
-    set({ scanning: true });
-    try {
-      set({ agents: await core.call('clis.list', { refresh: true }) });
-    } catch (err) {
-      set({ error: codeOf(err) });
-    } finally {
-      set({ scanning: false });
-    }
-  },
-
-  async login(kind) {
-    try {
-      await core.call('clis.login', { kind });
-      set({ loginPending: true, error: undefined });
-    } catch (err) {
-      set({ error: codeOf(err) });
-    }
-  },
-
-  async refreshTailscale() {
-    try {
-      set({ tailscale: await core.call('tailscale.status') });
+      return localStorage.getItem('lonca.lastChannel') ?? undefined;
     } catch {
-      set({ tailscale: { state: 'unknown' } });
+      return undefined;
     }
   },
-
-  async refreshSystem() {
+  set(id: string): void {
     try {
-      set({ system: await core.call('system.info') });
+      localStorage.setItem('lonca.lastChannel', id);
+    } catch {
+      // nothing to remember then
+    }
+  },
+};
+
+function upsert(list: Message[], m: Message): Message[] {
+  const i = list.findIndex((x) => x.id === m.id);
+  if (i >= 0) return list.map((x) => (x.id === m.id ? m : x));
+  return [...list, m].sort((a, b) => a.created - b.created);
+}
+
+export const useApp = create<AppState>((set, get) => {
+  /** Runs an RPC call; a refusal becomes the error line and returns undefined. */
+  async function attempt<T>(fn: () => Promise<T>): Promise<T | undefined> {
+    try {
+      const r = await fn();
+      set({ error: undefined });
+      return r;
     } catch (err) {
       set({ error: codeOf(err) });
+      return undefined;
     }
-  },
+  }
 
-  clearError() {
-    set({ error: undefined });
-  },
-}));
+  return {
+    scanning: false,
+    update: { status: 'disabled' },
+    loginPending: false,
+    view: 'channel',
+    messages: {},
+    jobs: {},
+    quota: {},
+
+    async init() {
+      core.on('settings.changed', (settings) => {
+        set({ settings });
+        void i18n.changeLanguage(settings.language);
+      });
+      core.on('clis.changed', (clis) => set({ clis }));
+      core.on('workspace.changed', (workspace) => {
+        set({ workspace });
+        const { channelId } = get();
+        if (!channelId || !workspace.channels.some((c) => c.id === channelId)) {
+          const first = workspace.channels[0];
+          if (first) void get().openChannel(first.id);
+        }
+      });
+      core.on('message.added', (m) =>
+        set((s) => ({ messages: { ...s.messages, [m.channelId]: upsert(s.messages[m.channelId] ?? [], m) } })),
+      );
+      core.on('message.updated', (m) =>
+        set((s) => ({ messages: { ...s.messages, [m.channelId]: upsert(s.messages[m.channelId] ?? [], m) } })),
+      );
+      core.on('message.deleted', ({ id, channelId }) =>
+        set((s) => ({
+          messages: { ...s.messages, [channelId]: (s.messages[channelId] ?? []).filter((m) => m.id !== id) },
+        })),
+      );
+      core.on('job.updated', (job) => set((s) => ({ jobs: { ...s.jobs, [job.id]: job } })));
+      core.on('quota.changed', ({ kind, quota }) => set((s) => ({ quota: { ...s.quota, [kind]: quota } })));
+      window.lonca.updates.onChange((update) => set({ update }));
+
+      const [settings, app, update] = await Promise.all([
+        core.call('settings.get'),
+        window.lonca.shell.appInfo(),
+        window.lonca.updates.state(),
+      ]);
+      await i18n.changeLanguage(settings.language);
+      set({ settings, app, update });
+      void get().refreshSystem();
+      void get().scan();
+      void get().refreshTailscale();
+      if (settings.onboarded) void get().loadWorkspace();
+      // The core may restart; read its state again when a new connection arrives.
+      core.onConnect(() => {
+        void core.call('settings.get').then((s) => set({ settings: s }));
+        if (get().settings?.onboarded) void get().loadWorkspace();
+      });
+    },
+
+    async patch(patch) {
+      // Show the change at once; the core's answer confirms it, a refusal puts the old value back.
+      const before = get().settings;
+      if (before) {
+        set({ settings: { ...before, ...patch, profile: { ...before.profile, ...patch.profile } } });
+        if (patch.language) void i18n.changeLanguage(patch.language);
+      }
+      try {
+        const settings = await core.call('settings.update', patch);
+        set({ settings, error: undefined });
+        if (patch.dataDir !== undefined) {
+          void get().refreshSystem();
+          set({ messages: {}, jobs: {}, channelId: undefined });
+          if (settings.onboarded) void get().loadWorkspace();
+        }
+        if (patch.onboarded) void get().loadWorkspace();
+      } catch (err) {
+        set({ error: codeOf(err), ...(before ? { settings: before } : {}) });
+        if (before) void i18n.changeLanguage(before.language);
+      }
+    },
+
+    async scan() {
+      set({ scanning: true });
+      try {
+        set({ clis: await core.call('clis.list', { refresh: true }) });
+      } catch (err) {
+        set({ error: codeOf(err) });
+      } finally {
+        set({ scanning: false });
+      }
+    },
+
+    async login(kind) {
+      if (await attempt(() => core.call('clis.login', { kind }))) set({ loginPending: true });
+    },
+
+    async refreshTailscale() {
+      try {
+        set({ tailscale: await core.call('tailscale.status') });
+      } catch {
+        set({ tailscale: { state: 'unknown' } });
+      }
+    },
+
+    async refreshSystem() {
+      const system = await attempt(() => core.call('system.info'));
+      if (system) set({ system });
+    },
+
+    clearError() {
+      set({ error: undefined });
+    },
+
+    // ---------------------------------------------------------------- workspace
+
+    async loadWorkspace() {
+      const workspace = await attempt(() => core.call('workspace.get'));
+      if (!workspace) return;
+      const jobs = { ...get().jobs };
+      for (const j of workspace.active) jobs[j.id] = j;
+      const quota = (await attempt(() => core.call('quota.get'))) ?? {};
+      set({ workspace, jobs, quota });
+      const current = get().channelId ?? lastChannel.get();
+      const target = workspace.channels.find((c) => c.id === current) ?? workspace.channels[0];
+      if (target) await get().openChannel(target.id);
+    },
+
+    setView(view) {
+      set({ view });
+    },
+
+    async openChannel(id) {
+      set({ channelId: id, view: 'channel' });
+      lastChannel.set(id);
+      const page = await attempt(() => core.call('messages.list', { channelId: id, limit: 150 }));
+      if (!page) return;
+      set((s) => {
+        const jobs = { ...s.jobs };
+        for (const j of page.jobs) if (!jobs[j.id] || jobs[j.id]?.state !== 'running') jobs[j.id] = j;
+        return { messages: { ...s.messages, [id]: page.messages }, jobs };
+      });
+    },
+
+    async send(text) {
+      const channelId = get().channelId;
+      if (!channelId || !text.trim()) return false;
+      return Boolean(await attempt(() => core.call('messages.send', { channelId, text })));
+    },
+
+    async editMessage(id, text) {
+      return Boolean(await attempt(() => core.call('messages.edit', { id, text })));
+    },
+
+    async deleteMessage(id) {
+      await attempt(() => core.call('messages.delete', { id }));
+    },
+
+    async createChannel(name) {
+      const channel = await attempt(() => core.call('channels.create', { name }));
+      if (!channel) return false;
+      await get().loadWorkspace();
+      await get().openChannel(channel.id);
+      return true;
+    },
+
+    async saveAgent(input) {
+      const agent = await attempt(() => core.call('agents.save', input));
+      if (!agent) return false;
+      set({ agentDialog: undefined });
+      await get().loadWorkspace();
+      return true;
+    },
+
+    async deleteAgent(id) {
+      if (await attempt(() => core.call('agents.delete', { id }))) {
+        set({ agentDialog: undefined });
+        await get().loadWorkspace();
+      }
+    },
+
+    async newSession(agentId, channelId) {
+      await attempt(() => core.call('agents.newSession', { agentId, channelId }));
+    },
+
+    async stopJob(id) {
+      await attempt(() => core.call('jobs.stop', { id }));
+    },
+
+    async steerJob(id, text) {
+      return Boolean(await attempt(() => core.call('jobs.steer', { id, text })));
+    },
+
+    watch(jobId) {
+      set({ watching: jobId });
+    },
+
+    openAgentDialog(target) {
+      set({ agentDialog: target, error: undefined });
+    },
+  };
+});
 
 window.addEventListener('focus', () => {
   const s = useApp.getState();

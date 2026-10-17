@@ -261,7 +261,7 @@ function AgentRow({ agent }: { agent: CliInfo }) {
 
 export function AgentList() {
   const { t } = useTranslation();
-  const agents = useApp((s) => s.agents);
+  const agents = useApp((s) => s.clis);
   const scanning = useApp((s) => s.scanning);
   const scan = useApp((s) => s.scan);
   const loginPending = useApp((s) => s.loginPending);

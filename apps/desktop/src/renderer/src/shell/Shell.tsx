@@ -1,31 +1,23 @@
-import { Avatar, Button, Chip, Icon, IconButton, type IconName, Kbd, Mark, popIn, stagger } from '@lonca/ui';
+import type { CliKind, Quota } from '@lonca/protocol';
+import { Avatar, Button, Icon, IconButton, type IconName, Kbd, Mark, popIn, stagger, Track } from '@lonca/ui';
 import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useApp } from '../store';
+import { RUNNABLE } from '../agents/AgentDialog';
+import { ChannelView } from '../channel/ChannelView';
+import { LiveView } from '../channel/LiveView';
+import { useApp, type View } from '../store';
 
-type View = 'channel' | 'tasks' | 'goals' | 'ideas' | 'references' | 'commands' | 'memory';
-
-const NAV: { group: 'channels' | 'board' | 'records'; items: { view: View; icon: IconName }[] }[] = [
-  { group: 'channels', items: [{ view: 'channel', icon: 'hash' }] },
-  {
-    group: 'board',
-    items: [
-      { view: 'tasks', icon: 'tasks' },
-      { view: 'goals', icon: 'target' },
-    ],
-  },
-  {
-    group: 'records',
-    items: [
-      { view: 'ideas', icon: 'idea' },
-      { view: 'references', icon: 'image' },
-      { view: 'commands', icon: 'bookmark' },
-      { view: 'memory', icon: 'layers' },
-    ],
-  },
+const BOARD: { view: View; icon: IconName }[] = [
+  { view: 'tasks', icon: 'tasks' },
+  { view: 'goals', icon: 'target' },
 ];
-
+const RECORDS: { view: View; icon: IconName }[] = [
+  { view: 'ideas', icon: 'idea' },
+  { view: 'references', icon: 'image' },
+  { view: 'commands', icon: 'bookmark' },
+  { view: 'memory', icon: 'layers' },
+];
 const ICON_OF: Record<View, IconName> = {
   channel: 'hash',
   tasks: 'tasks',
@@ -35,6 +27,40 @@ const ICON_OF: Record<View, IconName> = {
   commands: 'bookmark',
   memory: 'layers',
 };
+
+function NavButton({
+  on,
+  icon,
+  label,
+  onClick,
+  badge,
+}: {
+  on: boolean;
+  icon: IconName;
+  label: string;
+  onClick: () => void;
+  badge?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      className={`nav ${on ? 'is-on' : ''}`}
+      aria-current={on ? 'page' : undefined}
+      onClick={onClick}
+    >
+      {on && (
+        <motion.span
+          layoutId="nav-on"
+          className="nav__on"
+          transition={{ type: 'spring', stiffness: 520, damping: 38 }}
+        />
+      )}
+      <Icon name={icon} size={14} />
+      <span className="grow">{label}</span>
+      {badge && <span className="nav__live" aria-hidden="true" />}
+    </button>
+  );
+}
 
 function Rail({ onSettings }: { onSettings: () => void }) {
   const { t } = useTranslation();
@@ -61,10 +87,27 @@ function Rail({ onSettings }: { onSettings: () => void }) {
   );
 }
 
-function Sidebar({ view, setView, onSettings }: { view: View; setView: (v: View) => void; onSettings: () => void }) {
+function Sidebar({ onSettings }: { onSettings: () => void }) {
   const { t } = useTranslation();
   const settings = useApp((s) => s.settings);
   const tailscale = useApp((s) => s.tailscale);
+  const workspace = useApp((s) => s.workspace);
+  const view = useApp((s) => s.view);
+  const channelId = useApp((s) => s.channelId);
+  const jobs = useApp((s) => s.jobs);
+  const openChannel = useApp((s) => s.openChannel);
+  const setView = useApp((s) => s.setView);
+  const createChannel = useApp((s) => s.createChannel);
+  const [creating, setCreating] = useState(false);
+  const [name, setName] = useState('');
+  const channels = workspace?.channels.filter((c) => c.kind === 'channel') ?? [];
+  const agentChannels = workspace?.channels.filter((c) => c.kind === 'agent') ?? [];
+  const running = new Set(
+    Object.values(jobs)
+      .filter((j) => j.state === 'running')
+      .map((j) => j.channelId),
+  );
+
   return (
     <aside className="side" aria-label={t('shell.channels')}>
       <div className="side__ws">
@@ -81,32 +124,85 @@ function Sidebar({ view, setView, onSettings }: { view: View; setView: (v: View)
         <span className="grow">{t('shell.search')}</span>
         <Kbd>Ctrl K</Kbd>
       </button>
-      {NAV.map((g) => (
-        <div key={g.group} className="grp">
-          <h2>{t(`shell.${g.group}`)}</h2>
-          {g.items.map((item) => (
-            <button
-              key={item.view}
-              type="button"
-              className={`nav ${view === item.view ? 'is-on' : ''}`}
-              aria-current={view === item.view ? 'page' : undefined}
-              onClick={() => setView(item.view)}
-            >
-              {view === item.view && (
-                <motion.span
-                  layoutId="nav-on"
-                  className="nav__on"
-                  transition={{ type: 'spring', stiffness: 520, damping: 38 }}
-                />
-              )}
-              <Icon name={item.icon} size={14} />
-              <span className="grow">
-                {item.view === 'channel' ? t('shell.defaultChannel') : t(`shell.${item.view}`)}
-              </span>
-            </button>
+
+      <div className="grp">
+        <h2>
+          <span className="grow">{t('shell.channels')}</span>
+          <IconButton size="sm" icon="plus" label={t('channel.create')} onClick={() => setCreating((v) => !v)} />
+        </h2>
+        {creating && (
+          <form
+            className="side__new"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (await createChannel(name)) {
+                setName('');
+                setCreating(false);
+              }
+            }}
+          >
+            <input
+              className="l-input"
+              // biome-ignore lint/a11y/noAutofocus: the field opens on request, typing is the next step
+              autoFocus
+              value={name}
+              aria-label={t('channel.create')}
+              placeholder={t('channel.namePlaceholder')}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Escape' && setCreating(false)}
+            />
+          </form>
+        )}
+        {channels.map((c) => (
+          <NavButton
+            key={c.id}
+            on={view === 'channel' && channelId === c.id}
+            icon="hash"
+            label={c.name}
+            badge={running.has(c.id)}
+            onClick={() => void openChannel(c.id)}
+          />
+        ))}
+      </div>
+      {agentChannels.length > 0 && (
+        <div className="grp">
+          <h2>{t('channel.agents')}</h2>
+          {agentChannels.map((c) => (
+            <NavButton
+              key={c.id}
+              on={view === 'channel' && channelId === c.id}
+              icon="terminal"
+              label={`@${c.name}`}
+              badge={running.has(c.id)}
+              onClick={() => void openChannel(c.id)}
+            />
           ))}
         </div>
-      ))}
+      )}
+      <div className="grp">
+        <h2>{t('shell.board')}</h2>
+        {BOARD.map((item) => (
+          <NavButton
+            key={item.view}
+            on={view === item.view}
+            icon={item.icon}
+            label={t(`shell.${item.view}`)}
+            onClick={() => setView(item.view)}
+          />
+        ))}
+      </div>
+      <div className="grp">
+        <h2>{t('shell.records')}</h2>
+        {RECORDS.map((item) => (
+          <NavButton
+            key={item.view}
+            on={view === item.view}
+            icon={item.icon}
+            label={t(`shell.${item.view}`)}
+            onClick={() => setView(item.view)}
+          />
+        ))}
+      </div>
       <span className="grow" />
       <div className="me">
         <Avatar name={settings?.profile.name ?? ''} size={28} presence="on" />
@@ -121,64 +217,78 @@ function Sidebar({ view, setView, onSettings }: { view: View; setView: (v: View)
   );
 }
 
-function Main({ view }: { view: View }) {
+function Placeholder({ view }: { view: View }) {
   const { t } = useTranslation();
-  const channel = t('shell.defaultChannel');
-  const title = view === 'channel' ? channel : t(`shell.${view}`);
   return (
     <main className="chat">
       <header className="chat__head">
         <h2>
           <Icon name={ICON_OF[view]} size={15} />
-          {title}
+          {t(`shell.${view}`)}
         </h2>
-        {view === 'channel' && <span className="chat__topic">{t('shell.channelTopic')}</span>}
-        <span className="grow" />
-        <IconButton icon="search" label={t('shell.search')} disabled />
-        <IconButton icon="board" label={t('shell.board')} disabled />
       </header>
-      <AnimatePresence mode="wait">
-        <motion.section
-          key={view}
-          className="empty"
-          initial={{ opacity: 0, y: 8, scale: 0.99 }}
-          animate={{ opacity: 1, y: 0, scale: 1, transition: { type: 'spring', stiffness: 420, damping: 32 } }}
-          exit={{ opacity: 0, transition: { duration: 0.12 } }}
-        >
-          <span className="empty__icon">
-            <Icon name={ICON_OF[view]} size={22} />
-          </span>
-          <p className="empty__title">{t(`shell.empty.${view}`)}</p>
-          <p className="empty__sub">{t('common.notYet')}</p>
-        </motion.section>
-      </AnimatePresence>
-      {view === 'channel' && (
-        <div className="composer">
-          <div className="composer__box">
-            <IconButton icon="plus" label={t('shell.attach')} disabled />
-            <label className="l-sr" htmlFor="composer">
-              {t('shell.composer', { channel })}
-            </label>
-            <input id="composer" placeholder={t('shell.composer', { channel })} disabled />
-            <Kbd>Ctrl Space</Kbd>
-            <IconButton icon="mic" label={t('shell.voice')} disabled />
-            <button type="button" className="composer__send" aria-label={t('shell.send')} disabled>
-              <Icon name="send" size={16} />
-            </button>
-          </div>
-        </div>
-      )}
+      <motion.section
+        key={view}
+        className="empty"
+        initial={{ opacity: 0, y: 8, scale: 0.99 }}
+        animate={{ opacity: 1, y: 0, scale: 1, transition: { type: 'spring', stiffness: 420, damping: 32 } }}
+      >
+        <span className="empty__icon">
+          <Icon name={ICON_OF[view]} size={22} />
+        </span>
+        <p className="empty__title">{t(`shell.empty.${view}`)}</p>
+        <p className="empty__sub">{t('common.notYet')}</p>
+      </motion.section>
     </main>
   );
 }
 
-function Crew({ onSettings }: { onSettings: () => void }) {
+function QuotaBlock({ kind, quota }: { kind: CliKind; quota: Quota }) {
   const { t } = useTranslation();
-  const agents = useApp((s) => s.agents);
-  const settings = useApp((s) => s.settings);
-  const installed = (agents ?? []).filter((a) => a.state !== 'missing');
+  const windows = Object.entries(quota.windows).sort(([a], [b]) => a.localeCompare(b));
+  if (windows.length === 0) return null;
   return (
-    <aside className="crew" aria-label={t('shell.crew')}>
+    <div className="quota">
+      <b>{t('quota.title', { cli: t(`agent.kind.${kind}`) })}</b>
+      {windows.map(([name, w]) => (
+        <div key={name} className="quota__row">
+          <span className="quota__name">{t(`quota.window.${name}`, name)}</span>
+          <Track value={w.used} />
+          <span className="quota__pct l-mono">%{Math.round(w.used * 100)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Crew() {
+  const { t } = useTranslation();
+  const workspace = useApp((s) => s.workspace);
+  const clis = useApp((s) => s.clis);
+  const jobs = useApp((s) => s.jobs);
+  const quota = useApp((s) => s.quota);
+  const openChannel = useApp((s) => s.openChannel);
+  const openAgentDialog = useApp((s) => s.openAgentDialog);
+  const agents = workspace?.agents ?? [];
+  const busy = new Set(
+    Object.values(jobs)
+      .filter((j) => j.state === 'running')
+      .map((j) => j.agentId),
+  );
+  const used = new Set(agents.map((a) => a.kind));
+  const suggestions = (clis ?? []).filter(
+    (c) => RUNNABLE.includes(c.kind) && c.state !== 'missing' && !used.has(c.kind),
+  );
+  const me = workspace?.me;
+
+  return (
+    <motion.aside
+      className="crew"
+      aria-label={t('shell.crew')}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0, transition: { duration: 0.1 } }}
+    >
       <div className="crew__head">
         <h2>{t('shell.crew')}</h2>
         <Button size="sm" icon="userPlus" disabled title={t('common.notYet')}>
@@ -186,48 +296,74 @@ function Crew({ onSettings }: { onSettings: () => void }) {
         </Button>
       </div>
       <h3>
-        {t('shell.workers')}
-        <span className="l-mono">{installed.length}</span>
+        <span className="grow">{t('shell.workers')}</span>
+        <IconButton size="sm" icon="plus" label={t('crew.addAgent')} onClick={() => openAgentDialog('new')} />
       </h3>
-      {installed.length === 0 ? (
-        <button type="button" className="crew__empty" onClick={onSettings}>
-          {t('shell.noWorkers')}
-        </button>
-      ) : (
-        <motion.ul variants={stagger} initial="hidden" animate="shown" className="crew__list">
-          {installed.map((a) => (
-            <motion.li key={a.kind} variants={popIn} className={`who ${a.state === 'ready' ? '' : 'is-off'}`}>
-              <Avatar name="" icon="terminal" size={28} presence={a.state === 'ready' ? 'on' : 'off'} />
-              <div className="who__text">
-                <b>
-                  {t(`agent.kind.${a.kind}`)} · {settings?.profile.name}
-                </b>
-                <span>{t(`agent.state.${a.state}`)}</span>
-              </div>
-              {a.version && <Chip mono>{a.version}</Chip>}
+      <motion.ul variants={stagger} initial="hidden" animate="shown" className="crew__list">
+        {agents.map((a) => {
+          const cli = clis?.find((c) => c.kind === a.kind);
+          const missing = !cli || cli.state === 'missing';
+          const channel = workspace?.channels.find((c) => c.kind === 'agent' && c.agentId === a.id);
+          const state = missing ? t('crew.cliMissing') : busy.has(a.id) ? t('crew.running') : t('crew.idle');
+          return (
+            <motion.li key={a.id} variants={popIn} className={`who ${missing ? 'is-off' : ''}`}>
+              <button type="button" className="who__open" onClick={() => channel && void openChannel(channel.id)}>
+                <Avatar name="" icon="terminal" size={28} presence={missing ? 'off' : busy.has(a.id) ? 'busy' : 'on'} />
+                <div className="who__text">
+                  <b>
+                    {a.name} <span className="l-mono">@{a.handle}</span>
+                  </b>
+                  <span>
+                    {t(`agent.kind.${a.kind}`)} · {state}
+                  </span>
+                </div>
+              </button>
+              <IconButton size="sm" icon="settings" label={t('agentForm.edit')} onClick={() => openAgentDialog(a)} />
             </motion.li>
+          );
+        })}
+      </motion.ul>
+      {agents.length === 0 && suggestions.length === 0 && <p className="crew__none">{t('shell.noWorkers')}</p>}
+      {suggestions.length > 0 && (
+        <div className="crew__suggest">
+          <span>{t('crew.suggest')}</span>
+          {suggestions.map((c) => (
+            <div key={c.kind} className="who is-suggest">
+              <Avatar name="" icon="terminal" size={28} />
+              <div className="who__text">
+                <b>{t(`agent.kind.${c.kind}`)}</b>
+                <span className="l-mono">{c.version ? `v${c.version}` : ''}</span>
+              </div>
+              <Button size="sm" icon="plus" onClick={() => openAgentDialog({ kind: c.kind })}>
+                {t('crew.add')}
+              </Button>
+            </div>
           ))}
-        </motion.ul>
+        </div>
       )}
       <h3>{t('shell.advisors')}</h3>
       <p className="crew__none">{t('shell.noAdvisors')}</p>
       <h3>
-        {t('shell.members')}
+        <span className="grow">{t('shell.members')}</span>
         <span className="l-mono">1</span>
       </h3>
       <div className="who">
-        <Avatar name={settings?.profile.name ?? ''} size={28} presence="on" />
+        <Avatar name={me?.name ?? ''} size={28} presence="on" />
         <div className="who__text">
-          <b>{settings?.profile.name}</b>
+          <b>{me?.name}</b>
           <span>{t('shell.role.admin')}</span>
         </div>
       </div>
-    </aside>
+      <span className="grow" />
+      {Object.entries(quota).map(([kind, q]) => q && <QuotaBlock key={kind} kind={kind as CliKind} quota={q} />)}
+    </motion.aside>
   );
 }
 
 export function Shell({ onSettings }: { onSettings: () => void }) {
-  const [view, setView] = useState<View>('channel');
+  const view = useApp((s) => s.view);
+  const channel = useApp((s) => s.workspace?.channels.find((c) => c.id === s.channelId));
+  const watching = useApp((s) => s.watching);
   return (
     <motion.div
       className="shell"
@@ -235,9 +371,11 @@ export function Shell({ onSettings }: { onSettings: () => void }) {
       animate={{ opacity: 1, scale: 1, transition: { duration: 0.3 } }}
     >
       <Rail onSettings={onSettings} />
-      <Sidebar view={view} setView={setView} onSettings={onSettings} />
-      <Main view={view} />
-      <Crew onSettings={onSettings} />
+      <Sidebar onSettings={onSettings} />
+      {view === 'channel' && channel ? <ChannelView key={channel.id} channel={channel} /> : <Placeholder view={view} />}
+      <AnimatePresence mode="wait">
+        {watching ? <LiveView key={watching} jobId={watching} /> : <Crew key="crew" />}
+      </AnimatePresence>
     </motion.div>
   );
 }

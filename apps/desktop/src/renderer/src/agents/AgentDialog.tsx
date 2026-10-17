@@ -1,0 +1,213 @@
+import { AGENT_MODES, type Agent, type AgentMode, type CliKind } from '@lonca/protocol';
+import { Button, Icon, IconButton, Segmented, TextField } from '@lonca/ui';
+import { motion } from 'motion/react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { ErrorLine } from '../parts';
+import { useApp } from '../store';
+
+/** CLIs Lonca can run jobs with today. */
+export const RUNNABLE: CliKind[] = ['claude-code', 'codex'];
+
+const slug = (name: string) =>
+  name
+    .toLocaleLowerCase('tr')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/ı/g, 'i')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 32);
+
+const DEFAULT_NAMES: Partial<Record<CliKind, string>> = { 'claude-code': 'Claude', codex: 'Codex' };
+
+export function AgentDialog() {
+  const { t } = useTranslation();
+  const target = useApp((s) => s.agentDialog);
+  const close = useCallback(() => useApp.getState().openAgentDialog(undefined), []);
+  const clis = useApp((s) => s.clis);
+  const saveAgent = useApp((s) => s.saveAgent);
+  const deleteAgent = useApp((s) => s.deleteAgent);
+  const existing: Agent | undefined = target && target !== 'new' && 'id' in target ? target : undefined;
+  const available = useMemo(
+    () => (clis ?? []).filter((c) => RUNNABLE.includes(c.kind) && c.state !== 'missing').map((c) => c.kind),
+    [clis],
+  );
+  const initialKind: CliKind =
+    existing?.kind ??
+    (target && target !== 'new' && 'kind' in target ? target.kind : undefined) ??
+    available[0] ??
+    'claude-code';
+
+  const [kind, setKind] = useState<CliKind>(initialKind);
+  const [name, setName] = useState(existing?.name ?? DEFAULT_NAMES[initialKind] ?? '');
+  const [handle, setHandle] = useState(existing?.handle ?? slug(DEFAULT_NAMES[initialKind] ?? ''));
+  const [handleTouched, setHandleTouched] = useState(Boolean(existing));
+  const [folder, setFolder] = useState(existing?.folder ?? '');
+  const [mode, setMode] = useState<AgentMode>(existing?.mode ?? 'read');
+  const [model, setModel] = useState(existing?.model ?? '');
+  const [instructions, setInstructions] = useState(existing?.instructions ?? '');
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [close]);
+
+  if (!target) return null;
+  const kinds = existing ? [existing.kind] : available;
+
+  return (
+    <motion.div
+      className="l-overlay"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onMouseDown={(e) => e.target === e.currentTarget && close()}
+    >
+      <motion.form
+        className="l-dialog agentform"
+        role="dialog"
+        aria-modal="true"
+        aria-label={existing ? t('agentForm.edit') : t('agentForm.new')}
+        initial={{ opacity: 0, y: 12, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1, transition: { type: 'spring', stiffness: 460, damping: 34 } }}
+        exit={{ opacity: 0, y: 8, scale: 0.98, transition: { duration: 0.15 } }}
+        onSubmit={async (e) => {
+          e.preventDefault();
+          await saveAgent({
+            ...(existing ? { id: existing.id } : {}),
+            kind,
+            name,
+            handle,
+            folder,
+            mode,
+            ...(model.trim() ? { model: model.trim() } : {}),
+            instructions,
+          });
+        }}
+      >
+        <header className="agentform__head">
+          <h2>{existing ? t('agentForm.edit') : t('agentForm.new')}</h2>
+          <IconButton icon="close" label={t('common.close')} onClick={close} />
+        </header>
+        <div className="agentform__body">
+          {kinds.length === 0 ? (
+            <p className="muted">{t('agentForm.noCli')}</p>
+          ) : (
+            <>
+              <div className="row-field">
+                <span className="row-field__label">{t('agentForm.cli')}</span>
+                <Segmented
+                  layoutId="agent-cli"
+                  label={t('agentForm.cli')}
+                  value={kind}
+                  onChange={(k) => {
+                    setKind(k);
+                    if (!existing && (!name || name === DEFAULT_NAMES[kind])) {
+                      const n = DEFAULT_NAMES[k] ?? '';
+                      setName(n);
+                      if (!handleTouched) setHandle(slug(n));
+                    }
+                  }}
+                  options={kinds.map((k) => ({ value: k, label: t(`agent.kind.${k}`) }))}
+                />
+              </div>
+              <div className="agentform__pair">
+                <TextField
+                  label={t('agentForm.name')}
+                  value={name}
+                  maxLength={40}
+                  required
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    if (!handleTouched) setHandle(slug(e.target.value));
+                  }}
+                />
+                <TextField
+                  label={t('agentForm.handle')}
+                  value={handle}
+                  maxLength={32}
+                  required
+                  pattern="[a-z0-9][a-z0-9\-]*"
+                  hint={t('agentForm.handleHint', { handle: handle || '…' })}
+                  onChange={(e) => {
+                    setHandleTouched(true);
+                    setHandle(slug(e.target.value));
+                  }}
+                />
+              </div>
+              <div className="l-field">
+                <span className="l-field__label">{t('agentForm.folder')}</span>
+                <div className="folder__path l-card">
+                  <Icon name="folder" />
+                  <span className="l-mono">{folder || '—'}</span>
+                  <Button
+                    size="sm"
+                    onClick={async () => {
+                      const dir = await window.lonca.shell.pickFolder();
+                      if (dir) setFolder(dir);
+                    }}
+                  >
+                    {t('agentForm.pick')}
+                  </Button>
+                </div>
+                <span className="l-field__hint">{t('agentForm.folderHint')}</span>
+              </div>
+              <div className="l-field">
+                <span className="l-field__label">{t('agentForm.mode')}</span>
+                <Segmented
+                  layoutId="agent-mode"
+                  label={t('agentForm.mode')}
+                  value={mode}
+                  onChange={setMode}
+                  options={AGENT_MODES.map((m) => ({ value: m, label: t(`agentForm.modes.${m}`) }))}
+                />
+                <span className={`l-field__hint ${mode === 'full' ? 'is-warn' : ''}`}>
+                  {t(`agentForm.modeHint.${mode}`)}
+                </span>
+              </div>
+              <TextField
+                label={t('agentForm.model')}
+                value={model}
+                maxLength={80}
+                hint={t('agentForm.modelHint')}
+                onChange={(e) => setModel(e.target.value)}
+              />
+              <div className="l-field">
+                <label className="l-field__label" htmlFor="agent-instructions">
+                  {t('agentForm.instructions')}
+                </label>
+                <textarea
+                  id="agent-instructions"
+                  className="l-input agentform__text"
+                  value={instructions}
+                  maxLength={20000}
+                  onChange={(e) => setInstructions(e.target.value)}
+                />
+                <span className="l-field__hint">{t('agentForm.instructionsHint')}</span>
+              </div>
+            </>
+          )}
+          <ErrorLine />
+        </div>
+        <footer className="agentform__foot">
+          {existing ? (
+            <Button variant="danger" icon="close" onClick={() => void deleteAgent(existing.id)}>
+              {t('agentForm.delete')}
+            </Button>
+          ) : (
+            <span />
+          )}
+          <span className="grow" />
+          <Button variant="quiet" onClick={close}>
+            {t('agentForm.cancel')}
+          </Button>
+          <Button type="submit" variant="primary" disabled={kinds.length === 0 || !folder || !name.trim() || !handle}>
+            {t('agentForm.save')}
+          </Button>
+        </footer>
+      </motion.form>
+    </motion.div>
+  );
+}

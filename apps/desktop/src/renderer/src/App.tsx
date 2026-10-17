@@ -1,6 +1,7 @@
 import { Mark } from '@lonca/ui';
 import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import { useCallback, useEffect, useState } from 'react';
+import { AgentDialog } from './agents/AgentDialog';
 import { Launcher } from './launcher/Launcher';
 import { SettingsDialog } from './settings/SettingsDialog';
 import { Shell } from './shell/Shell';
@@ -18,6 +19,7 @@ function Boot() {
 
 export function App() {
   const settings = useApp((s) => s.settings);
+  const agentDialog = useApp((s) => s.agentDialog);
   const init = useApp((s) => s.init);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const openSettings = useCallback(() => setSettingsOpen(true), []);
@@ -54,6 +56,7 @@ export function App() {
           )}
         </div>
         <AnimatePresence>{settingsOpen && <SettingsDialog onClose={closeSettings} />}</AnimatePresence>
+        <AnimatePresence>{agentDialog && <AgentDialog key="agent-dialog" />}</AnimatePresence>
       </div>
     </MotionConfig>
   );

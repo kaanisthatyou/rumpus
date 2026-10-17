@@ -15,7 +15,7 @@
     "preview": "electron-vite preview",
     "dist": "electron-vite build && electron-builder --config electron-builder.yml --publish never",
     "typecheck": "tsc -p tsconfig.node.json && tsc -p tsconfig.preload.json && tsc -p tsconfig.web.json",
-    "e2e": "electron-vite build && node e2e/smoke.mjs"
+    "e2e": "electron-vite build && node e2e/smoke.mjs && node e2e/channel.mjs"
   },
   "dependencies": {
     "@lonca/core": "workspace:*",
@@ -35,6 +35,8 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-i18next": "17.0.16",
+    "react-markdown": "10.1.0",
+    "remark-gfm": "4.0.1",
     "vite": "7.3.7",
     "zustand": "5.0.15"
   }

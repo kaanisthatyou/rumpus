@@ -197,6 +197,121 @@
     "not_installed": "CLI bu bilgisayarda bulunamadı.",
     "login_unavailable": "Giriş penceresi açılamadı.",
     "internal": "Beklenmeyen hata.",
-    "core_offline": "Çekirdek süreci yanıt vermiyor."
+    "core_offline": "Çekirdek süreci yanıt vermiyor.",
+    "not_found": "Kayıt bulunamadı.",
+    "invalid_agent": "Agent kaydedilemedi: eksik ya da geçersiz alan.",
+    "handle_taken": "Bu ad kullanımda.",
+    "folder_missing": "Klasör bulunamadı.",
+    "cli_missing": "CLI bu bilgisayarda bulunamadı.",
+    "busy": "İş artık çalışmıyor."
+  },
+  "channel": {
+    "newSession": "Yeni oturum",
+    "newSessionHint": "Agent bu kanaldaki önceki konuşmayı bırakır.",
+    "agentChannelHint": "Bu kanaldaki her mesaj @{{handle}} agentına gider.",
+    "channelHint": "Agentlar mesajda @ ile çağrılır.",
+    "composerAgent": "Mesaj · @{{handle}}",
+    "create": "Kanal oluştur",
+    "namePlaceholder": "kanal-adı",
+    "edit": "Düzenle",
+    "delete": "Sil",
+    "save": "Kaydet",
+    "cancel": "Vazgeç",
+    "edited": "düzenlendi",
+    "agents": "Agentlar",
+    "today": "Bugün",
+    "yesterday": "Dün"
+  },
+  "job": {
+    "state": {
+      "running": "Çalışıyor",
+      "attention": "Onay bekliyor",
+      "done": "Bitti",
+      "failed": "Hata",
+      "stopped": "Durduruldu"
+    },
+    "tool": {
+      "read": "Okudu",
+      "search": "Aradı",
+      "edit": "Düzenledi",
+      "write": "Yazdı",
+      "command": "Komut",
+      "web": "Web araması",
+      "fetch": "Sayfa okudu",
+      "plan": "Plan",
+      "subagent": "Alt agent",
+      "tool": "Araç",
+      "steer": "Yönlendirme",
+      "untrusted_folder": "Klasör Claude Code'da güvenilir değil",
+      "compacted": "Bağlam sıkıştırıldı"
+    },
+    "denied": "Reddedildi",
+    "more_one": "{{count}} adım daha",
+    "more_other": "{{count}} adım daha",
+    "usage": "{{in}} yeni · {{cached}} önbellek · {{out}} çıktı",
+    "watch": "Canlı izle",
+    "steer": "Yönlendir",
+    "stop": "Durdur",
+    "steerPlaceholder": "Yönlendirme · Enter ile gönderilir",
+    "answer": "İşin yanıtı",
+    "live": "Canlı izleme",
+    "noTranscript": "Kayıt yok.",
+    "error": {
+      "cli_missing": "CLI bu bilgisayarda bulunamadı.",
+      "folder_missing": "Agent klasörü bulunamadı.",
+      "auth_failed": "CLI girişi geçersiz. Ayarlar → CLI agentları üzerinden yeniden giriş yapılır.",
+      "exited": "CLI beklenmedik şekilde kapandı.",
+      "app_closed": "Uygulama kapanırken iş yarıda kaldı.",
+      "driver_missing": "Bu CLI henüz iş çalıştıramıyor.",
+      "stopped": "Durduruldu.",
+      "failed": "İş hatayla bitti."
+    }
+  },
+  "agentForm": {
+    "new": "Yeni agent",
+    "edit": "Agent ayarları",
+    "cli": "CLI",
+    "name": "Ad",
+    "handle": "Kısa ad",
+    "handleHint": "Kanallarda @{{handle}} ile çağrılır.",
+    "folder": "Klasör",
+    "folderHint": "Agent bu klasörde çalışır.",
+    "pick": "Seç",
+    "mode": "İzin düzeyi",
+    "modes": {
+      "read": "Oku",
+      "edit": "Düzenle",
+      "full": "Tam"
+    },
+    "modeHint": {
+      "read": "Dosyaları okur ve arar; değiştirmez, komut çalıştırmaz.",
+      "edit": "Klasördeki dosyaları düzenler; onay gerektiren komutlar reddedilir.",
+      "full": "Her aracı onaysız kullanır. Yalnızca güvenilen klasörlerde."
+    },
+    "model": "Model",
+    "modelHint": "Boş bırakılırsa CLI'ın varsayılan modeli kullanılır.",
+    "instructions": "Talimatlar",
+    "instructionsHint": "Her işte agenta verilir.",
+    "save": "Kaydet",
+    "delete": "Sil",
+    "cancel": "Vazgeç",
+    "noCli": "İş çalıştırabilen kurulu bir CLI yok. Kurulum Ayarlar → CLI agentları bölümünde."
+  },
+  "crew": {
+    "addAgent": "Agent ekle",
+    "suggest": "Kurulu, agent değil",
+    "add": "Ekle",
+    "idle": "Boşta",
+    "running": "Çalışıyor",
+    "cliMissing": "CLI yok"
+  },
+  "quota": {
+    "title": "{{cli}} kotası",
+    "window": {
+      "five_hour": "5 saat",
+      "seven_day": "Hafta",
+      "seven_day_opus": "Hafta · Opus",
+      "seven_day_sonnet": "Hafta · Sonnet"
+    }
   }
 }

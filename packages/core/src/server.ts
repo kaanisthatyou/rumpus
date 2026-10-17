@@ -305,7 +305,7 @@ export class Core {
   private renameChannel(id: unknown, name: unknown): Channel {
     const { store } = this.workspace();
     const channel = typeof id === 'string' ? store.channel(id) : undefined;
-    if (!channel || channel.kind !== 'channel') throw new CoreError('not_found');
+    if (channel?.kind !== 'channel') throw new CoreError('not_found');
     const clean = typeof name === 'string' ? name.trim().toLocaleLowerCase('tr').replace(/\s+/g, '-') : '';
     if (!CHANNEL_NAME.test(clean)) throw new CoreError('bad_request', 'name');
     store.commit({ type: 'channel.renamed', data: { id: channel.id, name: clean } });
@@ -316,7 +316,7 @@ export class Core {
   private deleteChannel(id: unknown): { ok: true } {
     const { store } = this.workspace();
     const channel = typeof id === 'string' ? store.channel(id) : undefined;
-    if (!channel || channel.kind !== 'channel') throw new CoreError('not_found');
+    if (channel?.kind !== 'channel') throw new CoreError('not_found');
     if (store.channels().filter((c) => c.kind === 'channel').length <= 1) throw new CoreError('bad_request', 'last');
     store.commit({ type: 'channel.deleted', data: { id: channel.id } });
     this.changed();

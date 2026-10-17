@@ -50,7 +50,7 @@ export function defaultSettings(language: Language = 'en'): Settings {
 
 // ---------------------------------------------------------------- agents (CLI) and network
 
-import { CLI_KINDS, type CliKind } from './kinds.js';
+import type { CliKind } from './kinds.js';
 
 export { CLI_KINDS, type CliKind } from './kinds.js';
 
