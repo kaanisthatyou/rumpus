@@ -1,6 +1,6 @@
 # Lonca v2: plan
 
-Status: **Phase 0 built** (2026-10-16); see "Phase 0 status" under section 8. Owners: Kaan and Arda. v0.1 (the
+Status: **Phase 1 in progress** (2026-10-17); see "Phase 0 status" and "Phase 1 status" under section 8. Owners: Kaan and Arda. v0.1 (the
 Python chat server, tag `v0.1.0`) was the starting point for ideas and the security model, not for code.
 
 Research behind this plan: `docs/research/` (Claude Desktop, Antigravity, Hermes Agent + Jan, CLI agents, platform:
@@ -501,6 +501,34 @@ Still open for Phase 0's "done when":
   turned install-on-quit off) installed it silently when it closed.
 - **Linux:** CI passes on Ubuntu (lint, types, tests, build); the AppImage and deb packages have not been built
   or run on Linux yet (the first tagged release builds them).
+
+### Phase 1 status (2026-10-17)
+
+Built and verified (unit tests, and the real app driven against a fake Claude Code in `e2e/channel.mjs`):
+
+- Workspace store on Node's built-in `node:sqlite`: append-only event log applied to tables, accent-insensitive
+  full-text search; jobs and CLI sessions kept locally.
+- Channels and agents' own channels; messages as Markdown, edit and delete, `@` completion, `/` commands.
+- Agents: CLI, name, handle, folder, permission level, model, instructions; one CLI session per agent and
+  channel, kept across jobs; "New session" to start over.
+- Claude Code driver over stream-json: live steering (messages sent mid-turn become queued turns of the same
+  job), stop, refused tools shown as steps, login failures, quota from rate-limit events. The read and edit flag
+  sets were checked against Claude Code 2.1.301 (two Haiku calls).
+- Codex driver over `codex exec --json`: written from the documentation, **not yet run against a real install**.
+- Job cards (live steps, streaming answer, usage, cost, steer, stop), the live view with the whole transcript,
+  the quota panel.
+- `/todo` and the board: four columns, drag and drop, an agent per card, "Run as job", the card follows the job.
+- `Ctrl K` palette (channels, agents, views, actions, message search), `Ctrl /` shortcut list, `Alt ↑ / ↓`,
+  `Ctrl .`.
+
+Still to do in Phase 1:
+
+- Records: ideas, references (images), saved commands with variables and tiles; `/kaydet`.
+- Instruction templates as editable files with layers, preview and reset (5.14); the defaults are in code now.
+- The MCP gateway with Lonca's own tools (history search, records, board), so agents can update cards.
+- Needs-attention approvals: Claude Code's `--permission-prompts host` refused instead of asking in a first
+  probe; until that works, read and edit levels refuse what would need approval and the card shows it.
+- Rebindable shortcuts.
 
 ## 9. Risks
 

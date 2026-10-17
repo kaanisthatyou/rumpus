@@ -75,7 +75,20 @@ export class Jobs {
     return agents.filter((a) => handles.includes(a.handle));
   }
 
-  async onMessage(message: Message, channel: Channel): Promise<void> {
+  private readonly starting = new Map<string, Promise<void>>();
+
+  /** Resolves once the jobs a message starts exist (used by the board to link a card to its job). */
+  async whenStarted(messageId: string): Promise<void> {
+    await this.starting.get(messageId);
+  }
+
+  onMessage(message: Message, channel: Channel): Promise<void> {
+    const work = this.route(message, channel).finally(() => this.starting.delete(message.id));
+    this.starting.set(message.id, work);
+    return work;
+  }
+
+  private async route(message: Message, channel: Channel): Promise<void> {
     if (message.author.kind !== 'person') return; // only a person's message starts work
     for (const agent of this.targets(message, channel, this.deps.store.agents())) {
       const live = this.live.get(this.key(agent.id, channel.id));

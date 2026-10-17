@@ -121,6 +121,31 @@ try {
   // The quota from the CLI's rate-limit events.
   await page.getByText(L.quota.window.five_hour).waitFor();
 
+  // /todo puts a card on the board; the palette opens the board; the card runs as a job and moves to review.
+  await composer.fill('/todo README dosyasını güncelle @claude');
+  await composer.press('Enter');
+  await page.getByText(L.board.added).waitFor();
+  await page.keyboard.press('Control+k');
+  const search = page.getByRole('textbox', { name: L.palette.placeholder });
+  await search.fill('görev');
+  await search.press('Enter');
+  const todo = page.getByRole('region', { name: L.board.status.todo });
+  await todo.getByText('README dosyasını güncelle').waitFor();
+  await shot(page, 'board');
+  await todo.getByRole('button', { name: L.board.run }).click();
+  const review = page.getByRole('region', { name: L.board.status.review });
+  await review.getByText('README dosyasını güncelle').waitFor({ timeout: 20_000 });
+  await shot(page, 'board-review');
+
+  // The shortcut list, then back to the channel through the palette.
+  await page.keyboard.press('Control+/');
+  await page.getByRole('dialog', { name: L.shortcuts.title }).waitFor();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Control+k');
+  await search.fill('genel');
+  await search.press('Enter');
+  await composer.waitFor();
+
   // In the agent's own channel: a slow job, steered, then stopped.
   await page.getByRole('button', { name: '@claude', exact: true }).click();
   const agentComposer = page.getByRole('textbox', { name: 'Mesaj · @claude' });

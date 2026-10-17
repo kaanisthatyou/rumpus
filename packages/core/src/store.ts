@@ -4,7 +4,7 @@
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import type { Agent, Author, Channel, Job, Message } from '@lonca/protocol';
+import type { Agent, Author, Card, Channel, Job, Message } from '@lonca/protocol';
 import { Clock, newId } from './ids.js';
 
 type Row = Record<string, unknown>;
@@ -43,6 +43,9 @@ CREATE TABLE IF NOT EXISTS jobs (
   id TEXT PRIMARY KEY, channel_id TEXT NOT NULL, request_id TEXT NOT NULL, data TEXT NOT NULL, started INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS jobs_by_channel ON jobs (channel_id, started);
+CREATE TABLE IF NOT EXISTS cards (
+  id TEXT PRIMARY KEY, data TEXT NOT NULL, created INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0
+);
 CREATE TABLE IF NOT EXISTS sessions (
   agent_id TEXT NOT NULL, channel_id TEXT NOT NULL, session_id TEXT NOT NULL, PRIMARY KEY (agent_id, channel_id)
 );
@@ -56,7 +59,9 @@ export type WorkspaceEvent =
   | { type: 'agent.deleted'; data: { id: string } }
   | { type: 'message.posted'; data: Message }
   | { type: 'message.edited'; data: { id: string; text: string; edited: number } }
-  | { type: 'message.deleted'; data: { id: string } };
+  | { type: 'message.deleted'; data: { id: string } }
+  | { type: 'card.saved'; data: Card }
+  | { type: 'card.deleted'; data: { id: string } };
 
 const json = <T>(text: unknown): T => JSON.parse(String(text)) as T;
 
@@ -173,6 +178,16 @@ export class WorkspaceStore {
       case 'message.deleted':
         this.db.prepare("UPDATE messages SET deleted = 1, text = '' WHERE id = ?").run(e.data.id);
         return;
+      case 'card.saved':
+        this.db
+          .prepare(
+            'INSERT INTO cards (id, data, created) VALUES (?, ?, ?) ON CONFLICT (id) DO UPDATE SET data = excluded.data, deleted = 0',
+          )
+          .run(e.data.id, JSON.stringify(e.data), e.data.created);
+        return;
+      case 'card.deleted':
+        this.db.prepare('UPDATE cards SET deleted = 1 WHERE id = ?').run(e.data.id);
+        return;
     }
   }
 
@@ -234,6 +249,17 @@ export class WorkspaceStore {
       )
       .all(terms, limit) as Row[];
     return rows.map(toMessage);
+  }
+
+  cards(): Card[] {
+    return (this.db.prepare('SELECT data FROM cards WHERE deleted = 0 ORDER BY created').all() as Row[]).map((r) =>
+      json<Card>(r.data),
+    );
+  }
+
+  card(id: string): Card | undefined {
+    const r = this.db.prepare('SELECT data FROM cards WHERE id = ? AND deleted = 0').get(id) as Row | undefined;
+    return r ? json<Card>(r.data) : undefined;
   }
 
   // ---------------------------------------------------------------- jobs and sessions (local)

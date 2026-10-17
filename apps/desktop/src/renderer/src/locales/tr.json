@@ -313,5 +313,54 @@
       "seven_day_opus": "Hafta · Opus",
       "seven_day_sonnet": "Hafta · Sonnet"
     }
+  },
+  "board": {
+    "status": {
+      "todo": "Yapılacak",
+      "doing": "Sürüyor",
+      "review": "İncelemede",
+      "done": "Bitti"
+    },
+    "new": "Yeni görev",
+    "newPlaceholder": "Görev · @ ile agent atanır",
+    "run": "İş ver",
+    "openJob": "İşi aç",
+    "delete": "Sil",
+    "assign": "Atanan",
+    "nobody": "Atanmadı",
+    "empty": "Boş",
+    "added": "Görev panoya eklendi.",
+    "hint": "Kartlar sütunlar arasında sürüklenir. Agent atanmış kart \"İş ver\" ile işe dönüşür; iş bitince kart incelemeye geçer."
+  },
+  "commands": {
+    "todo": "Panoya görev ekler",
+    "newSession": "Agent bu kanaldaki konuşmayı bırakır",
+    "search": "Mesajlarda arar"
+  },
+  "palette": {
+    "placeholder": "Kanal, agent, görünüm, eylem ya da mesaj",
+    "channels": "Kanallar",
+    "agents": "Agentlar",
+    "views": "Görünümler",
+    "actions": "Eylemler",
+    "messages": "Mesajlar",
+    "none": "Sonuç yok.",
+    "addAgent": "Agent ekle",
+    "createChannel": "Kanal oluştur",
+    "settings": "Ayarlar",
+    "shortcuts": "Kısayollar"
+  },
+  "shortcuts": {
+    "title": "Kısayollar",
+    "palette": "Arama ve komut paleti",
+    "settings": "Ayarlar",
+    "prevChannel": "Önceki kanal",
+    "nextChannel": "Sonraki kanal",
+    "stop": "Kanaldaki son çalışan işi durdur",
+    "list": "Bu liste",
+    "send": "Gönder",
+    "newline": "Yeni satır",
+    "mention": "Agent çağır",
+    "command": "Komut"
   }
 }

@@ -17,7 +17,7 @@ purpose; never change roblox-factory for it.
 | What | Where |
 |---|---|
 | Contract between core and clients: settings schema, RPC methods and events, error codes | `packages/protocol` |
-| Core logic, transport-agnostic: CLI detection, settings store, Tailscale status, RPC server | `packages/core` |
+| Core logic, transport-agnostic: CLI detection, settings, workspace store (`node:sqlite`), CLI drivers, jobs, prompts, RPC server | `packages/core` |
 | Design system "Grafit & tek vurgu": tokens, base CSS, components, line icons, motion presets | `packages/ui` |
 | Electron main process: window, security, updater, IPC for what only main can do | `apps/desktop/src/main` |
 | The core as an Electron utility process (one MessagePort per window) | `apps/desktop/src/core` |
@@ -46,8 +46,10 @@ purpose; never change roblox-factory for it.
 ## After a change
 
 1. `pnpm check` (Biome, TypeScript, Vitest, copy rules).
-2. `pnpm e2e`: the real app with a temporary `LONCA_HOME`, through the launcher, shell, settings and a restart.
-   Look at the screenshots in `apps/desktop/test-results/` before saying a UI change works.
+2. `pnpm e2e`: the real app with a temporary `LONCA_HOME`: `e2e/smoke.mjs` (launcher, shell, settings, restart)
+   and `e2e/channel.mjs` (agents, jobs, live view, steer and stop, board, palette, restart) against
+   `e2e/fake-claude.mjs`, a stand-in for Claude Code that costs no quota. Look at the screenshots in
+   `apps/desktop/test-results/` before saying a UI change works. Spend real CLI quota only for a short probe.
 3. Packaging changes: `pnpm dist`, then `E2E_EXE=release/win-unpacked/Lonca.exe node e2e/smoke.mjs` in
    `apps/desktop`. Updater changes: `e2e/update.mjs` (see its header).
 

@@ -1,7 +1,18 @@
 // The contract between Lonca's core process and its clients (the renderer today; the phone and other
 // members' apps later). Everything that crosses a process boundary is defined here.
 import { z } from 'zod';
-import type { Agent, AgentInput, Channel, Job, Message, Quota, TranscriptEntry, WorkspaceState } from './workspace.js';
+import type {
+  Agent,
+  AgentInput,
+  Card,
+  CardStatus,
+  Channel,
+  Job,
+  Message,
+  Quota,
+  TranscriptEntry,
+  WorkspaceState,
+} from './workspace.js';
 
 export * from './workspace.js';
 
@@ -118,6 +129,14 @@ export interface CoreMethods {
   'jobs.steer': { params: { id: string; text: string }; result: { ok: true } };
   'jobs.transcript': { params: { id: string }; result: TranscriptEntry[] };
   'quota.get': { params: undefined; result: Partial<Record<CliKind, Quota>> };
+  'cards.list': { params: undefined; result: Card[] };
+  'cards.create': { params: { title: string; channelId?: string; agentHandle?: string }; result: Card };
+  'cards.update': {
+    params: { id: string; title?: string; status?: CardStatus; assigneeAgentId?: string | null };
+    result: Card;
+  };
+  'cards.delete': { params: { id: string }; result: { ok: true } };
+  'cards.run': { params: { id: string }; result: Card };
 }
 
 export interface CoreEvents {
@@ -129,6 +148,8 @@ export interface CoreEvents {
   'message.deleted': { id: string; channelId: string };
   'job.updated': Job;
   'quota.changed': { kind: CliKind; quota: Quota };
+  'card.changed': Card;
+  'card.deleted': { id: string };
 }
 
 export type MethodName = keyof CoreMethods;

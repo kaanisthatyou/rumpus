@@ -122,6 +122,23 @@ export interface WorkspaceState {
   active: Job[];
 }
 
+export const CARD_STATUSES = ['todo', 'doing', 'review', 'done'] as const;
+export type CardStatus = (typeof CARD_STATUSES)[number];
+
+/** A task on the board (`/todo`). Assigned to an agent it can become a job with one click. */
+export interface Card {
+  id: string;
+  title: string;
+  status: CardStatus;
+  assignee?: { kind: 'person' | 'agent'; id: string };
+  /** The channel the card came from; its job runs there. */
+  channelId?: string;
+  /** The last job started from the card. */
+  jobId?: string;
+  created: number;
+  updated: number;
+}
+
 /** A normalized line of a job's transcript, for the live view. */
 export type TranscriptEntry =
   | { t: 'text'; text: string; at: number }

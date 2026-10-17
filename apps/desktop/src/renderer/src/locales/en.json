@@ -313,5 +313,54 @@
       "seven_day_opus": "Week · Opus",
       "seven_day_sonnet": "Week · Sonnet"
     }
+  },
+  "board": {
+    "status": {
+      "todo": "To do",
+      "doing": "In progress",
+      "review": "In review",
+      "done": "Done"
+    },
+    "new": "New task",
+    "newPlaceholder": "Task · assign an agent with @",
+    "run": "Run as job",
+    "openJob": "Open job",
+    "delete": "Delete",
+    "assign": "Assignee",
+    "nobody": "Unassigned",
+    "empty": "Empty",
+    "added": "Task added to the board.",
+    "hint": "Cards are dragged between columns. A card with an agent becomes a job with \"Run as job\"; when the job ends, the card moves to review."
+  },
+  "commands": {
+    "todo": "Adds a task to the board",
+    "newSession": "The agent leaves the conversation in this channel",
+    "search": "Searches messages"
+  },
+  "palette": {
+    "placeholder": "Channel, agent, view, action or message",
+    "channels": "Channels",
+    "agents": "Agents",
+    "views": "Views",
+    "actions": "Actions",
+    "messages": "Messages",
+    "none": "No results.",
+    "addAgent": "Add agent",
+    "createChannel": "Create channel",
+    "settings": "Settings",
+    "shortcuts": "Shortcuts"
+  },
+  "shortcuts": {
+    "title": "Shortcuts",
+    "palette": "Search and command palette",
+    "settings": "Settings",
+    "prevChannel": "Previous channel",
+    "nextChannel": "Next channel",
+    "stop": "Stop the latest running job in the channel",
+    "list": "This list",
+    "send": "Send",
+    "newline": "New line",
+    "mention": "Call an agent",
+    "command": "Command"
   }
 }

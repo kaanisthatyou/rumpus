@@ -6,6 +6,8 @@ import { join } from 'node:path';
 import {
   type Agent,
   AgentInputSchema,
+  CARD_STATUSES,
+  type Card,
   type Channel,
   CLI_KINDS,
   type CliInfo,
@@ -142,6 +144,17 @@ export class Core {
         return this.workspace().jobs.readTranscript(p.id);
       },
       'quota.get': async () => this.workspace().jobs.quotas,
+      'cards.list': async () => this.workspace().store.cards(),
+      'cards.create': async (p) => this.createCard(p),
+      'cards.update': async (p) => this.updateCard(p),
+      'cards.delete': async (p) => {
+        const { store } = this.workspace();
+        if (typeof p?.id !== 'string' || !store.card(p.id)) throw new CoreError('not_found');
+        store.commit({ type: 'card.deleted', data: { id: p.id } });
+        this.emit('card.deleted', { id: p.id });
+        return { ok: true as const };
+      },
+      'cards.run': async (p) => this.runCard(p?.id),
     };
   }
 
@@ -258,7 +271,10 @@ export class Core {
       dir,
       clis: () => this.listClis(false),
       me: () => ({ ...this.me(), language: this.settings.get().language }),
-      emitJob: (job) => this.emit('job.updated', job),
+      emitJob: (job) => {
+        this.emit('job.updated', job);
+        this.cardFollowsJob(job.id, job.state);
+      },
       emitMessage: (message) => this.emit('message.added', message),
       emitQuota: (kind, quota) => this.emit('quota.changed', { kind, quota }),
       ...(this.opts.drivers ? { drivers: this.opts.drivers } : {}),
@@ -413,6 +429,90 @@ export class Core {
     if (own) store.commit({ type: 'channel.deleted', data: { id: own.id } });
     this.changed();
     return { ok: true };
+  }
+
+  // ---------------------------------------------------------------- board
+
+  private saveCard(card: Card): Card {
+    this.workspace().store.commit({ type: 'card.saved', data: card });
+    this.emit('card.changed', card);
+    return card;
+  }
+
+  private createCard(p: { title?: unknown; channelId?: unknown; agentHandle?: unknown } | undefined): Card {
+    const { store } = this.workspace();
+    const title = typeof p?.title === 'string' ? p.title.trim() : '';
+    if (!title || title.length > 300) throw new CoreError('bad_request', 'title');
+    const agent =
+      typeof p?.agentHandle === 'string' ? store.agents().find((a) => a.handle === p.agentHandle) : undefined;
+    if (p?.agentHandle !== undefined && !agent) throw new CoreError('not_found', 'agent');
+    const channel = typeof p?.channelId === 'string' ? store.channel(p.channelId) : undefined;
+    const now = Date.now();
+    return this.saveCard({
+      id: newId(),
+      title,
+      status: 'todo',
+      ...(agent ? { assignee: { kind: 'agent' as const, id: agent.id } } : {}),
+      ...(channel ? { channelId: channel.id } : {}),
+      created: now,
+      updated: now,
+    });
+  }
+
+  private updateCard(
+    p: { id?: unknown; title?: unknown; status?: unknown; assigneeAgentId?: unknown } | undefined,
+  ): Card {
+    const { store } = this.workspace();
+    const card = typeof p?.id === 'string' ? store.card(p.id) : undefined;
+    if (!card) throw new CoreError('not_found');
+    const next: Card = { ...card, updated: Date.now() };
+    if (p?.title !== undefined) {
+      const title = typeof p.title === 'string' ? p.title.trim() : '';
+      if (!title || title.length > 300) throw new CoreError('bad_request', 'title');
+      next.title = title;
+    }
+    if (p?.status !== undefined) {
+      if (!(CARD_STATUSES as readonly unknown[]).includes(p.status)) throw new CoreError('bad_request', 'status');
+      next.status = p.status as Card['status'];
+    }
+    if (p?.assigneeAgentId === null) delete next.assignee;
+    else if (p?.assigneeAgentId !== undefined) {
+      const agent = typeof p.assigneeAgentId === 'string' ? store.agent(p.assigneeAgentId) : undefined;
+      if (!agent) throw new CoreError('not_found', 'agent');
+      next.assignee = { kind: 'agent', id: agent.id };
+    }
+    return this.saveCard(next);
+  }
+
+  /** "Give the job": the card's agent is called in the card's channel with the card as the request. */
+  private async runCard(id: unknown): Promise<Card> {
+    const { store, jobs } = this.workspace();
+    const card = typeof id === 'string' ? store.card(id) : undefined;
+    if (!card) throw new CoreError('not_found');
+    const agent = card.assignee?.kind === 'agent' ? store.agent(card.assignee.id) : undefined;
+    if (!agent) throw new CoreError('not_found', 'agent');
+    const channel =
+      (card.channelId && store.channel(card.channelId)) || store.channels().find((c) => c.kind === 'channel');
+    if (!channel) throw new CoreError('not_found', 'channel');
+    const text = channel.kind === 'agent' ? card.title : `@${agent.handle} ${card.title}`;
+    const message = this.send(channel.id, text);
+    await jobs.whenStarted(message.id);
+    const job = jobs.active().find((j) => j.requestId === message.id && j.agentId === agent.id);
+    return this.saveCard({
+      ...card,
+      status: 'doing',
+      channelId: channel.id,
+      ...(job ? { jobId: job.id } : {}),
+      updated: Date.now(),
+    });
+  }
+
+  /** A card whose job ends moves on: done goes to review, a failed or stopped job back to the list. */
+  private cardFollowsJob(jobId: string, state: string): void {
+    if (state === 'running' || state === 'attention' || !this.ws) return;
+    const card = this.ws.store.cards().find((c) => c.jobId === jobId && c.status === 'doing');
+    if (!card) return;
+    this.saveCard({ ...card, status: state === 'done' ? 'review' : 'todo', updated: Date.now() });
   }
 
   private steer(id: unknown, value: unknown): { ok: true } {

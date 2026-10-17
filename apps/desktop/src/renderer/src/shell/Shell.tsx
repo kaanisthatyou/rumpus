@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { RUNNABLE } from '../agents/AgentDialog';
+import { Board } from '../board/Board';
 import { ChannelView } from '../channel/ChannelView';
 import { LiveView } from '../channel/LiveView';
 import { useApp, type View } from '../store';
@@ -119,7 +120,7 @@ function Sidebar({ onSettings }: { onSettings: () => void }) {
         {t('shell.storage')}
         {tailscale?.state === 'running' && <span className="side__ts">· Tailscale</span>}
       </div>
-      <button type="button" className="side__find" disabled title={t('common.notYet')}>
+      <button type="button" className="side__find" onClick={() => useApp.getState().setPalette(true)}>
         <Icon name="search" size={14} />
         <span className="grow">{t('shell.search')}</span>
         <Kbd>Ctrl K</Kbd>
@@ -372,7 +373,13 @@ export function Shell({ onSettings }: { onSettings: () => void }) {
     >
       <Rail onSettings={onSettings} />
       <Sidebar onSettings={onSettings} />
-      {view === 'channel' && channel ? <ChannelView key={channel.id} channel={channel} /> : <Placeholder view={view} />}
+      {view === 'channel' && channel ? (
+        <ChannelView key={channel.id} channel={channel} />
+      ) : view === 'tasks' ? (
+        <Board />
+      ) : (
+        <Placeholder view={view} />
+      )}
       <AnimatePresence mode="wait">
         {watching ? <LiveView key={watching} jobId={watching} /> : <Crew key="crew" />}
       </AnimatePresence>

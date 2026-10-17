@@ -1,6 +1,8 @@
 import type {
   Agent,
   AgentInput,
+  Card,
+  CardStatus,
   CliInfo,
   CliKind,
   Job,
@@ -42,6 +44,11 @@ interface AppState {
   watching?: string;
   /** The agent dialog: an agent to edit, `new` for a new one, or closed. */
   agentDialog?: Agent | 'new' | { kind: CliKind };
+  cards: Card[];
+  paletteOpen: boolean;
+  shortcutsOpen: boolean;
+  /** A short confirmation line, cleared after a few seconds. */
+  note?: string;
 
   init(): Promise<void>;
   patch(patch: SettingsPatch): Promise<void>;
@@ -65,6 +72,17 @@ interface AppState {
   steerJob(id: string, text: string): Promise<boolean>;
   watch(jobId: string | undefined): void;
   openAgentDialog(target: AppState['agentDialog']): void;
+  createCard(title: string, opts?: { channelId?: string; agentHandle?: string }): Promise<boolean>;
+  updateCard(
+    id: string,
+    patch: { title?: string; status?: CardStatus; assigneeAgentId?: string | null },
+  ): Promise<void>;
+  deleteCard(id: string): Promise<void>;
+  runCard(id: string): Promise<void>;
+  openJob(jobId: string): Promise<void>;
+  setPalette(open: boolean): void;
+  setShortcuts(open: boolean): void;
+  flash(note: string): void;
 }
 
 const codeOf = (err: unknown) => (err instanceof RpcError ? err.code : 'internal');
@@ -114,6 +132,9 @@ export const useApp = create<AppState>((set, get) => {
     messages: {},
     jobs: {},
     quota: {},
+    cards: [],
+    paletteOpen: false,
+    shortcutsOpen: false,
 
     async init() {
       core.on('settings.changed', (settings) => {
@@ -142,6 +163,14 @@ export const useApp = create<AppState>((set, get) => {
       );
       core.on('job.updated', (job) => set((s) => ({ jobs: { ...s.jobs, [job.id]: job } })));
       core.on('quota.changed', ({ kind, quota }) => set((s) => ({ quota: { ...s.quota, [kind]: quota } })));
+      core.on('card.changed', (card) =>
+        set((s) => ({
+          cards: s.cards.some((c) => c.id === card.id)
+            ? s.cards.map((c) => (c.id === card.id ? card : c))
+            : [...s.cards, card],
+        })),
+      );
+      core.on('card.deleted', ({ id }) => set((s) => ({ cards: s.cards.filter((c) => c.id !== id) })));
       window.lonca.updates.onChange((update) => set({ update }));
 
       const [settings, app, update] = await Promise.all([
@@ -224,7 +253,8 @@ export const useApp = create<AppState>((set, get) => {
       const jobs = { ...get().jobs };
       for (const j of workspace.active) jobs[j.id] = j;
       const quota = (await attempt(() => core.call('quota.get'))) ?? {};
-      set({ workspace, jobs, quota });
+      const cards = (await attempt(() => core.call('cards.list'))) ?? [];
+      set({ workspace, jobs, quota, cards });
       const current = get().channelId ?? lastChannel.get();
       const target = workspace.channels.find((c) => c.id === current) ?? workspace.channels[0];
       if (target) await get().openChannel(target.id);
@@ -301,6 +331,57 @@ export const useApp = create<AppState>((set, get) => {
 
     openAgentDialog(target) {
       set({ agentDialog: target, error: undefined });
+    },
+
+    async createCard(title, opts = {}) {
+      const card = await attempt(() => core.call('cards.create', { title, ...opts }));
+      return Boolean(card);
+    },
+
+    async updateCard(id, patch) {
+      // Moving a card shows at once; the core's event confirms it.
+      set((s) => ({
+        cards: s.cards.map((c) =>
+          c.id === id
+            ? {
+                ...c,
+                ...(patch.title ? { title: patch.title } : {}),
+                ...(patch.status ? { status: patch.status } : {}),
+              }
+            : c,
+        ),
+      }));
+      await attempt(() => core.call('cards.update', { id, ...patch }));
+    },
+
+    async deleteCard(id) {
+      await attempt(() => core.call('cards.delete', { id }));
+    },
+
+    async runCard(id) {
+      await attempt(() => core.call('cards.run', { id }));
+    },
+
+    async openJob(jobId) {
+      const job = get().jobs[jobId];
+      if (!job) return;
+      await get().openChannel(job.channelId);
+      set({ watching: jobId });
+    },
+
+    setPalette(open) {
+      set({ paletteOpen: open });
+    },
+
+    setShortcuts(open) {
+      set({ shortcutsOpen: open });
+    },
+
+    flash(note) {
+      set({ note });
+      setTimeout(() => {
+        if (get().note === note) set({ note: undefined });
+      }, 3500);
     },
   };
 });
