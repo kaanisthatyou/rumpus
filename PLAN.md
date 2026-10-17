@@ -525,10 +525,14 @@ Built and verified (unit tests, and the real app driven against a fake Claude Co
   `{channel}`, `{date}`; any message saved as an idea; records attached to a message reach the job as notes,
   references as images (inline for Claude Code, `--image` for Codex).
 
+- Instructions (5.14): Lonca's core rules shown read-only; the worker template and the workspace's instructions as
+  Markdown files (`<data>/instructions/worker.md`, `<workspace>/instructions.md`), with earlier versions kept under
+  `history/`, "back to default", a notice when the shipped default changed under an edited copy, and a preview of
+  the whole prompt per agent. A session restarts its CLI process (same conversation) when a layer changes.
+
 Still to do in Phase 1:
 
 - Command tiles pinned above the composer.
-- Instruction templates as editable files with layers, preview and reset (5.14); the defaults are in code now.
 - The MCP gateway with Lonca's own tools (history search, records, board), so agents can update cards.
 - Needs-attention approvals: Claude Code's `--permission-prompts host` refused instead of asking in a first
   probe; until that works, read and edit levels refuse what would need approval and the card shows it.

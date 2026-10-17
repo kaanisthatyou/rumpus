@@ -144,6 +144,10 @@ export interface CoreMethods {
   'records.save': { params: RecordInput; result: RecordItem };
   'records.delete': { params: { id: string }; result: { ok: true } };
   'records.image': { params: { id: string }; result: string };
+  'instructions.get': { params: undefined; result: InstructionLayers };
+  'instructions.save': { params: { layer: 'worker' | 'workspace'; text: string }; result: InstructionLayers };
+  'instructions.reset': { params: { layer: 'worker' }; result: InstructionLayers };
+  'instructions.preview': { params: { agentId: string }; result: string };
 }
 
 export interface CoreEvents {
@@ -182,6 +186,14 @@ export const ERROR_CODES = [
   'internal',
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
+
+/** The instruction layers shown in Settings (PLAN.md 5.14). */
+export interface InstructionLayers {
+  core: string;
+  worker: { text: string; isDefault: boolean; defaultChanged: boolean; default: string };
+  workspace: string;
+  variables: string[];
+}
 
 export class CoreError extends Error {
   constructor(

@@ -35,7 +35,18 @@ export function fill(template: string, vars: Record<string, string>): string {
   return template.replace(/\{(\w+)\}/g, (m, key: string) => vars[key] ?? m);
 }
 
-export function systemPrompt(agent: Agent, ctx: { user: string; language: Language }): string {
+export interface PromptLayers {
+  /** Layer 2: the worker template (editable; the default above when not edited). */
+  worker?: string;
+  /** Layer 3: the workspace's instructions. */
+  workspace?: string;
+}
+
+export function systemPrompt(
+  agent: Agent,
+  ctx: { user: string; language: Language },
+  layers: PromptLayers = {},
+): string {
   const vars = {
     agent: agent.name,
     handle: agent.handle,
@@ -45,9 +56,10 @@ export function systemPrompt(agent: Agent, ctx: { user: string; language: Langua
     mode: MODE_TEXT[agent.mode],
     language: LANGUAGE_NAMES[ctx.language],
   };
-  const layers = [fill(CORE_RULES, vars), fill(WORKER_TEMPLATE, vars)];
-  if (agent.instructions.trim()) layers.push(`Instructions from your owner:\n${agent.instructions.trim()}`);
-  return layers.join('\n\n');
+  const parts = [fill(CORE_RULES, vars), fill(layers.worker ?? WORKER_TEMPLATE, vars)];
+  if (layers.workspace?.trim()) parts.push(`Instructions of this workspace:\n${fill(layers.workspace.trim(), vars)}`);
+  if (agent.instructions.trim()) parts.push(`Instructions from your owner:\n${fill(agent.instructions.trim(), vars)}`);
+  return parts.join('\n\n');
 }
 
 function clock(ms: number): string {

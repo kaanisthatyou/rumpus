@@ -30,8 +30,10 @@ import { detectAgents, loginCommand } from './agents.js';
 import { Blobs } from './blobs.js';
 import type { OpenSession } from './drivers/types.js';
 import { newId } from './ids.js';
+import { Instructions } from './instructions.js';
 import { Jobs } from './jobs.js';
 import { type Launch, openConsole, type Runner } from './proc.js';
+import { CORE_RULES, systemPrompt } from './prompts.js';
 import { SettingsStore } from './settings.js';
 import { WorkspaceStore } from './store.js';
 import { tailscaleStatus } from './tailscale.js';
@@ -82,7 +84,7 @@ export class Core {
   private readonly deviceId: string;
   private clis: CliInfo[] | undefined;
   private detecting: Promise<CliInfo[]> | undefined;
-  private ws: { dir: string; store: WorkspaceStore; jobs: Jobs; blobs: Blobs } | undefined;
+  private ws: { dir: string; store: WorkspaceStore; jobs: Jobs; blobs: Blobs; instructions: Instructions } | undefined;
   private readonly handlers: { [M in MethodName]: Handler<M> };
 
   constructor(private readonly opts: CoreOptions) {
@@ -167,6 +169,29 @@ export class Core {
         store.commit({ type: 'record.deleted', data: { id: p.id } });
         this.emit('record.deleted', { id: p.id });
         return { ok: true as const };
+      },
+      'instructions.get': async () => this.instructionLayers(),
+      'instructions.save': async (p) => {
+        const { instructions } = this.workspace();
+        if (typeof p?.text !== 'string' || p.text.length > 40_000) throw new CoreError('bad_request', 'text');
+        if (p.layer === 'worker') instructions.saveWorker(p.text);
+        else if (p.layer === 'workspace') instructions.saveWorkspace(p.text);
+        else throw new CoreError('bad_request', 'layer');
+        return this.instructionLayers();
+      },
+      'instructions.reset': async () => {
+        this.workspace().instructions.resetWorker();
+        return this.instructionLayers();
+      },
+      'instructions.preview': async (p) => {
+        const { store, instructions } = this.workspace();
+        const agent = typeof p?.agentId === 'string' ? store.agent(p.agentId) : undefined;
+        if (!agent) throw new CoreError('not_found');
+        return systemPrompt(
+          agent,
+          { user: this.me().name, language: this.settings.get().language },
+          { worker: instructions.worker().text, workspace: instructions.workspace() },
+        );
       },
       'records.image': async (p) => {
         const { store, blobs } = this.workspace();
@@ -268,7 +293,7 @@ export class Core {
 
   // ---------------------------------------------------------------- workspace
 
-  private workspace(): { dir: string; store: WorkspaceStore; jobs: Jobs; blobs: Blobs } {
+  private workspace(): { dir: string; store: WorkspaceStore; jobs: Jobs; blobs: Blobs; instructions: Instructions } {
     if (this.ws) return this.ws;
     const dir = join(this.dataDir(), 'workspaces', 'personal');
     const store = new WorkspaceStore(join(dir, 'lonca.db'), this.deviceId);
@@ -286,9 +311,11 @@ export class Core {
       store.commit({ type: 'channel.created', data: channel });
     }
     const blobs = new Blobs(join(dir, 'blobs'));
+    const instructions = new Instructions(this.dataDir(), dir);
     const jobs = new Jobs({
       store,
       dir,
+      layers: () => ({ worker: instructions.worker().text, workspace: instructions.workspace() }),
       refs: (ids) => this.refsFor(ids),
       clis: () => this.listClis(false),
       me: () => ({ ...this.me(), language: this.settings.get().language }),
@@ -301,7 +328,7 @@ export class Core {
       ...(this.opts.drivers ? { drivers: this.opts.drivers } : {}),
       ...(this.opts.launch ? { launch: this.opts.launch } : {}),
     });
-    this.ws = { dir, store, jobs, blobs };
+    this.ws = { dir, store, jobs, blobs, instructions };
     return this.ws;
   }
 
@@ -453,6 +480,16 @@ export class Core {
     if (own) store.commit({ type: 'channel.deleted', data: { id: own.id } });
     this.changed();
     return { ok: true };
+  }
+
+  private instructionLayers() {
+    const { instructions } = this.workspace();
+    return {
+      core: CORE_RULES,
+      worker: instructions.worker(),
+      workspace: instructions.workspace(),
+      variables: ['agent', 'handle', 'cli', 'user', 'folder', 'mode', 'language'],
+    };
   }
 
   // ---------------------------------------------------------------- records

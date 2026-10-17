@@ -169,6 +169,20 @@ try {
   await until(async () => (await composer.inputValue()) === 'genel kanalını özetle', 'command in the message box');
   await composer.fill('');
 
+  // Instructions: edit the worker template, see it in the preview, go back to the default.
+  await page.keyboard.press('Control+Comma');
+  const settingsDialog = page.getByRole('dialog', { name: L.settings.title });
+  await settingsDialog.getByRole('button', { name: L.settings.tabs.instructions }).click();
+  const template = settingsDialog.getByRole('textbox', { name: L.instructions.worker });
+  await template.fill('Her yanıtı tek cümleyle ver, {user}.');
+  await settingsDialog.getByRole('button', { name: L.instructions.save }).first().click();
+  await settingsDialog.getByText(L.instructions.edited).waitFor();
+  await settingsDialog.getByText('Her yanıtı tek cümleyle ver, Kaan.').waitFor();
+  await shot(page, 'instructions');
+  await settingsDialog.getByRole('button', { name: L.instructions.reset }).click();
+  await settingsDialog.getByText(L.instructions.isDefault, { exact: true }).waitFor();
+  await page.keyboard.press('Escape');
+
   // The shortcut list, then back to the channel through the palette.
   await page.keyboard.press('Control+/');
   await page.getByRole('dialog', { name: L.shortcuts.title }).waitFor();

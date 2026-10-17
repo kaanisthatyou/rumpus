@@ -139,3 +139,40 @@ describe('records', () => {
     );
   });
 });
+
+describe('instructions', () => {
+  it('edits the worker template and workspace layer, previews the whole prompt, resets', async () => {
+    const { call } = setup();
+    type Layers = { core: string; worker: { text: string; isDefault: boolean }; workspace: string };
+    const start = await call<Layers>('instructions.get');
+    expect(start.worker.isDefault).toBe(true);
+    expect(start.core).toContain('channel_context');
+
+    await call('instructions.save', { layer: 'worker', text: 'Always answer in haiku, {user}.' });
+    await call('instructions.save', { layer: 'workspace', text: 'The project is a Roblox game.' });
+    const folder = tmp('lonca-proj-');
+    const agent = await call<{ id: string }>('agents.save', {
+      kind: 'claude-code',
+      name: 'Claude',
+      handle: 'claude',
+      folder,
+      mode: 'edit',
+      instructions: 'Never touch {folder}/secrets.',
+    });
+    const preview = await call<string>('instructions.preview', { agentId: agent.id });
+    const order = [
+      'Rules Lonca enforces',
+      'Always answer in haiku, Lonca.',
+      'The project is a Roblox game.',
+      `Never touch ${folder}/secrets.`,
+    ];
+    const positions = order.map((part) => preview.indexOf(part));
+    expect(positions.every((p) => p >= 0)).toBe(true);
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+
+    const reset = await call<Layers>('instructions.reset', { layer: 'worker' });
+    expect(reset.worker.isDefault).toBe(true);
+    expect(reset.workspace).toBe('The project is a Roblox game.');
+    await expect(call('instructions.save', { layer: 'core', text: 'x' })).rejects.toThrow('bad_request');
+  });
+});

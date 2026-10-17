@@ -154,7 +154,8 @@
       "agents": "CLI agents",
       "team": "Team connection",
       "updates": "Updates",
-      "about": "About"
+      "about": "About",
+      "instructions": "Instructions"
     },
     "language": "Language",
     "name": "Display name",
@@ -405,5 +406,24 @@
     "saveMessage": "Save as idea",
     "remove": "Remove",
     "select": "A record is chosen on the left, or a new one is added."
+  },
+  "instructions": {
+    "core": "Lonca's core rules",
+    "coreHint": "Lonca enforces these rules in code; the text only explains them to the agent. Not editable.",
+    "worker": "Worker template",
+    "workerHint": "Added to every worker agent's system prompt.",
+    "workspace": "Workspace instructions",
+    "workspaceHint": "Given to every agent in this workspace.",
+    "variables": "Variables: {{list}}",
+    "save": "Save",
+    "reset": "Back to default",
+    "isDefault": "Default",
+    "edited": "Edited",
+    "defaultChanged": "Lonca's default template changed after this text was edited.",
+    "takeDefault": "Take the new default",
+    "preview": "Preview",
+    "previewHint": "The whole system prompt the chosen agent receives.",
+    "noAgent": "A preview needs an agent.",
+    "saved": "Saved."
   }
 }

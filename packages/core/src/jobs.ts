@@ -19,7 +19,7 @@ import { openCodex } from './drivers/codex.js';
 import type { AgentSession, Attachment, DriverEvent, OpenSession } from './drivers/types.js';
 import { newId } from './ids.js';
 import { type Launch, resolveLaunch } from './proc.js';
-import { systemPrompt, turnPrompt } from './prompts.js';
+import { type PromptLayers, systemPrompt, turnPrompt } from './prompts.js';
 import type { WorkspaceStore } from './store.js';
 
 export const DRIVERS: Partial<Record<CliKind, OpenSession>> = {
@@ -39,6 +39,8 @@ export interface JobsDeps {
   launch?: (path: string) => Launch;
   /** The records a message refers to: their notes for the prompt, their images as attachments. */
   refs?: (ids: string[]) => { notes: string[]; images: Attachment[] };
+  /** The editable instruction layers, read when a session starts. */
+  layers?: () => PromptLayers;
 }
 
 interface Live {
@@ -48,6 +50,8 @@ interface Live {
   job: Job | undefined;
   queue: string[];
   lastText: string;
+  /** The instruction layers the session was started with; a change starts a new process (same conversation). */
+  layers?: string;
 }
 
 const MENTION = /(^|[^\w@])@([a-z0-9][a-z0-9-]{0,31})\b/g;
@@ -165,9 +169,11 @@ export class Jobs {
 
     const key = this.key(agent.id, channel.id);
     let live = this.live.get(key);
+    const layers = JSON.stringify(this.deps.layers?.() ?? {});
     if (
       live &&
-      (live.agent.mode !== agent.mode ||
+      (live.layers !== layers ||
+        live.agent.mode !== agent.mode ||
         live.agent.model !== agent.model ||
         live.agent.folder !== agent.folder ||
         live.agent.instructions !== agent.instructions)
@@ -193,10 +199,11 @@ export class Jobs {
           mode: agent.mode,
           ...(agent.model ? { model: agent.model } : {}),
           ...(resume ? { resume } : {}),
-          systemPrompt: systemPrompt(agent, { user: me.name, language: me.language }),
+          systemPrompt: systemPrompt(agent, { user: me.name, language: me.language }, this.deps.layers?.() ?? {}),
         },
         (e) => this.onEvent(created, e),
       );
+      created.layers = layers;
       live = created;
       this.live.set(key, live);
     }

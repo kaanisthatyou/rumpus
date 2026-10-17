@@ -14,11 +14,16 @@ import {
   ThemePicker,
 } from '../parts';
 import { useApp } from '../store';
+import { InstructionsPanel } from './InstructionsPanel';
 
-const TABS: { id: 'general' | 'appearance' | 'agents' | 'team' | 'updates' | 'about'; icon: IconName }[] = [
+const TABS: {
+  id: 'general' | 'appearance' | 'agents' | 'instructions' | 'team' | 'updates' | 'about';
+  icon: IconName;
+}[] = [
   { id: 'general', icon: 'settings' },
   { id: 'appearance', icon: 'sun' },
   { id: 'agents', icon: 'terminal' },
+  { id: 'instructions', icon: 'layers' },
   { id: 'team', icon: 'network' },
   { id: 'updates', icon: 'download' },
   { id: 'about', icon: 'globe' },
@@ -197,6 +202,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             {tab === 'general' && <General />}
             {tab === 'appearance' && <Appearance />}
             {tab === 'agents' && <AgentList />}
+            {tab === 'instructions' && <InstructionsPanel />}
             {tab === 'team' && <TailscaleRow />}
             {tab === 'updates' && <Updates />}
             {tab === 'about' && <About />}

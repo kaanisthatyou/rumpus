@@ -154,7 +154,8 @@
       "agents": "CLI agentları",
       "team": "Ekip bağlantısı",
       "updates": "Güncelleme",
-      "about": "Hakkında"
+      "about": "Hakkında",
+      "instructions": "Talimatlar"
     },
     "language": "Dil",
     "name": "Görünen ad",
@@ -405,5 +406,24 @@
     "saveMessage": "Fikir olarak kaydet",
     "remove": "Çıkar",
     "select": "Soldan bir kayıt seçilir ya da yenisi eklenir."
+  },
+  "instructions": {
+    "core": "Lonca çekirdek kuralları",
+    "coreHint": "Lonca bu kuralları kodda uygular; metin yalnızca agenta açıklar. Düzenlenemez.",
+    "worker": "İşçi şablonu",
+    "workerHint": "Her işçi agentın sistem istemine eklenir.",
+    "workspace": "Çalışma alanı talimatları",
+    "workspaceHint": "Bu çalışma alanındaki her agenta verilir.",
+    "variables": "Değişkenler: {{list}}",
+    "save": "Kaydet",
+    "reset": "Varsayılana dön",
+    "isDefault": "Varsayılan",
+    "edited": "Düzenlendi",
+    "defaultChanged": "Lonca'nın varsayılan şablonu bu metin düzenlendikten sonra değişti.",
+    "takeDefault": "Yeni varsayılanı al",
+    "preview": "Önizleme",
+    "previewHint": "Seçilen agenta giden tam sistem istemi.",
+    "noAgent": "Önizleme için bir agent gerekir.",
+    "saved": "Kaydedildi."
   }
 }
