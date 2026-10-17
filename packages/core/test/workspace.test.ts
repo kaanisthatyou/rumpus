@@ -200,6 +200,24 @@ describe('CodexParser', () => {
   });
 });
 
+describe('CodexParser failures', () => {
+  it('keeps going through retries and ends on turn.failed, flagging a 401 as a login problem', () => {
+    const events: DriverEvent[] = [];
+    const p = new CodexParser((e) => events.push(e));
+    for (const l of [
+      { type: 'thread.started', thread_id: 'th' },
+      { type: 'turn.started' },
+      { type: 'error', message: 'Reconnecting... 2/5 (unexpected status 401 Unauthorized)' },
+      { type: 'error', message: 'unexpected status 401 Unauthorized' },
+      { type: 'turn.failed', error: { message: 'unexpected status 401 Unauthorized' } },
+    ]) {
+      p.line(JSON.stringify(l));
+    }
+    expect(events.map((e) => e.type)).toEqual(['session', 'notice', 'auth_failed', 'end']);
+    expect(events.at(-1)).toMatchObject({ type: 'end', ok: false });
+  });
+});
+
 describe('resolveLaunch', () => {
   it('reads the real target out of an npm shim', () => {
     const dir = tmp('lonca-shim-');

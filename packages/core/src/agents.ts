@@ -55,9 +55,15 @@ export function parseClaudeAuth(r: RunResult): AuthReading {
   }
 }
 
-/** `codex login status`: exit 0 when signed in, the text names the method. (Format from the docs, not yet seen.) */
+/**
+ * `codex login status`: "Logged in using ChatGPT" / "... an API key" when signed in. "Not logged in" also exits 0
+ * (seen with codex-cli 0.162.1), so the text decides, not the exit code.
+ */
 export function parseCodexAuth(r: RunResult, ctx: Ctx): AuthReading {
   const text = `${r.stdout}\n${r.stderr}`;
+  if (/not logged in/i.test(text)) {
+    return hasEnv(ctx, ['CODEX_API_KEY']) ? { state: 'ready', auth: 'api-key' } : { state: 'signed-out' };
+  }
   if (r.code === 0 && /logged in/i.test(text)) {
     return { state: 'ready', auth: /api key/i.test(text) ? 'api-key' : 'subscription' };
   }

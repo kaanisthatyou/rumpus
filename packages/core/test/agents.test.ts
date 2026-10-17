@@ -34,6 +34,8 @@ describe('parsers', () => {
     expect(parseCodexAuth(ok('Logged in using ChatGPT'), ctx)).toEqual({ state: 'ready', auth: 'subscription' });
     expect(parseCodexAuth(ok('Logged in using an API key'), ctx)).toEqual({ state: 'ready', auth: 'api-key' });
     expect(parseCodexAuth(ok('Not logged in', 1), ctx)).toEqual({ state: 'signed-out' });
+    // codex-cli 0.162.1 says it with exit code 0.
+    expect(parseCodexAuth(ok('Not logged in', 0), ctx)).toEqual({ state: 'signed-out' });
     expect(parseCodexAuth(ok('Not logged in', 1), { ...ctx, env: { CODEX_API_KEY: 'k' } })).toEqual({
       state: 'ready',
       auth: 'api-key',

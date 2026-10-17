@@ -514,7 +514,11 @@ Built and verified (unit tests, and the real app driven against a fake Claude Co
 - Claude Code driver over stream-json: live steering (messages sent mid-turn become queued turns of the same
   job), stop, refused tools shown as steps, login failures, quota from rate-limit events. The read and edit flag
   sets were checked against Claude Code 2.1.301 (two Haiku calls).
-- Codex driver over `codex exec --json`: written from the documentation, **not yet run against a real install**.
+- Codex driver over `codex exec --json`: checked against codex-cli 0.162.1 installed in a temporary folder and not
+  logged in (`packages/core/test/real-cli.test.ts`, run with `LONCA_REAL_CODEX`): detection, "Not logged in" (which
+  exits 0), the exec flags, `--image`, `resume`, retries (`error` events) before `turn.failed`, a 401 shown as a login
+  problem, and Lonca's MCP endpoint reached through `-c mcp_servers.lonca.*` with the token in an environment
+  variable. A logged-in run (tool calls, answers) is still untested.
 - Job cards (live steps, streaming answer, usage, cost, steer, stop), the live view with the whole transcript,
   the quota panel.
 - `/todo` and the board: four columns, drag and drop, an agent per card, "Run as job", the card follows the job.
@@ -534,7 +538,7 @@ Built and verified (unit tests, and the real app driven against a fake Claude Co
   and Origin checked), serving Lonca's tools: `search_messages`, `list_records`, `read_record` (with the image),
   `list_cards`, `add_card`, `update_card`, `post_progress`. Claude Code gets it with `--mcp-config` and
   `--allowedTools mcp__lonca`; checked with a real Claude Code call (connected, tool called without a prompt).
-  Codex does not get it yet (its per-run MCP config needs a test install).
+  Codex gets the same endpoint through per-run config overrides.
 
 - Approvals: at read and edit, Claude Code asks Lonca over stdio (`--permission-prompt-tool stdio`,
   `control_request` / `can_use_tool`, checked with a real call); the job waits as "Onay bekliyor" with Allow and

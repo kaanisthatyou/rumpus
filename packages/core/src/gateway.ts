@@ -27,6 +27,8 @@ export class Gateway {
   private server: Server | undefined;
   private port = 0;
   private readonly tokens = new Map<string, ToolContext>();
+  /** Requests that came with a valid token (for tests and diagnostics). */
+  served = 0;
 
   constructor(private readonly tools: Tool[]) {}
 
@@ -75,6 +77,7 @@ export class Gateway {
     const token = /^Bearer (\S+)$/.exec(req.headers.authorization ?? '')?.[1];
     const ctx = token ? this.tokens.get(token) : undefined;
     if (!ctx) return this.send(res, 401);
+    this.served += 1;
 
     let raw = '';
     for await (const chunk of req) {

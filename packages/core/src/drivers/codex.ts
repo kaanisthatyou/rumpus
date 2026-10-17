@@ -1,6 +1,7 @@
 // OpenAI Codex through `codex exec --json`: one process per turn, the prompt on stdin, JSONL events on stdout,
 // `exec resume <thread>` to continue. A message sent mid-turn waits for the next turn.
-// Event names follow Codex's documentation; not yet run against a real install (none on the dev machine).
+// Checked against codex-cli 0.162.1 without a login: the flags are accepted, and a failing turn sends `error`
+// events (retries, then the cause) before `turn.failed`, which is what ends it.
 import { type ChildProcess, spawn } from 'node:child_process';
 import type { AgentMode, Usage } from '@lonca/protocol';
 import { killTree } from '../proc.js';
@@ -27,6 +28,15 @@ export function codexArgs(opts: SessionOptions, images: string[] = []): string[]
     '--sandbox',
     codexSandbox(opts.mode),
     ...(opts.model ? ['-m', opts.model] : []),
+    // Lonca's MCP endpoint for this run only, as config overrides; the token travels in an environment variable.
+    ...(opts.mcp
+      ? [
+          '-c',
+          `mcp_servers.lonca.url="${opts.mcp.url}"`,
+          '-c',
+          'mcp_servers.lonca.bearer_token_env_var="LONCA_MCP_TOKEN"',
+        ]
+      : []),
     ...images.flatMap((p) => ['--image', p]),
     ...(opts.resume ? ['resume', opts.resume] : []),
     '-',
@@ -85,10 +95,18 @@ export class CodexParser {
         this.final = '';
         return;
       }
-      case 'turn.failed':
       case 'error': {
+        // Not the end of the turn: retries ("Reconnecting... 2/5") and the cause come before turn.failed.
+        const message = String(ev.message ?? '');
+        if (/^reconnecting/i.test(message))
+          this.emit({ type: 'notice', code: 'reconnecting', text: message.slice(0, 120) });
+        return;
+      }
+      case 'turn.failed': {
         const err = (ev.error ?? {}) as { message?: string };
-        this.emit({ type: 'end', ok: false, error: String(err.message ?? ev.message ?? 'error') });
+        const message = String(err.message ?? 'error');
+        if (/\b401\b|unauthorized/i.test(message)) this.emit({ type: 'auth_failed', text: message });
+        this.emit({ type: 'end', ok: false, error: message });
         this.final = '';
         return;
       }
@@ -129,7 +147,7 @@ class CodexSession implements AgentSession {
     );
     const child = spawn(opts.launch.file, [...opts.launch.args, ...args], {
       cwd: opts.cwd,
-      env: cliEnv(opts),
+      env: { ...cliEnv(opts), ...(opts.mcp ? { LONCA_MCP_TOKEN: opts.mcp.token } : {}) },
       windowsHide: true,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
