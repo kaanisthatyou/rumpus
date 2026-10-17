@@ -7,6 +7,7 @@ import { RUNNABLE } from '../agents/AgentDialog';
 import { Board } from '../board/Board';
 import { ChannelView } from '../channel/ChannelView';
 import { LiveView } from '../channel/LiveView';
+import { RecordsView } from '../records/RecordsView';
 import { useApp, type View } from '../store';
 
 const BOARD: { view: View; icon: IconName }[] = [
@@ -377,6 +378,8 @@ export function Shell({ onSettings }: { onSettings: () => void }) {
         <ChannelView key={channel.id} channel={channel} />
       ) : view === 'tasks' ? (
         <Board />
+      ) : view === 'ideas' || view === 'references' || view === 'commands' ? (
+        <RecordsView key={view} kind={view === 'ideas' ? 'idea' : view === 'references' ? 'reference' : 'command'} />
       ) : (
         <Placeholder view={view} />
       )}

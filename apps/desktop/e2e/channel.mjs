@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { _electron as electron } from 'playwright-core';
 
 const here = dirname(fileURLToPath(import.meta.url));
+const PNG_1X1 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 const appDir = join(here, '..');
 const electronPath = createRequire(import.meta.url)('electron');
 const L = JSON.parse(readFileSync(join(appDir, 'src/renderer/src/locales/tr.json'), 'utf8'));
@@ -93,7 +94,7 @@ try {
   // Add the agent from the suggestion of the installed (fake) CLI.
   await page.getByRole('button', { name: L.crew.add, exact: true }).click();
   await page.getByRole('dialog', { name: L.agentForm.new }).waitFor();
-  await page.getByRole('button', { name: L.agentForm.pick }).click();
+  await page.getByRole('button', { name: L.agentForm.pick, exact: true }).click();
   await page.getByText(project).waitFor();
   await shot(page, 'agent-form');
   await page.getByRole('button', { name: L.agentForm.save }).click();
@@ -136,6 +137,37 @@ try {
   const review = page.getByRole('region', { name: L.board.status.review });
   await review.getByText('README dosyasını güncelle').waitFor({ timeout: 20_000 });
   await shot(page, 'board-review');
+
+  // Records: save an answer as an idea, add a reference image, attach it to a job, use a saved command.
+  await page.getByRole('button', { name: 'genel', exact: true }).click();
+  const answerMsg = page.locator('.msg--agent').first();
+  await answerMsg.hover();
+  await answerMsg.getByRole('button', { name: L.records.saveMessage }).click();
+  await page.getByText(L.records.saved).first().waitFor();
+  await page.getByRole('button', { name: L.shell.ideas, exact: true }).click();
+  await page.locator('.rec', { hasText: 'README bir' }).first().waitFor();
+
+  await page.getByRole('button', { name: L.shell.references, exact: true }).click();
+  const png = join(project, 'ekran.png');
+  writeFileSync(png, Buffer.from(PNG_1X1, 'base64'));
+  await page.locator('input[type=file]').setInputFiles(png);
+  await page.locator('.rec', { hasText: 'ekran' }).first().waitFor();
+  await shot(page, 'references');
+  await page.getByRole('button', { name: L.records.attach }).click();
+  await page.locator('.composer__refs .refchip', { hasText: 'ekran' }).waitFor();
+  await composer.fill('@claude bu görsele göre düzenle');
+  await composer.press('Enter');
+  await page.locator('.msg__refs .refchip', { hasText: 'ekran' }).waitFor();
+  await until(async () => (await page.getByText(L.job.state.done).count()) >= 2, 'job with a reference done');
+
+  await page.getByRole('button', { name: L.shell.commands, exact: true }).click();
+  await page.getByRole('button', { name: L.records.new.command }).click();
+  await page.getByLabel(L.records.title).fill('Özet');
+  await page.getByLabel(L.records.body.command).fill('{channel} kanalını özetle');
+  await page.getByRole('button', { name: L.records.save, exact: true }).click();
+  await page.getByRole('button', { name: L.records.use }).click();
+  await until(async () => (await composer.inputValue()) === 'genel kanalını özetle', 'command in the message box');
+  await composer.fill('');
 
   // The shortcut list, then back to the channel through the palette.
   await page.keyboard.press('Control+/');

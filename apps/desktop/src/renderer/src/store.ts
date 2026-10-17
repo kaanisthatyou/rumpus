@@ -8,6 +8,8 @@ import type {
   Job,
   Message,
   Quota,
+  RecordInput,
+  RecordItem,
   Result,
   Settings,
   SettingsPatch,
@@ -45,6 +47,13 @@ interface AppState {
   /** The agent dialog: an agent to edit, `new` for a new one, or closed. */
   agentDialog?: Agent | 'new' | { kind: CliKind };
   cards: Card[];
+  records: RecordItem[];
+  /** Records attached to the next message, per channel. */
+  attached: Record<string, string[]>;
+  /** Full images of references, loaded when first shown. */
+  images: Record<string, string>;
+  /** Text to put into the message box of the open channel (a saved command). */
+  inject?: { text: string; at: number };
   paletteOpen: boolean;
   shortcutsOpen: boolean;
   /** A short confirmation line, cleared after a few seconds. */
@@ -83,6 +92,12 @@ interface AppState {
   setPalette(open: boolean): void;
   setShortcuts(open: boolean): void;
   flash(note: string): void;
+  saveRecord(input: RecordInput): Promise<RecordItem | undefined>;
+  deleteRecord(id: string): Promise<void>;
+  attach(id: string): void;
+  detach(id: string): void;
+  loadImage(id: string): Promise<string | undefined>;
+  putInComposer(text: string): void;
 }
 
 const codeOf = (err: unknown) => (err instanceof RpcError ? err.code : 'internal');
@@ -133,6 +148,9 @@ export const useApp = create<AppState>((set, get) => {
     jobs: {},
     quota: {},
     cards: [],
+    records: [],
+    attached: {},
+    images: {},
     paletteOpen: false,
     shortcutsOpen: false,
 
@@ -171,6 +189,14 @@ export const useApp = create<AppState>((set, get) => {
         })),
       );
       core.on('card.deleted', ({ id }) => set((s) => ({ cards: s.cards.filter((c) => c.id !== id) })));
+      core.on('record.changed', (record) =>
+        set((s) => ({
+          records: s.records.some((r) => r.id === record.id)
+            ? s.records.map((r) => (r.id === record.id ? record : r))
+            : [record, ...s.records],
+        })),
+      );
+      core.on('record.deleted', ({ id }) => set((s) => ({ records: s.records.filter((r) => r.id !== id) })));
       window.lonca.updates.onChange((update) => set({ update }));
 
       const [settings, app, update] = await Promise.all([
@@ -254,7 +280,8 @@ export const useApp = create<AppState>((set, get) => {
       for (const j of workspace.active) jobs[j.id] = j;
       const quota = (await attempt(() => core.call('quota.get'))) ?? {};
       const cards = (await attempt(() => core.call('cards.list'))) ?? [];
-      set({ workspace, jobs, quota, cards });
+      const records = (await attempt(() => core.call('records.list', {}))) ?? [];
+      set({ workspace, jobs, quota, cards, records });
       const current = get().channelId ?? lastChannel.get();
       const target = workspace.channels.find((c) => c.id === current) ?? workspace.channels[0];
       if (target) await get().openChannel(target.id);
@@ -279,7 +306,12 @@ export const useApp = create<AppState>((set, get) => {
     async send(text) {
       const channelId = get().channelId;
       if (!channelId || !text.trim()) return false;
-      return Boolean(await attempt(() => core.call('messages.send', { channelId, text })));
+      const refs = get().attached[channelId] ?? [];
+      const ok = Boolean(
+        await attempt(() => core.call('messages.send', { channelId, text, ...(refs.length ? { refs } : {}) })),
+      );
+      if (ok && refs.length) set((s) => ({ attached: { ...s.attached, [channelId]: [] } }));
+      return ok;
     },
 
     async editMessage(id, text) {
@@ -375,6 +407,41 @@ export const useApp = create<AppState>((set, get) => {
 
     setShortcuts(open) {
       set({ shortcutsOpen: open });
+    },
+
+    async saveRecord(input) {
+      return attempt(() => core.call('records.save', input));
+    },
+
+    async deleteRecord(id) {
+      await attempt(() => core.call('records.delete', { id }));
+    },
+
+    attach(id) {
+      const channelId = get().channelId;
+      if (!channelId) return;
+      set((s) => {
+        const list = s.attached[channelId] ?? [];
+        return list.includes(id) ? {} : { attached: { ...s.attached, [channelId]: [...list, id].slice(0, 8) } };
+      });
+    },
+
+    detach(id) {
+      const channelId = get().channelId;
+      if (!channelId) return;
+      set((s) => ({ attached: { ...s.attached, [channelId]: (s.attached[channelId] ?? []).filter((x) => x !== id) } }));
+    },
+
+    async loadImage(id) {
+      const cached = get().images[id];
+      if (cached) return cached;
+      const url = await attempt(() => core.call('records.image', { id }));
+      if (url) set((s) => ({ images: { ...s.images, [id]: url } }));
+      return url;
+    },
+
+    putInComposer(text) {
+      set({ view: 'channel', inject: { text, at: Date.now() } });
     },
 
     flash(note) {

@@ -362,5 +362,48 @@
     "newline": "New line",
     "mention": "Call an agent",
     "command": "Command"
+  },
+  "records": {
+    "new": {
+      "idea": "New idea",
+      "reference": "Add reference",
+      "command": "New command"
+    },
+    "title": "Title",
+    "body": {
+      "idea": "Details",
+      "reference": "Note",
+      "command": "Prompt"
+    },
+    "tags": "Tags",
+    "tagsHint": "Separated by commas.",
+    "status": "Status",
+    "statuses": {
+      "new": "New",
+      "later": "Later",
+      "doing": "In progress",
+      "done": "Done",
+      "dropped": "Dropped"
+    },
+    "save": "Save",
+    "delete": "Delete",
+    "attach": "Attach to message",
+    "use": "Put in the message box",
+    "saved": "Saved.",
+    "attached": "Attached to the message.",
+    "empty": {
+      "idea": "No ideas.",
+      "reference": "No references.",
+      "command": "No saved commands."
+    },
+    "pick": "Choose a record",
+    "search": "Search records",
+    "refHint": "Images are pasted, dropped or chosen. A reference attached to a message reaches the agent as an image.",
+    "commandHint": "Variables: {user}, {channel}, {date}.",
+    "chooseFile": "Choose file",
+    "pasted": "Pasted image",
+    "saveMessage": "Save as idea",
+    "remove": "Remove",
+    "select": "A record is chosen on the left, or a new one is added."
   }
 }

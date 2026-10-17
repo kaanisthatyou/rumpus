@@ -362,5 +362,48 @@
     "newline": "Yeni satır",
     "mention": "Agent çağır",
     "command": "Komut"
+  },
+  "records": {
+    "new": {
+      "idea": "Yeni fikir",
+      "reference": "Referans ekle",
+      "command": "Yeni komut"
+    },
+    "title": "Başlık",
+    "body": {
+      "idea": "Ayrıntı",
+      "reference": "Not",
+      "command": "İstem"
+    },
+    "tags": "Etiketler",
+    "tagsHint": "Virgülle ayrılır.",
+    "status": "Durum",
+    "statuses": {
+      "new": "Yeni",
+      "later": "Sonra",
+      "doing": "Üzerinde",
+      "done": "Yapıldı",
+      "dropped": "Bırakıldı"
+    },
+    "save": "Kaydet",
+    "delete": "Sil",
+    "attach": "Mesaja ekle",
+    "use": "Mesaj kutusuna koy",
+    "saved": "Kaydedildi.",
+    "attached": "Mesaja eklendi.",
+    "empty": {
+      "idea": "Fikir yok.",
+      "reference": "Referans yok.",
+      "command": "Kayıtlı komut yok."
+    },
+    "pick": "Kayıt seç",
+    "search": "Kayıtlarda ara",
+    "refHint": "Görsel yapıştırılır, sürüklenir ya da seçilir. Mesaja eklenen referans agenta görsel olarak gider.",
+    "commandHint": "Değişkenler: {user}, {channel}, {date}.",
+    "chooseFile": "Dosya seç",
+    "pasted": "Yapıştırılan görsel",
+    "saveMessage": "Fikir olarak kaydet",
+    "remove": "Çıkar",
+    "select": "Soldan bir kayıt seçilir ya da yenisi eklenir."
   }
 }
