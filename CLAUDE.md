@@ -49,7 +49,9 @@ purpose; never change roblox-factory for it.
 2. `pnpm e2e`: the real app with a temporary `LONCA_HOME`: `e2e/smoke.mjs` (launcher, shell, settings, restart)
    and `e2e/channel.mjs` (agents, jobs, live view, steer and stop, board, palette, restart) against
    `e2e/fake-claude.mjs`, a stand-in for Claude Code that costs no quota. Look at the screenshots in
-   `apps/desktop/test-results/` before saying a UI change works. Spend real CLI quota only for a short probe.
+   `apps/desktop/test-results/` before saying a UI change works. Spend real CLI quota only for a short probe:
+   `e2e/real-claude.mjs` (two Haiku turns) for driver changes, `LONCA_REAL_CODEX=<folder> vitest run
+   packages/core/test/real-cli.test.ts` for Codex (no login needed, no tokens).
 3. Packaging changes: `pnpm dist`, then `E2E_EXE=release/win-unpacked/Lonca.exe node e2e/smoke.mjs` in
    `apps/desktop`. Updater changes: `e2e/update.mjs` (see its header).
 

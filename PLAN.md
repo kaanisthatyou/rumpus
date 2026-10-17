@@ -1,6 +1,6 @@
 # Lonca v2: plan
 
-Status: **Phase 1 in progress** (2026-10-17); see "Phase 0 status" and "Phase 1 status" under section 8. Owners: Kaan and Arda. v0.1 (the
+Status: **Phase 1 done** (2026-10-18), Phase 2 next; see "Phase 0 status" and "Phase 1 status" under section 8. Owners: Kaan and Arda. v0.1 (the
 Python chat server, tag `v0.1.0`) was the starting point for ideas and the security model, not for code.
 
 Research behind this plan: `docs/research/` (Claude Desktop, Antigravity, Hermes Agent + Jan, CLI agents, platform:
@@ -502,7 +502,7 @@ Still open for Phase 0's "done when":
 - **Linux:** CI passes on Ubuntu (lint, types, tests, build); the AppImage and deb packages have not been built
   or run on Linux yet (the first tagged release builds them).
 
-### Phase 1 status (2026-10-17)
+### Phase 1 status (done 2026-10-18, 0.3.0-alpha.0)
 
 Built and verified (unit tests, and the real app driven against a fake Claude Code in `e2e/channel.mjs`):
 
@@ -548,7 +548,12 @@ Built and verified (unit tests, and the real app driven against a fake Claude Co
 - Pinned commands as buttons above the message box; shortcuts rebindable in Settings (recorded by pressing them,
   conflicts refused, back to default), the shortcut list showing the current keys.
 
-Still to do in Phase 1:
+- `e2e/real-claude.mjs` (by hand, two short Haiku turns): the real Claude Code answers from a project's files
+  and moves a board card through Lonca's MCP tools; the packaged 0.3.0-alpha.0 passes `smoke.mjs` and
+  `channel.mjs`.
+
+Left open from Phase 1: a logged-in Codex run (no Codex login on the dev machine), and making the repository
+public, which waits for the owners' go.
 
 
 ## 9. Risks
