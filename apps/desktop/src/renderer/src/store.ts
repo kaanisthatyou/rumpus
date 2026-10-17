@@ -1,4 +1,4 @@
-import type { AgentInfo, AgentKind, Result, Settings, SettingsPatch, TailscaleInfo } from '@lonca/protocol';
+import type { CliInfo, CliKind, Result, Settings, SettingsPatch, TailscaleInfo } from '@lonca/protocol';
 import { create } from 'zustand';
 import type { AppInfo, UpdateState } from '../../shared/bridge';
 import i18n from './i18n';
@@ -6,7 +6,7 @@ import { core, RpcError } from './rpc';
 
 interface AppState {
   settings?: Settings;
-  agents?: AgentInfo[];
+  agents?: CliInfo[];
   scanning: boolean;
   tailscale?: TailscaleInfo;
   system?: Result<'system.info'>;
@@ -19,7 +19,7 @@ interface AppState {
   init(): Promise<void>;
   patch(patch: SettingsPatch): Promise<void>;
   scan(): Promise<void>;
-  login(kind: AgentKind): Promise<void>;
+  login(kind: CliKind): Promise<void>;
   refreshTailscale(): Promise<void>;
   refreshSystem(): Promise<void>;
   clearError(): void;
@@ -37,7 +37,7 @@ export const useApp = create<AppState>((set, get) => ({
       set({ settings });
       void i18n.changeLanguage(settings.language);
     });
-    core.on('agents.changed', (agents) => set({ agents }));
+    core.on('clis.changed', (agents) => set({ agents }));
     window.lonca.updates.onChange((update) => set({ update }));
     const [settings, app, update] = await Promise.all([
       core.call('settings.get'),
@@ -75,7 +75,7 @@ export const useApp = create<AppState>((set, get) => ({
   async scan() {
     set({ scanning: true });
     try {
-      set({ agents: await core.call('agents.list', { refresh: true }) });
+      set({ agents: await core.call('clis.list', { refresh: true }) });
     } catch (err) {
       set({ error: codeOf(err) });
     } finally {
@@ -85,7 +85,7 @@ export const useApp = create<AppState>((set, get) => ({
 
   async login(kind) {
     try {
-      await core.call('agents.login', { kind });
+      await core.call('clis.login', { kind });
       set({ loginPending: true, error: undefined });
     } catch (err) {
       set({ error: codeOf(err) });

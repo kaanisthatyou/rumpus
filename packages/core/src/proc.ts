@@ -1,6 +1,6 @@
 import { spawn as nodeSpawn } from 'node:child_process';
-import { statSync } from 'node:fs';
-import { delimiter, join } from 'node:path';
+import { readFileSync, statSync } from 'node:fs';
+import { delimiter, dirname, join } from 'node:path';
 import spawn from 'cross-spawn';
 
 export interface RunResult {
@@ -60,7 +60,38 @@ export function which(
   return undefined;
 }
 
-function killTree(pid: number | undefined): void {
+export interface Launch {
+  file: string;
+  args: string[];
+  /** Set when a Node script is run with Electron's own Node (`ELECTRON_RUN_AS_NODE`). */
+  env?: Record<string, string>;
+}
+
+/**
+ * How to start an executable without a shell. npm's Windows shims (`claude.cmd`) cannot be spawned directly:
+ * they are read for the real target, an `.exe` started as is or a JS file started with Node.
+ */
+export function resolveLaunch(path: string, nodePath: string | undefined = which('node')): Launch {
+  if (!/\.(cmd|bat)$/i.test(path)) return { file: path, args: [] };
+  let text = '';
+  try {
+    text = readFileSync(path, 'utf8');
+  } catch {
+    return { file: path, args: [] };
+  }
+  const targets = [...text.matchAll(/"%~?dp0%?\\?([^"%]+)"/gi)].map((m) => m[1] ?? '');
+  const target = targets.at(-1);
+  if (!target) return { file: path, args: [] };
+  const full = join(dirname(path), target);
+  if (/\.exe$/i.test(full)) return { file: full, args: [] };
+  if (/\.(c|m)?js$/i.test(full)) {
+    if (nodePath) return { file: nodePath, args: [full] };
+    return { file: process.execPath, args: [full], env: { ELECTRON_RUN_AS_NODE: '1' } };
+  }
+  return { file: path, args: [] };
+}
+
+export function killTree(pid: number | undefined): void {
   if (pid === undefined) return;
   if (process.platform === 'win32') {
     nodeSpawn('taskkill', ['/PID', String(pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' }).on(

@@ -2,17 +2,17 @@
 // Lonca never reads or copies a CLI's credential files: it only runs the CLI's own status command.
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import type { AgentInfo, AgentKind, AgentState } from '@lonca/protocol';
+import type { CliInfo, CliKind, CliState } from '@lonca/protocol';
 import { run as defaultRun, type Runner, type RunResult, which } from './proc.js';
 
 interface AuthReading {
-  state: AgentState;
+  state: CliState;
   auth?: string;
   plan?: string;
 }
 
 interface KindSpec {
-  kind: AgentKind;
+  kind: CliKind;
   bin: string;
   extraDirs: (ctx: Ctx) => string[];
   /** Reads the login state; absent for CLIs that Lonca runs with an API key only. */
@@ -21,7 +21,7 @@ interface KindSpec {
   /** API-key-only CLIs: ready when one of these is set (Google forbids third-party use of its OAuth login). */
   keyEnv?: string[];
   loginArgs?: string[];
-  install: AgentInfo['install'];
+  install: CliInfo['install'];
 }
 
 interface Ctx {
@@ -150,7 +150,7 @@ export interface DetectOptions {
   home?: string;
 }
 
-async function detectOne(spec: KindSpec, ctx: Ctx, runner: Runner): Promise<AgentInfo> {
+async function detectOne(spec: KindSpec, ctx: Ctx, runner: Runner): Promise<CliInfo> {
   const base = {
     kind: spec.kind,
     canLogin: spec.loginArgs !== undefined,
@@ -182,7 +182,7 @@ async function detectOne(spec: KindSpec, ctx: Ctx, runner: Runner): Promise<Agen
   };
 }
 
-export async function detectAgents(opts: DetectOptions = {}): Promise<AgentInfo[]> {
+export async function detectAgents(opts: DetectOptions = {}): Promise<CliInfo[]> {
   const ctx: Ctx = {
     home: opts.home ?? homedir(),
     env: opts.env ?? process.env,
@@ -192,6 +192,6 @@ export async function detectAgents(opts: DetectOptions = {}): Promise<AgentInfo[
   return Promise.all(SPECS.map((spec) => detectOne(spec, ctx, runner)));
 }
 
-export function loginCommand(kind: AgentKind): string[] | undefined {
+export function loginCommand(kind: CliKind): string[] | undefined {
   return SPECS.find((s) => s.kind === kind)?.loginArgs;
 }

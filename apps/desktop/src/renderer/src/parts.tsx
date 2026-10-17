@@ -1,5 +1,5 @@
 // Pieces shared by the launcher and the settings dialog.
-import { ACCENTS, type AgentInfo, LANGUAGES } from '@lonca/protocol';
+import { ACCENTS, type CliInfo, LANGUAGES } from '@lonca/protocol';
 import {
   ACCENT_SWATCHES,
   Avatar,
@@ -211,13 +211,13 @@ function CopyLine({ text }: { text: string }) {
   );
 }
 
-function stateTone(state: AgentInfo['state']): 'ok' | 'warn' | undefined {
+function stateTone(state: CliInfo['state']): 'ok' | 'warn' | undefined {
   if (state === 'ready') return 'ok';
   if (state === 'signed-out' || state === 'needs-key') return 'warn';
   return undefined;
 }
 
-function AgentRow({ agent }: { agent: AgentInfo }) {
+function AgentRow({ agent }: { agent: CliInfo }) {
   const { t } = useTranslation();
   const login = useApp((s) => s.login);
   const platform = useApp((s) => s.system?.platform);

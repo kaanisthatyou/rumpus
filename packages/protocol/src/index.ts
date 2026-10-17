@@ -1,6 +1,9 @@
 // The contract between Lonca's core process and its clients (the renderer today; the phone and other
 // members' apps later). Everything that crosses a process boundary is defined here.
 import { z } from 'zod';
+import type { Agent, AgentInput, Channel, Job, Message, Quota, TranscriptEntry, WorkspaceState } from './workspace.js';
+
+export * from './workspace.js';
 
 // ---------------------------------------------------------------- settings
 
@@ -47,8 +50,9 @@ export function defaultSettings(language: Language = 'en'): Settings {
 
 // ---------------------------------------------------------------- agents (CLI) and network
 
-export const AGENT_KINDS = ['claude-code', 'codex', 'opencode', 'gemini', 'antigravity'] as const;
-export type AgentKind = (typeof AGENT_KINDS)[number];
+import { CLI_KINDS, type CliKind } from './kinds.js';
+
+export { CLI_KINDS, type CliKind } from './kinds.js';
 
 /**
  * - `ready`: installed and signed in (or an API key is set).
@@ -57,11 +61,11 @@ export type AgentKind = (typeof AGENT_KINDS)[number];
  * - `unknown`: installed, the login state cannot be read without spending tokens.
  * - `missing`: not found on this computer.
  */
-export type AgentState = 'ready' | 'signed-out' | 'needs-key' | 'unknown' | 'missing';
+export type CliState = 'ready' | 'signed-out' | 'needs-key' | 'unknown' | 'missing';
 
-export interface AgentInfo {
-  kind: AgentKind;
-  state: AgentState;
+export interface CliInfo {
+  kind: CliKind;
+  state: CliState;
   /** Absolute path of the executable, when found. */
   path?: string;
   version?: string;
@@ -88,18 +92,43 @@ export type Platform = 'win32' | 'linux' | 'darwin' | (string & {});
 export interface CoreMethods {
   'settings.get': { params: undefined; result: Settings };
   'settings.update': { params: SettingsPatch; result: Settings };
-  'agents.list': { params: { refresh?: boolean }; result: AgentInfo[] };
-  'agents.login': { params: { kind: AgentKind }; result: { opened: boolean } };
+  'clis.list': { params: { refresh?: boolean }; result: CliInfo[] };
+  'clis.login': { params: { kind: CliKind }; result: { opened: boolean } };
   'tailscale.status': { params: undefined; result: TailscaleInfo };
   'system.info': {
     params: undefined;
     result: { platform: Platform; dataDir: string; defaultDataDir: string };
   };
+  'workspace.get': { params: undefined; result: WorkspaceState };
+  'channels.create': { params: { name: string }; result: Channel };
+  'channels.rename': { params: { id: string; name: string }; result: Channel };
+  'channels.delete': { params: { id: string }; result: { ok: true } };
+  'messages.list': {
+    params: { channelId: string; before?: number; limit?: number };
+    result: { messages: Message[]; jobs: Job[] };
+  };
+  'messages.send': { params: { channelId: string; text: string }; result: Message };
+  'messages.edit': { params: { id: string; text: string }; result: Message };
+  'messages.delete': { params: { id: string }; result: { ok: true } };
+  'messages.search': { params: { query: string; limit?: number }; result: Message[] };
+  'agents.save': { params: AgentInput; result: Agent };
+  'agents.delete': { params: { id: string }; result: { ok: true } };
+  'agents.newSession': { params: { agentId: string; channelId: string }; result: { ok: true } };
+  'jobs.stop': { params: { id: string }; result: { ok: true } };
+  'jobs.steer': { params: { id: string; text: string }; result: { ok: true } };
+  'jobs.transcript': { params: { id: string }; result: TranscriptEntry[] };
+  'quota.get': { params: undefined; result: Partial<Record<CliKind, Quota>> };
 }
 
 export interface CoreEvents {
   'settings.changed': Settings;
-  'agents.changed': AgentInfo[];
+  'clis.changed': CliInfo[];
+  'workspace.changed': WorkspaceState;
+  'message.added': Message;
+  'message.updated': Message;
+  'message.deleted': { id: string; channelId: string };
+  'job.updated': Job;
+  'quota.changed': { kind: CliKind; quota: Quota };
 }
 
 export type MethodName = keyof CoreMethods;
@@ -114,6 +143,12 @@ export const ERROR_CODES = [
   'invalid_settings',
   'not_installed',
   'login_unavailable',
+  'not_found',
+  'invalid_agent',
+  'handle_taken',
+  'folder_missing',
+  'cli_missing',
+  'busy',
   'internal',
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];

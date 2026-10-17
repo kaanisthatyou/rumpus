@@ -83,13 +83,13 @@ describe('Core', () => {
   it('answers unknown methods and bad requests with codes', async () => {
     const { call } = newCore();
     expect(await call('nope')).toMatchObject({ error: { code: 'unknown_method' } });
-    expect(await call('agents.login', { kind: 'rm -rf' })).toMatchObject({ error: { code: 'bad_request' } });
-    expect(await call('agents.login', { kind: 'claude-code' })).toMatchObject({ error: { code: 'not_installed' } });
+    expect(await call('clis.login', { kind: 'rm -rf' })).toMatchObject({ error: { code: 'bad_request' } });
+    expect(await call('clis.login', { kind: 'claude-code' })).toMatchObject({ error: { code: 'not_installed' } });
   });
 
   it('lists agents and reports the default data folder', async () => {
     const { call, appDir } = newCore();
-    const agents = await call('agents.list');
+    const agents = await call('clis.list');
     expect('result' in agents && Array.isArray(agents.result)).toBe(true);
     expect(await call('system.info')).toMatchObject({ result: { dataDir: join(appDir, 'data') } });
   });
