@@ -81,9 +81,11 @@ describe('WorkspaceStore', () => {
 });
 
 describe('ClaudeParser', () => {
+  // The CLI reports paths in the platform's own form.
+  const work = process.platform === 'win32' ? 'C:\\work' : '/work';
   const run = (lines: unknown[]) => {
     const events: DriverEvent[] = [];
-    const p = new ClaudeParser('C:\\work', (e) => events.push(e));
+    const p = new ClaudeParser(work, (e) => events.push(e));
     for (const l of lines) p.line(JSON.stringify(l));
     return events;
   };
@@ -102,7 +104,7 @@ describe('ClaudeParser', () => {
       {
         type: 'assistant',
         message: {
-          content: [{ type: 'tool_use', id: 't1', name: 'Read', input: { file_path: 'C:\\work\\src\\a.ts' } }],
+          content: [{ type: 'tool_use', id: 't1', name: 'Read', input: { file_path: join(work, 'src', 'a.ts') } }],
         },
       },
       { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 't1', content: 'file body' }] } },
