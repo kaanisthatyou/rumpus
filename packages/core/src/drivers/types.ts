@@ -26,6 +26,8 @@ export interface SessionOptions {
   resume?: string;
   systemPrompt: string;
   env?: NodeJS.ProcessEnv;
+  /** Lonca's MCP endpoint for this session, with its bearer token. */
+  mcp?: { url: string; token: string };
 }
 
 /** An image given to the agent with a message: the bytes for CLIs that take them inline, the file for others. */

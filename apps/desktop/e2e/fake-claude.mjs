@@ -19,6 +19,28 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const resume = args.indexOf('--resume');
 const session = resume >= 0 ? args[resume + 1] : `fake-${Date.now()}`;
 const queue = [];
+// Lonca's MCP endpoint, as Claude Code would get it from --mcp-config.
+const mcpAt = args.indexOf('--mcp-config');
+const mcp = mcpAt >= 0 ? JSON.parse(args[mcpAt + 1]).mcpServers?.lonca : undefined;
+let rpcId = 0;
+async function callTool(name, toolArgs) {
+  const res = await fetch(mcp.url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...mcp.headers },
+    body: JSON.stringify({ jsonrpc: '2.0', id: ++rpcId, method: 'tools/call', params: { name, arguments: toolArgs } }),
+  });
+  const body = await res.json();
+  return body.result?.content?.map((c) => c.text ?? '').join(String.fromCharCode(10)) ?? `error ${res.status}`;
+}
+async function callAndShow(id, name, toolArgs) {
+  out({
+    type: 'assistant',
+    message: { content: [{ type: 'tool_use', id, name: `mcp__lonca__${name}`, input: toolArgs }] },
+  });
+  const result = await callTool(name, toolArgs);
+  out({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: id, content: result }] } });
+  return result;
+}
 let started = false;
 let busy = false;
 let n = 0;
@@ -33,6 +55,30 @@ async function run() {
   busy = true;
   while (queue.length > 0) {
     const text = queue.shift();
+    if (mcp && /panoyu güncelle/i.test(text)) {
+      // The board through Lonca's tools: list the cards, move the first one to done, leave a note.
+      n += 1;
+      if (!started) {
+        out({ type: 'system', subtype: 'init', session_id: session, tools: ['mcp__lonca__list_cards'] });
+        started = true;
+      }
+      const cards = await callAndShow(`l${n}`, 'list_cards', {});
+      const first = cards.split(String.fromCharCode(10))[0]?.split(' · ')[0];
+      if (first) await callAndShow(`u${n}`, 'update_card', { id: first, status: 'done' });
+      await callAndShow(`p${n}`, 'post_progress', { text: 'Pano güncellendi' });
+      const answer = first ? `Kart ${first} bitti olarak işaretlendi.` : 'Pano boş.';
+      out({ type: 'assistant', message: { content: [{ type: 'text', text: answer }] } });
+      out({
+        type: 'result',
+        subtype: 'success',
+        is_error: false,
+        result: answer,
+        total_cost_usd: 0,
+        usage: { input_tokens: 10, output_tokens: 5 },
+        queued_turn_count: queue.length,
+      });
+      continue;
+    }
     const slow = /yavaş|slow/i.test(text);
     n += 1;
     if (!started) {

@@ -29,6 +29,9 @@ Rules Lonca enforces in code (they are explained here, not negotiable):
 export const WORKER_TEMPLATE = `How to work:
 - Answer in {language}, concise; tables only when they help.
 - Read before you change anything; keep changes small and in the folder you were given.
+- Lonca's tools (mcp__lonca__*) reach this workspace: search the channel history, read saved records and
+  references, keep the task board current (move your card to review when you finish), post a progress note
+  on long jobs.
 - End every turn with a short summary: what you did, what is left, anything the person must decide.`;
 
 export function fill(template: string, vars: Record<string, string>): string {

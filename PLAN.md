@@ -530,10 +530,15 @@ Built and verified (unit tests, and the real app driven against a fake Claude Co
   `history/`, "back to default", a notice when the shipped default changed under an edited copy, and a preview of
   the whole prompt per agent. A session restarts its CLI process (same conversation) when a layer changes.
 
+- The MCP gateway: a small Streamable HTTP endpoint on 127.0.0.1 with one bearer token per agent session (Host
+  and Origin checked), serving Lonca's tools: `search_messages`, `list_records`, `read_record` (with the image),
+  `list_cards`, `add_card`, `update_card`, `post_progress`. Claude Code gets it with `--mcp-config` and
+  `--allowedTools mcp__lonca`; checked with a real Claude Code call (connected, tool called without a prompt).
+  Codex does not get it yet (its per-run MCP config needs a test install).
+
 Still to do in Phase 1:
 
 - Command tiles pinned above the composer.
-- The MCP gateway with Lonca's own tools (history search, records, board), so agents can update cards.
 - Needs-attention approvals: Claude Code's `--permission-prompts host` refused instead of asking in a first
   probe; until that works, read and edit levels refuse what would need approval and the card shows it.
 - Rebindable shortcuts.

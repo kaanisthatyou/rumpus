@@ -41,6 +41,12 @@ export interface JobsDeps {
   refs?: (ids: string[]) => { notes: string[]; images: Attachment[] };
   /** The editable instruction layers, read when a session starts. */
   layers?: () => PromptLayers;
+  /** Lonca's MCP endpoint; each session gets its own token. */
+  gateway?: {
+    ready(): Promise<string>;
+    issue(ctx: { agentId: string; channelId: string }): string;
+    revoke(token: string): void;
+  };
 }
 
 interface Live {
@@ -52,6 +58,7 @@ interface Live {
   lastText: string;
   /** The instruction layers the session was started with; a change starts a new process (same conversation). */
   layers?: string;
+  token?: string;
 }
 
 const MENTION = /(^|[^\w@])@([a-z0-9][a-z0-9-]{0,31})\b/g;
@@ -178,12 +185,14 @@ export class Jobs {
         live.agent.folder !== agent.folder ||
         live.agent.instructions !== agent.instructions)
     ) {
-      live.session.dispose(); // settings changed: start again, keeping the conversation
+      this.close(live); // settings changed: start again, keeping the conversation
       live = undefined;
     }
     if (!live) {
       const me = this.deps.me();
       const resume = this.deps.store.session(agent.id, channel.id);
+      const mcpUrl = this.deps.gateway ? await this.deps.gateway.ready() : undefined;
+      const token = mcpUrl ? this.deps.gateway?.issue({ agentId: agent.id, channelId: channel.id }) : undefined;
       const created: Live = {
         agent,
         channelId: channel.id,
@@ -200,10 +209,12 @@ export class Jobs {
           ...(agent.model ? { model: agent.model } : {}),
           ...(resume ? { resume } : {}),
           systemPrompt: systemPrompt(agent, { user: me.name, language: me.language }, this.deps.layers?.() ?? {}),
+          ...(mcpUrl && token ? { mcp: { url: mcpUrl, token } } : {}),
         },
         (e) => this.onEvent(created, e),
       );
       created.layers = layers;
+      if (token) created.token = token;
       live = created;
       this.live.set(key, live);
     }
@@ -258,7 +269,7 @@ export class Jobs {
     const key = this.key(agentId, channelId);
     const live = this.live.get(key);
     if (live?.job && live.job.state === 'running') this.stop(live.job.id);
-    live?.session.dispose();
+    if (live) this.close(live);
     this.live.delete(key);
     this.deps.store.setSession(agentId, channelId, undefined);
   }
@@ -268,7 +279,7 @@ export class Jobs {
     for (const [key, live] of this.live) {
       if (live.agent.id !== agentId) continue;
       if (live.job?.state === 'running') this.stop(live.job.id);
-      live.session.dispose();
+      this.close(live);
       this.live.delete(key);
     }
   }
@@ -280,8 +291,29 @@ export class Jobs {
   }
 
   disposeAll(): void {
-    for (const live of this.live.values()) live.session.dispose();
+    for (const live of this.live.values()) this.close(live);
     this.live.clear();
+  }
+
+  private close(live: Live): void {
+    live.session.dispose();
+    if (live.token) this.deps.gateway?.revoke(live.token);
+  }
+
+  /** A progress note from the agent (Lonca's post_progress tool) on its current job. */
+  note(agentId: string, channelId: string, text: string): boolean {
+    const live = this.live.get(this.key(agentId, channelId));
+    const job = live?.job;
+    if (!live || !job || (job.state !== 'running' && job.state !== 'attention')) return false;
+    const line = text.trim().split('\n')[0]?.slice(0, 200) ?? '';
+    if (!line) return false;
+    live.job = {
+      ...job,
+      steps: [...job.steps, { id: newId(), kind: 'notice', label: 'progress', arg: line, at: this.now() }],
+    };
+    this.transcript(job.id, { t: 'notice', text: line, at: this.now() });
+    this.save(live.job, true);
+    return true;
   }
 
   private onEvent(live: Live, e: DriverEvent): void {

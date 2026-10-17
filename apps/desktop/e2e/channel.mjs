@@ -138,6 +138,21 @@ try {
   await review.getByText('README dosyasını güncelle').waitFor({ timeout: 20_000 });
   await shot(page, 'board-review');
 
+  // Lonca's MCP tools: the agent moves the card to done itself and posts a progress note.
+  await page.keyboard.press('Control+k');
+  await search.fill('genel');
+  await search.press('Enter');
+  await composer.fill('@claude panoyu güncelle');
+  await composer.press('Enter');
+  await page.getByText('bitti olarak işaretlendi').first().waitFor({ timeout: 20_000 });
+  await page.getByText('lonca.update_card').first().waitFor();
+  await page.getByText('Pano güncellendi').first().waitFor();
+  await shot(page, 'mcp-tools');
+  await page.keyboard.press('Control+k');
+  await search.fill('görev');
+  await search.press('Enter');
+  await page.getByRole('region', { name: L.board.status.done }).getByText('README dosyasını güncelle').waitFor();
+
   // Records: save an answer as an idea, add a reference image, attach it to a job, use a saved command.
   await page.getByRole('button', { name: 'genel', exact: true }).click();
   const answerMsg = page.locator('.msg--agent').first();

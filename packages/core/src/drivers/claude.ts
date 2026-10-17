@@ -47,6 +47,19 @@ export function claudeArgs(opts: SessionOptions): string[] {
     '--append-system-prompt',
     opts.systemPrompt,
     ...claudeModeArgs(opts.mode),
+    // Lonca's own tools touch Lonca's data, not files: they run without asking at every level.
+    ...(opts.mcp
+      ? [
+          '--mcp-config',
+          JSON.stringify({
+            mcpServers: {
+              lonca: { type: 'http', url: opts.mcp.url, headers: { Authorization: `Bearer ${opts.mcp.token}` } },
+            },
+          }),
+          '--allowedTools',
+          'mcp__lonca',
+        ]
+      : []),
     ...(opts.resume ? ['--resume', opts.resume] : []),
     ...(opts.model ? ['--model', opts.model] : []),
   ];

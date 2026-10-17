@@ -244,7 +244,8 @@
       "tool": "Tool",
       "steer": "Steer",
       "untrusted_folder": "Folder not trusted in Claude Code",
-      "compacted": "Context compacted"
+      "compacted": "Context compacted",
+      "progress": "Progress"
     },
     "denied": "Refused",
     "more_one": "{{count}} more step",

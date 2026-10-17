@@ -244,7 +244,8 @@
       "tool": "Araç",
       "steer": "Yönlendirme",
       "untrusted_folder": "Klasör Claude Code'da güvenilir değil",
-      "compacted": "Bağlam sıkıştırıldı"
+      "compacted": "Bağlam sıkıştırıldı",
+      "progress": "İlerleme"
     },
     "denied": "Reddedildi",
     "more_one": "{{count}} adım daha",
