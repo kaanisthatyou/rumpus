@@ -63,6 +63,15 @@ describe('Core', () => {
     expect(await again.call('settings.get')).toMatchObject({ result: { accent: 'blue', profile: { name: 'Kaan' } } });
   });
 
+  it('changes only the settings a patch names (defaulted fields are not reset)', async () => {
+    const { call } = newCore();
+    await call('settings.update', { shortcuts: { palette: 'Ctrl+J' }, quietHours: { from: '22:00', to: '07:00' } });
+    const r = await call('settings.update', { accent: 'violet' });
+    expect(r).toMatchObject({
+      result: { accent: 'violet', shortcuts: { palette: 'Ctrl+J' }, quietHours: { from: '22:00', to: '07:00' } },
+    });
+  });
+
   it('refuses invalid settings with a code', async () => {
     const { call } = newCore();
     expect(await call('settings.update', { accent: 'pink' })).toMatchObject({ error: { code: 'invalid_settings' } });

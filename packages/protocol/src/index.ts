@@ -35,7 +35,8 @@ export const THEMES = ['dark', 'light', 'system'] as const;
 export const ACCENTS = ['lime', 'blue', 'orange', 'violet'] as const;
 export const MOTION = ['system', 'reduced'] as const;
 
-export const SettingsSchema = z.object({
+/** The settings fields as they are checked; the stored file fills in the newer ones from defaults (below). */
+const SETTINGS_FIELDS = {
   v: z.literal(1),
   language: z.enum(LANGUAGES),
   theme: z.enum(THEMES),
@@ -48,21 +49,35 @@ export const SettingsSchema = z.object({
   dataDir: z.string(),
   onboarded: z.boolean(),
   /** Hours when advisors speak only when asked, `HH:MM` to `HH:MM`; equal times turn it off. */
-  quietHours: z
-    .object({ from: z.string().regex(/^\d\d:\d\d$/), to: z.string().regex(/^\d\d:\d\d$/) })
-    .default({ from: '23:00', to: '08:00' }),
+  quietHours: z.object({ from: z.string().regex(/^\d\d:\d\d$/), to: z.string().regex(/^\d\d:\d\d$/) }),
   /** The open workspace. */
-  workspace: z.string().max(64).default('personal'),
+  workspace: z.string().max(64),
+  /** Serve the UI to this person's paired phones over Tailscale. */
+  phone: z.boolean(),
   /** Rebound shortcuts: action → combo like `Ctrl+Shift+K`. Missing actions use the defaults. */
-  shortcuts: z.record(z.string(), z.string().max(40)).default({}),
+  shortcuts: z.record(z.string(), z.string().max(40)),
+};
+
+export const SettingsSchema = z.object({
+  ...SETTINGS_FIELDS,
+  quietHours: SETTINGS_FIELDS.quietHours.default({ from: '23:00', to: '08:00' }),
+  workspace: SETTINGS_FIELDS.workspace.default('personal'),
+  phone: SETTINGS_FIELDS.phone.default(false),
+  shortcuts: SETTINGS_FIELDS.shortcuts.default({}),
 });
 export type Settings = z.infer<typeof SettingsSchema>;
 export type Language = Settings['language'];
 export type Theme = Settings['theme'];
 export type Accent = Settings['accent'];
 
-export const SettingsPatchSchema = SettingsSchema.omit({ v: true })
-  .extend({ profile: SettingsSchema.shape.profile.partial() })
+/**
+ * A change to some settings. Built from the fields without their defaults: with them, a patch of one field would
+ * carry every defaulted field too and reset it (shortcuts, quiet hours, the open workspace, the phone).
+ */
+export const SettingsPatchSchema = z
+  .object(SETTINGS_FIELDS)
+  .omit({ v: true })
+  .extend({ profile: SETTINGS_FIELDS.profile.partial() })
   .partial();
 export type SettingsPatch = z.infer<typeof SettingsPatchSchema>;
 
@@ -91,6 +106,7 @@ export function defaultSettings(language: Language = 'en'): Settings {
     onboarded: false,
     quietHours: { from: '23:00', to: '08:00' },
     workspace: 'personal',
+    phone: false,
     shortcuts: {},
   };
 }
@@ -125,10 +141,23 @@ export interface CliInfo {
   install: { windows: string; linux: string; docs: string };
 }
 
+export interface PhoneState {
+  on: boolean;
+  /** The address phones open (https behind `tailscale serve`), once it works. */
+  url?: string;
+  /** Why it does not work yet: `tailscale` (not running), `https` (the tailnet gives no certificates), `serve`. */
+  problem?: 'tailscale' | 'https' | 'serve' | 'port';
+  phones: { id: string; name: string; created: number; lastSeen?: number }[];
+}
+
 export interface TailscaleInfo {
   state: 'missing' | 'stopped' | 'needs-login' | 'running' | 'unknown';
   ip?: string;
   host?: string;
+  /** The device's name in the tailnet (`pc.tailnet.ts.net`). */
+  dns?: string;
+  /** The tailnet hands out HTTPS certificates (needed for `tailscale serve` and an installable phone app). */
+  https?: boolean;
 }
 
 // ---------------------------------------------------------------- RPC
@@ -151,6 +180,10 @@ export interface CoreMethods {
   'workspaces.create': { params: { name: string }; result: WorkspaceSummary };
   /** Makes a workspace the open one; others keep running in the background. */
   'workspaces.open': { params: { id: string }; result: WorkspaceState };
+  'phones.state': { params: undefined; result: PhoneState };
+  /** A one-time pairing link for a QR, valid for ten minutes. */
+  'phones.pair': { params: undefined; result: { url: string; expires: number } };
+  'phones.revoke': { params: { id: string }; result: PhoneState };
   /** An invite code for the open team workspace (admins). */
   'invites.create': { params: { role: MemberRole; hours?: number }; result: { code: string; expires: number } };
   /** Asks to join a team workspace with a code; an admin of it approves. */
@@ -215,6 +248,7 @@ export interface CoreEvents {
   'clis.changed': CliInfo[];
   'workspace.changed': WorkspaceState;
   'workspaces.changed': WorkspaceSummary[];
+  'phones.changed': PhoneState;
   'message.added': Message;
   'message.updated': Message;
   'message.deleted': { id: string; channelId: string };

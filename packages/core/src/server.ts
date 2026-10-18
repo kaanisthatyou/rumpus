@@ -28,6 +28,7 @@ import {
   type Language,
   type Message,
   type MethodName,
+  type PhoneState,
   RECORD_KINDS,
   type RecordItem,
   type WorkspaceState,
@@ -46,6 +47,7 @@ import { Jobs } from './jobs.js';
 import { type Llm, noLlm } from './llm.js';
 import { type Member, Membership, ROLES, type Role } from './membership.js';
 import { PEER_PORT, PeerClient, PeerError, type PeerRequest, PeerServer } from './peer.js';
+import { PHONE_PORT, PhoneServer } from './phone.js';
 import { killTree, type Launch, openConsole, type Runner, run } from './proc.js';
 import { CORE_RULES, systemPrompt } from './prompts.js';
 import { runReadTool } from './readTools.js';
@@ -78,6 +80,8 @@ export interface CoreOptions {
   signer?: Signer;
   /** Where to listen for other members: the Tailscale address and port 47640 unless given (tests use loopback). */
   peer?: { host?: string; port?: number };
+  /** The built UI, served to paired phones; and the loopback port for them (47620 unless given). */
+  web?: { dir?: string; port?: number; https?: boolean };
 }
 
 /** A team workspace's entry in `<data>/workspaces.json`. */
@@ -198,6 +202,11 @@ export class Core {
   private peerStarting: Promise<void> | undefined;
   private readonly reach = new Map<string, boolean>();
   private readonly joinPolls = new Map<string, NodeJS.Timeout>();
+  private phone: PhoneServer | undefined;
+  private phoneUrl: string | undefined;
+  private phoneProblem: PhoneState['problem'];
+  private phoneStarting: Promise<void> | undefined;
+  private phonePort: number | undefined;
   private readonly projectCache = new Map<string, { at: number; text: Promise<string> }>();
   private readonly handlers: { [M in MethodName]: Handler<M> };
 
@@ -207,9 +216,10 @@ export class Core {
     this.handlers = {
       'settings.get': async () => this.settings.get(),
       'settings.update': async (patch) => {
-        const before = this.settings.get().dataDir;
+        const before = this.settings.get();
         const next = this.settings.update(patch);
-        if (next.dataDir !== before) this.closeAll();
+        if (next.dataDir !== before.dataDir) this.closeAll();
+        if (next.phone !== before.phone) void this.applyPhone();
         this.emit('settings.changed', next);
         return next;
       },
@@ -228,6 +238,15 @@ export class Core {
       }),
       'workspace.get': async () => this.state(),
       'workspaces.list': async () => this.registry(),
+      'phones.state': async () => {
+        await this.phoneStarting;
+        return this.phoneState();
+      },
+      'phones.pair': async () => this.pairPhone(),
+      'phones.revoke': async (p) => {
+        if (typeof p?.id === 'string') this.phone?.revoke(p.id);
+        return this.changedPhones();
+      },
       'workspaces.create': async (p) => this.createWorkspace(p?.name),
       'workspaces.open': async (p) => this.openWorkspace(p?.id),
       'invites.create': async (p) => this.createInvite(p?.role, p?.hours),
@@ -376,7 +395,10 @@ export class Core {
       },
     };
     // Team workspaces sync in the background from the start, not only once they are opened.
-    setTimeout(() => this.startTeams(), 0).unref?.();
+    setTimeout(() => {
+      this.startTeams();
+      if (this.settings.get().phone) void this.applyPhone();
+    }, 0).unref?.();
   }
 
   private startTeams(): void {
@@ -452,6 +474,109 @@ export class Core {
 
   shutdown(): void {
     this.closeAll();
+    this.phone?.close();
+  }
+
+  /** One request from outside the window (a phone): its answer frame. */
+  async answer(frame: unknown): Promise<Frame> {
+    if (!isRequest(frame)) return { id: 0, error: { code: 'bad_request', message: 'frame' } };
+    let reply: Frame = { id: frame.id, error: { code: 'internal', message: 'no answer' } };
+    await this.handle({ send: (f) => (reply = f), onFrame: () => {} }, frame);
+    return reply;
+  }
+
+  /** Events for a listener outside the window (a phone); returns how to stop. */
+  subscribe(send: (frame: Frame) => void): () => void {
+    const peer: Peer = { send: (f) => 'event' in f && send(f), onFrame: () => {} };
+    this.peers.add(peer);
+    return () => this.peers.delete(peer);
+  }
+
+  // ---------------------------------------------------------------- the phone companion
+
+  private phoneState(): PhoneState {
+    return {
+      on: this.settings.get().phone,
+      ...(this.phoneUrl ? { url: this.phoneUrl } : {}),
+      ...(this.phoneProblem ? { problem: this.phoneProblem } : {}),
+      phones: this.phone?.phones() ?? [],
+    };
+  }
+
+  private changedPhones(): PhoneState {
+    const state = this.phoneState();
+    this.emitGlobal('phones.changed', state);
+    return state;
+  }
+
+  /** Starts or stops serving phones, as the setting says. */
+  private applyPhone(): Promise<void> {
+    const apply = async () => {
+      const on = this.settings.get().phone;
+      const runner = this.opts.runner ?? run;
+      const port = this.opts.web?.port ?? PHONE_PORT;
+      if (!on) {
+        if (this.phone?.running && this.phoneUrl?.startsWith('https://')) {
+          await runner('tailscale', ['serve', `--https=${port + 1}`, 'off'], { timeoutMs: 15_000 }).catch(
+            () => undefined,
+          );
+        }
+        this.phone?.close();
+        this.phonePort = undefined;
+        this.phoneUrl = undefined;
+        this.phoneProblem = undefined;
+        return;
+      }
+      this.phone ??= new PhoneServer(join(this.opts.appDir, 'phones.json'), this, this.opts.web?.dir);
+      let local: number;
+      try {
+        local = this.phone.running && this.phonePort ? this.phonePort : await this.phone.listen(port);
+        this.phonePort = local;
+      } catch {
+        this.phoneProblem = 'port';
+        return;
+      }
+      if (this.opts.web?.https === false) {
+        // Tests: the loopback address stands in for the tailnet one.
+        this.phoneUrl = `http://127.0.0.1:${local}`;
+        this.phoneProblem = undefined;
+        return;
+      }
+      const ts = await tailscaleStatus({
+        ...(this.opts.runner ? { runner: this.opts.runner } : {}),
+        ...(this.opts.env ? { env: this.opts.env } : {}),
+        ...(this.opts.platform ? { platform: this.opts.platform } : {}),
+      });
+      if (ts.state !== 'running' || !ts.dns) {
+        this.phoneProblem = 'tailscale';
+        return;
+      }
+      if (!ts.https) {
+        this.phoneProblem = 'https';
+        return;
+      }
+      const served = await runner('tailscale', ['serve', '--bg', `--https=${local + 1}`, `http://127.0.0.1:${local}`], {
+        timeoutMs: 30_000,
+      });
+      if (served.failed || served.code !== 0) {
+        this.phoneProblem = 'serve';
+        return;
+      }
+      this.phoneUrl = `https://${ts.dns}:${local + 1}`;
+      this.phoneProblem = undefined;
+    };
+    this.phoneStarting = apply().finally(() => {
+      this.phoneStarting = undefined;
+      this.changedPhones();
+    });
+    return this.phoneStarting;
+  }
+
+  private async pairPhone(): Promise<{ url: string; expires: number }> {
+    await this.phoneStarting;
+    if (!this.phone?.running || !this.phoneUrl) throw new CoreError('no_address');
+    const { code, expires } = this.phone.pairingCode();
+    return { url: `${this.phoneUrl}/?pair=${code}`, expires };
   }
 
   // ---------------------------------------------------------------- CLIs

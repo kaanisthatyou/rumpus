@@ -8,7 +8,8 @@ export function parseTailscaleStatus(r: RunResult): TailscaleInfo {
   try {
     const data = JSON.parse(r.stdout) as {
       BackendState?: string;
-      Self?: { HostName?: string; TailscaleIPs?: string[] };
+      Self?: { HostName?: string; DNSName?: string; TailscaleIPs?: string[] };
+      CertDomains?: string[] | null;
     };
     switch (data.BackendState) {
       case 'Running': {
@@ -17,6 +18,8 @@ export function parseTailscaleStatus(r: RunResult): TailscaleInfo {
           state: 'running',
           ...(ip ? { ip } : {}),
           ...(data.Self?.HostName ? { host: data.Self.HostName } : {}),
+          ...(data.Self?.DNSName ? { dns: data.Self.DNSName.replace(/\.$/, '') } : {}),
+          ...(data.CertDomains?.length ? { https: true } : {}),
         };
       }
       case 'NeedsLogin':
