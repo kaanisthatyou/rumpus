@@ -1,4 +1,4 @@
-import type { CliKind, Quota } from '@lonca/protocol';
+import { type CliKind, MEMBER_ROLES, type MemberRole, type Quota } from '@lonca/protocol';
 import { Avatar, Button, Icon, IconButton, type IconName, Kbd, Mark, popIn, stagger, Track } from '@lonca/ui';
 import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
@@ -77,14 +77,16 @@ function Rail({ onSettings }: { onSettings: () => void }) {
       </div>
       {workspaces.map((w) => {
         const name = w.kind === 'personal' ? t('shell.workspace') : w.name;
+        const note = w.state ? `${name} · ${t(`workspaces.state.${w.state}`)}` : name;
         return (
           <button
             key={w.id}
             type="button"
-            className={`ws ${w.id === current ? 'is-on' : ''}`}
-            aria-label={name}
+            className={`ws ${w.id === current ? 'is-on' : ''} ${w.state ? `is-${w.state}` : ''}`}
+            aria-label={note}
             aria-current={w.id === current ? 'page' : undefined}
-            title={name}
+            title={note}
+            disabled={Boolean(w.state)}
             onClick={() => void openWorkspace(w.id)}
           >
             {name.slice(0, 2)}
@@ -305,6 +307,9 @@ function Crew() {
   const openChannel = useApp((s) => s.openChannel);
   const openAgentDialog = useApp((s) => s.openAgentDialog);
   const openAdvisorDialog = useApp((s) => s.openAdvisorDialog);
+  const answerJoin = useApp((s) => s.answerJoin);
+  const setMemberRole = useApp((s) => s.setMemberRole);
+  const removeMember = useApp((s) => s.removeMember);
   const typing = useApp((s) => s.typing);
   const agents = workspace?.agents ?? [];
   const advisors = workspace?.advisors ?? [];
@@ -334,7 +339,7 @@ function Crew() {
     >
       <div className="crew__head">
         <h2>{t('shell.crew')}</h2>
-        <Button size="sm" icon="userPlus" disabled title={t('common.notYet')}>
+        <Button size="sm" icon="userPlus" onClick={() => useApp.setState({ inviteOpen: true })}>
           {t('shell.invite')}
         </Button>
       </div>
@@ -428,17 +433,79 @@ function Crew() {
           })}
         </motion.ul>
       )}
+      {(workspace?.joins?.length ?? 0) > 0 && (
+        <>
+          <h3>{t('invite.requests')}</h3>
+          <ul className="crew__list joins" aria-label={t('invite.requests')}>
+            {workspace?.joins?.map((j) => (
+              <li key={j.id} className="join">
+                <div className="who__text">
+                  <b>{j.name}</b>
+                  <span>{t('invite.asks', { role: t(`shell.role.${j.role}`) })}</span>
+                </div>
+                <Button size="sm" variant="quiet" onClick={() => void answerJoin(j.id, false)}>
+                  {t('invite.deny')}
+                </Button>
+                <Button size="sm" variant="primary" onClick={() => void answerJoin(j.id, true)}>
+                  {t('invite.approve')}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
       <h3>
         <span className="grow">{t('shell.members')}</span>
-        <span className="l-mono">1</span>
+        <span className="l-mono">{workspace?.members?.length ?? 1}</span>
       </h3>
-      <div className="who">
-        <Avatar name={me?.name ?? ''} size={28} presence="on" />
-        <div className="who__text">
-          <b>{me?.name}</b>
-          <span>{t('shell.role.admin')}</span>
+      {workspace?.members ? (
+        <ul className="crew__list" aria-label={t('shell.members')}>
+          {workspace.members.map((m) => (
+            <li key={m.device} className="who who--member">
+              <div className="who__open">
+                <Avatar name={m.name} size={28} presence={m.online ? 'on' : 'off'} />
+                <div className="who__text">
+                  <b>
+                    {m.name}
+                    {m.me && <span className="muted"> · {t('members.me')}</span>}
+                  </b>
+                  <span>{t(`shell.role.${m.role}`)}</span>
+                </div>
+              </div>
+              {workspace.role === 'admin' && !m.me && (
+                <>
+                  <select
+                    className="l-input member__role"
+                    aria-label={t('members.role', { name: m.name })}
+                    value={m.role}
+                    onChange={(e) => void setMemberRole(m.device, e.target.value as MemberRole)}
+                  >
+                    {MEMBER_ROLES.map((r) => (
+                      <option key={r} value={r}>
+                        {t(`shell.role.${r}`)}
+                      </option>
+                    ))}
+                  </select>
+                  <IconButton
+                    size="sm"
+                    icon="trash"
+                    label={t('members.remove', { name: m.name })}
+                    onClick={() => void removeMember(m.device)}
+                  />
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div className="who">
+          <Avatar name={me?.name ?? ''} size={28} presence="on" />
+          <div className="who__text">
+            <b>{me?.name}</b>
+            <span>{t('shell.role.admin')}</span>
+          </div>
         </div>
-      </div>
+      )}
       <span className="grow" />
       {Object.entries(quota).map(([kind, q]) => q && <QuotaBlock key={kind} kind={kind as CliKind} quota={q} />)}
     </motion.aside>

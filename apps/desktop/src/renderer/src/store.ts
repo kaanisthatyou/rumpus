@@ -12,6 +12,7 @@ import type {
   GoalComment,
   GoalInput,
   Job,
+  MemberRole,
   Message,
   ProviderInfo,
   ProviderInput,
@@ -62,6 +63,7 @@ interface AppState {
   goals: Goal[];
   workspaces: WorkspaceSummary[];
   newWorkspaceOpen?: boolean;
+  inviteOpen?: boolean;
   /** `/goal`: the dialog, with the goal text typed so far. */
   goalDialog?: { channelId: string; text: string; agentId?: string };
   /** Advisors writing right now, per channel. */
@@ -108,6 +110,11 @@ interface AppState {
   openGoalDialog(target: AppState['goalDialog']): void;
   openWorkspace(id: string): Promise<void>;
   createWorkspace(name: string): Promise<boolean>;
+  createInvite(role: MemberRole, hours: number): Promise<string | undefined>;
+  joinWithCode(code: string): Promise<boolean>;
+  answerJoin(id: string, approve: boolean): Promise<void>;
+  setMemberRole(device: string, role: MemberRole): Promise<void>;
+  removeMember(device: string): Promise<void>;
   createGoal(input: GoalInput): Promise<boolean>;
   approveGoal(id: string, comments: GoalComment[]): Promise<void>;
   stopGoal(id: string): Promise<void>;
@@ -208,7 +215,19 @@ export const useApp = create<AppState>((set, get) => {
       });
       core.on('clis.changed', (clis) => set({ clis }));
       core.on('workspace.changed', (workspace) => {
+        const before = get().workspace;
         set({ workspace });
+        // Someone asks to join while Lonca is in the background: an OS notification for the admin.
+        const fresh = (workspace.joins ?? []).filter((j) => !(before?.joins ?? []).some((b) => b.id === j.id));
+        if (fresh.length && before?.id === workspace.id && !document.hasFocus()) {
+          void window.lonca.shell.notify(
+            i18n.t('invite.notifyTitle'),
+            i18n.t('invite.wants', {
+              name: fresh[0]?.name ?? '',
+              role: i18n.t(`shell.role.${fresh[0]?.role ?? 'viewer'}`),
+            }),
+          );
+        }
         const { channelId } = get();
         if (!channelId || !workspace.channels.some((c) => c.id === channelId)) {
           const first = workspace.channels[0];
@@ -457,6 +476,27 @@ export const useApp = create<AppState>((set, get) => {
       // A different workspace: what was on screen belongs to the other one.
       set({ workspace: state, channelId: undefined, view: 'channel', jobs: {}, watching: undefined });
       await get().loadWorkspace();
+    },
+
+    async createInvite(role, hours) {
+      const made = await attempt(() => core.call('invites.create', { role, hours }));
+      return made?.code;
+    },
+
+    async joinWithCode(code) {
+      return Boolean(await attempt(() => core.call('invites.join', { code })));
+    },
+
+    async answerJoin(id, approve) {
+      await attempt(() => core.call('invites.answer', { id, approve }));
+    },
+
+    async setMemberRole(device, role) {
+      await attempt(() => core.call('members.setRole', { device, role }));
+    },
+
+    async removeMember(device) {
+      await attempt(() => core.call('members.remove', { device }));
     },
 
     async createWorkspace(name) {

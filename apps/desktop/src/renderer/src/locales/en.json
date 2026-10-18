@@ -94,7 +94,7 @@
       "unknown": "State unknown"
     },
     "hint": {
-      "running": "This computer is on the tailnet. Team invites become active in a later version.",
+      "running": "This computer is on the tailnet; other members reach it at its Tailscale address.",
       "stopped": "The connection is made in the Tailscale app.",
       "needs-login": "Sign-in happens in the Tailscale app.",
       "missing": "Team use requires Tailscale.",
@@ -231,7 +231,14 @@
     "invalid_goal": "Goal details are missing or invalid.",
     "goal_state": "The goal is not in a state for this.",
     "not_git": "The agent's folder is not a git repository.",
-    "worktree_failed": "The git worktree operation failed. There may be uncommitted changes."
+    "worktree_failed": "The git worktree operation failed. There may be uncommitted changes.",
+    "not_allowed": "The role does not allow this.",
+    "no_identity": "The device key is not ready yet; it can be tried again shortly.",
+    "no_address": "Other members cannot reach this computer: Tailscale is not running or no address was found.",
+    "bad_code": "The invite code could not be read.",
+    "already_member": "This lonca is already joined, or a request is waiting.",
+    "invite_refused": "The invite was not accepted: the code may be used or expired.",
+    "unreachable": "The inviting computer could not be reached. Tailscale and the inviter's Lonca must be running."
   },
   "channel": {
     "newSession": "New session",
@@ -626,6 +633,44 @@
     "name": "Lonca name",
     "create": "Create",
     "join": "Join with a code",
-    "joinLater": "Inviting members, joining with a code and syncing over Tailscale come in the next step."
+    "joinIntro": "A join request is sent with an invite code from an admin; once the admin approves, the lonca comes down to this computer. The two computers must be on the same Tailscale network, or the inviter must have shared their device.",
+    "code": "Invite code",
+    "codeHint": "Starts with LONCA1.",
+    "askToJoin": "Send join request",
+    "makeInstead": "Create a new lonca",
+    "state": {
+      "joining": "waiting for approval",
+      "denied": "request turned down"
+    }
+  },
+  "invite": {
+    "title": "Invite",
+    "personal": "The personal lonca is not shared. A new lonca is created for a team, and people are invited to it.",
+    "intro": "A one-time code that invites one person to {{name}}. Nobody joins until the request that comes with the code is approved.",
+    "role": "Role",
+    "roleHint": {
+      "viewer": "Reads and writes messages; cannot give jobs or change the board and records.",
+      "editor": "Gives agents jobs, adds own agents and advisors, edits the board and records.",
+      "admin": "Everything: channels, invites, roles and removing members."
+    },
+    "valid": "Valid for",
+    "hours_one": "{{count}} hour",
+    "hours_other": "{{count}} hours",
+    "make": "Make code",
+    "again": "New code",
+    "code": "Invite code",
+    "next": "The code goes to the person over a safe channel. They send their request with + → Join with a code in Lonca; it waits here for approval.",
+    "tailscale": "The person's computer must reach this one over Tailscale: the same tailnet, or this device shared with them in Tailscale.",
+    "requests": "Join requests",
+    "asks": "wants to join as {{role}}",
+    "approve": "Approve",
+    "deny": "Turn down",
+    "notifyTitle": "Join request",
+    "wants": "{{name}} wants to join as {{role}}."
+  },
+  "members": {
+    "me": "this device",
+    "role": "Role for {{name}}",
+    "remove": "Remove {{name}} from the lonca"
   }
 }

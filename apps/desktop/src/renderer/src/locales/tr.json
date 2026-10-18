@@ -94,7 +94,7 @@
       "unknown": "Durum okunamadı"
     },
     "hint": {
-      "running": "Bu bilgisayar tailnet'te. Ekip davetleri sonraki bir sürümde etkinleşir.",
+      "running": "Bu bilgisayar tailnet'te; diğer üyeler ona Tailscale adresinden ulaşır.",
       "stopped": "Tailscale uygulamasından bağlanılır.",
       "needs-login": "Tailscale uygulamasından giriş yapılır.",
       "missing": "Ekip kullanımı için Tailscale kurulur.",
@@ -231,7 +231,14 @@
     "invalid_goal": "Hedef bilgileri eksik ya da geçersiz.",
     "goal_state": "Hedef bu işlem için uygun durumda değil.",
     "not_git": "Agent'ın klasörü bir git deposu değil.",
-    "worktree_failed": "Git çalışma ağacı işlemi başarısız oldu. Kaydedilmemiş değişiklik olabilir."
+    "worktree_failed": "Git çalışma ağacı işlemi başarısız oldu. Kaydedilmemiş değişiklik olabilir.",
+    "not_allowed": "Bu işlem için rol yetmiyor.",
+    "no_identity": "Cihaz anahtarı henüz hazır değil; biraz sonra yeniden denenebilir.",
+    "no_address": "Diğer üyeler bu bilgisayara ulaşamıyor: Tailscale çalışmıyor ya da adres alınamadı.",
+    "bad_code": "Davet kodu okunamadı.",
+    "already_member": "Bu loncaya zaten katılınmış ya da istek bekliyor.",
+    "invite_refused": "Davet kabul edilmedi: kod kullanılmış ya da süresi dolmuş olabilir.",
+    "unreachable": "Davet eden bilgisayara ulaşılamadı. Tailscale ve davet edenin Lonca'sının açık olması gerekir."
   },
   "channel": {
     "newSession": "Yeni oturum",
@@ -626,6 +633,44 @@
     "name": "Lonca adı",
     "create": "Oluştur",
     "join": "Koda katıl",
-    "joinLater": "Üye daveti, koda katılma ve Tailscale üzerinden eşitleme sonraki adımda gelir."
+    "joinIntro": "Bir yöneticinin verdiği davet koduyla katılma isteği gönderilir; yönetici onaylayınca lonca bu bilgisayara iner. İki bilgisayar aynı Tailscale ağında olmalı ya da davet eden cihazını paylaşmış olmalı.",
+    "code": "Davet kodu",
+    "codeHint": "LONCA1. ile başlar.",
+    "askToJoin": "Katılma isteği gönder",
+    "makeInstead": "Yeni lonca kur",
+    "state": {
+      "joining": "onay bekliyor",
+      "denied": "istek reddedildi"
+    }
+  },
+  "invite": {
+    "title": "Davet",
+    "personal": "Kişisel lonca paylaşılmaz. Ekip için yeni bir lonca kurulur ve ona davet edilir.",
+    "intro": "{{name}} loncasına bir kişiyi davet eden tek kullanımlık kod. Kodla gelen istek onaylanana kadar kimse katılmaz.",
+    "role": "Rol",
+    "roleHint": {
+      "viewer": "Okur ve mesaj yazar; iş veremez, pano ve kayıtları değiştiremez.",
+      "editor": "Agent'lara iş verir, kendi agent ve danışmanlarını ekler, pano ve kayıtları düzenler.",
+      "admin": "Her şey: kanallar, davetler, roller ve üye çıkarma."
+    },
+    "valid": "Geçerlilik",
+    "hours_one": "{{count}} saat",
+    "hours_other": "{{count}} saat",
+    "make": "Kod oluştur",
+    "again": "Yeni kod",
+    "code": "Davet kodu",
+    "next": "Kod, katılacak kişiye güvenli bir yoldan iletilir. Kişi Lonca'da ＋ → Koda katıl ile isteğini gönderir; istek burada onay bekler.",
+    "tailscale": "Katılacak kişinin bilgisayarı bu bilgisayara Tailscale üzerinden ulaşabilmeli: aynı tailnet, ya da Tailscale'de bu cihazın onunla paylaşılması.",
+    "requests": "Katılma istekleri",
+    "asks": "{{role}} olarak katılmak istiyor",
+    "approve": "Onayla",
+    "deny": "Reddet",
+    "notifyTitle": "Katılma isteği",
+    "wants": "{{name}}, {{role}} olarak katılmak istiyor."
+  },
+  "members": {
+    "me": "bu cihaz",
+    "role": "{{name}} için rol",
+    "remove": "{{name}} loncadan çıkarılsın"
   }
 }

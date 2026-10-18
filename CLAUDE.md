@@ -49,7 +49,8 @@ purpose; never change roblox-factory for it.
 2. `pnpm e2e`: the real app with a temporary `LONCA_HOME`: `e2e/smoke.mjs` (launcher, shell, settings, restart)
    and `e2e/channel.mjs` (agents, jobs, live view, steer and stop, board, palette, restart) against
    `e2e/fake-claude.mjs`, a stand-in for Claude Code that costs no quota; `e2e/advisors.mjs` (providers, advisors)
-   against `e2e/fake-provider.mjs`, a stand-in OpenAI-compatible server. Look at the screenshots in
+   against `e2e/fake-provider.mjs`, a stand-in OpenAI-compatible server; `e2e/team.mjs` (two apps, invite, join,
+   sync) with `LONCA_PEER_HOST=127.0.0.1` instead of Tailscale. Look at the screenshots in
    `apps/desktop/test-results/` before saying a UI change works. Spend real CLI quota only for a short probe:
    `e2e/real-claude.mjs` (two Haiku turns) for driver changes, `LONCA_REAL_CODEX=<folder> vitest run
    packages/core/test/real-cli.test.ts` for Codex (no login needed, no tokens).

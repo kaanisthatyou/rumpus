@@ -15,7 +15,7 @@
     "preview": "electron-vite preview",
     "dist": "electron-vite build && electron-builder --config electron-builder.yml --publish never",
     "typecheck": "tsc -p tsconfig.node.json && tsc -p tsconfig.preload.json && tsc -p tsconfig.web.json",
-    "e2e": "electron-vite build && node e2e/smoke.mjs && node e2e/channel.mjs && node e2e/advisors.mjs"
+    "e2e": "electron-vite build && node e2e/smoke.mjs && node e2e/channel.mjs && node e2e/advisors.mjs && node e2e/team.mjs"
   },
   "dependencies": {
     "@lonca/core": "workspace:*",

@@ -9,6 +9,9 @@ import { useApp } from '../store';
 export function NewWorkspaceDialog() {
   const { t } = useTranslation();
   const createWorkspace = useApp((s) => s.createWorkspace);
+  const joinWithCode = useApp((s) => s.joinWithCode);
+  const [joining, setJoining] = useState(false);
+  const [code, setCode] = useState('');
   const close = useCallback(() => useApp.setState({ newWorkspaceOpen: false }), []);
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
@@ -38,38 +41,59 @@ export function NewWorkspaceDialog() {
         onSubmit={async (e) => {
           e.preventDefault();
           setBusy(true);
-          const ok = await createWorkspace(name);
+          const ok = joining ? await joinWithCode(code.trim()) : await createWorkspace(name);
           setBusy(false);
           if (ok) close();
         }}
       >
         <header className="agentform__head">
-          <h2>{t('shell.newWorkspace')}</h2>
+          <h2>{joining ? t('workspaces.join') : t('shell.newWorkspace')}</h2>
           <IconButton icon="close" label={t('common.close')} onClick={close} />
         </header>
         <div className="agentform__body">
-          <p className="muted">{t('workspaces.intro')}</p>
-          <TextField
-            label={t('workspaces.name')}
-            value={name}
-            maxLength={40}
-            required
-            autoFocus
-            onChange={(e) => setName(e.target.value)}
-          />
-          <p className="muted">{t('workspaces.joinLater')}</p>
+          {joining ? (
+            <>
+              <p className="muted">{t('workspaces.joinIntro')}</p>
+              <div className="l-field">
+                <label className="l-field__label" htmlFor="join-code">
+                  {t('workspaces.code')}
+                </label>
+                <textarea
+                  id="join-code"
+                  className="l-input l-mono agentform__text"
+                  value={code}
+                  rows={3}
+                  spellCheck={false}
+                  onChange={(e) => setCode(e.target.value)}
+                />
+                <span className="l-field__hint">{t('workspaces.codeHint')}</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="muted">{t('workspaces.intro')}</p>
+              <TextField
+                label={t('workspaces.name')}
+                value={name}
+                maxLength={40}
+                required
+                autoFocus
+                onChange={(e) => setName(e.target.value)}
+              />
+            </>
+          )}
           <ErrorLine />
         </div>
         <footer className="agentform__foot">
-          <Button disabled title={t('common.notYet')}>
-            {t('workspaces.join')}
+          <Button variant="quiet" onClick={() => setJoining((j) => !j)}>
+            {joining ? t('workspaces.makeInstead') : t('workspaces.join')}
           </Button>
           <span className="grow" />
           <Button variant="quiet" onClick={close}>
             {t('common.cancel')}
           </Button>
-          <Button type="submit" variant="primary" busy={busy} disabled={!name.trim()}>
-            {t('workspaces.create')}
+          <Button type="submit" variant="primary" busy={busy} disabled={joining ? !code.trim() : !name.trim()}>
+            {joining ? t('workspaces.askToJoin') : t('workspaces.create')}
           </Button>
         </footer>
       </motion.form>

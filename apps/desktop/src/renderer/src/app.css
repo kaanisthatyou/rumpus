@@ -1206,3 +1206,44 @@
   color: var(--ink);
   font-weight: 500;
 }
+
+/* Teams: invites, join requests, members */
+.invite__code {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+.invite__code textarea {
+  width: 100%;
+  font-size: 11.5px;
+  word-break: break-all;
+  resize: none;
+}
+.join {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: var(--r);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  background: var(--card);
+}
+.join .who__text {
+  flex: 1;
+  min-width: 0;
+}
+.who--member .who__open {
+  cursor: default;
+}
+.member__role {
+  height: 26px;
+  padding: 0 6px;
+  font-size: 12px;
+  width: auto;
+}
+.ws.is-joining,
+.ws.is-denied {
+  opacity: 0.55;
+  border-style: dashed;
+}

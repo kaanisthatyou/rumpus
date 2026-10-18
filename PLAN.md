@@ -652,6 +652,10 @@ The details behind 5.11 and 6.5, decided before building.
   proves its key, an admin approves, the joiner polls and then pulls everything. Roles: set, remove (the removed
   device hears it for a day), automatic renewal by admins, local actions refused above the role. Tested with two
   cores in one process over loopback (invite, approve, messages both ways, roles, removal) and membership unit tests.
+  3.4 in the app: Davet (role, how long the code lasts, the code to copy, Tailscale guidance), ＋ → Koda katıl, the
+  rail showing a lonca that waits for approval, join requests with Onayla / Reddet (and an OS notification), the
+  members list with online dots, role changes and removal for admins. `e2e/team.mjs` runs two real apps on one PC
+  over loopback: invite, join, approve, messages both ways.
 - **Slices:** 3.1 several workspaces; 3.2 identity, signed log, last-writer-wins; 3.3 transport and sync between
   two apps (two `LONCA_HOME` instances on one PC in tests); 3.4 invites, roles, members panel; 3.5 cross-member
   jobs and agent access; 3.6 presence, typing, notifications; 3.7 the phone companion.
