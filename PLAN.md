@@ -595,6 +595,47 @@ public, which waits for the owners' go.
   shows the branch, opens the folder, and removes the worktree when the goal is over (never forced: a worktree
   with changes stays; the branch always stays). Tested with real git in unit tests and `e2e/channel.mjs`.
 
+### Phase 3 design (2026-10-18)
+
+The details behind 5.11 and 6.5, decided before building.
+
+- **Workspaces.** Several per app: "Kişisel" (never synced, as today) and team workspaces, each in its own folder
+  `<data>/workspaces/<id>/` with its own SQLite file. The rail lists them; ＋ creates one or joins with a code.
+- **Device identity.** An Ed25519 key pair made on first start; the private key is sealed with `safeStorage` in
+  `<app>/identity.json` and signs in the main process for the core (the same pattern as providers), so it never
+  sits in the core's memory. Device id: the first 16 bytes of the public key's SHA-256, base32. v1: one device per
+  member.
+- **Signed events.** Envelope `{id, ws, author, n, hlc, type, data, sig}`: `n` counts the author's events (1, 2,
+  …), `hlc` is the hybrid logical clock (now also advanced by clocks seen from peers), `sig` is Ed25519 over the
+  canonical JSON of the rest. Every row remembers the HLC of the event that last set it; an older event is kept in
+  the log but changes nothing (last writer wins per entity, by HLC), so peers that receive events in any order end
+  up the same. The personal workspace stays unsigned.
+- **Genesis and roles.** A team workspace starts with a signed `workspace.created` naming the root admin.
+  `member.certified {device, publicKey, name, role, expires}` signed by an admin is the membership certificate
+  (about 30 days, renewed silently by any online admin); `member.removed` signed by an admin revokes it. Every peer
+  checks every event: valid signature, an author certified at the event's time, a role that allows the event type
+  (the table in 5.11). Events that fail are kept apart for diagnosis and never applied.
+- **Transport.** Each app listens with HTTP on its Tailscale address, port 47640, only while it has a team
+  workspace (loopback in tests). Every request carries the device id, a time and an Ed25519 signature over method,
+  path, time and the body's hash; requests older than two minutes, from devices without a valid certificate (the
+  join request excepted) or from outside Tailscale's ranges (100.64.0.0/10, fd7a:115c:a1e0::/48) are refused.
+  WireGuard encrypts the link. Endpoints: heads (`{device: n}`), pull (events the caller lacks, paged), push,
+  blobs by hash, join and join status, live (job updates and typing, not stored).
+- **Sync.** New events are pushed to online peers at once; every 30 seconds each peer compares heads with every
+  known peer and pulls what it lacks, so a third member passes on what two others missed. Addresses come from signed
+  `device.endpoint` events and `tailscale status --json`.
+- **Invites.** An admin makes a code (role, 24-hour expiry, one use) that carries the workspace id, the inviter's
+  addresses and a 128-bit token. The joiner pastes it; the inviter's app shows "Ayşe wants to join as Editor" to
+  the admins; approval writes `member.certified` and the joiner pulls the workspace. The invite screen walks
+  through Tailscale: the same tailnet, or the inviter sharing their device.
+- **Cross-member jobs.** A message that mentions another member's agent syncs like any message; the agent's owner's
+  app starts the job if the agent's access rules allow the sender, runs it on the owner's CLI login and streams the
+  job card live; the job's steps and end are signed events, the answer a normal message. Approvals go to the
+  owner by default.
+- **Slices:** 3.1 several workspaces; 3.2 identity, signed log, last-writer-wins; 3.3 transport and sync between
+  two apps (two `LONCA_HOME` instances on one PC in tests); 3.4 invites, roles, members panel; 3.5 cross-member
+  jobs and agent access; 3.6 presence, typing, notifications; 3.7 the phone companion.
+
 ## 9. Risks
 
 - **Terms and billing move** (Anthropic's billing for `claude -p` changed twice in 2026; Google bans OAuth reuse):
