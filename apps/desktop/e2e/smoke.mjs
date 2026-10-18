@@ -128,6 +128,25 @@ try {
   await second.page.getByRole('heading', { name: L.shell.crew }).waitFor();
   assert.equal(await second.page.getByRole('heading', { name: L.launcher.steps.language }).count(), 0);
   await shot(second.page, 'restart');
+
+  // A team lonca next to the personal one: its own channels; switching back finds the personal one as it was.
+  const p = second.page;
+  const genel = L.shell.defaultChannel;
+  await p.getByRole('button', { name: genel, exact: true }).click();
+  await p.getByRole('textbox', { name: L.shell.composer.replace('{{channel}}', genel) }).fill('kişisel not');
+  await p.getByRole('textbox', { name: L.shell.composer.replace('{{channel}}', genel) }).press('Enter');
+  await p.locator('.msg', { hasText: 'kişisel not' }).waitFor();
+  await p.getByRole('button', { name: L.shell.newWorkspace }).click();
+  const dialog = p.getByRole('dialog', { name: L.shell.newWorkspace });
+  await dialog.getByLabel(L.workspaces.name, { exact: true }).fill('Ekip');
+  await dialog.getByRole('button', { name: L.workspaces.create }).click();
+  await p.getByRole('heading', { name: 'Ekip', exact: true }).waitFor();
+  await p.getByText(L.shell.teamStorage).waitFor();
+  assert.equal(await p.locator('.msg', { hasText: 'kişisel not' }).count(), 0);
+  await shot(p, 'team-lonca');
+  await p.getByRole('button', { name: L.shell.workspace, exact: true }).click();
+  await p.locator('.msg', { hasText: 'kişisel not' }).waitFor();
+  await p.getByRole('button', { name: 'Ekip', exact: true }).waitFor();
   assert.deepEqual(second.errors, []);
 } finally {
   await second.app.close();

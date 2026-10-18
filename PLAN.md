@@ -632,6 +632,10 @@ The details behind 5.11 and 6.5, decided before building.
   app starts the job if the agent's access rules allow the sender, runs it on the owner's CLI login and streams the
   job card live; the job's steps and end are signed events, the answer a normal message. Approvals go to the
   owner by default.
+- **Built so far:** 3.1. Several workspaces: a registry in `<data>/workspaces.json` next to the personal one, the
+  rail lists them and ＋ makes a team lonca; the open one is a setting. Workspaces in the background keep running
+  (jobs, goals, advisors); their callbacks run in their own scope, so a background job or an agent's tool call reads
+  and writes its own workspace, and only the open workspace's events reach the window.
 - **Slices:** 3.1 several workspaces; 3.2 identity, signed log, last-writer-wins; 3.3 transport and sync between
   two apps (two `LONCA_HOME` instances on one PC in tests); 3.4 invites, roles, members panel; 3.5 cross-member
   jobs and agent access; 3.6 presence, typing, notifications; 3.7 the phone companion.

@@ -146,7 +146,8 @@
     },
     "settings": "Ayarlar",
     "shortcuts": "Kısayollar",
-    "waiting": "Bekleyenler"
+    "waiting": "Bekleyenler",
+    "teamStorage": "Ekip loncası"
   },
   "settings": {
     "title": "Ayarlar",
@@ -619,5 +620,12 @@
     "openFolder": "Klasörü aç",
     "removeWorktree": "Çalışma ağacını kaldır",
     "worktreeRemoved": "Çalışma ağacı kaldırıldı; dal duruyor."
+  },
+  "workspaces": {
+    "intro": "Ekip için ayrı bir lonca: kendi kanalları, agent'ları, danışmanları, panosu ve kayıtları olur. Kişisel lonca olduğu gibi kalır; arka plandaki loncaların işleri sürer.",
+    "name": "Lonca adı",
+    "create": "Oluştur",
+    "join": "Koda katıl",
+    "joinLater": "Üye daveti, koda katılma ve Tailscale üzerinden eşitleme sonraki adımda gelir."
   }
 }

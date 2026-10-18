@@ -21,6 +21,7 @@ import type {
   RecordKind,
   TranscriptEntry,
   WorkspaceState,
+  WorkspaceSummary,
 } from './workspace.js';
 
 export * from './providers.js';
@@ -49,6 +50,8 @@ export const SettingsSchema = z.object({
   quietHours: z
     .object({ from: z.string().regex(/^\d\d:\d\d$/), to: z.string().regex(/^\d\d:\d\d$/) })
     .default({ from: '23:00', to: '08:00' }),
+  /** The open workspace. */
+  workspace: z.string().max(64).default('personal'),
   /** Rebound shortcuts: action → combo like `Ctrl+Shift+K`. Missing actions use the defaults. */
   shortcuts: z.record(z.string(), z.string().max(40)).default({}),
 });
@@ -86,6 +89,7 @@ export function defaultSettings(language: Language = 'en'): Settings {
     dataDir: '',
     onboarded: false,
     quietHours: { from: '23:00', to: '08:00' },
+    workspace: 'personal',
     shortcuts: {},
   };
 }
@@ -142,6 +146,10 @@ export interface CoreMethods {
     result: { platform: Platform; dataDir: string; defaultDataDir: string };
   };
   'workspace.get': { params: undefined; result: WorkspaceState };
+  'workspaces.list': { params: undefined; result: WorkspaceSummary[] };
+  'workspaces.create': { params: { name: string }; result: WorkspaceSummary };
+  /** Makes a workspace the open one; others keep running in the background. */
+  'workspaces.open': { params: { id: string }; result: WorkspaceState };
   'channels.create': { params: { name: string }; result: Channel };
   'channels.rename': { params: { id: string; name: string }; result: Channel };
   'channels.delete': { params: { id: string }; result: { ok: true } };
@@ -196,6 +204,7 @@ export interface CoreEvents {
   'settings.changed': Settings;
   'clis.changed': CliInfo[];
   'workspace.changed': WorkspaceState;
+  'workspaces.changed': WorkspaceSummary[];
   'message.added': Message;
   'message.updated': Message;
   'message.deleted': { id: string; channelId: string };

@@ -67,20 +67,36 @@ function NavButton({
 
 function Rail({ onSettings }: { onSettings: () => void }) {
   const { t } = useTranslation();
+  const workspaces = useApp((s) => s.workspaces);
+  const current = useApp((s) => s.workspace?.id);
+  const openWorkspace = useApp((s) => s.openWorkspace);
   return (
     <nav className="rail" aria-label={t('shell.workspaces')}>
       <div className="rail__mark">
         <Mark size={32} />
       </div>
-      <button type="button" className="ws is-on" aria-label={t('shell.workspace')} title={t('shell.workspace')}>
-        {t('shell.workspace').slice(0, 2)}
-      </button>
+      {workspaces.map((w) => {
+        const name = w.kind === 'personal' ? t('shell.workspace') : w.name;
+        return (
+          <button
+            key={w.id}
+            type="button"
+            className={`ws ${w.id === current ? 'is-on' : ''}`}
+            aria-label={name}
+            aria-current={w.id === current ? 'page' : undefined}
+            title={name}
+            onClick={() => void openWorkspace(w.id)}
+          >
+            {name.slice(0, 2)}
+          </button>
+        );
+      })}
       <button
         type="button"
         className="ws ws--add"
         aria-label={t('shell.newWorkspace')}
-        title={t('common.notYet')}
-        disabled
+        title={t('shell.newWorkspace')}
+        onClick={() => useApp.setState({ newWorkspaceOpen: true })}
       >
         <Icon name="plus" size={14} />
       </button>
@@ -117,12 +133,12 @@ function Sidebar({ onSettings }: { onSettings: () => void }) {
   return (
     <aside className="side" aria-label={t('shell.channels')}>
       <div className="side__ws">
-        <h1>{t('shell.workspace')}</h1>
+        <h1>{workspace?.kind === 'team' ? workspace.name : t('shell.workspace')}</h1>
         <Icon name="chevronDown" size={14} />
       </div>
       <div className="side__store">
         <span className="dot dot--ok" />
-        {t('shell.storage')}
+        {workspace?.kind === 'team' ? t('shell.teamStorage') : t('shell.storage')}
         {tailscale?.state === 'running' && <span className="side__ts">· Tailscale</span>}
       </div>
       <button type="button" className="side__find" onClick={() => useApp.getState().setPalette(true)}>

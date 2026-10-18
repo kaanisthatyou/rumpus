@@ -175,9 +175,18 @@ export interface Quota {
   at: number;
 }
 
+/** A workspace in the rail: the personal one (never synced) or a team one. */
+export interface WorkspaceSummary {
+  id: string;
+  name: string;
+  kind: 'personal' | 'team';
+  created: number;
+}
+
 export interface WorkspaceState {
   id: string;
   name: string;
+  kind: 'personal' | 'team';
   me: { id: string; name: string };
   channels: Channel[];
   agents: Agent[];

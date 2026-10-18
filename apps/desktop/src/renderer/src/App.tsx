@@ -8,6 +8,7 @@ import { actionFor } from './keys';
 import { Launcher } from './launcher/Launcher';
 import { Palette, ShortcutsDialog } from './palette/Palette';
 import { SettingsDialog } from './settings/SettingsDialog';
+import { NewWorkspaceDialog } from './shell/NewWorkspaceDialog';
 import { Shell } from './shell/Shell';
 import { TitleBar } from './shell/TitleBar';
 import { useApp } from './store';
@@ -26,6 +27,7 @@ export function App() {
   const agentDialog = useApp((s) => s.agentDialog);
   const advisorDialog = useApp((s) => s.advisorDialog);
   const goalDialog = useApp((s) => s.goalDialog);
+  const newWorkspaceOpen = useApp((s) => s.newWorkspaceOpen);
   const paletteOpen = useApp((s) => s.paletteOpen);
   const shortcutsOpen = useApp((s) => s.shortcutsOpen);
   const init = useApp((s) => s.init);
@@ -116,6 +118,7 @@ export function App() {
         <AnimatePresence>{agentDialog && <AgentDialog key="agent-dialog" />}</AnimatePresence>
         <AnimatePresence>{advisorDialog && <AdvisorDialog key="advisor-dialog" />}</AnimatePresence>
         <AnimatePresence>{goalDialog && <GoalDialog key="goal-dialog" />}</AnimatePresence>
+        <AnimatePresence>{onboarded && newWorkspaceOpen && <NewWorkspaceDialog key="new-workspace" />}</AnimatePresence>
         <AnimatePresence>
           {onboarded && paletteOpen && <Palette key="palette" onSettings={openSettings} />}
         </AnimatePresence>

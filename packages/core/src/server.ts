@@ -28,6 +28,7 @@ import {
   RECORD_KINDS,
   type RecordItem,
   type WorkspaceState,
+  type WorkspaceSummary,
 } from '@lonca/protocol';
 import { Advisors } from './advisors.js';
 import { detectAgents, loginCommand } from './agents.js';
@@ -69,6 +70,8 @@ export interface CoreOptions {
 }
 
 interface Workspace {
+  id: string;
+  kind: 'personal' | 'team';
   dir: string;
   store: WorkspaceStore;
   jobs: Jobs;
@@ -81,6 +84,9 @@ interface Workspace {
   ended: Set<string>;
   timer: NodeJS.Timeout;
 }
+
+/** Events that are not about one workspace: they reach the window whichever workspace sent them. */
+const GLOBAL_EVENTS = new Set<EventName>(['settings.changed', 'clis.changed', 'quota.changed', 'workspaces.changed']);
 
 type Handler<M extends MethodName> = (params: CoreMethods[M]['params']) => Promise<CoreMethods[M]['result']>;
 
@@ -139,7 +145,10 @@ export class Core {
   private readonly deviceId: string;
   private clis: CliInfo[] | undefined;
   private detecting: Promise<CliInfo[]> | undefined;
-  private ws: Workspace | undefined;
+  /** Open workspaces: the one in view and any that keep running in the background. */
+  private readonly open = new Map<string, Workspace>();
+  /** The workspace a background task (a job, an advisor, an agent's tool call) runs in while it runs. */
+  private scope: Workspace | undefined;
   private readonly projectCache = new Map<string, { at: number; text: Promise<string> }>();
   private readonly handlers: { [M in MethodName]: Handler<M> };
 
@@ -151,7 +160,7 @@ export class Core {
       'settings.update': async (patch) => {
         const before = this.settings.get().dataDir;
         const next = this.settings.update(patch);
-        if (next.dataDir !== before) this.closeWorkspace();
+        if (next.dataDir !== before) this.closeAll();
         this.emit('settings.changed', next);
         return next;
       },
@@ -169,6 +178,9 @@ export class Core {
         defaultDataDir: this.defaultDataDir(),
       }),
       'workspace.get': async () => this.state(),
+      'workspaces.list': async () => this.registry(),
+      'workspaces.create': async (p) => this.createWorkspace(p?.name),
+      'workspaces.open': async (p) => this.openWorkspace(p?.id),
       'channels.create': async (p) => this.createChannel(p?.name),
       'channels.rename': async (p) => this.renameChannel(p?.id, p?.name),
       'channels.delete': async (p) => this.deleteChannel(p?.id),
@@ -309,6 +321,8 @@ export class Core {
   }
 
   emit<E extends EventName>(event: E, data: CoreEvents[E]): void {
+    // A workspace in the background keeps working, but only the open one talks to the window.
+    if (this.scope && this.scope.id !== this.currentId() && !GLOBAL_EVENTS.has(event)) return;
     for (const peer of this.peers) peer.send({ event, data });
   }
 
@@ -327,7 +341,7 @@ export class Core {
   }
 
   shutdown(): void {
-    this.closeWorkspace();
+    this.closeAll();
   }
 
   // ---------------------------------------------------------------- CLIs
@@ -363,14 +377,81 @@ export class Core {
 
   // ---------------------------------------------------------------- workspace
 
+  /** The workspaces besides the personal one live in `<data>/workspaces.json`. */
+  private registry(): WorkspaceSummary[] {
+    let teams: WorkspaceSummary[] = [];
+    try {
+      const data = JSON.parse(readFileSync(join(this.dataDir(), 'workspaces.json'), 'utf8')) as {
+        list?: WorkspaceSummary[];
+      };
+      if (Array.isArray(data.list)) {
+        teams = data.list
+          .filter((w) => typeof w?.id === 'string' && /^[\w-]{1,40}$/.test(w.id) && w.id !== 'personal')
+          .map((w) => ({
+            id: w.id,
+            name: String(w.name ?? '').slice(0, 40),
+            kind: 'team',
+            created: Number(w.created) || 0,
+          }));
+      }
+    } catch {
+      // no file yet: only the personal workspace
+    }
+    return [{ id: 'personal', name: '', kind: 'personal', created: 0 }, ...teams];
+  }
+
+  private currentId(): string {
+    const id = this.settings.get().workspace;
+    return this.registry().some((w) => w.id === id) ? id : 'personal';
+  }
+
+  private createWorkspace(name: unknown): WorkspaceSummary {
+    const clean = typeof name === 'string' ? name.trim().slice(0, 40) : '';
+    if (!clean) throw new CoreError('bad_request', 'name');
+    const created: WorkspaceSummary = { id: newId(), name: clean, kind: 'team', created: Date.now() };
+    const teams = [...this.registry().filter((w) => w.kind === 'team'), created];
+    mkdirSync(this.dataDir(), { recursive: true });
+    writeFileSync(join(this.dataDir(), 'workspaces.json'), JSON.stringify({ v: 1, list: teams }, null, 1));
+    this.emit('workspaces.changed', this.registry());
+    this.openWorkspace(created.id);
+    return created;
+  }
+
+  private openWorkspace(id: unknown): WorkspaceState {
+    if (typeof id !== 'string' || !this.registry().some((w) => w.id === id)) throw new CoreError('not_found');
+    this.emit('settings.changed', this.settings.update({ workspace: id }));
+    const state = this.state();
+    this.emit('workspace.changed', state);
+    return state;
+  }
+
+  /** The workspace an operation acts on: the one a background task runs in, or the open one. */
   private workspace(): Workspace {
-    if (this.ws) return this.ws;
-    const dir = join(this.dataDir(), 'workspaces', 'personal');
+    return this.scope ?? this.load(this.currentId());
+  }
+
+  /** Runs `fn` as part of a workspace's own work, so it reads and writes that workspace. */
+  private within<T>(ws: Workspace, fn: () => T): T {
+    const before = this.scope;
+    this.scope = ws;
+    try {
+      return fn();
+    } finally {
+      this.scope = before;
+    }
+  }
+
+  private load(id: string): Workspace {
+    const opened = this.open.get(id);
+    if (opened) return opened;
+    const summary = this.registry().find((w) => w.id === id);
+    const kind = summary?.kind ?? 'personal';
+    const dir = join(this.dataDir(), 'workspaces', id);
     const store = new WorkspaceStore(join(dir, 'lonca.db'), this.deviceId);
     store.closeOrphanJobs(Date.now());
     if (!store.meta('created')) {
       store.setMeta('created', String(Date.now()));
-      store.setMeta('name', 'personal');
+      store.setMeta('name', kind === 'personal' ? 'personal' : (summary?.name ?? id));
       const channel: Channel = {
         id: newId(),
         name: this.settings.get().language === 'tr' ? 'genel' : 'general',
@@ -382,7 +463,10 @@ export class Core {
     }
     const blobs = new Blobs(join(dir, 'blobs'));
     const instructions = new Instructions(this.dataDir(), dir);
-    const gateway = new Gateway(this.tools());
+    // Every callback below runs as this workspace's own work, whichever workspace is open.
+    const ref = {} as { ws: Workspace };
+    const inWs = <T>(fn: () => T): T => this.within(ref.ws, fn);
+    const gateway = new Gateway(this.tools().map((t) => ({ ...t, run: (a, ctx) => inWs(() => t.run(a, ctx)) })));
     let starting: Promise<number> | undefined;
     const jobs = new Jobs({
       gateway: {
@@ -397,28 +481,32 @@ export class Core {
       store,
       dir,
       layers: () => ({ worker: instructions.worker().text, workspace: instructions.workspace() }),
-      refs: (ids) => this.refsFor(ids),
+      refs: (ids) => inWs(() => this.refsFor(ids)),
       clis: () => this.listClis(false),
       me: () => ({ ...this.me(), language: this.settings.get().language }),
-      emitJob: (job) => {
-        this.emit('job.updated', job);
-        this.cardFollowsJob(job.id, job.state);
-        const over = job.state !== 'running' && job.state !== 'attention';
-        if (over && this.ws && !this.ws.ended.has(job.id)) {
-          this.ws.ended.add(job.id);
-          // After the answer message is stored. A goal's steps get their comments from the goal.
-          setTimeout(() => {
-            const ws = this.ws;
-            if (!ws) return;
-            const inGoal = ws.goals
-              .list()
-              .some((g) => g.planJobId === job.id || g.steps.some((s) => s.jobId === job.id));
-            if (inGoal) ws.goals.onJob(job);
-            else ws.advisors.onJobEnded(job);
-          }, 0);
-        }
-      },
-      emitMessage: (message) => this.emit('message.added', message),
+      emitJob: (job) =>
+        inWs(() => {
+          this.emit('job.updated', job);
+          this.cardFollowsJob(job.id, job.state);
+          const over = job.state !== 'running' && job.state !== 'attention';
+          if (over && !ref.ws.ended.has(job.id)) {
+            ref.ws.ended.add(job.id);
+            // After the answer message is stored. A goal's steps get their comments from the goal.
+            setTimeout(
+              () =>
+                inWs(() => {
+                  if (this.open.get(id) !== ref.ws) return;
+                  const inGoal = ref.ws.goals
+                    .list()
+                    .some((g) => g.planJobId === job.id || g.steps.some((s) => s.jobId === job.id));
+                  if (inGoal) ref.ws.goals.onJob(job);
+                  else ref.ws.advisors.onJobEnded(job);
+                }),
+              0,
+            );
+          }
+        }),
+      emitMessage: (message) => inWs(() => this.emit('message.added', message)),
       emitQuota: (kind, quota) => this.emit('quota.changed', { kind, quota }),
       ...(this.opts.drivers ? { drivers: this.opts.drivers } : {}),
       ...(this.opts.launch ? { launch: this.opts.launch } : {}),
@@ -429,17 +517,18 @@ export class Core {
       deviceId: this.deviceId,
       me: () => ({ ...this.me(), language: this.settings.get().language }),
       quietHours: () => this.settings.get().quietHours,
-      emitMessage: (message) => this.emit('message.added', message),
-      emitTyping: (e) => this.emit('advisor.typing', e),
-      emitSpend: (spend) => this.emit('advisor.spend', spend),
-      emitFailed: (e) => this.emit('advisor.failed', e),
-      addCard: (title, channelId) => {
-        try {
-          this.createCard({ title, channelId });
-        } catch {
-          // a card that cannot be made is not worth an error
-        }
-      },
+      emitMessage: (message) => inWs(() => this.emit('message.added', message)),
+      emitTyping: (e) => inWs(() => this.emit('advisor.typing', e)),
+      emitSpend: (spend) => inWs(() => this.emit('advisor.spend', spend)),
+      emitFailed: (e) => inWs(() => this.emit('advisor.failed', e)),
+      addCard: (title, channelId) =>
+        inWs(() => {
+          try {
+            this.createCard({ title, channelId });
+          } catch {
+            // a card that cannot be made is not worth an error
+          }
+        }),
       project: (folder) => this.project(folder),
       readTool: (folder, call) => runReadTool(folder, call, this.opts.runner ?? run),
     });
@@ -447,8 +536,8 @@ export class Core {
       store,
       jobs,
       me: () => ({ ...this.me(), language: this.settings.get().language }),
-      emitGoal: (goal) => this.emit('goal.changed', goal),
-      emitMessage: (message) => this.emit('message.added', message),
+      emitGoal: (goal) => inWs(() => this.emit('goal.changed', goal)),
+      emitMessage: (message) => inWs(() => this.emit('message.added', message)),
       runCheck: (command, cwd) => runShell(command, cwd),
       git: gitWorktrees(this.opts.runner ?? run),
       worktreesDir: join(this.dataDir(), 'worktrees'),
@@ -457,26 +546,29 @@ export class Core {
     goals.recover();
     const timer = setInterval(() => advisors.tick(), 60_000);
     timer.unref?.();
-    this.ws = { dir, store, jobs, blobs, instructions, gateway, advisors, goals, ended: new Set(), timer };
-    return this.ws;
+    ref.ws = { id, kind, dir, store, jobs, blobs, instructions, gateway, advisors, goals, ended: new Set(), timer };
+    this.open.set(id, ref.ws);
+    return ref.ws;
   }
 
-  private closeWorkspace(): void {
-    if (!this.ws) return;
-    clearInterval(this.ws.timer);
-    this.ws.advisors.dispose();
-    this.ws.goals.dispose();
-    this.ws.jobs.disposeAll();
-    this.ws.gateway.close();
-    this.ws.store.close();
-    this.ws = undefined;
+  private closeAll(): void {
+    for (const ws of this.open.values()) {
+      clearInterval(ws.timer);
+      ws.advisors.dispose();
+      ws.goals.dispose();
+      ws.jobs.disposeAll();
+      ws.gateway.close();
+      ws.store.close();
+    }
+    this.open.clear();
   }
 
   private state(): WorkspaceState {
-    const { store, jobs, advisors } = this.workspace();
+    const { id, kind, store, jobs, advisors } = this.workspace();
     return {
-      id: 'personal',
-      name: store.meta('name') ?? 'personal',
+      id,
+      name: store.meta('name') ?? id,
+      kind,
       me: this.me(),
       channels: store.channels(),
       agents: store.agents(),
@@ -1021,8 +1113,10 @@ export class Core {
 
   /** A card whose job ends moves on: done goes to review, a failed or stopped job back to the list. */
   private cardFollowsJob(jobId: string, state: string): void {
-    if (state === 'running' || state === 'attention' || !this.ws) return;
-    const card = this.ws.store.cards().find((c) => c.jobId === jobId && c.status === 'doing');
+    if (state === 'running' || state === 'attention') return;
+    const card = this.workspace()
+      .store.cards()
+      .find((c) => c.jobId === jobId && c.status === 'doing');
     if (!card) return;
     this.saveCard({ ...card, status: state === 'done' ? 'review' : 'todo', updated: Date.now() });
   }

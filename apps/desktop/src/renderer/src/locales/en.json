@@ -146,7 +146,8 @@
     },
     "settings": "Settings",
     "shortcuts": "Shortcuts",
-    "waiting": "Waiting"
+    "waiting": "Waiting",
+    "teamStorage": "Team lonca"
   },
   "settings": {
     "title": "Settings",
@@ -619,5 +620,12 @@
     "openFolder": "Open folder",
     "removeWorktree": "Remove worktree",
     "worktreeRemoved": "Worktree removed; the branch stays."
+  },
+  "workspaces": {
+    "intro": "A separate lonca for a team: its own channels, agents, advisors, board and records. The personal lonca stays as it is; work in loncas in the background goes on.",
+    "name": "Lonca name",
+    "create": "Create",
+    "join": "Join with a code",
+    "joinLater": "Inviting members, joining with a code and syncing over Tailscale come in the next step."
   }
 }

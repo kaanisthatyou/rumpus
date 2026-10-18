@@ -1,7 +1,7 @@
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { Card, Frame, RecordItem, Response } from '@lonca/protocol';
+import type { Card, Frame, Message, RecordItem, Response, WorkspaceState, WorkspaceSummary } from '@lonca/protocol';
 import { describe, expect, it } from 'vitest';
 import type { AgentSession, DriverEvent, OpenSession } from '../src/drivers/types.js';
 import { Core } from '../src/server.js';
@@ -174,5 +174,41 @@ describe('instructions', () => {
     expect(reset.worker.isDefault).toBe(true);
     expect(reset.workspace).toBe('The project is a Roblox game.');
     await expect(call('instructions.save', { layer: 'core', text: 'x' })).rejects.toThrow('bad_request');
+  });
+});
+
+describe('workspaces', () => {
+  it('keeps workspaces apart, and lets a background job finish without reaching the window', async () => {
+    const { call, sessions, sent } = setup();
+    const folder = tmp('lonca-proj-');
+    const personal = await call<WorkspaceState>('workspace.get');
+    expect(personal).toMatchObject({ id: 'personal', kind: 'personal' });
+    await call('agents.save', { kind: 'claude-code', name: 'Claude', handle: 'claude', folder, mode: 'read' });
+    const genel = personal.channels[0]?.id ?? '';
+    await call('messages.send', { channelId: genel, text: '@claude README?' });
+    await new Promise((r) => setTimeout(r, 30));
+    expect(sessions).toHaveLength(1);
+
+    const team = await call<WorkspaceSummary>('workspaces.create', { name: 'Ekip' });
+    expect(await call<WorkspaceSummary[]>('workspaces.list')).toMatchObject([
+      { id: 'personal' },
+      { id: team.id, name: 'Ekip', kind: 'team' },
+    ]);
+    const teamState = await call<WorkspaceState>('workspace.get');
+    expect(teamState).toMatchObject({ id: team.id, name: 'Ekip', kind: 'team', agents: [] });
+    expect(teamState.channels[0]?.id).not.toBe(genel);
+
+    // The personal workspace's job ends while the team one is open: nothing about it reaches the window.
+    const before = sent.length;
+    sessions[0]?.emit({ type: 'end', ok: true, final: 'README bir proje anlatıyor.' });
+    await new Promise((r) => setTimeout(r, 50));
+    const leaked = sent.slice(before).filter((f) => 'event' in f && ['message.added', 'job.updated'].includes(f.event));
+    expect(leaked).toEqual([]);
+
+    await call('workspaces.open', { id: 'personal' });
+    const page = await call<{ messages: Message[] }>('messages.list', { channelId: genel });
+    expect(page.messages.map((m) => m.text)).toContain('README bir proje anlatıyor.');
+    await expect(call('workspaces.open', { id: 'nope' })).rejects.toThrow('not_found');
+    await expect(call('workspaces.create', { name: '  ' })).rejects.toThrow('bad_request');
   });
 });

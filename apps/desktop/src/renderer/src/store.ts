@@ -24,6 +24,7 @@ import type {
   SettingsPatch,
   TailscaleInfo,
   WorkspaceState,
+  WorkspaceSummary,
 } from '@lonca/protocol';
 import { ERROR_CODES } from '@lonca/protocol';
 import { create } from 'zustand';
@@ -59,6 +60,8 @@ interface AppState {
   agentDialog?: Agent | 'new' | { kind: CliKind };
   advisorDialog?: Advisor | 'new';
   goals: Goal[];
+  workspaces: WorkspaceSummary[];
+  newWorkspaceOpen?: boolean;
   /** `/goal`: the dialog, with the goal text typed so far. */
   goalDialog?: { channelId: string; text: string; agentId?: string };
   /** Advisors writing right now, per channel. */
@@ -103,6 +106,8 @@ interface AppState {
   openAgentDialog(target: AppState['agentDialog']): void;
   openAdvisorDialog(target: AppState['advisorDialog']): void;
   openGoalDialog(target: AppState['goalDialog']): void;
+  openWorkspace(id: string): Promise<void>;
+  createWorkspace(name: string): Promise<boolean>;
   createGoal(input: GoalInput): Promise<boolean>;
   approveGoal(id: string, comments: GoalComment[]): Promise<void>;
   stopGoal(id: string): Promise<void>;
@@ -143,16 +148,16 @@ const codeOf = (err: unknown): string => {
 
 /** The last open channel, a per-window convenience; storage may be unavailable, so every access is guarded. */
 const lastChannel = {
-  get(): string | undefined {
+  get(ws = 'personal'): string | undefined {
     try {
-      return localStorage.getItem('lonca.lastChannel') ?? undefined;
+      return localStorage.getItem(ws === 'personal' ? 'lonca.lastChannel' : `lonca.lastChannel.${ws}`) ?? undefined;
     } catch {
       return undefined;
     }
   },
-  set(id: string): void {
+  set(id: string, ws = 'personal'): void {
     try {
-      localStorage.setItem('lonca.lastChannel', id);
+      localStorage.setItem(ws === 'personal' ? 'lonca.lastChannel' : `lonca.lastChannel.${ws}`, id);
     } catch {
       // nothing to remember then
     }
@@ -193,6 +198,7 @@ export const useApp = create<AppState>((set, get) => {
     paletteOpen: false,
     typing: {},
     goals: [],
+    workspaces: [],
     shortcutsOpen: false,
 
     async init() {
@@ -268,6 +274,8 @@ export const useApp = create<AppState>((set, get) => {
         get().flash(`${name}: ${i18n.t(`errors.${code}`, i18n.t('errors.internal'))}`);
       });
       window.lonca.updates.onChange((update) => set({ update }));
+      core.on('workspaces.changed', (workspaces) => set({ workspaces }));
+      void core.call('workspaces.list').then((workspaces) => set({ workspaces }));
       window.lonca.providers.onChange((providers) => set({ providers }));
       void window.lonca.providers.state().then((providers) => set({ providers }));
 
@@ -355,7 +363,7 @@ export const useApp = create<AppState>((set, get) => {
       const records = (await attempt(() => core.call('records.list', {}))) ?? [];
       const goals = (await attempt(() => core.call('goals.list'))) ?? [];
       set({ workspace, jobs, quota, cards, records, goals });
-      const current = get().channelId ?? lastChannel.get();
+      const current = get().channelId ?? lastChannel.get(workspace.id);
       const target = workspace.channels.find((c) => c.id === current) ?? workspace.channels[0];
       if (target) await get().openChannel(target.id);
     },
@@ -366,7 +374,7 @@ export const useApp = create<AppState>((set, get) => {
 
     async openChannel(id) {
       set({ channelId: id, view: 'channel' });
-      lastChannel.set(id);
+      lastChannel.set(id, get().workspace?.id);
       const page = await attempt(() => core.call('messages.list', { channelId: id, limit: 150 }));
       if (!page) return;
       set((s) => {
@@ -440,6 +448,22 @@ export const useApp = create<AppState>((set, get) => {
 
     openAgentDialog(target) {
       set({ agentDialog: target, error: undefined });
+    },
+
+    async openWorkspace(id) {
+      if (get().workspace?.id === id) return;
+      const state = await attempt(() => core.call('workspaces.open', { id }));
+      if (!state) return;
+      // A different workspace: what was on screen belongs to the other one.
+      set({ workspace: state, channelId: undefined, view: 'channel', jobs: {}, watching: undefined });
+      await get().loadWorkspace();
+    },
+
+    async createWorkspace(name) {
+      const created = await attempt(() => core.call('workspaces.create', { name }));
+      if (!created) return false;
+      await get().openWorkspace(created.id);
+      return true;
     },
 
     openGoalDialog(target) {
