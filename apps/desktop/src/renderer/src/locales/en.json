@@ -161,7 +161,8 @@
       "about": "About",
       "instructions": "Instructions",
       "shortcuts": "Shortcuts",
-      "providers": "Providers"
+      "providers": "Providers",
+      "phone": "Phone"
     },
     "language": "Language",
     "name": "Display name",
@@ -688,5 +689,30 @@
     "me": "this device",
     "role": "Role for {{name}}",
     "remove": "Remove {{name}} from the lonca"
+  },
+  "phone": {
+    "intro": "Lonca on this computer opens on paired phones too. Everything runs on this computer; the phone is only a screen. The connection goes over Tailscale.",
+    "on": "Open to phones",
+    "ready": "Phones connect at this address: {{url}}",
+    "problem": {
+      "tailscale": "Tailscale is not running, or this computer's name could not be read.",
+      "https": "Tailscale gives no HTTPS certificates on this network. They are turned on in the Tailscale admin console under DNS → HTTPS Certificates.",
+      "serve": "tailscale serve could not be run.",
+      "port": "The phone server's port (47620) is in use."
+    },
+    "add": "Add a phone",
+    "qr": "Pairing QR code",
+    "scan": "Scanned with the phone's camera, or the address is opened on the phone:",
+    "once": "One use, valid until {{time}}.",
+    "install": "On the phone, the browser's Add to Home Screen command installs it as an app.",
+    "list": "Paired phones",
+    "paired": "paired {{time}}",
+    "seen": "last seen {{time}}",
+    "revoke": "Remove {{name}}",
+    "bar": "Navigation",
+    "unpaired": {
+      "title": "This phone is not paired",
+      "how": "In Lonca on the computer, Settings → Phone → Add a phone shows the QR code to scan."
+    }
   }
 }

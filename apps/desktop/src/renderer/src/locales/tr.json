@@ -161,7 +161,8 @@
       "about": "Hakkında",
       "instructions": "Talimatlar",
       "shortcuts": "Kısayollar",
-      "providers": "Sağlayıcılar"
+      "providers": "Sağlayıcılar",
+      "phone": "Telefon"
     },
     "language": "Dil",
     "name": "Görünen ad",
@@ -688,5 +689,30 @@
     "me": "bu cihaz",
     "role": "{{name}} için rol",
     "remove": "{{name}} loncadan çıkarılsın"
+  },
+  "phone": {
+    "intro": "Bu bilgisayardaki Lonca, eşleştirilmiş telefonlarda da açılır. Her şey bu bilgisayarda çalışır; telefon yalnızca ekrandır. Bağlantı Tailscale üzerinden gider.",
+    "on": "Telefonlara aç",
+    "ready": "Telefonlar bu adresten bağlanır: {{url}}",
+    "problem": {
+      "tailscale": "Tailscale çalışmıyor ya da bu bilgisayarın adı alınamadı.",
+      "https": "Tailscale bu ağ için HTTPS sertifikası vermiyor. Tailscale yönetim panelinde DNS → HTTPS Certificates açılır.",
+      "serve": "tailscale serve çalıştırılamadı.",
+      "port": "Telefon sunucusunun portu (47620) kullanımda."
+    },
+    "add": "Telefon ekle",
+    "qr": "Eşleştirme QR kodu",
+    "scan": "Telefonun kamerasıyla okutulur ya da adres telefonda açılır:",
+    "once": "Tek kullanımlıktır, {{time}} saatine kadar geçerlidir.",
+    "install": "Telefonda tarayıcının Ana ekrana ekle komutuyla uygulama olarak eklenir.",
+    "list": "Eşleşmiş telefonlar",
+    "paired": "eşleşme {{time}}",
+    "seen": "son görülme {{time}}",
+    "revoke": "{{name}} eşleşmesini kaldır",
+    "bar": "Gezinme",
+    "unpaired": {
+      "title": "Bu telefon eşleşmedi",
+      "how": "Bilgisayardaki Lonca'da Ayarlar → Telefon → Telefon ekle ile çıkan QR kod okutulur."
+    }
   }
 }

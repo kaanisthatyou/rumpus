@@ -671,8 +671,17 @@ The details behind 5.11 and 6.5, decided before building.
   background a message from another member gives an OS notification.
   0.5.0-alpha.0 (2026-10-18): the packaged app passes all e2e tests; `e2e/tailscale.mjs` (by hand, on a computer
   with Tailscale) has one app listen on its real Tailscale address: the invite carried `100.76.173.48:47640` and the
-  second app joined and chatted through it. Still to do in Phase 3: 3.7 the phone companion, and the real test
-  between Kaan's and Arda's computers.
+  second app joined and chatted through it.
+  3.7. The phone companion: the core serves the built UI on 127.0.0.1:47620 with `tailscale serve` in front for
+  HTTPS (`https://<pc>.<tailnet>.ts.net:47621`); requests are the same frames over POST, events a server-sent
+  stream. Settings → Telefon turns it on, shows why it cannot work yet (Tailscale off, no HTTPS certificates in the
+  tailnet, `tailscale serve` failed, port taken), and pairs a phone with a one-time QR link (ten minutes); each phone
+  gets its own key (cookie, or a header and the event address for home-screen apps without cookies; only the hash is
+  kept) and can be removed alone. Writes need the `x-lonca` header and a matching origin. On a narrow screen the UI
+  is one column with a bottom bar (Kanallar, Görevler, Bekleyenler, Loncadakiler, Ayarlar) and full-screen dialogs;
+  settings about the PC itself are not offered on the phone. `e2e/phone.mjs` pairs a narrow window as the phone.
+  Still to do in Phase 3: push notifications to phones (Web Push), and the real test between Kaan's and Arda's
+  computers.
 - **Slices:** 3.1 several workspaces; 3.2 identity, signed log, last-writer-wins; 3.3 transport and sync between
   two apps (two `LONCA_HOME` instances on one PC in tests); 3.4 invites, roles, members panel; 3.5 cross-member
   jobs and agent access; 3.6 presence, typing, notifications; 3.7 the phone companion.

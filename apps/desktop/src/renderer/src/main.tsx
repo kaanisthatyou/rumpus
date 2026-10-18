@@ -8,12 +8,12 @@ import './i18n';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { Unpaired } from './shell/Unpaired';
+import { startWeb } from './web';
 
 const root = document.getElementById('root');
 if (root) {
-  createRoot(root).render(
-    <StrictMode>
-      <App />
-    </StrictMode>,
+  void startWeb().then((mode) =>
+    createRoot(root).render(<StrictMode>{mode === 'unpaired' ? <Unpaired /> : <App />}</StrictMode>),
   );
 }

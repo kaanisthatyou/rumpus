@@ -64,6 +64,8 @@ interface AppState {
   workspaces: WorkspaceSummary[];
   newWorkspaceOpen?: boolean;
   inviteOpen?: boolean;
+  /** On a narrow screen: the channel list or the crew over the chat. */
+  panel?: 'side' | 'crew';
   /** Other members typing, per channel: device → name and when it was last heard. */
   peopleTyping: Record<string, Record<string, { name: string; at: number }>>;
   /** Workspaces in the background with something new from another member. */
@@ -420,11 +422,11 @@ export const useApp = create<AppState>((set, get) => {
     },
 
     setView(view) {
-      set({ view });
+      set({ view, panel: undefined });
     },
 
     async openChannel(id) {
-      set({ channelId: id, view: 'channel' });
+      set({ channelId: id, view: 'channel', panel: undefined });
       lastChannel.set(id, get().workspace?.id);
       const page = await attempt(() => core.call('messages.list', { channelId: id, limit: 150 }));
       if (!page) return;

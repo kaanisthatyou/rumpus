@@ -19,6 +19,13 @@ const core = new Core({
   llm,
   signer,
   ...(peerHost ? { peer: { host: peerHost, port: Number(process.env.LONCA_PEER_PORT) || 0 } } : {}),
+  // Phones: the built UI; tests serve it on a loopback port without tailscale serve.
+  web: {
+    ...(process.env.LONCA_WEB_DIR ? { dir: process.env.LONCA_WEB_DIR } : {}),
+    ...(process.env.LONCA_PHONE_PORT !== undefined
+      ? { port: Number(process.env.LONCA_PHONE_PORT) || 0, https: false }
+      : {}),
+  },
 });
 
 process.parentPort.on('message', (event: { data: unknown; ports: MessagePortMain[] }) => {

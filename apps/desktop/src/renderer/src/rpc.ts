@@ -28,8 +28,14 @@ interface Pending {
 
 const CALL_TIMEOUT_MS = 30_000;
 
+/** Where frames go: Electron's MessagePort, or the PC's phone server over HTTP. */
+interface Link {
+  postMessage(frame: Frame): void;
+  close(): void;
+}
+
 class CoreClient {
-  private port: MessagePort | undefined;
+  private port: Link | undefined;
   private nextId = 1;
   private readonly pending = new Map<number, Pending>();
   private readonly queue: Frame[] = [];
@@ -45,12 +51,41 @@ class CoreClient {
   }
 
   private attach(port: MessagePort): void {
-    this.port?.close();
-    this.port = port;
     port.onmessage = (e) => this.receive(e.data);
     port.start();
-    for (const frame of this.queue.splice(0)) port.postMessage(frame);
+    this.link(port);
+  }
+
+  private link(link: Link): void {
+    this.port?.close();
+    this.port = link;
+    for (const frame of this.queue.splice(0)) link.postMessage(frame);
     for (const l of this.connectListeners) l();
+  }
+
+  /** On a phone: requests over POST, events over a server-sent stream that reconnects by itself. */
+  connectHttp(token?: string): void {
+    const headers: Record<string, string> = { 'content-type': 'application/json', 'x-lonca': '1' };
+    if (token) headers['x-lonca-phone'] = token;
+    const events = new EventSource(token ? `/api/events?k=${encodeURIComponent(token)}` : '/api/events');
+    let opened = false;
+    events.onmessage = (e) => this.receive(JSON.parse(e.data));
+    events.onopen = () => {
+      // After a lost connection, read the state again, as after a core restart on the desktop.
+      if (opened) for (const l of this.connectListeners) l();
+      opened = true;
+    };
+    this.link({
+      postMessage: (frame) => {
+        void fetch('/api/frame', { method: 'POST', headers, body: JSON.stringify(frame) })
+          .then((r) => r.json())
+          .then((answer) => this.receive(answer))
+          .catch(() => {
+            // the call times out and reports the core as offline
+          });
+      },
+      close: () => events.close(),
+    });
   }
 
   private receive(frame: unknown): void {

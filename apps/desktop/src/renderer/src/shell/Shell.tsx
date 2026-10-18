@@ -1,7 +1,7 @@
 import { type CliKind, MEMBER_ROLES, type MemberRole, type Quota } from '@lonca/protocol';
 import { Avatar, Button, Icon, IconButton, type IconName, Kbd, Mark, popIn, stagger, Track } from '@lonca/ui';
 import { AnimatePresence, motion } from 'motion/react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { RUNNABLE } from '../agents/AgentDialog';
 import { remoteOwner } from '../agents/owner';
@@ -306,6 +306,54 @@ function QuotaBlock({ kind, quota }: { kind: CliKind; quota: Quota }) {
   );
 }
 
+/** The bottom bar on a narrow screen (a phone): channels, tasks, waiting jobs, the crew, settings. */
+function PhoneBar({ onSettings }: { onSettings: () => void }) {
+  const { t } = useTranslation();
+  const panel = useApp((s) => s.panel);
+  const view = useApp((s) => s.view);
+  const jobs = useApp((s) => s.jobs);
+  const waiting = useMemo(() => Object.values(jobs).filter((j) => j.state === 'attention'), [jobs]);
+  const toggle = (p: 'side' | 'crew') => useApp.setState({ panel: panel === p ? undefined : p });
+  return (
+    <nav className="phonebar" aria-label={t('phone.bar')}>
+      <button type="button" className={panel === 'side' ? 'is-on' : ''} onClick={() => toggle('side')}>
+        <Icon name="hash" size={18} />
+        <span>{t('shell.channels')}</span>
+      </button>
+      <button
+        type="button"
+        className={view === 'tasks' && !panel ? 'is-on' : ''}
+        onClick={() => useApp.getState().setView(view === 'tasks' ? 'channel' : 'tasks')}
+      >
+        <Icon name="tasks" size={18} />
+        <span>{t('shell.tasks')}</span>
+      </button>
+      <button
+        type="button"
+        disabled={waiting.length === 0}
+        onClick={() => {
+          const first = waiting.sort((a, b) => a.started - b.started)[0];
+          if (first) useApp.getState().openJob(first.id);
+        }}
+      >
+        <Icon name="alert" size={18} />
+        <span>
+          {t('shell.waiting')}
+          {waiting.length > 0 && ` ${waiting.length}`}
+        </span>
+      </button>
+      <button type="button" className={panel === 'crew' ? 'is-on' : ''} onClick={() => toggle('crew')}>
+        <Icon name="users" size={18} />
+        <span>{t('shell.crew')}</span>
+      </button>
+      <button type="button" onClick={onSettings}>
+        <Icon name="settings" size={18} />
+        <span>{t('shell.settings')}</span>
+      </button>
+    </nav>
+  );
+}
+
 function Crew() {
   const { t } = useTranslation();
   const workspace = useApp((s) => s.workspace);
@@ -528,8 +576,10 @@ export function Shell({ onSettings }: { onSettings: () => void }) {
   const view = useApp((s) => s.view);
   const channel = useApp((s) => s.workspace?.channels.find((c) => c.id === s.channelId));
   const watching = useApp((s) => s.watching);
+  const panel = useApp((s) => s.panel);
   return (
     <motion.div
+      data-panel={panel}
       className="shell"
       initial={{ opacity: 0, scale: 1.01 }}
       animate={{ opacity: 1, scale: 1, transition: { duration: 0.3 } }}
@@ -550,6 +600,7 @@ export function Shell({ onSettings }: { onSettings: () => void }) {
       <AnimatePresence mode="wait">
         {watching ? <LiveView key={watching} jobId={watching} /> : <Crew key="crew" />}
       </AnimatePresence>
+      <PhoneBar onSettings={onSettings} />
     </motion.div>
   );
 }

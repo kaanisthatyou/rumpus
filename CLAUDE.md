@@ -50,7 +50,8 @@ purpose; never change roblox-factory for it.
    and `e2e/channel.mjs` (agents, jobs, live view, steer and stop, board, palette, restart) against
    `e2e/fake-claude.mjs`, a stand-in for Claude Code that costs no quota; `e2e/advisors.mjs` (providers, advisors)
    against `e2e/fake-provider.mjs`, a stand-in OpenAI-compatible server; `e2e/team.mjs` (two apps, invite, join,
-   sync) with `LONCA_PEER_HOST=127.0.0.1` instead of Tailscale. Look at the screenshots in
+   sync) with `LONCA_PEER_HOST=127.0.0.1` instead of Tailscale; `e2e/phone.mjs` (pairing a narrow window as a
+   phone) with `LONCA_PHONE_PORT=0` instead of `tailscale serve`. Look at the screenshots in
    `apps/desktop/test-results/` before saying a UI change works. Spend real CLI quota only for a short probe:
    `e2e/real-claude.mjs` (two Haiku turns) for driver changes, `LONCA_REAL_CODEX=<folder> vitest run
    packages/core/test/real-cli.test.ts` for Codex (no login needed, no tokens).
@@ -58,6 +59,10 @@ purpose; never change roblox-factory for it.
    `apps/desktop`. Updater changes: `e2e/update.mjs` (see its header).
 
 ## Gotchas
+
+- A Zustand selector must return a stable value: no `.filter`, `.map`, `?? []` or object literals inside
+  `useApp((s) => …)`. A new array on every call makes React re-render forever and the window stays blank (it
+  happened twice). Select the stored value and derive with `useMemo`, or fall back to a module-level constant.
 
 - An update test must never install what it downloaded: the local test feed turns off install-on-quit. If a test
   build gets installed anyway, remove it with its own uninstaller from PowerShell.

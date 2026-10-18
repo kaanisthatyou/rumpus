@@ -54,6 +54,8 @@ function startCore(): void {
       ...process.env,
       LONCA_APP_DIR: appDir,
       LONCA_LOCALE: process.env.LONCA_LANG ?? app.getLocale(),
+      // The built UI, for paired phones (in development the page comes from Vite instead).
+      ...(devUrl ? {} : { LONCA_WEB_DIR: join(here, '../renderer') }),
     },
   });
   providers?.attach(core);

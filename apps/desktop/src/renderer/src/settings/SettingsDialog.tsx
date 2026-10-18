@@ -15,11 +15,22 @@ import {
 } from '../parts';
 import { useApp } from '../store';
 import { InstructionsPanel } from './InstructionsPanel';
+import { PhonePanel } from './PhonePanel';
 import { ProvidersPanel } from './ProvidersPanel';
 import { ShortcutsPanel } from './ShortcutsPanel';
 
 const TABS: {
-  id: 'general' | 'appearance' | 'agents' | 'providers' | 'instructions' | 'shortcuts' | 'team' | 'updates' | 'about';
+  id:
+    | 'general'
+    | 'appearance'
+    | 'agents'
+    | 'providers'
+    | 'instructions'
+    | 'shortcuts'
+    | 'team'
+    | 'phone'
+    | 'updates'
+    | 'about';
   icon: IconName;
 }[] = [
   { id: 'general', icon: 'settings' },
@@ -29,10 +40,14 @@ const TABS: {
   { id: 'instructions', icon: 'layers' },
   { id: 'shortcuts', icon: 'keyboard' },
   { id: 'team', icon: 'network' },
+  { id: 'phone', icon: 'monitor' },
   { id: 'updates', icon: 'download' },
   { id: 'about', icon: 'globe' },
 ];
 type Tab = (typeof TABS)[number]['id'];
+/** Tabs about this computer itself: not offered on a phone. */
+const DESKTOP_ONLY = new Set<Tab>(['providers', 'phone', 'updates', 'team']);
+const onPhone = typeof document !== 'undefined' && document.documentElement.dataset.phone === '1';
 
 function General() {
   const { t } = useTranslation();
@@ -202,7 +217,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
       >
         <nav className="settings__nav" aria-label={t('settings.title')}>
           <h3>{t('settings.title')}</h3>
-          {TABS.map((x) => (
+          {TABS.filter((x) => !(onPhone && DESKTOP_ONLY.has(x.id))).map((x) => (
             <button
               key={x.id}
               type="button"
@@ -234,6 +249,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             {tab === 'instructions' && <InstructionsPanel />}
             {tab === 'shortcuts' && <ShortcutsPanel />}
             {tab === 'team' && <TailscaleRow />}
+            {tab === 'phone' && <PhonePanel />}
             {tab === 'updates' && <Updates />}
             {tab === 'about' && <About />}
           </motion.div>
