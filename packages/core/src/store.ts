@@ -89,6 +89,7 @@ export type WorkspaceEvent =
   | { type: 'member.certified'; data: Omit<Member, 'removed'> }
   | { type: 'member.removed'; data: { device: string; at: number; upTo: number } }
   | { type: 'device.endpoint'; data: { device: string; addresses: string[] } }
+  | { type: 'job.saved'; data: Job }
   | { type: 'message.posted'; data: Message }
   | { type: 'message.edited'; data: { id: string; text: string; edited: number } }
   | { type: 'message.deleted'; data: { id: string } }
@@ -110,6 +111,7 @@ const TABLES: Record<string, string> = {
   goal: 'goals',
   member: 'members',
   device: 'endpoints',
+  job: 'jobs',
 };
 
 export function entityOf(type: string, data: unknown): string {
@@ -439,6 +441,9 @@ export class WorkspaceStore {
         }
         return;
       }
+      case 'job.saved':
+        this.saveJob(e.data);
+        return;
       case 'device.endpoint':
         this.db
           .prepare('INSERT OR REPLACE INTO endpoints (id, data) VALUES (?, ?)')
@@ -653,15 +658,22 @@ export class WorkspaceStore {
     ).map((r) => json<Job>(r.data));
   }
 
-  /** Jobs that were running when the app last closed: they cannot continue, so they end as stopped. */
-  closeOrphanJobs(now: number): void {
+  /**
+   * Jobs this device was running when the app last closed: they cannot continue, so they end as stopped. Returns
+   * them (a team workspace tells the others). Other members' jobs are theirs to end.
+   */
+  closeOrphanJobs(now: number, mine: (job: Job) => boolean = () => true): Job[] {
     const rows = this.db.prepare('SELECT data FROM jobs').all() as Row[];
+    const closed: Job[] = [];
     for (const r of rows) {
       const job = json<Job>(r.data);
-      if (job.state === 'running' || job.state === 'attention') {
-        this.saveJob({ ...job, state: 'stopped', error: 'app_closed', ended: now });
+      if ((job.state === 'running' || job.state === 'attention') && mine(job)) {
+        const ended: Job = { ...job, state: 'stopped', error: 'app_closed', ended: now };
+        this.saveJob(ended);
+        closed.push(ended);
       }
     }
+    return closed;
   }
 
   session(agentId: string, channelId: string): string | undefined {

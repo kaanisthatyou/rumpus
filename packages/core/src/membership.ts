@@ -41,6 +41,7 @@ function minRole(type: string, data: Record<string, unknown>): Role | undefined 
     case 'message.edited':
     case 'message.deleted':
     case 'device.endpoint':
+    case 'job.saved':
       return 'viewer';
     case 'card.saved':
     case 'card.deleted':
@@ -125,6 +126,19 @@ export class Membership {
     // refuses for now (a renewal lets the same events in on a later sync), and a removed member's events count only
     // up to what the admin had from them at removal.
     if (author.removed !== undefined ? e.n > (author.upTo ?? 0) : author.expires <= Date.now()) return 'expired';
+    // An agent's own channel belongs to the agent's owner: they make, rename and delete it with the agent.
+    const agentChannel =
+      e.type === 'channel.created'
+        ? data.kind === 'agent'
+          ? String(data.agentId ?? '')
+          : undefined
+        : e.type === 'channel.renamed' || e.type === 'channel.deleted'
+          ? this.store.channel(String(data.id ?? ''))?.agentId
+          : undefined;
+    if (agentChannel !== undefined) {
+      if (!roleAllows(author.role, 'editor')) return 'not_allowed';
+      return this.firstAuthor(`agent:${agentChannel}`) === e.author ? 'ok' : 'not_allowed';
+    }
     const needed = minRole(e.type, data);
     if (!needed || !roleAllows(author.role, needed)) return 'not_allowed';
 
@@ -154,6 +168,10 @@ export class Membership {
         break;
       case 'device.endpoint':
         if (data.device !== e.author) return 'not_allowed';
+        break;
+      case 'job.saved':
+        // A job runs on its agent's owner's computer, and only that computer reports it.
+        if (this.firstAuthor(`agent:${String(data.agentId ?? '')}`) !== e.author) return 'not_allowed';
         break;
       case 'member.certified':
         if (!ROLES.includes(data.role as Role) || typeof data.publicKey !== 'string') return 'not_allowed';

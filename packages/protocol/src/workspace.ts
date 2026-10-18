@@ -20,7 +20,19 @@ export const AgentInputSchema = z.object({
   model: z.string().trim().max(80).optional(),
   /** The agent's own instruction layer (PLAN.md 5.14, layer 4). */
   instructions: z.string().max(20_000).default(''),
+  /** In a team workspace: who besides the owner may give it jobs, and how far (PLAN.md 5.11). */
+  access: z
+    .object({
+      who: z.enum(['me', 'members']),
+      maxMode: z.enum(AGENT_MODES),
+      approveOthers: z.boolean(),
+    })
+    .optional(),
 });
+
+export type AgentAccess = NonNullable<z.infer<typeof AgentInputSchema>['access']>;
+/** Only the owner, and read-only for anyone else the owner lets in. */
+export const DEFAULT_ACCESS: AgentAccess = { who: 'me', maxMode: 'read', approveOthers: false };
 export type AgentInput = z.input<typeof AgentInputSchema>;
 
 export interface Agent {
@@ -32,6 +44,9 @@ export interface Agent {
   mode: AgentMode;
   model?: string;
   instructions: string;
+  /** The device that added it: jobs run there, on that member's CLI login. Missing on agents from before teams. */
+  owner?: string;
+  access?: AgentAccess;
   created: number;
 }
 

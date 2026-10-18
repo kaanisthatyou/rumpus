@@ -4,6 +4,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync } from 'n
 import { join } from 'node:path';
 import type {
   Agent,
+  AgentMode,
   Channel,
   CliInfo,
   CliKind,
@@ -41,6 +42,13 @@ export interface JobsDeps {
   refs?: (ids: string[]) => { notes: string[]; images: Attachment[] };
   /** The editable instruction layers, read when a session starts. */
   layers?: () => PromptLayers;
+  /**
+   * Whether a message may start (or steer) a job of an agent, and how: in a team workspace only the owner's app
+   * runs an agent, others' requests are capped at the owner's limit and may wait for the owner's approval.
+   */
+  access?(agent: Agent, message: Message): { allow: boolean; mode?: AgentMode; approveFirst?: boolean };
+  /** A job's state changed (started, waiting, ended): other members' apps show it. */
+  publish?(job: Job): void;
   /** Lonca's MCP endpoint; each session gets its own token. */
   gateway?: {
     ready(): Promise<string>;
@@ -107,10 +115,15 @@ export class Jobs {
 
   private async route(message: Message, channel: Channel): Promise<void> {
     if (message.author.kind !== 'person') return; // only a person's message starts work
-    for (const agent of this.targets(message, channel, this.deps.store.agents())) {
+    for (const target of this.targets(message, channel, this.deps.store.agents())) {
+      const rule = this.deps.access?.(target, message) ?? { allow: true };
+      if (!rule.allow) continue;
+      const agent = rule.mode ? { ...target, mode: rule.mode } : target;
       const live = this.live.get(this.key(agent.id, channel.id));
       if (live?.job && (live.job.state === 'running' || live.job.state === 'attention')) {
         this.steerLive(live, message.text);
+      } else if (rule.approveFirst) {
+        this.hold(agent, channel, message);
       } else {
         await this.start(agent, channel, message);
       }
@@ -121,8 +134,34 @@ export class Jobs {
     return Date.now();
   }
 
+  /** Jobs another member asked for that wait for the owner's yes before they start. */
+  private readonly held = new Map<string, { agent: Agent; channel: Channel; message: Message }>();
+
+  private hold(agent: Agent, channel: Channel, message: Message): void {
+    const job: Job = {
+      id: newId(),
+      channelId: channel.id,
+      agentId: agent.id,
+      requestId: message.id,
+      state: 'attention',
+      steps: [],
+      usage: { in: 0, cached: 0, out: 0 },
+      approval: { id: 'start', label: 'start', arg: message.author.kind === 'person' ? message.author.name : '' },
+      started: this.now(),
+    };
+    this.held.set(job.id, { agent, channel, message });
+    this.save(job, true);
+  }
+
+  /** The last state each job was published with, so only changes go out. */
+  private readonly published = new Map<string, string>();
+
   private save(job: Job, immediate = false): void {
     this.deps.store.saveJob(job);
+    if (this.deps.publish && this.published.get(job.id) !== job.state) {
+      this.published.set(job.id, job.state);
+      this.deps.publish(job);
+    }
     const emit = () => {
       this.timers.delete(job.id);
       this.deps.emitJob(job);
@@ -185,19 +224,23 @@ export class Jobs {
     request: Message,
     prompt?: string,
     opts: { folder?: string; scope?: string } = {},
+    /** A job that already exists (one the owner just approved) continues instead of a new one. */
+    existing?: Job,
   ): Promise<Job> {
     const agent = opts.folder ? { ...base, folder: opts.folder } : base;
     const slot = slotOf(channel.id, opts.scope);
-    const job: Job = {
-      id: newId(),
-      channelId: channel.id,
-      agentId: agent.id,
-      requestId: request.id,
-      state: 'running',
-      steps: [],
-      usage: { in: 0, cached: 0, out: 0 },
-      started: this.now(),
-    };
+    const job: Job = existing
+      ? (({ approval: _a, ...rest }) => ({ ...rest, state: 'running' as const }))(existing)
+      : {
+          id: newId(),
+          channelId: channel.id,
+          agentId: agent.id,
+          requestId: request.id,
+          state: 'running',
+          steps: [],
+          usage: { in: 0, cached: 0, out: 0 },
+          started: this.now(),
+        };
     this.save(job, true);
 
     const open = (this.deps.drivers ?? DRIVERS)[agent.kind];
@@ -293,6 +336,19 @@ export class Jobs {
 
   /** A person's answer to the approval a job waits on. */
   answer(jobId: string, allow: boolean): boolean {
+    const held = this.held.get(jobId);
+    if (held) {
+      this.held.delete(jobId);
+      const job = this.deps.store.job(jobId);
+      if (!job) return false;
+      if (allow) {
+        void this.start(held.agent, held.channel, held.message, undefined, {}, job);
+      } else {
+        const { approval: _a, ...rest } = job;
+        this.save({ ...rest, state: 'stopped', error: 'denied_by_owner', ended: this.now() }, true);
+      }
+      return true;
+    }
     const live = [...this.live.values()].find((l) => l.job?.id === jobId);
     const job = live?.job;
     if (!live || !job || job.state !== 'attention' || !job.approval || !live.session.answer) return false;

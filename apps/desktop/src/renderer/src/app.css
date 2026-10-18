@@ -1247,3 +1247,12 @@
   opacity: 0.55;
   border-style: dashed;
 }
+
+.agentform__access {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

@@ -1,5 +1,12 @@
-import { AGENT_MODES, type Agent, type AgentMode, type CliKind } from '@lonca/protocol';
-import { Button, Icon, IconButton, Segmented, TextField } from '@lonca/ui';
+import {
+  AGENT_MODES,
+  type Agent,
+  type AgentAccess,
+  type AgentMode,
+  type CliKind,
+  DEFAULT_ACCESS,
+} from '@lonca/protocol';
+import { Button, Icon, IconButton, Segmented, Switch, TextField } from '@lonca/ui';
 import { motion } from 'motion/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -47,6 +54,8 @@ export function AgentDialog() {
   const [mode, setMode] = useState<AgentMode>(existing?.mode ?? 'read');
   const [model, setModel] = useState(existing?.model ?? '');
   const [instructions, setInstructions] = useState(existing?.instructions ?? '');
+  const [access, setAccess] = useState<AgentAccess>(existing?.access ?? DEFAULT_ACCESS);
+  const team = useApp((s) => s.workspace?.kind === 'team');
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close();
@@ -84,6 +93,7 @@ export function AgentDialog() {
             mode,
             ...(model.trim() ? { model: model.trim() } : {}),
             instructions,
+            ...(team ? { access } : {}),
           });
         }}
       >
@@ -167,6 +177,42 @@ export function AgentDialog() {
                   {t(`agentForm.modeHint.${mode}`)}
                 </span>
               </div>
+              {team && (
+                <fieldset className="l-field agentform__access">
+                  <legend className="l-field__label">{t('agentForm.access.title')}</legend>
+                  <Segmented
+                    layoutId="agent-who"
+                    label={t('agentForm.access.title')}
+                    value={access.who}
+                    onChange={(who) => setAccess((a) => ({ ...a, who }))}
+                    options={[
+                      { value: 'me', label: t('agentForm.access.me') },
+                      { value: 'members', label: t('agentForm.access.members') },
+                    ]}
+                  />
+                  {access.who === 'members' && (
+                    <>
+                      <span className="l-field__label">{t('agentForm.access.maxMode')}</span>
+                      <Segmented
+                        layoutId="agent-max"
+                        label={t('agentForm.access.maxMode')}
+                        value={access.maxMode}
+                        onChange={(maxMode) => setAccess((a) => ({ ...a, maxMode }))}
+                        options={AGENT_MODES.map((m) => ({ value: m, label: t(`agentForm.modes.${m}`) }))}
+                      />
+                      <div className="row-field">
+                        <Switch
+                          checked={access.approveOthers}
+                          onChange={(approveOthers) => setAccess((a) => ({ ...a, approveOthers }))}
+                          label={t('agentForm.access.approve')}
+                        />
+                        <span>{t('agentForm.access.approve')}</span>
+                      </div>
+                    </>
+                  )}
+                  <span className="l-field__hint">{t(`agentForm.access.hint.${access.who}`)}</span>
+                </fieldset>
+              )}
               <TextField
                 label={t('agentForm.model')}
                 value={model}

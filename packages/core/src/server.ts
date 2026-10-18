@@ -9,6 +9,7 @@ import {
   AdvisorInputSchema,
   type Agent,
   AgentInputSchema,
+  type AgentMode,
   CARD_STATUSES,
   type Card,
   type Channel,
@@ -18,10 +19,12 @@ import {
   CoreError,
   type CoreEvents,
   type CoreMethods,
+  DEFAULT_ACCESS,
   type EventName,
   type Frame,
   IDEA_STATUSES,
   isRequest,
+  type Job,
   type Language,
   type Message,
   type MethodName,
@@ -258,11 +261,27 @@ export class Core {
       'advisors.delete': async (p) => this.deleteAdvisor(p?.id),
       'advisors.council': async (p) => this.council(p?.channelId, p?.topic),
       'goals.list': async () => this.workspace().goals.list(),
-      'goals.create': async (p) => this.workspace().goals.create(p),
-      'goals.approve': async (p) => this.workspace().goals.approve(String(p?.id ?? ''), p?.comments ?? []),
-      'goals.stop': async (p) => this.workspace().goals.stop(String(p?.id ?? '')),
-      'goals.removeWorktree': async (p) => this.workspace().goals.removeWorktree(String(p?.id ?? '')),
-      'goals.resume': async (p) => this.workspace().goals.resume(String(p?.id ?? ''), p?.more ?? {}),
+      'goals.create': async (p) => {
+        this.requireRole('editor');
+        this.requireOwnAgent(p?.agentId);
+        return this.workspace().goals.create(p);
+      },
+      'goals.approve': async (p) => {
+        this.requireRole('editor');
+        return this.workspace().goals.approve(String(p?.id ?? ''), p?.comments ?? []);
+      },
+      'goals.stop': async (p) => {
+        this.requireRole('editor');
+        return this.workspace().goals.stop(String(p?.id ?? ''));
+      },
+      'goals.removeWorktree': async (p) => {
+        this.requireRole('editor');
+        return this.workspace().goals.removeWorktree(String(p?.id ?? ''));
+      },
+      'goals.resume': async (p) => {
+        this.requireRole('editor');
+        return this.workspace().goals.resume(String(p?.id ?? ''), p?.more ?? {});
+      },
       'agents.newSession': async (p) => {
         if (typeof p?.agentId !== 'string' || typeof p.channelId !== 'string') throw new CoreError('bad_request');
         this.workspace().jobs.newSession(p.agentId, p.channelId);
@@ -284,19 +303,35 @@ export class Core {
       },
       'quota.get': async () => this.workspace().jobs.quotas,
       'cards.list': async () => this.workspace().store.cards(),
-      'cards.create': async (p) => this.createCard(p),
-      'cards.update': async (p) => this.updateCard(p),
+      'cards.create': async (p) => {
+        this.requireRole('editor');
+        return this.createCard(p);
+      },
+      'cards.update': async (p) => {
+        this.requireRole('editor');
+        return this.updateCard(p);
+      },
       'cards.delete': async (p) => {
+        this.requireRole('editor');
         const { store } = this.workspace();
         if (typeof p?.id !== 'string' || !store.card(p.id)) throw new CoreError('not_found');
         store.commit({ type: 'card.deleted', data: { id: p.id } });
         this.emit('card.deleted', { id: p.id });
         return { ok: true as const };
       },
-      'cards.run': async (p) => this.runCard(p?.id),
+      'cards.run': async (p) => {
+        this.requireRole('editor');
+        const card = typeof p?.id === 'string' ? this.workspace().store.card(p.id) : undefined;
+        if (card?.assignee?.kind === 'agent') this.requireOwnAgent(card.assignee.id);
+        return this.runCard(p?.id);
+      },
       'records.list': async (p) => this.workspace().store.records(typeof p?.kind === 'string' ? p.kind : undefined),
-      'records.save': async (p) => this.saveRecord(p),
+      'records.save': async (p) => {
+        this.requireRole('editor');
+        return this.saveRecord(p);
+      },
       'records.delete': async (p) => {
+        this.requireRole('editor');
         const { store } = this.workspace();
         if (typeof p?.id !== 'string' || !store.record(p.id)) throw new CoreError('not_found');
         store.commit({ type: 'record.deleted', data: { id: p.id } });
@@ -550,7 +585,10 @@ export class Core {
     const kind = summary?.kind ?? 'personal';
     const dir = join(this.dataDir(), 'workspaces', id);
     const store = new WorkspaceStore(join(dir, 'lonca.db'), this.deviceId);
-    store.closeOrphanJobs(Date.now());
+    const orphans = store.closeOrphanJobs(
+      Date.now(),
+      (job) => kind !== 'team' || this.agentOwner(store, job.agentId) === this.deviceId,
+    );
     if (!store.meta('created')) {
       store.setMeta('created', String(Date.now()));
       store.setMeta('name', kind === 'personal' ? 'personal' : (summary?.name ?? id));
@@ -588,6 +626,8 @@ export class Core {
       layers: () => ({ worker: instructions.worker().text, workspace: instructions.workspace() }),
       refs: (ids) => inWs(() => this.refsFor(ids)),
       clis: () => this.listClis(false),
+      access: (agent, message) => inWs(() => this.jobAccess(ref.ws, agent, message)),
+      publish: (job) => inWs(() => this.publishJob(ref.ws, job)),
       me: () => ({ ...this.me(), language: this.settings.get().language }),
       emitJob: (job) =>
         inWs(() => {
@@ -695,6 +735,8 @@ export class Core {
     };
     this.open.set(id, ref.ws);
     if (!this.teams().find((t) => t.id === id)?.joining) sync?.start();
+    // Jobs that stopped when the app closed: the other members see them end.
+    if (kind === 'team') for (const job of orphans) this.publishJob(ref.ws, job);
     return ref.ws;
   }
 
@@ -748,6 +790,45 @@ export class Core {
         : {}),
       ...(this.peerAddress ? { address: this.peerAddress } : {}),
     };
+  }
+
+  /** Who owns an agent: the device that added it (older agents: the author of their first event). */
+  private agentOwner(store: WorkspaceStore, agentId: string): string | undefined {
+    return store.agent(agentId)?.owner ?? store.firstAuthor(`agent:${agentId}`);
+  }
+
+  /** In a team workspace an agent is changed and run only by its owner's app. */
+  private requireOwnAgent(agentId: unknown): void {
+    const ws = this.workspace();
+    if (ws.kind !== 'team' || typeof agentId !== 'string') return;
+    if (this.agentOwner(ws.store, agentId) !== this.deviceId) throw new CoreError('not_allowed');
+  }
+
+  /** Whether a message may start a job of an agent here, and how (PLAN.md 5.11, agent access). */
+  private jobAccess(
+    ws: Workspace,
+    agent: Agent,
+    message: Message,
+  ): { allow: boolean; mode?: AgentMode; approveFirst?: boolean } {
+    if (ws.kind !== 'team') return { allow: true };
+    if (this.agentOwner(ws.store, agent.id) !== this.deviceId) return { allow: false };
+    const sender = message.author.kind === 'person' ? message.author.id : '';
+    if (sender === this.deviceId) return { allow: true };
+    const access = agent.access ?? DEFAULT_ACCESS;
+    if (access.who !== 'members' || !ws.membership?.can(sender, 'editor')) return { allow: false };
+    const rank: Record<AgentMode, number> = { read: 0, edit: 1, full: 2 };
+    const mode = rank[access.maxMode] < rank[agent.mode] ? access.maxMode : agent.mode;
+    return { allow: true, mode, approveFirst: access.approveOthers };
+  }
+
+  /** A job's state, for the other members: steps shortened, the streaming preview left out. */
+  private publishJob(ws: Workspace, job: Job): void {
+    if (ws.kind !== 'team' || !ws.membership?.can(this.deviceId, 'viewer')) return;
+    const { preview: _p, ...rest } = job;
+    const steps = job.steps
+      .slice(-30)
+      .map((s) => ({ ...s, ...(s.preview ? { preview: s.preview.slice(0, 200) } : {}) }));
+    ws.store.commit({ type: 'job.saved', data: { ...rest, steps } });
   }
 
   /** In a team workspace, refuses what this device's role does not allow (other members would refuse it too). */
@@ -1022,7 +1103,16 @@ export class Core {
       switch (e.type) {
         case 'message.posted': {
           const m = store.message(id);
-          if (m) this.emit('message.added', m);
+          if (!m) break;
+          this.emit('message.added', m);
+          // Another member called one of this device's agents: the access rules decide.
+          const channel = store.channel(m.channelId);
+          if (channel && m.author.kind === 'person') void ws.jobs.onMessage(m, channel);
+          break;
+        }
+        case 'job.saved': {
+          const job = store.job(id);
+          if (job) this.emit('job.updated', job);
           break;
         }
         case 'message.edited': {
@@ -1176,6 +1266,7 @@ export class Core {
     const p = parsed.data;
     const existing = p.id ? store.agent(p.id) : undefined;
     if (p.id && !existing) throw new CoreError('not_found');
+    if (existing) this.requireOwnAgent(existing.id);
     if (
       store.agents().some((a) => a.handle === p.handle && a.id !== p.id) ||
       store.advisors().some((a) => a.handle === p.handle)
@@ -1191,6 +1282,8 @@ export class Core {
       mode: p.mode,
       ...(p.model ? { model: p.model } : {}),
       instructions: p.instructions,
+      owner: existing?.owner ?? this.deviceId,
+      ...(p.access ? { access: p.access } : existing?.access ? { access: existing.access } : {}),
       created: existing?.created ?? Date.now(),
     };
     store.commit({ type: 'agent.saved', data: agent });
@@ -1212,6 +1305,7 @@ export class Core {
     const { store, jobs } = this.workspace();
     const agent = typeof id === 'string' ? store.agent(id) : undefined;
     if (!agent) throw new CoreError('not_found');
+    this.requireOwnAgent(agent.id);
     jobs.dropAgent(agent.id);
     store.commit({ type: 'agent.deleted', data: { id: agent.id } });
     const own = store.channels().find((c) => c.kind === 'agent' && c.agentId === agent.id);

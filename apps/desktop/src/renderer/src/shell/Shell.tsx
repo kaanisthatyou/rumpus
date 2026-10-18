@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { RUNNABLE } from '../agents/AgentDialog';
+import { remoteOwner } from '../agents/owner';
 import { Board } from '../board/Board';
 import { ChannelView } from '../channel/ChannelView';
 import { LiveView } from '../channel/LiveView';
@@ -245,7 +246,7 @@ function Sidebar({ onSettings }: { onSettings: () => void }) {
         <Avatar name={settings?.profile.name ?? ''} size={28} presence="on" />
         <div className="me__who">
           <b>{settings?.profile.name}</b>
-          <span>{t('shell.role.admin')}</span>
+          <span>{t(`shell.role.${workspace?.role ?? 'admin'}`)}</span>
         </div>
         <IconButton icon="mic" label={t('shell.voice')} size="sm" disabled title={t('common.notYet')} />
         <IconButton icon="settings" label={t('shell.settings')} size="sm" onClick={onSettings} />
@@ -350,7 +351,9 @@ function Crew() {
       <motion.ul variants={stagger} initial="hidden" animate="shown" className="crew__list">
         {agents.map((a) => {
           const cli = clis?.find((c) => c.kind === a.kind);
-          const missing = !cli || cli.state === 'missing';
+          const owner = remoteOwner(a, workspace);
+          // Another member's agent runs on their computer: this computer's CLIs do not matter for it.
+          const missing = !owner && (!cli || cli.state === 'missing');
           const channel = workspace?.channels.find((c) => c.kind === 'agent' && c.agentId === a.id);
           const state = missing
             ? t('crew.cliMissing')
@@ -368,11 +371,13 @@ function Crew() {
                     {a.name} <span className="l-mono">@{a.handle}</span>
                   </b>
                   <span>
-                    {t(`agent.kind.${a.kind}`)} · {state}
+                    {t(`agent.kind.${a.kind}`)} · {owner ? t('agent.on', { name: owner }) : state}
                   </span>
                 </div>
               </button>
-              <IconButton size="sm" icon="settings" label={t('agentForm.edit')} onClick={() => openAgentDialog(a)} />
+              {!owner && (
+                <IconButton size="sm" icon="settings" label={t('agentForm.edit')} onClick={() => openAgentDialog(a)} />
+              )}
             </motion.li>
           );
         })}

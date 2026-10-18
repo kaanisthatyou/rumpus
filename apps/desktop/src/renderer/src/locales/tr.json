@@ -82,7 +82,8 @@
     "login": "Giriş yap",
     "installCommand": "Kurulum komutu",
     "loginOpened": "Giriş ayrı bir pencerede açıldı. Lonca'ya dönülünce liste yeniden taranır.",
-    "googleNote": "Google, Gemini hesap girişinin üçüncü taraf uygulamalarda kullanılmasına izin vermiyor. Bu CLI yalnızca GEMINI_API_KEY ya da Vertex ile çalıştırılır."
+    "googleNote": "Google, Gemini hesap girişinin üçüncü taraf uygulamalarda kullanılmasına izin vermiyor. Bu CLI yalnızca GEMINI_API_KEY ya da Vertex ile çalıştırılır.",
+    "on": "Sahibi: {{name}}"
   },
   "tailscale": {
     "name": "Tailscale",
@@ -279,7 +280,8 @@
       "steer": "Yönlendirme",
       "untrusted_folder": "Klasör Claude Code'da güvenilir değil",
       "compacted": "Bağlam sıkıştırıldı",
-      "progress": "İlerleme"
+      "progress": "İlerleme",
+      "start": "İşe başlama"
     },
     "denied": "Reddedildi",
     "more_one": "{{count}} adım daha",
@@ -300,13 +302,15 @@
       "app_closed": "Uygulama kapanırken iş yarıda kaldı.",
       "driver_missing": "Bu CLI henüz iş çalıştıramıyor.",
       "stopped": "Durduruldu.",
-      "failed": "İş hatayla bitti."
+      "failed": "İş hatayla bitti.",
+      "denied_by_owner": "Agent'ın sahibi işi onaylamadı."
     },
     "approval": {
       "title": "Onay bekliyor",
       "allow": "İzin ver",
       "deny": "Reddet",
-      "notifyTitle": "Onay bekleniyor"
+      "notifyTitle": "Onay bekleniyor",
+      "owner": "Sahibinin onayını bekliyor."
     }
   },
   "agentForm": {
@@ -337,7 +341,18 @@
     "save": "Kaydet",
     "delete": "Sil",
     "cancel": "Vazgeç",
-    "noCli": "İş çalıştırabilen kurulu bir CLI yok. Kurulum Ayarlar → CLI agentları bölümünde."
+    "noCli": "İş çalıştırabilen kurulu bir CLI yok. Kurulum Ayarlar → CLI agentları bölümünde.",
+    "access": {
+      "title": "Kimler iş verebilir",
+      "me": "Yalnızca sahibi",
+      "members": "Düzenleyiciler",
+      "maxMode": "Başkaları için en yüksek izin",
+      "approve": "Başkalarının işini önce onayla",
+      "hint": {
+        "me": "Diğer üyeler bu agent'ı görür ama iş veremez.",
+        "members": "Düzenleyici ve yöneticiler iş verebilir; işler bu bilgisayarda, bu bilgisayarın CLI girişiyle çalışır."
+      }
+    }
   },
   "crew": {
     "addAgent": "Agent ekle",

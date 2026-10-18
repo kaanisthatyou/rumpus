@@ -82,7 +82,8 @@
     "login": "Sign in",
     "installCommand": "Install command",
     "loginOpened": "Sign-in opened in a separate window. The list is scanned again on return to Lonca.",
-    "googleNote": "Google does not allow Gemini account sign-in to be used by third-party apps. This CLI runs only with GEMINI_API_KEY or Vertex."
+    "googleNote": "Google does not allow Gemini account sign-in to be used by third-party apps. This CLI runs only with GEMINI_API_KEY or Vertex.",
+    "on": "Owner: {{name}}"
   },
   "tailscale": {
     "name": "Tailscale",
@@ -279,7 +280,8 @@
       "steer": "Steer",
       "untrusted_folder": "Folder not trusted in Claude Code",
       "compacted": "Context compacted",
-      "progress": "Progress"
+      "progress": "Progress",
+      "start": "Start the job"
     },
     "denied": "Refused",
     "more_one": "{{count}} more step",
@@ -300,13 +302,15 @@
       "app_closed": "The job was cut off when the app closed.",
       "driver_missing": "This CLI cannot run jobs yet.",
       "stopped": "Stopped.",
-      "failed": "The job ended with an error."
+      "failed": "The job ended with an error.",
+      "denied_by_owner": "The agent's owner did not approve the job."
     },
     "approval": {
       "title": "Waiting for approval",
       "allow": "Allow",
       "deny": "Deny",
-      "notifyTitle": "Approval needed"
+      "notifyTitle": "Approval needed",
+      "owner": "Waiting for the owner's approval."
     }
   },
   "agentForm": {
@@ -337,7 +341,18 @@
     "save": "Save",
     "delete": "Delete",
     "cancel": "Cancel",
-    "noCli": "No installed CLI can run jobs. Setup is under Settings → CLI agents."
+    "noCli": "No installed CLI can run jobs. Setup is under Settings → CLI agents.",
+    "access": {
+      "title": "Who may give it jobs",
+      "me": "Only the owner",
+      "members": "Editors",
+      "maxMode": "Highest permission for others",
+      "approve": "Approve others' jobs first",
+      "hint": {
+        "me": "Other members see this agent but cannot give it jobs.",
+        "members": "Editors and admins can give it jobs; they run on this computer, on this computer's CLI login."
+      }
+    }
   },
   "crew": {
     "addAgent": "Add agent",

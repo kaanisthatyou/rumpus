@@ -656,6 +656,14 @@ The details behind 5.11 and 6.5, decided before building.
   rail showing a lonca that waits for approval, join requests with Onayla / Reddet (and an OS notification), the
   members list with online dots, role changes and removal for admins. `e2e/team.mjs` runs two real apps on one PC
   over loopback: invite, join, approve, messages both ways.
+  3.5. Agents carry their owner and access (who may give jobs: only the owner or editors; the highest permission
+  for others; "approve others' jobs first"). Only the owner's app runs an agent: a mention from another member
+  reaches it through sync, the access rules decide, the mode is capped, and with approval on the job waits as
+  "İşe başlama" until the owner allows it. Job states (start, waiting, end) are signed `job.saved` events, so
+  everyone sees the card ("Sahibi: Kaan"); steering, stopping, approving and the live view stay with the owner.
+  Viewers cannot change the board, records or goals; goals and cards use only own agents; agents' own channels
+  belong to the agent's owner. Covered in the two-core unit test and `e2e/team.mjs` (Arda's mention runs Kaan's
+  fake Claude Code and the answer comes back).
 - **Slices:** 3.1 several workspaces; 3.2 identity, signed log, last-writer-wins; 3.3 transport and sync between
   two apps (two `LONCA_HOME` instances on one PC in tests); 3.4 invites, roles, members panel; 3.5 cross-member
   jobs and agent access; 3.6 presence, typing, notifications; 3.7 the phone companion.

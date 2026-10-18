@@ -1,8 +1,9 @@
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { Channel, Frame, Message, Response, WorkspaceState, WorkspaceSummary } from '@lonca/protocol';
+import type { Agent, Channel, Frame, Job, Message, Response, WorkspaceState, WorkspaceSummary } from '@lonca/protocol';
 import { afterAll, describe, expect, it } from 'vitest';
+import type { AgentSession, DriverEvent, OpenSession } from '../src/drivers/types.js';
 import { eventPayload, LocalSigner, type SignedEvent } from '../src/identity.js';
 import { Membership } from '../src/membership.js';
 import { peerAddressAllowed } from '../src/peer.js';
@@ -16,12 +17,40 @@ afterAll(() => {
 });
 
 function app(name: string) {
+  // A fake Claude Code: found on PATH, signed in, and a session that records what it is sent.
+  const bin = tmp('lonca-team-bin-');
+  writeFileSync(join(bin, 'claude'), '');
+  const sessions: { emit: (e: DriverEvent) => void; sent: string[]; mode: string }[] = [];
+  const open: OpenSession = (o, emit) => {
+    const s = { emit, sent: [] as string[], mode: o.mode };
+    sessions.push(s);
+    const session: AgentSession = {
+      steering: 'live',
+      busy: false,
+      send: (t) => s.sent.push(t),
+      stop: () => {},
+      dispose: () => {},
+    };
+    return session;
+  };
   const core = new Core({
     appDir: tmp('lonca-team-'),
     language: 'tr',
-    env: { PATH: '' },
+    env: { PATH: bin },
     platform: 'linux',
-    runner: async () => ({ code: 1, stdout: '', stderr: '', timedOut: false, failed: true }),
+    runner: async (_f, args) =>
+      args[0] === '--version'
+        ? { code: 0, stdout: '2.1.0', stderr: '', timedOut: false }
+        : args[0] === 'auth'
+          ? {
+              code: 0,
+              stdout: JSON.stringify({ loggedIn: true, authMethod: 'claude.ai' }),
+              stderr: '',
+              timedOut: false,
+            }
+          : { code: 1, stdout: '', stderr: '', timedOut: false, failed: true },
+    drivers: { 'claude-code': open },
+    launch: (path) => ({ file: path, args: [] }),
     signer: new LocalSigner(),
     peer: { host: '127.0.0.1', port: 0 },
   });
@@ -43,7 +72,7 @@ function app(name: string) {
     }
     throw new Error(`no answer: ${method}`);
   };
-  return { core, call, name };
+  return { core, call, name, sessions };
 }
 
 async function until<T>(fn: () => Promise<T | undefined | false>, what: string, ms = 15_000): Promise<T> {
@@ -110,6 +139,65 @@ describe('team workspaces between two apps', () => {
       const page = await arda.call<{ messages: Message[] }>('messages.list', { channelId: genel });
       return page.messages.some((m) => m.text === 'Hoş geldin');
     }, 'arda got kaan');
+
+    // Kaan's agent, open to editors at read level: Arda's mention runs it on Kaan's computer, capped at read.
+    const agent = await kaan.call<Agent>('agents.save', {
+      kind: 'claude-code',
+      name: 'Claude',
+      handle: 'claude',
+      folder: tmp('lonca-team-proj-'),
+      mode: 'edit',
+      access: { who: 'members', maxMode: 'read', approveOthers: false },
+    });
+    await until(
+      async () => (await arda.call<WorkspaceState>('workspace.get')).agents.some((a) => a.id === agent.id),
+      'arda sees the agent',
+    );
+    await expect(arda.call('agents.save', { ...agent, name: 'Benim' })).rejects.toThrow('not_allowed');
+    await arda.call('messages.send', { channelId: genel, text: '@claude README ne anlatıyor?' });
+    const session = await until(
+      async () => kaan.sessions.find((x) => x.sent.some((t) => t.includes('README ne anlatıyor'))),
+      'kaan runs it',
+    );
+    expect(session.mode).toBe('read');
+    expect(arda.sessions).toHaveLength(0);
+    session.emit({ type: 'end', ok: true, final: 'README bir bütçe uygulaması anlatıyor.' });
+    await until(async () => {
+      const page = await arda.call<{ messages: Message[]; jobs: Job[] }>('messages.list', { channelId: genel });
+      const answered = page.messages.some((m) => m.author.kind === 'agent' && m.text.startsWith('README bir bütçe'));
+      return answered && page.jobs.some((j) => j.agentId === agent.id && j.state === 'done');
+    }, 'arda sees the answer and the finished job');
+
+    // With "approve others' jobs first", the job waits on Kaan.
+    await kaan.call('agents.save', { ...agent, access: { who: 'members', maxMode: 'read', approveOthers: true } });
+    await until(
+      async () => (await arda.call<WorkspaceState>('workspace.get')).agents.some((a) => a.access?.approveOthers),
+      'new access synced',
+    );
+    const before = kaan.sessions.length;
+    await arda.call('messages.send', { channelId: genel, text: '@claude testleri çalıştır' });
+    const held = await until(async () => {
+      const page = await kaan.call<{ jobs: Job[] }>('messages.list', { channelId: genel });
+      return page.jobs.find((j) => j.state === 'attention' && j.approval?.id === 'start');
+    }, 'job waits for the owner');
+    expect(held.approval?.arg).toBe('Arda');
+    await kaan.call('jobs.answer', { id: held.id, allow: true });
+    await until(
+      async () =>
+        kaan.sessions.slice(before).some((x) => x.sent.some((t) => t.includes('testleri çalıştır'))) ||
+        kaan.sessions.some((x) => x.sent.some((t) => t.includes('testleri çalıştır'))),
+      'approved job runs',
+    );
+
+    // Only the owner: Arda's call does nothing.
+    await kaan.call('agents.save', { ...agent, access: { who: 'me', maxMode: 'read', approveOthers: false } });
+    await until(
+      async () => (await arda.call<WorkspaceState>('workspace.get')).agents.some((a) => a.access?.who === 'me'),
+      'closed access synced',
+    );
+    await arda.call('messages.send', { channelId: genel, text: '@claude gizli iş' });
+    await new Promise((r) => setTimeout(r, 1500));
+    expect(kaan.sessions.some((x) => x.sent.some((t) => t.includes('gizli iş')))).toBe(false);
 
     // An editor cannot make channels; an admin can make the editor a viewer, and remove them.
     await expect(arda.call('channels.create', { name: 'gizli' })).rejects.toThrow('not_allowed');

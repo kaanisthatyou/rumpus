@@ -3,6 +3,7 @@ import { Avatar, Button, Chip, Icon, LiveDot, popIn, Spinner, Track } from '@lon
 import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { remoteOwner } from '../agents/owner';
 import { useApp } from '../store';
 import { elapsed, tokens } from './format';
 
@@ -57,6 +58,8 @@ export function JobCard({ job, agent }: { job: Job; agent: Agent | undefined }) 
   const [steering, setSteering] = useState(false);
   const [draft, setDraft] = useState('');
   const running = job.state === 'running' || job.state === 'attention';
+  // Another member's agent: the job runs on their computer; only they steer, stop, approve or watch it live.
+  const owner = useApp((s) => remoteOwner(agent, s.workspace));
   const now = useNow(running);
   const hidden = Math.max(0, job.steps.length - SHOWN);
   const steps = job.steps.slice(-SHOWN);
@@ -76,6 +79,7 @@ export function JobCard({ job, agent }: { job: Job; agent: Agent | undefined }) 
           <b>{agent?.name ?? '—'}</b>
           {agent && <Chip mono>{agent.kind}</Chip>}
           {agent && <Chip mono>{t(`agentForm.modes.${agent.mode}`)}</Chip>}
+          {owner && <Chip>{t('agent.on', { name: owner })}</Chip>}
         </div>
         <span className={`job__state job__state--${job.state}`}>
           {running && <LiveDot />}
@@ -113,12 +117,18 @@ export function JobCard({ job, agent }: { job: Job; agent: Agent | undefined }) 
             </span>
             {job.approval.detail && <span className="job__approval-detail">{job.approval.detail}</span>}
           </div>
-          <Button size="sm" variant="danger" icon="close" onClick={() => void answerJob(job.id, false)}>
-            {t('job.approval.deny')}
-          </Button>
-          <Button size="sm" variant="primary" icon="check" onClick={() => void answerJob(job.id, true)}>
-            {t('job.approval.allow')}
-          </Button>
+          {owner ? (
+            <span className="muted">{t('job.approval.owner', { name: owner })}</span>
+          ) : (
+            <>
+              <Button size="sm" variant="danger" icon="close" onClick={() => void answerJob(job.id, false)}>
+                {t('job.approval.deny')}
+              </Button>
+              <Button size="sm" variant="primary" icon="check" onClick={() => void answerJob(job.id, true)}>
+                {t('job.approval.allow')}
+              </Button>
+            </>
+          )}
         </motion.div>
       )}
       {running && job.preview && <p className="job__preview">{job.preview.slice(-280)}</p>}
@@ -132,10 +142,12 @@ export function JobCard({ job, agent }: { job: Job; agent: Agent | undefined }) 
           })}
           {job.cost ? ` · $${job.cost.toFixed(4)}` : ''}
         </span>
-        <Button size="sm" variant="quiet" icon="search" onClick={() => watch(job.id)}>
-          {t('job.watch')}
-        </Button>
-        {running && (
+        {!owner && (
+          <Button size="sm" variant="quiet" icon="search" onClick={() => watch(job.id)}>
+            {t('job.watch')}
+          </Button>
+        )}
+        {running && !owner && (
           <>
             <Button size="sm" icon="chevronRight" onClick={() => setSteering((v) => !v)}>
               {t('job.steer')}

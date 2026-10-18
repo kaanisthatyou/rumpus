@@ -1,11 +1,12 @@
 // Two real apps on one computer, talking over loopback instead of Tailscale: Kaan makes a team lonca and invites
-// Arda as an editor, Arda joins with the code, Kaan approves, and messages travel both ways.
+// Arda as an editor, Arda joins with the code, Kaan approves, and messages travel both ways. Then Kaan's agent (a
+// fake Claude Code on Kaan's PATH only) is opened to editors, and Arda's mention runs it on Kaan's computer.
 // Usage: node e2e/team.mjs   (after electron-vite build; E2E_EXE=release/win-unpacked/Lonca.exe for packaged)
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { delimiter, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { _electron as electron } from 'playwright-core';
 
@@ -34,14 +35,39 @@ function home(name) {
   return dir;
 }
 
-async function launch(name) {
+// The fake Claude Code, in npm's shim format, for Kaan's app only.
+const bin = mkdtempSync(join(tmpdir(), 'lonca-e2e-team-bin-'));
+copyFileSync(join(here, 'fake-claude.mjs'), join(bin, 'fake-claude.mjs'));
+if (process.platform === 'win32') {
+  writeFileSync(
+    join(bin, 'claude.cmd'),
+    '@ECHO off\r\nSETLOCAL\r\nSET dp0=%~dp0\r\nnode "%dp0%\\fake-claude.mjs" %*\r\n',
+  );
+} else {
+  writeFileSync(join(bin, 'claude'), `#!/bin/sh\nexec node "${join(bin, 'fake-claude.mjs')}" "$@"\n`, { mode: 0o755 });
+}
+const project = mkdtempSync(join(tmpdir(), 'lonca-e2e-team-project-'));
+writeFileSync(join(project, 'README.md'), '# Fake project\n');
+
+async function launch(name, withClaude = false) {
   const dir = home(name);
   const packaged = process.env.E2E_EXE ? join(appDir, process.env.E2E_EXE) : undefined;
+  const pathKey = Object.keys(process.env).find((k) => k.toUpperCase() === 'PATH') ?? 'PATH';
   const app = await electron.launch({
     executablePath: packaged ?? electronPath,
     args: packaged ? [] : [appDir],
-    env: { ...process.env, LONCA_HOME: dir, LONCA_LANG: 'tr', LONCA_PEER_HOST: '127.0.0.1', LONCA_PEER_PORT: '0' },
+    env: {
+      ...process.env,
+      ...(withClaude ? { [pathKey]: `${bin}${delimiter}${process.env[pathKey]}` } : {}),
+      LONCA_HOME: dir,
+      LONCA_LANG: 'tr',
+      LONCA_PEER_HOST: '127.0.0.1',
+      LONCA_PEER_PORT: '0',
+    },
   });
+  await app.evaluate(({ dialog }, folder) => {
+    dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [folder] });
+  }, project);
   const page = await app.firstWindow();
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
@@ -57,7 +83,7 @@ async function launch(name) {
   return { app, page, errors, dir, shot };
 }
 
-const kaan = await launch('Kaan');
+const kaan = await launch('Kaan', true);
 const arda = await launch('Arda');
 try {
   // Kaan: a team lonca and an invite for an editor.
@@ -117,6 +143,25 @@ try {
   p = arda.page;
   await p.locator('.msg', { hasText: 'Hoş geldin' }).waitFor({ timeout: 30_000 });
   await arda.shot('chat');
+
+  // Kaan's agent, open to editors: Arda's mention runs on Kaan's computer and the answer comes back.
+  p = kaan.page;
+  await p.getByRole('button', { name: L.crew.add, exact: true }).click();
+  dialog = p.getByRole('dialog', { name: L.agentForm.new });
+  await dialog.getByRole('button', { name: L.agentForm.pick, exact: true }).click();
+  await dialog.getByText(L.agentForm.access.members, { exact: true }).click();
+  await kaan.shot('agent-access');
+  await dialog.getByRole('button', { name: L.agentForm.save }).click();
+  await dialog.waitFor({ state: 'detached' });
+
+  p = arda.page;
+  const crew = p.getByRole('complementary', { name: L.shell.crew });
+  await crew.getByText(L.agent.on.replace('{{name}}', 'Kaan')).waitFor({ timeout: 30_000 });
+  await ardaBox.fill('@claude README ne anlatıyor?');
+  await ardaBox.press('Enter');
+  await p.locator('.msg--agent', { hasText: 'sahte proje' }).waitFor({ timeout: 60_000 });
+  await p.locator('.job', { hasText: L.agent.on.replace('{{name}}', 'Kaan') }).waitFor();
+  await arda.shot('remote-job');
   assert.deepEqual(kaan.errors, [], kaan.errors.join('\n'));
   assert.deepEqual(arda.errors, [], arda.errors.join('\n'));
   console.log('team e2e ok');
@@ -124,5 +169,7 @@ try {
   await kaan.app.close().catch(() => {});
   await arda.app.close().catch(() => {});
   rmSync(kaan.dir, { recursive: true, force: true });
+  rmSync(bin, { recursive: true, force: true });
+  rmSync(project, { recursive: true, force: true });
   rmSync(arda.dir, { recursive: true, force: true });
 }
