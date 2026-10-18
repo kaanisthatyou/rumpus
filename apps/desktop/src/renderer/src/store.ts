@@ -13,6 +13,8 @@ import type {
   GoalInput,
   Job,
   MemberRole,
+  MemorySection,
+  MemoryState,
   Message,
   ProviderInfo,
   ProviderInput,
@@ -64,6 +66,7 @@ interface AppState {
   workspaces: WorkspaceSummary[];
   newWorkspaceOpen?: boolean;
   inviteOpen?: boolean;
+  memory?: MemoryState;
   /** On a narrow screen: the channel list or the crew over the chat. */
   panel?: 'side' | 'crew';
   /** Other members typing, per channel: device → name and when it was last heard. */
@@ -117,6 +120,10 @@ interface AppState {
   openWorkspace(id: string): Promise<void>;
   createWorkspace(name: string): Promise<boolean>;
   createInvite(role: MemberRole, hours: number): Promise<string | undefined>;
+  saveMemory(section: MemorySection, text: string): Promise<void>;
+  remember(text: string): Promise<boolean>;
+  acceptMemory(id: string, text?: string): Promise<void>;
+  rejectMemory(id: string): Promise<void>;
   joinWithCode(code: string): Promise<boolean>;
   answerJoin(id: string, approve: boolean): Promise<void>;
   setMemberRole(device: string, role: MemberRole): Promise<void>;
@@ -262,6 +269,7 @@ export const useApp = create<AppState>((set, get) => {
           );
         }
       });
+      core.on('memory.changed', (memory) => set({ memory }));
       core.on('person.typing', ({ channelId, device, name }) =>
         set((s) => ({
           peopleTyping: {
@@ -415,7 +423,8 @@ export const useApp = create<AppState>((set, get) => {
       const cards = (await attempt(() => core.call('cards.list'))) ?? [];
       const records = (await attempt(() => core.call('records.list', {}))) ?? [];
       const goals = (await attempt(() => core.call('goals.list'))) ?? [];
-      set({ workspace, jobs, quota, cards, records, goals });
+      const memory = await attempt(() => core.call('memory.get'));
+      set({ workspace, jobs, quota, cards, records, goals, ...(memory ? { memory } : {}) });
       const current = get().channelId ?? lastChannel.get(workspace.id);
       const target = workspace.channels.find((c) => c.id === current) ?? workspace.channels[0];
       if (target) await get().openChannel(target.id);
@@ -517,6 +526,27 @@ export const useApp = create<AppState>((set, get) => {
         activity: { ...s.activity, [id]: false },
       }));
       await get().loadWorkspace();
+    },
+
+    async saveMemory(section, text) {
+      const memory = await attempt(() => core.call('memory.save', { section, text }));
+      if (memory) set({ memory });
+    },
+
+    async remember(text) {
+      const memory = await attempt(() => core.call('memory.remember', { text }));
+      if (memory) set({ memory });
+      return Boolean(memory);
+    },
+
+    async acceptMemory(id, text) {
+      const memory = await attempt(() => core.call('memory.accept', { id, ...(text !== undefined ? { text } : {}) }));
+      if (memory) set({ memory });
+    },
+
+    async rejectMemory(id) {
+      const memory = await attempt(() => core.call('memory.reject', { id }));
+      if (memory) set({ memory });
     },
 
     async createInvite(role, hours) {

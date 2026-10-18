@@ -395,7 +395,8 @@
     "newSession": "The agent leaves the conversation in this channel",
     "search": "Searches messages",
     "council": "Advisors discuss a topic in turn and one sums up",
-    "goal": "A goal for an agent: plan, approval, step by step"
+    "goal": "A goal for an agent: plan, approval, step by step",
+    "remember": "Adds a line to the personal notes"
   },
   "palette": {
     "placeholder": "Channel, agent, view, action or message",
@@ -718,5 +719,46 @@
     "pushOn": "Turn on notifications",
     "pushYes": "notifications on",
     "pushNo": "notifications off"
+  },
+  "memory": {
+    "topic": "Agents and advisors know these in every job. Kept short and current.",
+    "suggestions": "Suggestions",
+    "suggested": "Suggested by {{name}} · {{section}}",
+    "suggestionText": "Suggestion text",
+    "flagged": "Something in this suggestion looks suspicious; it is read before it is accepted.",
+    "accept": "Accept",
+    "reject": "Reject",
+    "save": "Save",
+    "remembered": "Added to the personal notes.",
+    "personal": "Personal",
+    "personalHint": "Stays on this computer and goes only to the agents on this computer.",
+    "shared": "Lonca",
+    "sharedTeam": "Shared with every member of the lonca; editors change it.",
+    "sharedPersonal": "This lonca's memory.",
+    "recalled_one": "Memory: {{count}} section",
+    "recalled_other": "Memory: {{count}} sections",
+    "sections": {
+      "profile": "Profile",
+      "notes": "Notes",
+      "decisions": "Decisions",
+      "conventions": "Conventions",
+      "glossary": "Glossary"
+    },
+    "hints": {
+      "profile": "Who the person is, what they do, how they like to work.",
+      "notes": "Personal things worth remembering. /hatırla adds here.",
+      "decisions": "Decisions made, and why.",
+      "conventions": "Rules for code, names and ways of working.",
+      "glossary": "Terms special to the project."
+    },
+    "flags": {
+      "instructions": "instructions",
+      "role": "role change",
+      "markup": "markup",
+      "secret": "secret",
+      "credentials_url": "address with a password",
+      "encoded": "encoded data",
+      "long": "long"
+    }
   }
 }

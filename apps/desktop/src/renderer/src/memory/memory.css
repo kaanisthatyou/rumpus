@@ -1,0 +1,80 @@
+/* Bellek */
+.mem {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  max-width: 820px;
+}
+.mem section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.mem__group {
+  margin: 0;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--meta);
+}
+.mem__section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.mem__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.mem__head > .l-icon {
+  color: var(--accent-ink);
+}
+.mem__hint {
+  margin: 0;
+  font-size: 12px;
+}
+.mem__count {
+  font-size: 11px;
+  color: var(--meta);
+}
+.mem__count.is-over {
+  color: var(--bad);
+}
+.mem__text {
+  width: 100%;
+  min-height: 96px;
+  padding: 8px 12px;
+  resize: vertical;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.mem__text--sugg {
+  min-height: 56px;
+}
+.mem__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.mem__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mem__sugg {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.mem__warn {
+  margin: 0;
+  font-size: 12px;
+  color: var(--warn);
+}

@@ -15,6 +15,8 @@ import type {
   GoalInput,
   Job,
   MemberRole,
+  MemorySection,
+  MemoryState,
   Message,
   Quota,
   RecordInput,
@@ -180,6 +182,12 @@ export interface CoreMethods {
   'workspaces.create': { params: { name: string }; result: WorkspaceSummary };
   /** Makes a workspace the open one; others keep running in the background. */
   'workspaces.open': { params: { id: string }; result: WorkspaceState };
+  'memory.get': { params: undefined; result: MemoryState };
+  'memory.save': { params: { section: MemorySection; text: string }; result: MemoryState };
+  /** `/hatırla`: a line for the personal notes. */
+  'memory.remember': { params: { text: string }; result: MemoryState };
+  'memory.accept': { params: { id: string; text?: string }; result: MemoryState };
+  'memory.reject': { params: { id: string }; result: MemoryState };
   'phones.state': { params: undefined; result: PhoneState };
   /** A one-time pairing link for a QR, valid for ten minutes. */
   'phones.pair': { params: undefined; result: { url: string; expires: number } };
@@ -249,6 +257,7 @@ export interface CoreEvents {
   'workspace.changed': WorkspaceState;
   'workspaces.changed': WorkspaceSummary[];
   'phones.changed': PhoneState;
+  'memory.changed': MemoryState;
   'message.added': Message;
   'message.updated': Message;
   'message.deleted': { id: string; channelId: string };

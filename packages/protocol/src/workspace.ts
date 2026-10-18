@@ -171,6 +171,8 @@ export interface Job {
   cost?: number;
   /** An error code (`auth_failed`, `cli_missing`, `exited`, ...) or the CLI's own text. */
   error?: string;
+  /** How many memory sections went into the agent's prompt for this job. */
+  recalled?: number;
   /** While the job waits on a person: the tool call that needs approval. */
   approval?: { id: string; label: string; arg?: string; detail?: string };
   started: number;
@@ -316,6 +318,37 @@ export interface GoalInput {
   check?: string;
   /** Run in a new git worktree on a branch of its own. */
   worktree?: boolean;
+}
+
+/** Memory sections (PLAN.md 5.7): two personal ones on this computer, three shared with the workspace. */
+export const PERSONAL_SECTIONS = ['profile', 'notes'] as const;
+export const WORKSPACE_SECTIONS = ['decisions', 'conventions', 'glossary'] as const;
+export type MemorySection = (typeof PERSONAL_SECTIONS)[number] | (typeof WORKSPACE_SECTIONS)[number];
+/** Characters per section: small enough to go into every prompt. */
+export const MEMORY_LIMITS: Record<MemorySection, number> = {
+  profile: 1500,
+  notes: 3000,
+  decisions: 4000,
+  conventions: 3000,
+  glossary: 3000,
+};
+
+export interface MemorySuggestion {
+  id: string;
+  section: MemorySection;
+  text: string;
+  /** Who suggested it, and where: shown next to it. */
+  source: { kind: 'agent' | 'advisor' | 'person'; name: string; channelId?: string; jobId?: string };
+  at: number;
+  /** What looked suspicious in it (`instructions`, `role`, `secret`, ...). */
+  flags?: string[];
+}
+
+export interface MemoryState {
+  personal: { profile: string; notes: string };
+  workspace: { decisions: string; conventions: string; glossary: string };
+  suggestions: MemorySuggestion[];
+  limits: Record<MemorySection, number>;
 }
 
 export const RECORD_KINDS = ['idea', 'reference', 'command'] as const;

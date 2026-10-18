@@ -310,6 +310,27 @@ try {
   await treeCard.getByText(L.goal.worktreeRemoved).waitFor();
   assert.match(git('branch', '--list', 'lonca/*').toString(), /lonca\/goal-/);
 
+  // Memory: /hatırla writes a note, the profile is saved in Bellek, and the next job says what it recalled.
+  await page.getByRole('button', { name: 'genel', exact: true }).click();
+  await composer.fill('/hatırla Cuma günleri deploy yok');
+  await composer.press('Enter');
+  await page.getByText(L.memory.remembered).waitFor();
+  await page.getByRole('button', { name: L.shell.memory, exact: true }).click();
+  const notes = page.getByLabel(L.memory.sections.notes, { exact: true });
+  assert.match(await notes.inputValue(), /Cuma günleri deploy yok/);
+  await page.getByLabel(L.memory.sections.profile, { exact: true }).fill('Kaan, kısa yanıtları sever.');
+  await page.getByRole('button', { name: L.memory.save }).click();
+  // Saved: the section's buttons go away.
+  await page.getByRole('button', { name: L.memory.save }).waitFor({ state: 'detached' });
+  await shot(page, 'memory');
+  await page.getByRole('button', { name: 'genel', exact: true }).click();
+  await composer.fill('@claude bellek testi');
+  await composer.press('Enter');
+  await page
+    .locator('.job', { hasText: L.memory.recalled_other.replace('{{count}}', '2') })
+    .first()
+    .waitFor();
+
   // Edit and delete own messages.
   await page.getByRole('button', { name: 'genel', exact: true }).click();
   const own = page.locator('.msg--person').first();

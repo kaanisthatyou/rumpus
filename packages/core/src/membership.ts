@@ -48,6 +48,7 @@ function minRole(type: string, data: Record<string, unknown>): Role | undefined 
     case 'record.saved':
     case 'record.deleted':
     case 'goal.saved':
+    case 'memory.saved':
     case 'agent.saved':
     case 'agent.deleted':
     case 'advisor.saved':

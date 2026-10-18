@@ -690,6 +690,17 @@ The details behind 5.11 and 6.5, decided before building.
   two apps (two `LONCA_HOME` instances on one PC in tests); 3.4 invites, roles, members panel; 3.5 cross-member
   jobs and agent access; 3.6 presence, typing, notifications; 3.7 the phone companion.
 
+### Phase 4 status (started 2026-10-18)
+
+- 4.1 Memory: personal sections (profile, notes) in `<app>/memory.json`, on this computer only; workspace sections
+  (decisions, conventions, glossary) as signed `memory.saved` events that editors write. Each section has a
+  character limit, and all of it goes into agents' prompts (as facts kept by people, not instructions) and into
+  advisors' prompts; a job card says how many sections it recalled. `/hatırla` adds a dated line to the notes.
+  Agents suggest through the MCP tool `suggest_memory`; suggestions wait in Bellek with their source and flags for
+  things that look like steering (instructions, role changes, markup, secrets, passwords in addresses, encoded
+  blobs, length) until a person edits and accepts or rejects them. Not yet: upkeep by a cheap model (summaries),
+  per-advisor notes, and search over jobs and records as an agent tool (messages already have one).
+
 ## 9. Risks
 
 - **Terms and billing move** (Anthropic's billing for `claude -p` changed twice in 2026; Google bans OAuth reuse):

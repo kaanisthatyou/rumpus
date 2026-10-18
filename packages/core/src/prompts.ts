@@ -43,6 +43,8 @@ export interface PromptLayers {
   worker?: string;
   /** Layer 3: the workspace's instructions. */
   workspace?: string;
+  /** What Lonca remembers (PLAN.md 5.7), already put into words. */
+  memory?: string;
 }
 
 export function systemPrompt(
@@ -62,6 +64,7 @@ export function systemPrompt(
   const parts = [fill(CORE_RULES, vars), fill(layers.worker ?? WORKER_TEMPLATE, vars)];
   if (layers.workspace?.trim()) parts.push(`Instructions of this workspace:\n${fill(layers.workspace.trim(), vars)}`);
   if (agent.instructions.trim()) parts.push(`Instructions from your owner:\n${fill(agent.instructions.trim(), vars)}`);
+  if (layers.memory?.trim()) parts.push(layers.memory.trim());
   return parts.join('\n\n');
 }
 

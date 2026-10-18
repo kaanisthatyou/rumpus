@@ -46,6 +46,7 @@ import { Instructions } from './instructions.js';
 import { Jobs } from './jobs.js';
 import { type Llm, noLlm } from './llm.js';
 import { type Member, Membership, ROLES, type Role } from './membership.js';
+import { appendLine, isPersonal, limitOf, memoryPrompt, memoryState, newSuggestion, PersonalMemory } from './memory.js';
 import { PEER_PORT, PeerClient, PeerError, type PeerRequest, PeerServer } from './peer.js';
 import { PHONE_PORT, PhoneServer } from './phone.js';
 import { killTree, type Launch, openConsole, type Runner, run } from './proc.js';
@@ -203,6 +204,7 @@ export class Core {
   private readonly reach = new Map<string, boolean>();
   private readonly joinPolls = new Map<string, NodeJS.Timeout>();
   private phone: PhoneServer | undefined;
+  private personalMemory: PersonalMemory | undefined;
   private phoneUrl: string | undefined;
   private phoneProblem: PhoneState['problem'];
   private phoneStarting: Promise<void> | undefined;
@@ -238,6 +240,33 @@ export class Core {
       }),
       'workspace.get': async () => this.state(),
       'workspaces.list': async () => this.registry(),
+      'memory.get': async () => this.memoryNow(),
+      'memory.save': async (p) => this.saveMemory(p?.section, p?.text),
+      'memory.remember': async (p) => {
+        const line = typeof p?.text === 'string' ? p.text.trim().slice(0, 500) : '';
+        if (!line) throw new CoreError('bad_request', 'text');
+        const notes = this.personal().read().notes;
+        const day = new Date().toISOString().slice(0, 10);
+        this.personal().write('notes', appendLine(notes, `- ${line} (${day})`, limitOf('notes')));
+        return this.memoryChanged();
+      },
+      'memory.accept': async (p) => {
+        const { store } = this.workspace();
+        const found = typeof p?.id === 'string' ? store.memorySuggestions().find((s) => s.id === p.id) : undefined;
+        if (!found) throw new CoreError('not_found');
+        const line = (typeof p?.text === 'string' ? p.text : found.text).trim();
+        if (!isPersonal(found.section)) this.requireRole('editor');
+        const current = isPersonal(found.section)
+          ? this.personal().read()[found.section]
+          : (store.memory()[found.section] ?? '');
+        if (line) this.writeMemory(found.section, appendLine(current, `- ${line}`, limitOf(found.section)));
+        store.dropMemorySuggestion(found.id);
+        return this.memoryChanged();
+      },
+      'memory.reject': async (p) => {
+        if (typeof p?.id === 'string') this.workspace().store.dropMemorySuggestion(p.id);
+        return this.memoryChanged();
+      },
       'phones.state': async () => {
         await this.phoneStarting;
         return this.phoneState();
@@ -781,7 +810,12 @@ export class Core {
       },
       store,
       dir,
-      layers: () => ({ worker: instructions.worker().text, workspace: instructions.workspace() }),
+      layers: () => ({
+        worker: instructions.worker().text,
+        workspace: instructions.workspace(),
+        memory: memoryPrompt(this.me().name, this.personal().read(), store.memory()).text,
+      }),
+      recalled: () => memoryPrompt(this.me().name, this.personal().read(), store.memory()).sections,
       refs: (ids) => inWs(() => this.refsFor(ids)),
       clis: () => this.listClis(false),
       access: (agent, message) => inWs(() => this.jobAccess(ref.ws, agent, message)),
@@ -844,6 +878,7 @@ export class Core {
           }
         }),
       project: (folder) => this.project(folder),
+      memory: () => memoryPrompt(this.me().name, this.personal().read(), store.memory()).text,
       readTool: (folder, call) => runReadTool(folder, call, this.opts.runner ?? run),
     });
     const goals = new Goals({
@@ -1376,6 +1411,9 @@ export class Core {
           if (g) this.emit('goal.changed', g);
           break;
         }
+        case 'memory.saved':
+          this.emit('memory.changed', memoryState(this.personal(), store));
+          break;
         default:
           structure = true;
       }
@@ -1759,6 +1797,34 @@ export class Core {
         },
       },
       {
+        name: 'suggest_memory',
+        description:
+          "Suggests something worth remembering: a fact about the person (notes) or a decision, convention or glossary entry of the workspace. A person accepts or rejects it in Lonca's memory view; nothing is saved without them.",
+        inputSchema: {
+          type: 'object',
+          properties: {
+            section: { type: 'string', enum: ['notes', 'decisions', 'conventions', 'glossary'] },
+            text: { type: 'string' },
+          },
+          required: ['section', 'text'],
+        },
+        run: (a, ctx) => {
+          const section = ['notes', 'decisions', 'conventions', 'glossary'].includes(String(a.section))
+            ? (String(a.section) as 'notes' | 'decisions' | 'conventions' | 'glossary')
+            : undefined;
+          const body = str(a.text, 2000)?.trim();
+          if (!section || !body)
+            return text('A section (notes, decisions, conventions, glossary) and a text are needed.');
+          const { store } = this.workspace();
+          const agent = store.agent(ctx.agentId);
+          store.saveMemorySuggestion(
+            newSuggestion(section, body, { kind: 'agent', name: agent?.name ?? '?', channelId: ctx.channelId }),
+          );
+          this.memoryChanged();
+          return text('Suggested. A person decides whether it is kept.');
+        },
+      },
+      {
         name: 'post_progress',
         description: 'Posts a one-line progress note on your current job card, for people watching a long job.',
         inputSchema: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] },
@@ -1768,6 +1834,40 @@ export class Core {
         },
       },
     ];
+  }
+
+  // ---------------------------------------------------------------- memory (PLAN.md 5.7)
+
+  private personal(): PersonalMemory {
+    this.personalMemory ??= new PersonalMemory(join(this.opts.appDir, 'memory.json'));
+    return this.personalMemory;
+  }
+
+  private memoryNow() {
+    return memoryState(this.personal(), this.workspace().store);
+  }
+
+  private memoryChanged() {
+    const state = this.memoryNow();
+    this.emit('memory.changed', state);
+    return state;
+  }
+
+  private writeMemory(section: Parameters<typeof limitOf>[0], text: string): void {
+    if (isPersonal(section)) this.personal().write(section, text);
+    else this.workspace().store.commit({ type: 'memory.saved', data: { id: section, text } });
+  }
+
+  private saveMemory(section: unknown, value: unknown) {
+    const sections = ['profile', 'notes', 'decisions', 'conventions', 'glossary'];
+    if (typeof section !== 'string' || !sections.includes(section) || typeof value !== 'string') {
+      throw new CoreError('bad_request');
+    }
+    const s = section as Parameters<typeof limitOf>[0];
+    if (value.length > limitOf(s)) throw new CoreError('bad_request', 'too_long');
+    if (!isPersonal(s)) this.requireRole('editor');
+    this.writeMemory(s, value);
+    return this.memoryChanged();
   }
 
   private instructionLayers() {

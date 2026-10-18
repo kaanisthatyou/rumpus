@@ -42,6 +42,8 @@ export interface JobsDeps {
   refs?: (ids: string[]) => { notes: string[]; images: Attachment[] };
   /** The editable instruction layers, read when a session starts. */
   layers?: () => PromptLayers;
+  /** How many memory sections the prompt carries (shown on the job card). */
+  recalled?: () => number;
   /**
    * Whether a message may start (or steer) a job of an agent, and how: in a team workspace only the owner's app
    * runs an agent, others' requests are capped at the owner's limit and may wait for the owner's approval.
@@ -240,6 +242,7 @@ export class Jobs {
           steps: [],
           usage: { in: 0, cached: 0, out: 0 },
           started: this.now(),
+          ...((this.deps.recalled?.() ?? 0) > 0 ? { recalled: this.deps.recalled?.() } : {}),
         };
     this.save(job, true);
 

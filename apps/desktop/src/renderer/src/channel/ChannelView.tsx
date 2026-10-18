@@ -252,6 +252,13 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
   const commands: Suggestion[] = [
     { key: 'todo', insert: '/todo ', label: '/todo', detail: t('commands.todo'), icon: 'chevronRight' },
     { key: 'goal', insert: '/goal ', label: '/goal', detail: t('commands.goal'), icon: 'target' as const },
+    {
+      key: 'remember',
+      insert: '/hatırla ',
+      label: '/hatırla',
+      detail: t('commands.remember'),
+      icon: 'chevronRight' as const,
+    },
     ...(channel.kind === 'channel'
       ? [{ key: 'meclis', insert: '/meclis ', label: '/meclis', detail: t('commands.council'), icon: 'chat' as const }]
       : []),
@@ -353,6 +360,14 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
       ) {
         setText('');
         flash(t('board.added'));
+      }
+      return;
+    }
+    const remember = /^\/hat[ıi]rla\s+([\s\S]+)$/i.exec(value);
+    if (remember?.[1]) {
+      if (await useApp.getState().remember(remember[1].trim())) {
+        setText('');
+        flash(t('memory.remembered'));
       }
       return;
     }

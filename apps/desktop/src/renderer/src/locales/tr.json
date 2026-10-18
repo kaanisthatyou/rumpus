@@ -395,7 +395,8 @@
     "newSession": "Agent bu kanaldaki konuşmayı bırakır",
     "search": "Mesajlarda arar",
     "council": "Danışmanlar bir konuyu sırayla tartışır, biri özetler",
-    "goal": "Bir agent'a hedef: plan, onay, adım adım iş"
+    "goal": "Bir agent'a hedef: plan, onay, adım adım iş",
+    "remember": "Kişisel notlara bir satır ekler"
   },
   "palette": {
     "placeholder": "Kanal, agent, görünüm, eylem ya da mesaj",
@@ -718,5 +719,46 @@
     "pushOn": "Bildirimleri aç",
     "pushYes": "bildirimler açık",
     "pushNo": "bildirimler kapalı"
+  },
+  "memory": {
+    "topic": "Agent'lar ve danışmanlar her işte bunları bilir. Kısa ve güncel tutulur.",
+    "suggestions": "Öneriler",
+    "suggested": "{{name}} önerdi · {{section}}",
+    "suggestionText": "Öneri metni",
+    "flagged": "Bu öneride kuşkulu bir şey var; kabul etmeden önce okunur.",
+    "accept": "Kabul et",
+    "reject": "Reddet",
+    "save": "Kaydet",
+    "remembered": "Kişisel notlara eklendi.",
+    "personal": "Kişisel",
+    "personalHint": "Yalnızca bu bilgisayarda durur ve yalnızca bu bilgisayardaki agent'lara gider.",
+    "shared": "Lonca",
+    "sharedTeam": "Loncanın bütün üyeleriyle paylaşılır; düzenleyiciler değiştirir.",
+    "sharedPersonal": "Bu loncanın belleği.",
+    "recalled_one": "Bellek: {{count}} bölüm",
+    "recalled_other": "Bellek: {{count}} bölüm",
+    "sections": {
+      "profile": "Profil",
+      "notes": "Notlar",
+      "decisions": "Kararlar",
+      "conventions": "Kurallar",
+      "glossary": "Sözlük"
+    },
+    "hints": {
+      "profile": "Kim olduğu, ne iş yaptığı, nasıl çalışmayı sevdiği.",
+      "notes": "Hatırlanması gereken kişisel bilgiler. /hatırla buraya ekler.",
+      "decisions": "Alınmış kararlar ve nedenleri.",
+      "conventions": "Kod, isim ve çalışma kuralları.",
+      "glossary": "Projeye özgü terimler."
+    },
+    "flags": {
+      "instructions": "talimat",
+      "role": "rol değiştirme",
+      "markup": "biçim etiketi",
+      "secret": "gizli bilgi",
+      "credentials_url": "şifreli adres",
+      "encoded": "kodlanmış veri",
+      "long": "uzun"
+    }
   }
 }

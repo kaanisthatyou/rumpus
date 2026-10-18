@@ -80,6 +80,7 @@ export function JobCard({ job, agent }: { job: Job; agent: Agent | undefined }) 
           {agent && <Chip mono>{agent.kind}</Chip>}
           {agent && <Chip mono>{t(`agentForm.modes.${agent.mode}`)}</Chip>}
           {owner && <Chip>{t('agent.on', { name: owner })}</Chip>}
+          {job.recalled ? <Chip>{t('memory.recalled', { count: job.recalled })}</Chip> : null}
         </div>
         <span className={`job__state job__state--${job.state}`}>
           {running && <LiveDot />}

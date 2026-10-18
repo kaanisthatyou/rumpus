@@ -4,7 +4,18 @@
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import type { Advisor, Agent, Author, Card, Channel, Goal, Job, Message, RecordItem } from '@lonca/protocol';
+import type {
+  Advisor,
+  Agent,
+  Author,
+  Card,
+  Channel,
+  Goal,
+  Job,
+  MemorySuggestion,
+  Message,
+  RecordItem,
+} from '@lonca/protocol';
 import type { SignedEvent } from './identity.js';
 import { Clock, newId } from './ids.js';
 import type { Genesis, Member } from './membership.js';
@@ -66,6 +77,8 @@ CREATE TABLE IF NOT EXISTS invites (
   token TEXT PRIMARY KEY, role TEXT NOT NULL, expires INTEGER NOT NULL, used INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS join_requests (id TEXT PRIMARY KEY, data TEXT NOT NULL, state TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS memory (id TEXT PRIMARY KEY, data TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS memory_suggestions (id TEXT PRIMARY KEY, data TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS entity_at (entity TEXT PRIMARY KEY, at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS heads (author TEXT PRIMARY KEY, n INTEGER NOT NULL);
 CREATE TRIGGER IF NOT EXISTS messages_ad AFTER DELETE ON messages BEGIN
@@ -90,6 +103,7 @@ export type WorkspaceEvent =
   | { type: 'member.removed'; data: { device: string; at: number; upTo: number } }
   | { type: 'device.endpoint'; data: { device: string; addresses: string[] } }
   | { type: 'job.saved'; data: Job }
+  | { type: 'memory.saved'; data: { id: string; text: string } }
   | { type: 'message.posted'; data: Message }
   | { type: 'message.edited'; data: { id: string; text: string; edited: number } }
   | { type: 'message.deleted'; data: { id: string } }
@@ -112,6 +126,7 @@ const TABLES: Record<string, string> = {
   member: 'members',
   device: 'endpoints',
   job: 'jobs',
+  memory: 'memory',
 };
 
 export function entityOf(type: string, data: unknown): string {
@@ -273,6 +288,33 @@ export class WorkspaceStore {
     return (this.db.prepare('SELECT data FROM join_requests WHERE state = ?').all(state) as Row[]).map((r) =>
       json<T>(r.data),
     );
+  }
+
+  /** The shared memory sections, by name. */
+  memory(): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const r of this.db.prepare('SELECT data FROM memory').all() as Row[]) {
+      const d = json<{ id: string; text: string }>(r.data);
+      out[d.id] = d.text;
+    }
+    return out;
+  }
+
+  memorySuggestions(): MemorySuggestion[] {
+    return (this.db.prepare('SELECT data FROM memory_suggestions').all() as Row[])
+      .map((r) => json<MemorySuggestion>(r.data))
+      .sort((a, b) => a.at - b.at);
+  }
+
+  saveMemorySuggestion(s: MemorySuggestion): void {
+    this.db.prepare('INSERT OR REPLACE INTO memory_suggestions (id, data) VALUES (?, ?)').run(s.id, JSON.stringify(s));
+  }
+
+  dropMemorySuggestion(id: string): MemorySuggestion | undefined {
+    const r = this.db.prepare('SELECT data FROM memory_suggestions WHERE id = ?').get(id) as Row | undefined;
+    if (!r) return undefined;
+    this.db.prepare('DELETE FROM memory_suggestions WHERE id = ?').run(id);
+    return json<MemorySuggestion>(r.data);
   }
 
   /** The channel a message was in, also after it was deleted. */
@@ -443,6 +485,11 @@ export class WorkspaceStore {
       }
       case 'job.saved':
         this.saveJob(e.data);
+        return;
+      case 'memory.saved':
+        this.db
+          .prepare('INSERT OR REPLACE INTO memory (id, data) VALUES (?, ?)')
+          .run(e.data.id, JSON.stringify(e.data));
         return;
       case 'device.endpoint':
         this.db
