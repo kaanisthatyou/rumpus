@@ -9,7 +9,7 @@ import { useApp } from '../store';
 /** CLIs Lonca can run jobs with today. */
 export const RUNNABLE: CliKind[] = ['claude-code', 'codex'];
 
-const slug = (name: string) =>
+export const slug = (name: string) =>
   name
     .toLocaleLowerCase('tr')
     .normalize('NFD')

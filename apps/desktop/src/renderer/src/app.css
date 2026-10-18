@@ -1089,3 +1089,120 @@
   font-family: var(--font-mono);
   font-size: 12.5px;
 }
+
+/* Advisors */
+.msg--advisor .l-avatar {
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.msg__role {
+  font-size: 11px;
+  color: var(--accent-ink);
+}
+.who--advisor .who__open {
+  cursor: default;
+}
+.who .is-warn {
+  color: var(--warn);
+}
+.typing {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0 2px 44px;
+  font-size: 12px;
+  color: var(--meta);
+}
+.typing__dots {
+  display: inline-flex;
+  gap: 3px;
+}
+.typing__dots i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: typing-dot 1.2s infinite ease-in-out;
+}
+.typing__dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.typing__dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes typing-dot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .typing__dots i {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+.advform__none {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: var(--r);
+  border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent);
+  color: var(--mute);
+}
+.advform__none .l-icon {
+  flex: none;
+  margin-top: 2px;
+  color: var(--warn);
+}
+.advform__channels {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.advform__checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  padding: 4px 0;
+}
+.advform__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.advform__check input {
+  accent-color: var(--accent);
+}
+.quiet {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 160px));
+  gap: 12px;
+}
+
+.msg__todo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 4px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--line-2);
+  background: var(--card);
+  font-size: 12.5px;
+  color: var(--meta);
+}
+.msg__todo .l-icon {
+  color: var(--accent-ink);
+}
+.msg__todo b {
+  color: var(--ink);
+  font-weight: 500;
+}

@@ -4,6 +4,8 @@ import { randomBytes } from 'node:crypto';
 import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
+  type Advisor,
+  AdvisorInputSchema,
   type Agent,
   AgentInputSchema,
   CARD_STATUSES,
@@ -26,6 +28,7 @@ import {
   type RecordItem,
   type WorkspaceState,
 } from '@lonca/protocol';
+import { Advisors } from './advisors.js';
 import { detectAgents, loginCommand } from './agents.js';
 import { Blobs } from './blobs.js';
 import type { OpenSession } from './drivers/types.js';
@@ -33,8 +36,8 @@ import { Gateway, type Tool, type ToolContent } from './gateway.js';
 import { newId } from './ids.js';
 import { Instructions } from './instructions.js';
 import { Jobs } from './jobs.js';
-import type { Llm } from './llm.js';
-import { type Launch, openConsole, type Runner } from './proc.js';
+import { type Llm, noLlm } from './llm.js';
+import { type Launch, openConsole, type Runner, run } from './proc.js';
 import { CORE_RULES, systemPrompt } from './prompts.js';
 import { SettingsStore } from './settings.js';
 import { WorkspaceStore } from './store.js';
@@ -60,6 +63,19 @@ export interface CoreOptions {
   launch?: (path: string) => Launch;
   /** Model providers (the main process in the app). */
   llm?: Llm;
+}
+
+interface Workspace {
+  dir: string;
+  store: WorkspaceStore;
+  jobs: Jobs;
+  blobs: Blobs;
+  instructions: Instructions;
+  gateway: Gateway;
+  advisors: Advisors;
+  /** Jobs already handed to the advisors when they ended. */
+  ended: Set<string>;
+  timer: NodeJS.Timeout;
 }
 
 type Handler<M extends MethodName> = (params: CoreMethods[M]['params']) => Promise<CoreMethods[M]['result']>;
@@ -88,9 +104,8 @@ export class Core {
   private readonly deviceId: string;
   private clis: CliInfo[] | undefined;
   private detecting: Promise<CliInfo[]> | undefined;
-  private ws:
-    | { dir: string; store: WorkspaceStore; jobs: Jobs; blobs: Blobs; instructions: Instructions; gateway: Gateway }
-    | undefined;
+  private ws: Workspace | undefined;
+  private readonly projectCache = new Map<string, { at: number; text: Promise<string> }>();
   private readonly handlers: { [M in MethodName]: Handler<M> };
 
   constructor(private readonly opts: CoreOptions) {
@@ -141,6 +156,9 @@ export class Core {
       },
       'agents.save': async (p) => this.saveAgent(p),
       'agents.delete': async (p) => this.deleteAgent(p?.id),
+      'advisors.save': async (p) => this.saveAdvisor(p),
+      'advisors.delete': async (p) => this.deleteAdvisor(p?.id),
+      'advisors.council': async (p) => this.council(p?.channelId, p?.topic),
       'agents.newSession': async (p) => {
         if (typeof p?.agentId !== 'string' || typeof p.channelId !== 'string') throw new CoreError('bad_request');
         this.workspace().jobs.newSession(p.agentId, p.channelId);
@@ -304,14 +322,7 @@ export class Core {
 
   // ---------------------------------------------------------------- workspace
 
-  private workspace(): {
-    dir: string;
-    store: WorkspaceStore;
-    jobs: Jobs;
-    blobs: Blobs;
-    instructions: Instructions;
-    gateway: Gateway;
-  } {
+  private workspace(): Workspace {
     if (this.ws) return this.ws;
     const dir = join(this.dataDir(), 'workspaces', 'personal');
     const store = new WorkspaceStore(join(dir, 'lonca.db'), this.deviceId);
@@ -351,18 +362,46 @@ export class Core {
       emitJob: (job) => {
         this.emit('job.updated', job);
         this.cardFollowsJob(job.id, job.state);
+        if (job.state === 'done' && this.ws && !this.ws.ended.has(job.id)) {
+          this.ws.ended.add(job.id);
+          // After the answer message is stored.
+          setTimeout(() => this.ws?.advisors.onJobEnded(job), 0);
+        }
       },
       emitMessage: (message) => this.emit('message.added', message),
       emitQuota: (kind, quota) => this.emit('quota.changed', { kind, quota }),
       ...(this.opts.drivers ? { drivers: this.opts.drivers } : {}),
       ...(this.opts.launch ? { launch: this.opts.launch } : {}),
     });
-    this.ws = { dir, store, jobs, blobs, instructions, gateway };
+    const advisors = new Advisors({
+      store,
+      llm: this.opts.llm ?? noLlm,
+      deviceId: this.deviceId,
+      me: () => ({ ...this.me(), language: this.settings.get().language }),
+      quietHours: () => this.settings.get().quietHours,
+      emitMessage: (message) => this.emit('message.added', message),
+      emitTyping: (e) => this.emit('advisor.typing', e),
+      emitSpend: (spend) => this.emit('advisor.spend', spend),
+      emitFailed: (e) => this.emit('advisor.failed', e),
+      addCard: (title, channelId) => {
+        try {
+          this.createCard({ title, channelId });
+        } catch {
+          // a card that cannot be made is not worth an error
+        }
+      },
+      project: (folder) => this.project(folder),
+    });
+    const timer = setInterval(() => advisors.tick(), 60_000);
+    timer.unref?.();
+    this.ws = { dir, store, jobs, blobs, instructions, gateway, advisors, ended: new Set(), timer };
     return this.ws;
   }
 
   private closeWorkspace(): void {
     if (!this.ws) return;
+    clearInterval(this.ws.timer);
+    this.ws.advisors.dispose();
     this.ws.jobs.disposeAll();
     this.ws.gateway.close();
     this.ws.store.close();
@@ -370,13 +409,15 @@ export class Core {
   }
 
   private state(): WorkspaceState {
-    const { store, jobs } = this.workspace();
+    const { store, jobs, advisors } = this.workspace();
     return {
       id: 'personal',
       name: store.meta('name') ?? 'personal',
       me: this.me(),
       channels: store.channels(),
       agents: store.agents(),
+      advisors: store.advisors(),
+      spend: advisors.spendToday(),
       active: jobs.active(),
     };
   }
@@ -435,6 +476,7 @@ export class Core {
     store.commit({ type: 'message.posted', data: message });
     this.emit('message.added', message);
     void jobs.onMessage(message, channel);
+    this.workspace().advisors.onMessage(message, channel);
     return message;
   }
 
@@ -472,7 +514,11 @@ export class Core {
     const p = parsed.data;
     const existing = p.id ? store.agent(p.id) : undefined;
     if (p.id && !existing) throw new CoreError('not_found');
-    if (store.agents().some((a) => a.handle === p.handle && a.id !== p.id)) throw new CoreError('handle_taken');
+    if (
+      store.agents().some((a) => a.handle === p.handle && a.id !== p.id) ||
+      store.advisors().some((a) => a.handle === p.handle)
+    )
+      throw new CoreError('handle_taken');
     if (!isDir(p.folder)) throw new CoreError('folder_missing');
     const agent: Agent = {
       id: existing?.id ?? newId(),
@@ -510,6 +556,102 @@ export class Core {
     if (own) store.commit({ type: 'channel.deleted', data: { id: own.id } });
     this.changed();
     return { ok: true };
+  }
+
+  private saveAdvisor(input: unknown): Advisor {
+    const { store } = this.workspace();
+    const parsed = AdvisorInputSchema.safeParse(input);
+    if (!parsed.success) throw new CoreError('invalid_advisor', parsed.error.message);
+    const p = parsed.data;
+    const existing = p.id ? store.advisor(p.id) : undefined;
+    if (p.id && !existing) throw new CoreError('not_found');
+    if (
+      store.advisors().some((a) => a.handle === p.handle && a.id !== p.id) ||
+      store.agents().some((a) => a.handle === p.handle)
+    )
+      throw new CoreError('handle_taken');
+    if (!(this.opts.llm ?? noLlm).state().providers.some((x) => x.id === p.providerId))
+      throw new CoreError('invalid_advisor', 'provider');
+    const folder = p.folder?.trim();
+    if (folder && !isDir(folder)) throw new CoreError('folder_missing');
+    const channels = new Set(
+      store
+        .channels()
+        .filter((c) => c.kind === 'channel')
+        .map((c) => c.id),
+    );
+    const advisor: Advisor = {
+      id: existing?.id ?? newId(),
+      name: p.name,
+      handle: p.handle,
+      personality: p.personality,
+      prompt: p.prompt,
+      providerId: p.providerId,
+      model: p.model,
+      channels: [...new Set(p.channels)].filter((id) => channels.has(id)),
+      chatter: p.chatter,
+      dailyTokens: p.dailyTokens,
+      ...(folder ? { folder } : {}),
+      owner: existing?.owner ?? this.deviceId,
+      created: existing?.created ?? Date.now(),
+    };
+    store.commit({ type: 'advisor.saved', data: advisor });
+    this.changed();
+    return advisor;
+  }
+
+  private deleteAdvisor(id: unknown): { ok: true } {
+    const { store } = this.workspace();
+    const advisor = typeof id === 'string' ? store.advisor(id) : undefined;
+    if (!advisor) throw new CoreError('not_found');
+    store.commit({ type: 'advisor.deleted', data: { id: advisor.id } });
+    this.changed();
+    return { ok: true };
+  }
+
+  /** `/meclis <topic>`: the person's message, then the advisors' turns (they run on after the call returns). */
+  private council(channelId: unknown, topic: unknown): Message {
+    const { store, advisors } = this.workspace();
+    const channel = typeof channelId === 'string' ? store.channel(channelId) : undefined;
+    if (channel?.kind !== 'channel') throw new CoreError('not_found');
+    const subject = typeof topic === 'string' ? topic.trim().slice(0, 500) : '';
+    if (advisors.councilMembers(channel).length === 0) throw new CoreError('no_advisors');
+    const me = this.me();
+    const message: Message = {
+      id: newId(),
+      channelId: channel.id,
+      author: { kind: 'person', id: me.id, name: me.name },
+      text: subject ? `/meclis ${subject}` : '/meclis',
+      created: Date.now(),
+    };
+    store.commit({ type: 'message.posted', data: message });
+    this.emit('message.added', message);
+    void advisors.council(channel, subject || 'the latest conversation in this channel');
+    return message;
+  }
+
+  /** The project folder's recent history and state for advisors; read only, cached for two minutes. */
+  private project(folder: string): Promise<string> {
+    const cached = this.projectCache.get(folder);
+    if (cached && Date.now() - cached.at < 120_000) return cached.text;
+    const runner = this.opts.runner ?? run;
+    const text = (async () => {
+      const git = (args: string[]) => runner('git', ['-C', folder, ...args], { timeoutMs: 8000 });
+      const log = await git(['log', '-n', '12', '--date=short', '--pretty=format:%h %ad %an: %s']);
+      if (log.failed || log.code !== 0) return '';
+      const status = await git(['status', '--short', '--branch']);
+      const lines = status.stdout.split('\n').filter(Boolean);
+      return [
+        `Recent commits:\n${log.stdout.trim()}`,
+        lines.length
+          ? `Status:\n${lines.slice(0, 30).join('\n')}${lines.length > 30 ? `\n(${lines.length - 30} more)` : ''}`
+          : '',
+      ]
+        .filter(Boolean)
+        .join('\n\n');
+    })();
+    this.projectCache.set(folder, { at: Date.now(), text });
+    return text;
   }
 
   /** Lonca's tools for its agents (served by the gateway; the agent is known from its token). */
@@ -711,6 +853,7 @@ export class Core {
     };
     store.commit({ type: 'record.saved', data: record });
     this.emit('record.changed', record);
+    if (!existing) this.workspace().advisors.onIdea(record);
     return record;
   }
 

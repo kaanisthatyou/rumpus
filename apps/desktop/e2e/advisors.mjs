@@ -32,7 +32,15 @@ writeFileSync(
     onboarded: true,
   }),
 );
-const provider = await startFakeProvider();
+// The stand-in model: council turns name their speaker, the summary is fixed, a mention suggests a task.
+const provider = await startFakeProvider((body) => {
+  const system = body.messages.find((m) => m.role === 'system')?.content ?? '';
+  const user = body.messages.find((m) => m.role === 'user')?.content ?? '';
+  const who = /^You are ([^ ]+)/.exec(system)?.[1] ?? '?';
+  if (user.includes('Sum it up')) return 'Özet: iki görüş var.';
+  if (user.includes('council on')) return `${who} görüşü`;
+  return 'Login akışında hata durumu yok.\n/todo Login hatalarını göster';
+});
 
 let n = 0;
 let current;
@@ -100,6 +108,48 @@ try {
   await row.getByRole('button', { name: L.providers.removeKey.replace('{{hint}}', 'rong') }).click();
   await until(async () => (await row.getByText('···rong').count()) === 0, 'key removed');
   await page.keyboard.press('Escape');
+
+  // Two advisors on that provider, speaking only when asked.
+  const addAdvisor = async (personality) => {
+    await page.getByRole('button', { name: L.advisorForm.new }).click();
+    const dialog = page.getByRole('dialog', { name: L.advisorForm.new });
+    await dialog.getByText(L.advisorForm.personalities[personality], { exact: true }).click();
+    await dialog.getByLabel(L.advisorForm.model, { exact: true }).fill('fake-small');
+    await dialog.getByText(L.advisorForm.chatterLevels.off, { exact: true }).click();
+    if (personality === 'critical') await shot(page, 'advisor-dialog');
+    await dialog.getByRole('button', { name: L.agentForm.save }).click();
+    await dialog.waitFor({ state: 'detached' });
+  };
+  await addAdvisor('critical');
+  await addAdvisor('blunt');
+  const crew = page.getByRole('complementary', { name: L.shell.crew });
+  await crew.getByText('@elestirmen', { exact: true }).waitFor();
+  await crew.getByText('@davut', { exact: true }).waitFor();
+
+  // A mention: the advisor answers, and its suggested task lands on the board.
+  await page.getByRole('button', { name: 'genel', exact: true }).click();
+  const composer = page.getByRole('textbox', { name: 'Mesaj · #genel' });
+  await composer.fill('@elestirmen login ne durumda?');
+  await composer.press('Enter');
+  await page.locator('.msg--advisor', { hasText: 'Login akışında hata durumu yok.' }).waitFor();
+  await page.locator('.msg--advisor .msg__role').first().waitFor();
+  await page.locator('.msg--advisor .msg__todo', { hasText: 'Login hatalarını göster' }).waitFor();
+
+  // /meclis: two rounds of two advisors, then a summary.
+  await composer.fill('/meclis fiyatlandırma');
+  await composer.press('Enter');
+  await page.locator('.msg--advisor', { hasText: 'Özet: iki görüş var.' }).waitFor({ timeout: 30_000 });
+  const said = await page.locator('.msg--advisor .md').allInnerTexts();
+  assert.deepEqual(said.slice(-5), [
+    'Eleştirmen görüşü',
+    'Davut görüşü',
+    'Eleştirmen görüşü',
+    'Davut görüşü',
+    'Özet: iki görüş var.',
+  ]);
+  await shot(page, 'council');
+  await page.getByRole('button', { name: L.shell.tasks, exact: true }).click();
+  await page.getByText('Login hatalarını göster').waitFor();
   assert.deepEqual(run.errors, []);
   await run.app.close();
 
@@ -117,6 +167,7 @@ try {
   await again.getByRole('button', { name: L.providers.fetch }).click();
   await page.getByText(L.providers.fetched.replace('{{count}}', '2')).waitFor();
   await page.keyboard.press('Escape');
+  await page.getByRole('complementary', { name: L.shell.crew }).getByText('@davut', { exact: true }).waitFor();
   assert.deepEqual(run.errors, []);
   console.log(`advisors e2e ok, ${n} screenshots in ${shots}`);
 } finally {

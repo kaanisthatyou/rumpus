@@ -1,4 +1,4 @@
-import type { Agent, Channel, Job, Message } from '@lonca/protocol';
+import type { Advisor, Agent, Channel, Job, Message } from '@lonca/protocol';
 import { Avatar, Button, Chip, Icon, IconButton, Kbd } from '@lonca/ui';
 import { AnimatePresence, motion } from 'motion/react';
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -10,6 +10,7 @@ import { JobCard } from './JobCard';
 import { Markdown } from './Markdown';
 
 const EMPTY: Message[] = [];
+const NO_ADVISORS: Advisor[] = [];
 const NO_REFS: string[] = [];
 
 /** A record attached to a message or to the message being written. */
@@ -55,8 +56,16 @@ function MessageRow({ message, agents, jobs }: { message: Message; agents: Agent
   const [draft, setDraft] = useState(message.text);
   const a = message.author;
   const own = a.kind === 'person' && a.id === me;
+  // An advisor's suggested task (`/todo …`) is already a board card: shown as a line of its own.
+  const { body, todos } = useMemo(() => {
+    if (a.kind !== 'advisor') return { body: message.text, todos: [] as string[] };
+    const lines = message.text.split('\n');
+    const tasks = lines.flatMap((l) => /^\/todo\s+(.+)$/.exec(l.trim())?.[1] ?? []);
+    return { body: lines.filter((l) => !/^\/todo\s+/.test(l.trim())).join('\n'), todos: tasks };
+  }, [a.kind, message.text]);
   const name = a.kind === 'system' ? 'Lonca' : a.name;
   const agent = a.kind === 'agent' ? agents.find((x) => x.id === a.id) : undefined;
+  const advisor = useApp((s) => (a.kind === 'advisor' ? s.workspace?.advisors.find((x) => x.id === a.id) : undefined));
 
   return (
     <motion.article
@@ -69,6 +78,8 @@ function MessageRow({ message, agents, jobs }: { message: Message; agents: Agent
         <div className="msg__meta">
           <b>{name}</b>
           {agent && <Chip mono>@{agent.handle}</Chip>}
+          {advisor && <Chip mono>@{advisor.handle}</Chip>}
+          {a.kind === 'advisor' && <span className="msg__role">{t('advisor.role')}</span>}
           <time className="l-mono">{clock(message.created)}</time>
           {message.edited && <span className="msg__edited">{t('channel.edited')}</span>}
           {!editing && (
@@ -121,7 +132,16 @@ function MessageRow({ message, agents, jobs }: { message: Message; agents: Agent
             </div>
           </form>
         ) : (
-          <Markdown text={message.text} />
+          <>
+            <Markdown text={body} />
+            {todos.map((task) => (
+              <div key={task} className="msg__todo">
+                <Icon name="tasks" size={13} />
+                <span>{t('advisor.suggested')}</span>
+                <b>{task}</b>
+              </div>
+            ))}
+          </>
         )}
         {message.refs?.length ? (
           <div className="msg__refs">
@@ -138,12 +158,39 @@ function MessageRow({ message, agents, jobs }: { message: Message; agents: Agent
   );
 }
 
+function Typing({ channelId }: { channelId: string }) {
+  const { t } = useTranslation();
+  const ids = useApp((s) => s.typing[channelId] ?? NO_REFS);
+  const advisors = useApp((s) => s.workspace?.advisors ?? NO_ADVISORS);
+  const names = ids.map((id) => advisors.find((a) => a.id === id)?.name).filter(Boolean);
+  return (
+    <AnimatePresence>
+      {names.length > 0 && (
+        <motion.div
+          className="typing"
+          role="status"
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+        >
+          <span className="typing__dots" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </span>
+          {t('advisor.typing', { names: names.join(', ') })}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 interface Suggestion {
   key: string;
   insert: string;
   label: string;
   detail: string;
-  icon: 'terminal' | 'chevronRight';
+  icon: 'terminal' | 'chevronRight' | 'chat';
 }
 
 function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
@@ -151,6 +198,8 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
   const send = useApp((s) => s.send);
   const createCard = useApp((s) => s.createCard);
   const newSession = useApp((s) => s.newSession);
+  const council = useApp((s) => s.council);
+  const advisors = useApp((s) => s.workspace?.advisors ?? NO_ADVISORS);
   const flash = useApp((s) => s.flash);
   const note = useApp((s) => s.note);
   const attached = useApp((s) => s.attached[channel.id] ?? NO_REFS);
@@ -174,6 +223,9 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
   const command = /^\/([a-z-]*)$/.exec(text.slice(0, caret));
   const commands: Suggestion[] = [
     { key: 'todo', insert: '/todo ', label: '/todo', detail: t('commands.todo'), icon: 'chevronRight' },
+    ...(channel.kind === 'channel'
+      ? [{ key: 'meclis', insert: '/meclis ', label: '/meclis', detail: t('commands.council'), icon: 'chat' as const }]
+      : []),
     ...(own
       ? [
           {
@@ -187,16 +239,18 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
       : []),
   ];
   const options: Suggestion[] = mention
-    ? agents
-        .filter((a) => a.handle.startsWith(mention[2] ?? ''))
-        .slice(0, 6)
-        .map((a) => ({
+    ? [
+        ...agents.map((a) => ({ key: a.id, handle: a.handle, detail: a.name, icon: 'terminal' as const })),
+        ...(channel.kind === 'channel' ? advisors : []).map((a) => ({
           key: a.id,
-          insert: `@${a.handle} `,
-          label: `@${a.handle}`,
+          handle: a.handle,
           detail: a.name,
-          icon: 'terminal' as const,
-        }))
+          icon: 'chat' as const,
+        })),
+      ]
+        .filter((x) => x.handle.startsWith(mention[2] ?? ''))
+        .slice(0, 8)
+        .map((x) => ({ key: x.key, insert: `@${x.handle} `, label: `@${x.handle}`, detail: x.detail, icon: x.icon }))
     : command
       ? commands.filter((c) => c.label.startsWith(`/${command[1] ?? ''}`))
       : [];
@@ -271,6 +325,11 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
         setText('');
         flash(t('board.added'));
       }
+      return;
+    }
+    const meclis = /^\/meclis(?:\s+([\s\S]*))?$/.exec(value);
+    if (meclis && channel.kind === 'channel') {
+      if (await council(channel.id, meclis[1]?.trim() ?? '')) setText('');
       return;
     }
     if (value === '/yeni-oturum' && own) {
@@ -550,6 +609,7 @@ export function ChannelView({ channel }: { channel: Channel }) {
             );
           })
         )}
+        <Typing channelId={channel.id} />
       </div>
       <Composer channel={channel} agents={agents} />
     </main>

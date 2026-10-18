@@ -35,6 +35,64 @@ export interface Agent {
   created: number;
 }
 
+/** Advisors' personalities (PLAN.md 5.4); `custom` starts from an empty prompt. */
+export const PERSONALITIES = ['critical', 'blunt', 'positive', 'custom'] as const;
+export type Personality = (typeof PERSONALITIES)[number];
+
+/** How often an advisor speaks unasked: never, now and then, often. Mentions are always answered. */
+export const CHATTER = ['off', 'low', 'normal', 'high'] as const;
+export type Chatter = (typeof CHATTER)[number];
+
+/** The personality presets' prompts. Shipped defaults, copied into the advisor and editable there. */
+export const PERSONALITY_PROMPTS: Record<Personality, string> = {
+  critical:
+    'You are the critical one. Look for what is wrong, risky or missing: bugs, weak assumptions, unclear goals, scope creep, work that will not survive contact with real users. Name the problem, why it matters, and the smallest fix. Praise only what is truly notable.',
+  blunt:
+    'You say plainly what others avoid saying. Short and direct, no softening and no flattery. When an idea is bad, say so and why; when you are unsure, say that too. Never rude, never vague.',
+  positive:
+    'You look for what works and how to build on it, without empty praise. Point out real strengths, then one concrete next step that makes the best part better. Stay honest: do not hide real problems, mention them briefly.',
+  custom: '',
+};
+
+export const AdvisorInputSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().trim().min(1).max(40),
+  handle: z
+    .string()
+    .trim()
+    .regex(/^[a-z0-9][a-z0-9-]{0,31}$/),
+  personality: z.enum(PERSONALITIES),
+  /** The personality prompt, editable; starts as the preset's. */
+  prompt: z.string().max(8000),
+  providerId: z.string().min(1),
+  model: z.string().trim().min(1).max(160),
+  /** Channels it speaks in unasked; empty means every normal channel. */
+  channels: z.array(z.string()).max(50).default([]),
+  chatter: z.enum(CHATTER),
+  /** Tokens (in and out) it may spend per day. */
+  dailyTokens: z.number().int().min(1000).max(50_000_000),
+  /** A project folder it looks at (git history, status); read only. */
+  folder: z.string().max(1000).optional(),
+});
+export type AdvisorInput = z.input<typeof AdvisorInputSchema>;
+
+export interface Advisor {
+  id: string;
+  name: string;
+  handle: string;
+  personality: Personality;
+  prompt: string;
+  providerId: string;
+  model: string;
+  channels: string[];
+  chatter: Chatter;
+  dailyTokens: number;
+  folder?: string;
+  /** The device that added it: it runs there, with that member's keys. */
+  owner: string;
+  created: number;
+}
+
 export interface Channel {
   id: string;
   name: string;
@@ -48,6 +106,7 @@ export interface Channel {
 export type Author =
   | { kind: 'person'; id: string; name: string }
   | { kind: 'agent'; id: string; name: string }
+  | { kind: 'advisor'; id: string; name: string }
   | { kind: 'system' };
 
 export interface Message {
@@ -122,6 +181,9 @@ export interface WorkspaceState {
   me: { id: string; name: string };
   channels: Channel[];
   agents: Agent[];
+  advisors: Advisor[];
+  /** Tokens each advisor spent today on this computer. */
+  spend: Record<string, number>;
   /** Jobs still running or waiting, so a reloaded window shows them. */
   active: Job[];
 }

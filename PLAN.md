@@ -566,6 +566,16 @@ public, which waits for the owners' go.
   tolerantly; plain http only for loopback, private networks and Tailscale addresses. The core asks the main
   process for completions over its parent port (`PortLlm`). Tested against a local stand-in server (unit tests and
   `e2e/advisors.mjs`).
+- Advisors: profiles (name, handle, personality preset with an editable prompt: Eleştirel, Doğrucu Davut, Olumlu,
+  Özel; provider and model; channels; how often they speak unasked; a daily token budget; an optional project
+  folder whose recent commits and git status they see, read only). They answer `@mentions`, comment now and then
+  on finished jobs and new ideas, drop in on their own in active channels, and answer each other. Limits in
+  code: the budget, quiet hours (Settings → General) for unasked turns, at most three bot turns in a row before a
+  person speaks, one unasked turn per channel per hour, one turn at a time per channel. They never write code or
+  start jobs; a `/todo` line in their answer becomes a board card. `/meclis [topic]`: two rounds in turn, then a
+  summary. Each advisor runs on the device that added it. Tested with unit tests and `e2e/advisors.mjs`; not yet
+  run against a real provider with a real key. Their context is gathered by Lonca (channel, board, git); tool
+  calls of their own (reading files on request) are still to do.
 
 ## 9. Risks
 

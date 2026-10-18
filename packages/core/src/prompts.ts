@@ -71,7 +71,8 @@ function clock(ms: number): string {
 }
 
 function who(m: Message): string {
-  return m.author.kind === 'system' ? 'Lonca' : m.author.name;
+  if (m.author.kind === 'system') return 'Lonca';
+  return m.author.kind === 'advisor' ? `${m.author.name} (advisor)` : m.author.name;
 }
 
 /** One turn: what others said in the channel since the agent last spoke, then the request. */

@@ -287,7 +287,10 @@ function Crew() {
   const quota = useApp((s) => s.quota);
   const openChannel = useApp((s) => s.openChannel);
   const openAgentDialog = useApp((s) => s.openAgentDialog);
+  const openAdvisorDialog = useApp((s) => s.openAdvisorDialog);
+  const typing = useApp((s) => s.typing);
   const agents = workspace?.agents ?? [];
+  const advisors = workspace?.advisors ?? [];
   const busy = new Set(
     Object.values(jobs)
       .filter((j) => j.state === 'running' || j.state === 'attention')
@@ -370,8 +373,44 @@ function Crew() {
           ))}
         </div>
       )}
-      <h3>{t('shell.advisors')}</h3>
-      <p className="crew__none">{t('shell.noAdvisors')}</p>
+      <h3>
+        <span className="grow">{t('shell.advisors')}</span>
+        <IconButton size="sm" icon="plus" label={t('advisorForm.new')} onClick={() => openAdvisorDialog('new')} />
+      </h3>
+      {advisors.length === 0 ? (
+        <p className="crew__none">{t('shell.noAdvisors')}</p>
+      ) : (
+        <motion.ul variants={stagger} initial="hidden" animate="shown" className="crew__list">
+          {advisors.map((a) => {
+            const used = Math.min(1, (workspace?.spend[a.id] ?? 0) / a.dailyTokens);
+            const writing = Object.values(typing).some((ids) => ids.includes(a.id));
+            return (
+              <motion.li key={a.id} variants={popIn} className="who who--advisor">
+                <div className="who__open">
+                  <Avatar name={a.name} size={28} presence={writing ? 'busy' : a.chatter === 'off' ? 'off' : 'on'} />
+                  <div className="who__text">
+                    <b>
+                      {a.name} <span className="l-mono">@{a.handle}</span>
+                    </b>
+                    <span>
+                      {writing ? t('advisor.writing') : t(`advisorForm.personalities.${a.personality}`)} ·{' '}
+                      <span className={used >= 1 ? 'is-warn' : ''}>
+                        {t('advisor.spent', { percent: Math.round(used * 100) })}
+                      </span>
+                    </span>
+                  </div>
+                </div>
+                <IconButton
+                  size="sm"
+                  icon="settings"
+                  label={t('advisorForm.edit')}
+                  onClick={() => openAdvisorDialog(a)}
+                />
+              </motion.li>
+            );
+          })}
+        </motion.ul>
+      )}
       <h3>
         <span className="grow">{t('shell.members')}</span>
         <span className="l-mono">1</span>

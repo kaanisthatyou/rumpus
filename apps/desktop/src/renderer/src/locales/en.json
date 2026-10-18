@@ -166,7 +166,11 @@
     "dataFolder": "Data folder",
     "version": "Version {{version}}",
     "license": "Apache-2.0 license",
-    "source": "Source code"
+    "source": "Source code",
+    "quietHours": "Advisors' quiet hours",
+    "quietFrom": "From",
+    "quietTo": "To",
+    "quietHint": "During these hours advisors write only when called. Equal times mean no quiet hours."
   },
   "theme": {
     "dark": "Dark",
@@ -219,7 +223,10 @@
     "provider_timeout": "The provider did not answer in time.",
     "provider_cancelled": "Request stopped.",
     "provider_bad_response": "The provider's answer could not be read.",
-    "provider_refused": "The provider refused the request."
+    "provider_refused": "The provider refused the request.",
+    "invalid_advisor": "Advisor details are missing or invalid.",
+    "no_advisors": "No advisors in this channel.",
+    "over_budget": "Daily budget used up."
   },
   "channel": {
     "newSession": "New session",
@@ -358,7 +365,8 @@
   "commands": {
     "todo": "Adds a task to the board",
     "newSession": "The agent leaves the conversation in this channel",
-    "search": "Searches messages"
+    "search": "Searches messages",
+    "council": "Advisors discuss a topic in turn and one sums up"
   },
   "palette": {
     "placeholder": "Channel, agent, view, action or message",
@@ -491,5 +499,62 @@
     "edit": "Edit",
     "delete": "Delete",
     "deleteConfirm": "Delete the provider and its keys?"
+  },
+  "advisor": {
+    "role": "Advisor",
+    "writing": "Writing",
+    "typing": "{{names}} writing",
+    "spent": "{{percent}}% today",
+    "suggested": "Suggested on the board"
+  },
+  "advisorForm": {
+    "new": "New advisor",
+    "edit": "Advisor settings",
+    "intro": "Advisors read the conversation and the project and give honest views. They write no code and start no jobs; a task they suggest lands on the board as a card.",
+    "noProvider": "Advisors run on a model provider. A provider is added first under Settings → Providers.",
+    "personality": "Personality",
+    "personalities": {
+      "critical": "Critical",
+      "blunt": "Blunt",
+      "positive": "Positive",
+      "custom": "Custom"
+    },
+    "defaultName": {
+      "critical": "Critic",
+      "blunt": "Blunt",
+      "positive": "Hope",
+      "custom": "Advisor"
+    },
+    "name": "Name",
+    "handle": "Handle",
+    "handleHint": "Called with @{{handle}} in a message.",
+    "prompt": "Personality text",
+    "promptHint": "How the advisor thinks. The presets can be changed here.",
+    "provider": "Provider",
+    "model": "Model",
+    "modelHint": "Picked from the provider's list, or typed by name.",
+    "modelNoList": "Model list not fetched; the model name is typed.",
+    "chatter": "Speaks unasked",
+    "chatterLevels": {
+      "off": "Off",
+      "low": "Rarely",
+      "normal": "Now and then",
+      "high": "Often"
+    },
+    "chatterHint": {
+      "off": "Writes only when called with @ and in /meclis.",
+      "low": "Comments now and then on finished jobs and new ideas; drops in a few times a day.",
+      "normal": "Comments often on finished jobs and new ideas; drops in every few hours.",
+      "high": "Comments on most jobs and ideas; drops in at most once an hour."
+    },
+    "channels": "Channels",
+    "channelsHint": "Channels it speaks in unasked. None selected means all channels.",
+    "budget": "Daily budget",
+    "tokens": "{{count}}k tokens",
+    "budgetHint": "Daily token limit on this computer (input and output). When it runs out, the advisor is silent until the next day.",
+    "folder": "Project folder",
+    "folderHint": "Optional. Recent commits and git status are shown to the advisor, read only.",
+    "noFolder": "Remove",
+    "delete": "Delete advisor"
   }
 }

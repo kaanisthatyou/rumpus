@@ -166,7 +166,11 @@
     "dataFolder": "Veri klasörü",
     "version": "Sürüm {{version}}",
     "license": "Apache-2.0 lisansı",
-    "source": "Kaynak kodu"
+    "source": "Kaynak kodu",
+    "quietHours": "Danışmanların sessiz saatleri",
+    "quietFrom": "Başlangıç",
+    "quietTo": "Bitiş",
+    "quietHint": "Bu saatlerde danışmanlar yalnızca çağrıldıklarında yazar. İki saat aynıysa sessiz saat yoktur."
   },
   "theme": {
     "dark": "Koyu",
@@ -219,7 +223,10 @@
     "provider_timeout": "Sağlayıcı zamanında yanıt vermedi.",
     "provider_cancelled": "İstek durduruldu.",
     "provider_bad_response": "Sağlayıcının yanıtı okunamadı.",
-    "provider_refused": "Sağlayıcı isteği reddetti."
+    "provider_refused": "Sağlayıcı isteği reddetti.",
+    "invalid_advisor": "Danışman bilgileri eksik ya da geçersiz.",
+    "no_advisors": "Bu kanalda danışman yok.",
+    "over_budget": "Günlük bütçe doldu."
   },
   "channel": {
     "newSession": "Yeni oturum",
@@ -358,7 +365,8 @@
   "commands": {
     "todo": "Panoya görev ekler",
     "newSession": "Agent bu kanaldaki konuşmayı bırakır",
-    "search": "Mesajlarda arar"
+    "search": "Mesajlarda arar",
+    "council": "Danışmanlar bir konuyu sırayla tartışır, biri özetler"
   },
   "palette": {
     "placeholder": "Kanal, agent, görünüm, eylem ya da mesaj",
@@ -491,5 +499,62 @@
     "edit": "Düzenle",
     "delete": "Sil",
     "deleteConfirm": "Sağlayıcı ve anahtarları silinsin mi?"
+  },
+  "advisor": {
+    "role": "Danışman",
+    "writing": "Yazıyor",
+    "typing": "{{names}} yazıyor",
+    "spent": "bugün %{{percent}}",
+    "suggested": "Panoya önerildi"
+  },
+  "advisorForm": {
+    "new": "Yeni danışman",
+    "edit": "Danışman ayarları",
+    "intro": "Danışmanlar sohbeti ve projeyi okur, açık sözlü görüş verir. Kod yazmaz, iş başlatmaz; önerdikleri iş panoya kart olarak düşer.",
+    "noProvider": "Danışmanlar bir model sağlayıcısıyla çalışır. Önce Ayarlar → Sağlayıcılar bölümünden bir sağlayıcı eklenir.",
+    "personality": "Kişilik",
+    "personalities": {
+      "critical": "Eleştirel",
+      "blunt": "Doğrucu Davut",
+      "positive": "Olumlu",
+      "custom": "Özel"
+    },
+    "defaultName": {
+      "critical": "Eleştirmen",
+      "blunt": "Davut",
+      "positive": "Umut",
+      "custom": "Danışman"
+    },
+    "name": "Ad",
+    "handle": "Tutamak",
+    "handleHint": "Mesajda @{{handle}} ile çağrılır.",
+    "prompt": "Kişilik metni",
+    "promptHint": "Danışmanın nasıl düşündüğünü anlatır. Hazır kişilikler buradan değiştirilebilir.",
+    "provider": "Sağlayıcı",
+    "model": "Model",
+    "modelHint": "Sağlayıcının listesinden seçilir ya da adı yazılır.",
+    "modelNoList": "Model listesi alınmadı; model adı yazılır.",
+    "chatter": "Kendiliğinden konuşma",
+    "chatterLevels": {
+      "off": "Kapalı",
+      "low": "Seyrek",
+      "normal": "Ara sıra",
+      "high": "Sık"
+    },
+    "chatterHint": {
+      "off": "Yalnızca @ ile çağrıldığında ve /meclis içinde yazar.",
+      "low": "Biten işlere ve yeni fikirlere ara sıra yorum yapar; günde birkaç kez kendiliğinden yazar.",
+      "normal": "Biten işlere ve yeni fikirlere sık yorum yapar; birkaç saatte bir kendiliğinden yazar.",
+      "high": "Çoğu işe ve fikre yorum yapar; saatte en çok bir kez kendiliğinden yazar."
+    },
+    "channels": "Kanallar",
+    "channelsHint": "Kendiliğinden yazdığı kanallar. Hiçbiri seçili değilse tüm kanallar.",
+    "budget": "Günlük bütçe",
+    "tokens": "{{count}}k token",
+    "budgetHint": "Bu bilgisayarda günlük token sınırı (giriş ve çıkış). Dolunca ertesi güne kadar susar.",
+    "folder": "Proje klasörü",
+    "folderHint": "İsteğe bağlı. Son commit'ler ve git durumu salt okunur olarak danışmana gösterilir.",
+    "noFolder": "Kaldır",
+    "delete": "Danışmanı sil"
   }
 }

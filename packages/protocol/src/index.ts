@@ -2,6 +2,8 @@
 // members' apps later). Everything that crosses a process boundary is defined here.
 import { z } from 'zod';
 import type {
+  Advisor,
+  AdvisorInput,
   Agent,
   AgentInput,
   Card,
@@ -39,6 +41,10 @@ export const SettingsSchema = z.object({
   /** Where workspaces, records and history live. Empty means the default inside the app's data folder. */
   dataDir: z.string(),
   onboarded: z.boolean(),
+  /** Hours when advisors speak only when asked, `HH:MM` to `HH:MM`; equal times turn it off. */
+  quietHours: z
+    .object({ from: z.string().regex(/^\d\d:\d\d$/), to: z.string().regex(/^\d\d:\d\d$/) })
+    .default({ from: '23:00', to: '08:00' }),
   /** Rebound shortcuts: action → combo like `Ctrl+Shift+K`. Missing actions use the defaults. */
   shortcuts: z.record(z.string(), z.string().max(40)).default({}),
 });
@@ -75,6 +81,7 @@ export function defaultSettings(language: Language = 'en'): Settings {
     profile: { name: '' },
     dataDir: '',
     onboarded: false,
+    quietHours: { from: '23:00', to: '08:00' },
     shortcuts: {},
   };
 }
@@ -145,6 +152,10 @@ export interface CoreMethods {
   'agents.save': { params: AgentInput; result: Agent };
   'agents.delete': { params: { id: string }; result: { ok: true } };
   'agents.newSession': { params: { agentId: string; channelId: string }; result: { ok: true } };
+  'advisors.save': { params: AdvisorInput; result: Advisor };
+  'advisors.delete': { params: { id: string }; result: { ok: true } };
+  /** `/meclis`: the advisors in the channel discuss a topic in turn and one sums up. */
+  'advisors.council': { params: { channelId: string; topic: string }; result: Message };
   'jobs.stop': { params: { id: string }; result: { ok: true } };
   'jobs.steer': { params: { id: string; text: string }; result: { ok: true } };
   'jobs.answer': { params: { id: string; allow: boolean }; result: { ok: true } };
@@ -181,6 +192,11 @@ export interface CoreEvents {
   'card.deleted': { id: string };
   'record.changed': RecordItem;
   'record.deleted': { id: string };
+  /** An advisor is writing (or stopped writing) in a channel. */
+  'advisor.typing': { advisorId: string; channelId: string; on: boolean };
+  'advisor.spend': Record<string, number>;
+  /** An advisor could not answer a mention: over budget, provider error. Not stored. */
+  'advisor.failed': { advisorId: string; channelId: string; code: string };
 }
 
 export type MethodName = keyof CoreMethods;
@@ -201,6 +217,9 @@ export const ERROR_CODES = [
   'folder_missing',
   'cli_missing',
   'busy',
+  'invalid_advisor',
+  'no_advisors',
+  'over_budget',
   'provider_bad_url',
   'provider_bad_key',
   'provider_storage',

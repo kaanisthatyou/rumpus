@@ -1,4 +1,6 @@
 import type {
+  Advisor,
+  AdvisorInput,
   Agent,
   AgentInput,
   Card,
@@ -51,6 +53,9 @@ interface AppState {
   watching?: string;
   /** The agent dialog: an agent to edit, `new` for a new one, or closed. */
   agentDialog?: Agent | 'new' | { kind: CliKind };
+  advisorDialog?: Advisor | 'new';
+  /** Advisors writing right now, per channel. */
+  typing: Record<string, string[]>;
   cards: Card[];
   records: RecordItem[];
   /** Records attached to the next message, per channel. */
@@ -89,6 +94,10 @@ interface AppState {
   answerJob(id: string, allow: boolean): Promise<void>;
   watch(jobId: string | undefined): void;
   openAgentDialog(target: AppState['agentDialog']): void;
+  openAdvisorDialog(target: AppState['advisorDialog']): void;
+  saveAdvisor(input: AdvisorInput): Promise<boolean>;
+  deleteAdvisor(id: string): Promise<void>;
+  council(channelId: string, topic: string): Promise<boolean>;
   createCard(title: string, opts?: { channelId?: string; agentHandle?: string }): Promise<boolean>;
   updateCard(
     id: string,
@@ -169,6 +178,7 @@ export const useApp = create<AppState>((set, get) => {
     attached: {},
     images: {},
     paletteOpen: false,
+    typing: {},
     shortcutsOpen: false,
 
     async init() {
@@ -225,6 +235,17 @@ export const useApp = create<AppState>((set, get) => {
         })),
       );
       core.on('record.deleted', ({ id }) => set((s) => ({ records: s.records.filter((r) => r.id !== id) })));
+      core.on('advisor.typing', ({ advisorId, channelId, on }) =>
+        set((s) => {
+          const now = (s.typing[channelId] ?? []).filter((id) => id !== advisorId);
+          return { typing: { ...s.typing, [channelId]: on ? [...now, advisorId] : now } };
+        }),
+      );
+      core.on('advisor.spend', (spend) => set((s) => (s.workspace ? { workspace: { ...s.workspace, spend } } : {})));
+      core.on('advisor.failed', ({ advisorId, code }) => {
+        const name = get().workspace?.advisors.find((a) => a.id === advisorId)?.name ?? '';
+        get().flash(`${name}: ${i18n.t(`errors.${code}`, i18n.t('errors.internal'))}`);
+      });
       window.lonca.updates.onChange((update) => set({ update }));
       window.lonca.providers.onChange((providers) => set({ providers }));
       void window.lonca.providers.state().then((providers) => set({ providers }));
@@ -397,6 +418,29 @@ export const useApp = create<AppState>((set, get) => {
 
     openAgentDialog(target) {
       set({ agentDialog: target, error: undefined });
+    },
+
+    openAdvisorDialog(target) {
+      set({ advisorDialog: target, error: undefined });
+    },
+
+    async saveAdvisor(input) {
+      const advisor = await attempt(() => core.call('advisors.save', input));
+      if (!advisor) return false;
+      set({ advisorDialog: undefined });
+      await get().loadWorkspace();
+      return true;
+    },
+
+    async deleteAdvisor(id) {
+      if (await attempt(() => core.call('advisors.delete', { id }))) {
+        set({ advisorDialog: undefined });
+        await get().loadWorkspace();
+      }
+    },
+
+    async council(channelId, topic) {
+      return Boolean(await attempt(() => core.call('advisors.council', { channelId, topic })));
     },
 
     async createCard(title, opts = {}) {

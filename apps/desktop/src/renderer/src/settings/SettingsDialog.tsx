@@ -63,6 +63,30 @@ function General() {
         <h4>{t('settings.dataFolder')}</h4>
         <DataFolder />
       </section>
+      <section className="set">
+        <h4>{t('settings.quietHours')}</h4>
+        <div className="quiet">
+          <TextField
+            label={t('settings.quietFrom')}
+            type="time"
+            value={settings?.quietHours.from ?? '23:00'}
+            onChange={(e) =>
+              e.target.value &&
+              void patch({ quietHours: { from: e.target.value, to: settings?.quietHours.to ?? '08:00' } })
+            }
+          />
+          <TextField
+            label={t('settings.quietTo')}
+            type="time"
+            value={settings?.quietHours.to ?? '08:00'}
+            onChange={(e) =>
+              e.target.value &&
+              void patch({ quietHours: { from: settings?.quietHours.from ?? '23:00', to: e.target.value } })
+            }
+          />
+        </div>
+        <p className="muted">{t('settings.quietHint')}</p>
+      </section>
     </div>
   );
 }

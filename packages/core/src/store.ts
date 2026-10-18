@@ -4,7 +4,7 @@
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import type { Agent, Author, Card, Channel, Job, Message, RecordItem } from '@lonca/protocol';
+import type { Advisor, Agent, Author, Card, Channel, Job, Message, RecordItem } from '@lonca/protocol';
 import { Clock, newId } from './ids.js';
 
 type Row = Record<string, unknown>;
@@ -49,6 +49,12 @@ CREATE TABLE IF NOT EXISTS cards (
 CREATE TABLE IF NOT EXISTS records (
   id TEXT PRIMARY KEY, kind TEXT NOT NULL, data TEXT NOT NULL, created INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS advisors (
+  id TEXT PRIMARY KEY, data TEXT NOT NULL, created INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS advisor_spend (
+  advisor_id TEXT NOT NULL, day TEXT NOT NULL, tokens INTEGER NOT NULL, PRIMARY KEY (advisor_id, day)
+);
 CREATE TABLE IF NOT EXISTS sessions (
   agent_id TEXT NOT NULL, channel_id TEXT NOT NULL, session_id TEXT NOT NULL, PRIMARY KEY (agent_id, channel_id)
 );
@@ -60,6 +66,8 @@ export type WorkspaceEvent =
   | { type: 'channel.deleted'; data: { id: string } }
   | { type: 'agent.saved'; data: Agent }
   | { type: 'agent.deleted'; data: { id: string } }
+  | { type: 'advisor.saved'; data: Advisor }
+  | { type: 'advisor.deleted'; data: { id: string } }
   | { type: 'message.posted'; data: Message }
   | { type: 'message.edited'; data: { id: string; text: string; edited: number } }
   | { type: 'message.deleted'; data: { id: string } }
@@ -169,6 +177,16 @@ export class WorkspaceStore {
       case 'agent.deleted':
         this.db.prepare('UPDATE agents SET deleted = 1 WHERE id = ?').run(e.data.id);
         return;
+      case 'advisor.saved':
+        this.db
+          .prepare(
+            'INSERT INTO advisors (id, data, created) VALUES (?, ?, ?) ON CONFLICT (id) DO UPDATE SET data = excluded.data, deleted = 0',
+          )
+          .run(e.data.id, JSON.stringify(e.data), e.data.created);
+        return;
+      case 'advisor.deleted':
+        this.db.prepare('UPDATE advisors SET deleted = 1 WHERE id = ?').run(e.data.id);
+        return;
       case 'message.posted': {
         const m = e.data;
         this.db
@@ -243,6 +261,17 @@ export class WorkspaceStore {
   agent(id: string): Agent | undefined {
     const r = this.db.prepare('SELECT data FROM agents WHERE id = ? AND deleted = 0').get(id) as Row | undefined;
     return r ? json<Agent>(r.data) : undefined;
+  }
+
+  advisors(): Advisor[] {
+    return (this.db.prepare('SELECT data FROM advisors WHERE deleted = 0 ORDER BY created').all() as Row[]).map((r) =>
+      json<Advisor>(r.data),
+    );
+  }
+
+  advisor(id: string): Advisor | undefined {
+    const r = this.db.prepare('SELECT data FROM advisors WHERE id = ? AND deleted = 0').get(id) as Row | undefined;
+    return r ? json<Advisor>(r.data) : undefined;
   }
 
   message(id: string): Message | undefined {
@@ -354,5 +383,20 @@ export class WorkspaceStore {
     } else {
       this.db.prepare('DELETE FROM sessions WHERE agent_id = ? AND channel_id = ?').run(agentId, channelId);
     }
+  }
+
+  // ---------------------------------------------------------------- advisors' spending (local)
+
+  addSpend(advisorId: string, day: string, tokens: number): void {
+    this.db
+      .prepare(
+        'INSERT INTO advisor_spend (advisor_id, day, tokens) VALUES (?, ?, ?) ON CONFLICT (advisor_id, day) DO UPDATE SET tokens = tokens + excluded.tokens',
+      )
+      .run(advisorId, day, Math.max(0, Math.round(tokens)));
+  }
+
+  spend(day: string): Record<string, number> {
+    const rows = this.db.prepare('SELECT advisor_id, tokens FROM advisor_spend WHERE day = ?').all(day) as Row[];
+    return Object.fromEntries(rows.map((r) => [String(r.advisor_id), Number(r.tokens)]));
   }
 }
