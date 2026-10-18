@@ -664,6 +664,11 @@ The details behind 5.11 and 6.5, decided before building.
   Viewers cannot change the board, records or goals; goals and cards use only own agents; agents' own channels
   belong to the agent's owner. Covered in the two-core unit test and `e2e/team.mjs` (Arda's mention runs Kaan's
   fake Claude Code and the answer comes back).
+  3.6. A live path between members (`/v1/live`, signed like the rest, never stored): "Arda yazıyor" under the
+  messages (at most every three seconds, at once again after a send), and another member's running job moving on
+  everyone's card about once a second (only the agent's owner may report it). The members list shows who answered
+  the last sync. A message from another member in a background lonca marks it in the rail; while Lonca is in the
+  background a message from another member gives an OS notification.
 - **Slices:** 3.1 several workspaces; 3.2 identity, signed log, last-writer-wins; 3.3 transport and sync between
   two apps (two `LONCA_HOME` instances on one PC in tests); 3.4 invites, roles, members panel; 3.5 cross-member
   jobs and agent access; 3.6 presence, typing, notifications; 3.7 the phone companion.

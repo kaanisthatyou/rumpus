@@ -72,7 +72,9 @@ function app(name: string) {
     }
     throw new Error(`no answer: ${method}`);
   };
-  return { core, call, name, sessions };
+  const events = (event: string) =>
+    sent.filter((f) => 'event' in f && f.event === event).map((f) => (f as { data: unknown }).data);
+  return { core, call, name, sessions, events };
 }
 
 async function until<T>(fn: () => Promise<T | undefined | false>, what: string, ms = 15_000): Promise<T> {
@@ -139,6 +141,11 @@ describe('team workspaces between two apps', () => {
       const page = await arda.call<{ messages: Message[] }>('messages.list', { channelId: genel });
       return page.messages.some((m) => m.text === 'Hoş geldin');
     }, 'arda got kaan');
+
+    // Typing travels live, without being stored.
+    await arda.call('channels.typing', { channelId: genel });
+    await until(async () => kaan.events('person.typing').length > 0, 'kaan hears arda typing', 5000);
+    expect(kaan.events('person.typing')[0]).toMatchObject({ channelId: genel, name: 'Arda' });
 
     // Kaan's agent, open to editors at read level: Arda's mention runs it on Kaan's computer, capped at read.
     const agent = await kaan.call<Agent>('agents.save', {

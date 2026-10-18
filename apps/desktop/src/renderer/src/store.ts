@@ -64,6 +64,10 @@ interface AppState {
   workspaces: WorkspaceSummary[];
   newWorkspaceOpen?: boolean;
   inviteOpen?: boolean;
+  /** Other members typing, per channel: device → name and when it was last heard. */
+  peopleTyping: Record<string, Record<string, { name: string; at: number }>>;
+  /** Workspaces in the background with something new from another member. */
+  activity: Record<string, boolean>;
   /** `/goal`: the dialog, with the goal text typed so far. */
   goalDialog?: { channelId: string; text: string; agentId?: string };
   /** Advisors writing right now, per channel. */
@@ -206,6 +210,8 @@ export const useApp = create<AppState>((set, get) => {
     typing: {},
     goals: [],
     workspaces: [],
+    peopleTyping: {},
+    activity: {},
     shortcutsOpen: false,
 
     async init() {
@@ -234,9 +240,35 @@ export const useApp = create<AppState>((set, get) => {
           if (first) void get().openChannel(first.id);
         }
       });
-      core.on('message.added', (m) =>
-        set((s) => ({ messages: { ...s.messages, [m.channelId]: upsert(s.messages[m.channelId] ?? [], m) } })),
+      core.on('message.added', (m) => {
+        set((s) => {
+          // A message from someone ends their typing line.
+          const typing = { ...(s.peopleTyping[m.channelId] ?? {}) };
+          if (m.author.kind === 'person') delete typing[m.author.id];
+          return {
+            messages: { ...s.messages, [m.channelId]: upsert(s.messages[m.channelId] ?? [], m) },
+            peopleTyping: { ...s.peopleTyping, [m.channelId]: typing },
+          };
+        });
+        // Another member writes while Lonca is in the background: an OS notification.
+        const ws = get().workspace;
+        if (ws?.kind === 'team' && m.author.kind === 'person' && m.author.id !== ws.me.id && !document.hasFocus()) {
+          const channel = ws.channels.find((c) => c.id === m.channelId);
+          void window.lonca.shell.notify(
+            `#${channel?.name ?? ''} · ${ws.name}`,
+            `${m.author.name}: ${m.text.slice(0, 200)}`,
+          );
+        }
+      });
+      core.on('person.typing', ({ channelId, device, name }) =>
+        set((s) => ({
+          peopleTyping: {
+            ...s.peopleTyping,
+            [channelId]: { ...(s.peopleTyping[channelId] ?? {}), [device]: { name, at: Date.now() } },
+          },
+        })),
       );
+      core.on('workspace.activity', ({ id }) => set((s) => ({ activity: { ...s.activity, [id]: true } })));
       core.on('message.updated', (m) =>
         set((s) => ({ messages: { ...s.messages, [m.channelId]: upsert(s.messages[m.channelId] ?? [], m) } })),
       );
@@ -474,7 +506,14 @@ export const useApp = create<AppState>((set, get) => {
       const state = await attempt(() => core.call('workspaces.open', { id }));
       if (!state) return;
       // A different workspace: what was on screen belongs to the other one.
-      set({ workspace: state, channelId: undefined, view: 'channel', jobs: {}, watching: undefined });
+      set((s) => ({
+        workspace: state,
+        channelId: undefined,
+        view: 'channel',
+        jobs: {},
+        watching: undefined,
+        activity: { ...s.activity, [id]: false },
+      }));
       await get().loadWorkspace();
     },
 

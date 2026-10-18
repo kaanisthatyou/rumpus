@@ -656,7 +656,8 @@
     "state": {
       "joining": "onay bekliyor",
       "denied": "istek reddedildi"
-    }
+    },
+    "news": "Yeni mesaj var"
   },
   "invite": {
     "title": "Davet",

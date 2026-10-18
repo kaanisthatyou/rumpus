@@ -238,6 +238,13 @@ export class Core {
       'channels.create': async (p) => this.createChannel(p?.name),
       'channels.rename': async (p) => this.renameChannel(p?.id, p?.name),
       'channels.delete': async (p) => this.deleteChannel(p?.id),
+      'channels.typing': async (p) => {
+        const ws = this.workspace();
+        const channel = typeof p?.channelId === 'string' ? ws.store.channel(p.channelId) : undefined;
+        if (channel && ws.kind === 'team')
+          this.live(ws, { kind: 'typing', channelId: channel.id, name: this.me().name });
+        return { ok: true as const };
+      },
       'messages.list': async (p) => {
         const { store } = this.workspace();
         if (!p || typeof p.channelId !== 'string') throw new CoreError('bad_request');
@@ -416,6 +423,11 @@ export class Core {
     this.peers.add(peer);
     peer.onFrame((frame) => void this.handle(peer, frame));
     peer.onClose?.(() => this.peers.delete(peer));
+  }
+
+  /** An event about a workspace in the background that the window should still hear (a rail badge). */
+  private emitGlobal<E extends EventName>(event: E, data: CoreEvents[E]): void {
+    for (const peer of this.peers) peer.send({ event, data });
   }
 
   emit<E extends EventName>(event: E, data: CoreEvents[E]): void {
@@ -632,6 +644,8 @@ export class Core {
       emitJob: (job) =>
         inWs(() => {
           this.emit('job.updated', job);
+          // Others see this device's running jobs move, about once a second; the end comes as a signed event.
+          if (kind === 'team' && (job.state === 'running' || job.state === 'attention')) this.liveJob(ref.ws, job);
           this.cardFollowsJob(job.id, job.state);
           const over = job.state !== 'running' && job.state !== 'attention';
           if (over && !ref.ws.ended.has(job.id)) {
@@ -910,6 +924,10 @@ export class Core {
       this.within(ws, () => ws.sync?.receive(events));
       return { ok: true };
     }
+    if (req.path === '/v1/live') {
+      this.within(ws, () => this.liveIn(ws, req.device, body));
+      return { ok: true };
+    }
     throw new PeerError(404, 'path');
   }
 
@@ -1094,6 +1112,52 @@ export class Core {
     }
   }
 
+  // ---------------------------------------------------------------- live updates between members (not stored)
+
+  private readonly liveSent = new Map<string, number>();
+
+  /** Sends a passing update to every member that answered the last sync. */
+  private live(ws: Workspace, body: Record<string, unknown>): void {
+    const signer = this.opts.signer;
+    if (!signer || !ws.membership?.can(this.deviceId, 'viewer')) return;
+    const client = new PeerClient(this.deviceId, signer, 5000);
+    const endpoints = ws.store.endpoints();
+    for (const m of ws.store.members()) {
+      if (m.device === this.deviceId || m.removed || this.reach.get(m.device) !== true) continue;
+      const address = endpoints[m.device]?.[0];
+      if (address) void client.call(address, '/v1/live', ws.id, body).catch(() => {});
+    }
+  }
+
+  private liveJob(ws: Workspace, job: Job): void {
+    const last = this.liveSent.get(job.id) ?? 0;
+    if (Date.now() - last < 1000) return;
+    this.liveSent.set(job.id, Date.now());
+    const steps = job.steps.slice(-8).map(({ preview: _p, ...s }) => s);
+    this.live(ws, {
+      kind: 'job',
+      job: { ...job, steps, ...(job.preview ? { preview: job.preview.slice(-280) } : {}) },
+    });
+  }
+
+  /** A passing update from a member: shown, never stored. */
+  private liveIn(ws: Workspace, device: string, body: Record<string, unknown>): void {
+    if (body.kind === 'typing' && typeof body.channelId === 'string' && ws.store.channel(body.channelId)) {
+      const name = ws.membership?.member(device)?.name ?? String(body.name ?? '').slice(0, 40);
+      this.emit('person.typing', { channelId: body.channelId, device, name });
+      return;
+    }
+    if (body.kind === 'job') {
+      const job = body.job as Job | undefined;
+      // Only the agent's owner reports its job, and only while it runs.
+      if (!job || typeof job.id !== 'string' || this.agentOwner(ws.store, String(job.agentId)) !== device) return;
+      if (job.state !== 'running' && job.state !== 'attention') return;
+      const stored = ws.store.job(job.id);
+      if (stored && stored.state !== 'running' && stored.state !== 'attention') return;
+      this.emit('job.updated', job);
+    }
+  }
+
   /** Events from peers changed the tables: the window hears about it like about its own changes. */
   private afterIngest(ws: Workspace, events: SignedEvent[]): void {
     const { store } = ws;
@@ -1105,6 +1169,7 @@ export class Core {
           const m = store.message(id);
           if (!m) break;
           this.emit('message.added', m);
+          if (ws.id !== this.currentId()) this.within(ws, () => this.emitGlobal('workspace.activity', { id: ws.id }));
           // Another member called one of this device's agents: the access rules decide.
           const channel = store.channel(m.channelId);
           if (channel && m.author.kind === 'person') void ws.jobs.onMessage(m, channel);

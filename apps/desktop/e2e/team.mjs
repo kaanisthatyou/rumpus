@@ -144,6 +144,22 @@ try {
   await p.locator('.msg', { hasText: 'Hoş geldin' }).waitFor({ timeout: 30_000 });
   await arda.shot('chat');
 
+  // Arda typing shows on Kaan's side; nothing is stored.
+  await ardaBox.fill('yazıyorum');
+  await kaan.page.getByText(L.advisor.typing.replace('{{names}}', 'Arda')).waitFor({ timeout: 15_000 });
+  await kaan.shot('typing');
+  await ardaBox.fill('');
+
+  // Kaan in the personal lonca: a message from Arda marks the team lonca in the rail.
+  await kaan.page.getByRole('button', { name: L.shell.workspace, exact: true }).click();
+  await ardaBox.fill('Kaan, arka planda mısın?');
+  await ardaBox.press('Enter');
+  const news = kaan.page.getByRole('button', { name: `Ekip · ${L.workspaces.news}` });
+  await news.waitFor({ timeout: 30_000 });
+  await news.click();
+  await kaan.page.locator('.msg', { hasText: 'arka planda mısın' }).waitFor();
+  p = arda.page;
+
   // Kaan's agent, open to editors: Arda's mention runs on Kaan's computer and the answer comes back.
   p = kaan.page;
   await p.getByRole('button', { name: L.crew.add, exact: true }).click();

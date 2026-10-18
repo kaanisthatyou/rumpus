@@ -71,6 +71,7 @@ function Rail({ onSettings }: { onSettings: () => void }) {
   const workspaces = useApp((s) => s.workspaces);
   const current = useApp((s) => s.workspace?.id);
   const openWorkspace = useApp((s) => s.openWorkspace);
+  const activity = useApp((s) => s.activity);
   return (
     <nav className="rail" aria-label={t('shell.workspaces')}>
       <div className="rail__mark">
@@ -78,7 +79,12 @@ function Rail({ onSettings }: { onSettings: () => void }) {
       </div>
       {workspaces.map((w) => {
         const name = w.kind === 'personal' ? t('shell.workspace') : w.name;
-        const note = w.state ? `${name} · ${t(`workspaces.state.${w.state}`)}` : name;
+        const fresh = activity[w.id] === true && w.id !== current;
+        const note = w.state
+          ? `${name} · ${t(`workspaces.state.${w.state}`)}`
+          : fresh
+            ? `${name} · ${t('workspaces.news')}`
+            : name;
         return (
           <button
             key={w.id}
@@ -91,6 +97,7 @@ function Rail({ onSettings }: { onSettings: () => void }) {
             onClick={() => void openWorkspace(w.id)}
           >
             {name.slice(0, 2)}
+            {fresh && <span className="ws__dot" aria-hidden="true" />}
           </button>
         );
       })}

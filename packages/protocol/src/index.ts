@@ -161,6 +161,8 @@ export interface CoreMethods {
   'channels.create': { params: { name: string }; result: Channel };
   'channels.rename': { params: { id: string; name: string }; result: Channel };
   'channels.delete': { params: { id: string }; result: { ok: true } };
+  /** A person is typing in a channel (team workspaces tell the others; nothing is stored). */
+  'channels.typing': { params: { channelId: string }; result: { ok: true } };
   'messages.list': {
     params: { channelId: string; before?: number; limit?: number };
     result: { messages: Message[]; jobs: Job[] };
@@ -223,6 +225,10 @@ export interface CoreEvents {
   'record.changed': RecordItem;
   'record.deleted': { id: string };
   'goal.changed': Goal;
+  /** Another member is typing in a channel of the open workspace. */
+  'person.typing': { channelId: string; device: string; name: string };
+  /** Something new from another member in a workspace that is not open. */
+  'workspace.activity': { id: string };
   /** An advisor is writing (or stopped writing) in a channel. */
   'advisor.typing': { advisorId: string; channelId: string; on: boolean };
   'advisor.spend': Record<string, number>;

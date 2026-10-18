@@ -5,6 +5,7 @@ import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 
 import { useTranslation } from 'react-i18next';
 import { GoalCard } from '../goals/GoalCard';
 import { fillCommand, RefImage, readImage } from '../records/RecordsView';
+import { core } from '../rpc';
 import { useApp } from '../store';
 import { clock, dayKey, dayLabel } from './format';
 import { JobCard } from './JobCard';
@@ -167,11 +168,27 @@ function MessageRow({ message, agents, jobs }: { message: Message; agents: Agent
   );
 }
 
+const NO_PEOPLE: Record<string, { name: string; at: number }> = {};
+
 function Typing({ channelId }: { channelId: string }) {
   const { t } = useTranslation();
   const ids = useApp((s) => s.typing[channelId] ?? NO_REFS);
   const advisors = useApp((s) => s.workspace?.advisors ?? NO_ADVISORS);
-  const names = ids.map((id) => advisors.find((a) => a.id === id)?.name).filter(Boolean);
+  const people = useApp((s) => s.peopleTyping[channelId] ?? NO_PEOPLE);
+  // People's typing lines fade after a few seconds without news.
+  const [now, setNow] = useState(Date.now());
+  const anyPeople = Object.keys(people).length > 0;
+  useEffect(() => {
+    if (!anyPeople) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [anyPeople]);
+  const names = [
+    ...Object.values(people)
+      .filter((p) => now - p.at < 5000)
+      .map((p) => p.name),
+    ...ids.map((id) => advisors.find((a) => a.id === id)?.name).filter(Boolean),
+  ];
   return (
     <AnimatePresence>
       {names.length > 0 && (
@@ -218,6 +235,8 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
   const saveRecord = useApp((s) => s.saveRecord);
   const inject = useApp((s) => s.inject);
   const [picking, setPicking] = useState(false);
+  const team = useApp((s) => s.workspace?.kind === 'team');
+  const typedAt = useRef(0);
   const me = useApp((s) => s.workspace?.me);
   const tiles = records.filter((r) => r.kind === 'command' && r.pinned);
   const [pickQuery, setPickQuery] = useState('');
@@ -360,7 +379,11 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
       setText('');
       return;
     }
-    if (await send(value)) setText('');
+    if (await send(value)) {
+      setText('');
+      // The next words are a new message: others hear about the typing again at once.
+      typedAt.current = 0;
+    }
   };
 
   const placeholder = own
@@ -494,6 +517,11 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
           onChange={(e) => {
             setText(e.target.value);
             setPick(0);
+            // Other members see "typing" at most every three seconds.
+            if (team && e.target.value.trim() && Date.now() - typedAt.current > 3000) {
+              typedAt.current = Date.now();
+              void core.call('channels.typing', { channelId: channel.id }).catch(() => {});
+            }
           }}
           onPaste={(e) => {
             const files = [...e.clipboardData.files];

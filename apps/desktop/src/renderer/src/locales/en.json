@@ -656,7 +656,8 @@
     "state": {
       "joining": "waiting for approval",
       "denied": "request turned down"
-    }
+    },
+    "news": "New messages"
   },
   "invite": {
     "title": "Invite",
