@@ -15,6 +15,20 @@ export class Clock {
 
   constructor(private readonly deviceId: string) {}
 
+  /** A stamp seen from another device: later stamps from here sort after it. */
+  observe(stamp: string): void {
+    const [ms36, c36] = stamp.split('.');
+    const ms = Number.parseInt(ms36 ?? '', 36);
+    const counter = Number.parseInt(c36 ?? '', 36);
+    if (!Number.isFinite(ms) || !Number.isFinite(counter)) return;
+    if (ms > this.last) {
+      this.last = ms;
+      this.counter = counter;
+    } else if (ms === this.last && counter > this.counter) {
+      this.counter = counter;
+    }
+  }
+
   now(wall = Date.now()): string {
     if (wall > this.last) {
       this.last = wall;

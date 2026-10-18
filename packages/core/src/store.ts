@@ -5,6 +5,7 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import type { Advisor, Agent, Author, Card, Channel, Goal, Job, Message, RecordItem } from '@lonca/protocol';
+import type { SignedEvent } from './identity.js';
 import { Clock, newId } from './ids.js';
 
 type Row = Record<string, unknown>;
@@ -58,6 +59,11 @@ CREATE TABLE IF NOT EXISTS goals (
 CREATE TABLE IF NOT EXISTS advisor_spend (
   advisor_id TEXT NOT NULL, day TEXT NOT NULL, tokens INTEGER NOT NULL, PRIMARY KEY (advisor_id, day)
 );
+CREATE TABLE IF NOT EXISTS entity_at (entity TEXT PRIMARY KEY, at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS heads (author TEXT PRIMARY KEY, n INTEGER NOT NULL);
+CREATE TRIGGER IF NOT EXISTS messages_ad AFTER DELETE ON messages BEGIN
+  INSERT INTO messages_fts (messages_fts, rowid, text) VALUES ('delete', old.rowid, old.text);
+END;
 CREATE TABLE IF NOT EXISTS sessions (
   agent_id TEXT NOT NULL, channel_id TEXT NOT NULL, session_id TEXT NOT NULL, PRIMARY KEY (agent_id, channel_id)
 );
@@ -81,6 +87,35 @@ export type WorkspaceEvent =
   | { type: 'record.deleted'; data: { id: string } };
 
 const json = <T>(text: unknown): T => JSON.parse(String(text)) as T;
+
+/** The tables an entity kind lives in (`<kind>:<id>`, from the event type's first word and the data's id). */
+const TABLES: Record<string, string> = {
+  channel: 'channels',
+  agent: 'agents',
+  message: 'messages',
+  card: 'cards',
+  record: 'records',
+  advisor: 'advisors',
+  goal: 'goals',
+};
+
+export function entityOf(type: string, data: unknown): string {
+  const kind = type.slice(0, type.indexOf('.'));
+  const d = (data ?? {}) as { id?: unknown; device?: unknown };
+  return `${kind}:${String(d.id ?? d.device ?? '')}`;
+}
+
+function toSigned(r: Row): SignedEvent {
+  return {
+    id: String(r.id),
+    author: String(r.author),
+    n: Number(r.n),
+    at: String(r.at),
+    type: String(r.type),
+    data: json(r.data),
+    sig: String(r.sig ?? ''),
+  };
+}
 
 function toChannel(r: Row): Channel {
   return {
@@ -119,7 +154,10 @@ export class WorkspaceStore {
     this.db.exec(SCHEMA);
     const columns = (this.db.prepare('PRAGMA table_info(messages)').all() as Row[]).map((r) => String(r.name));
     if (!columns.includes('refs')) this.db.exec('ALTER TABLE messages ADD COLUMN refs TEXT');
+    this.migrateEvents();
     this.clock = new Clock(deviceId);
+    const latest = this.db.prepare('SELECT MAX(at) AS at FROM events').get() as Row | undefined;
+    if (latest?.at) this.clock.observe(String(latest.at));
   }
 
   close(): void {
@@ -140,18 +178,152 @@ export class WorkspaceStore {
   // ---------------------------------------------------------------- the log
 
   /** Appends an event and applies it, in one transaction. */
-  commit(event: WorkspaceEvent): void {
+  /** Events from before Phase 3 get their author count and entity; a one-time step per database. */
+  private migrateEvents(): void {
+    const cols = (this.db.prepare('PRAGMA table_info(events)').all() as Row[]).map((r) => String(r.name));
+    if (cols.includes('entity')) return;
     this.db.exec('BEGIN');
     try {
-      this.db
-        .prepare('INSERT INTO events (id, at, author, type, data) VALUES (?, ?, ?, ?, ?)')
-        .run(newId(), this.clock.now(), this.deviceId, event.type, JSON.stringify(event.data));
-      this.apply(event);
+      this.db.exec('ALTER TABLE events ADD COLUMN n INTEGER');
+      this.db.exec('ALTER TABLE events ADD COLUMN sig TEXT');
+      this.db.exec('ALTER TABLE events ADD COLUMN entity TEXT');
+      this.db.exec(
+        "UPDATE events SET entity = substr(type, 1, instr(type, '.') - 1) || ':' || coalesce(json_extract(data, '$.id'), '')",
+      );
+      this.db.exec(
+        'UPDATE events SET n = (SELECT COUNT(*) FROM events e2 WHERE e2.author = events.author AND e2.seq <= events.seq)',
+      );
+      this.db.exec('CREATE UNIQUE INDEX IF NOT EXISTS events_by_author ON events (author, n)');
+      this.db.exec('CREATE INDEX IF NOT EXISTS events_by_entity ON events (entity, at)');
+      this.db.exec('INSERT OR REPLACE INTO heads (author, n) SELECT author, MAX(n) FROM events GROUP BY author');
+      this.db.exec('INSERT OR REPLACE INTO entity_at (entity, at) SELECT entity, MAX(at) FROM events GROUP BY entity');
       this.db.exec('COMMIT');
     } catch (err) {
       this.db.exec('ROLLBACK');
       throw err;
     }
+  }
+
+  commit(event: WorkspaceEvent): void {
+    this.db.exec('BEGIN');
+    try {
+      const n = this.head(this.deviceId) + 1;
+      const at = this.clock.now();
+      const entity = entityOf(event.type, event.data);
+      this.db
+        .prepare('INSERT INTO events (id, at, author, type, data, n, entity) VALUES (?, ?, ?, ?, ?, ?, ?)')
+        .run(newId(), at, this.deviceId, event.type, JSON.stringify(event.data), n, entity);
+      this.db.prepare('INSERT OR REPLACE INTO heads (author, n) VALUES (?, ?)').run(this.deviceId, n);
+      this.apply(event);
+      this.db.prepare('INSERT OR REPLACE INTO entity_at (entity, at) VALUES (?, ?)').run(entity, at);
+      this.db.exec('COMMIT');
+    } catch (err) {
+      this.db.exec('ROLLBACK');
+      throw err;
+    }
+  }
+
+  // ---------------------------------------------------------------- sync (Phase 3)
+
+  /** The highest count up to which every event of an author is here. */
+  private head(author: string): number {
+    const r = this.db.prepare('SELECT n FROM heads WHERE author = ?').get(author) as Row | undefined;
+    return r ? Number(r.n) : 0;
+  }
+
+  /**
+   * What this copy can give others: for each author, the count up to which it holds every event signed. Own events
+   * count once they are signed (they are signed in order).
+   */
+  heads(): Record<string, number> {
+    const out: Record<string, number> = {};
+    for (const r of this.db.prepare('SELECT author, n FROM heads').all() as Row[]) out[String(r.author)] = Number(r.n);
+    const own = this.db
+      .prepare('SELECT MAX(n) AS n FROM events WHERE author = ? AND sig IS NOT NULL')
+      .get(this.deviceId) as Row | undefined;
+    if (own?.n) out[this.deviceId] = Number(own.n);
+    else delete out[this.deviceId];
+    return out;
+  }
+
+  /** Signed events another copy lacks, judged by its heads; oldest first per author. */
+  eventsAfter(theirs: Record<string, number>, limit = 500): SignedEvent[] {
+    const out: SignedEvent[] = [];
+    for (const [author, mine] of Object.entries(this.heads())) {
+      const from = Math.max(0, Math.floor(Number(theirs[author]) || 0));
+      if (mine <= from) continue;
+      const rows = this.db
+        .prepare(
+          'SELECT id, author, n, at, type, data, sig FROM events WHERE author = ? AND n > ? AND n <= ? AND sig IS NOT NULL ORDER BY n LIMIT ?',
+        )
+        .all(author, from, mine, limit - out.length) as Row[];
+      out.push(...rows.map(toSigned));
+      if (out.length >= limit) break;
+    }
+    return out;
+  }
+
+  /** Own events waiting for a signature, in order. */
+  unsigned(limit = 200): Omit<SignedEvent, 'sig'>[] {
+    return (
+      this.db
+        .prepare('SELECT id, author, n, at, type, data FROM events WHERE author = ? AND sig IS NULL ORDER BY n LIMIT ?')
+        .all(this.deviceId, limit) as Row[]
+    ).map((r) => {
+      const { sig: _sig, ...rest } = toSigned({ ...r, sig: '' });
+      return rest;
+    });
+  }
+
+  setSignature(id: string, sig: string): void {
+    this.db.prepare('UPDATE events SET sig = ? WHERE id = ? AND sig IS NULL').run(sig, id);
+  }
+
+  /**
+   * An event from another copy (already checked by the caller). New events change the tables; an event older than
+   * what its entity already shows makes the entity be built again from the log, so every copy ends up the same
+   * whatever order events arrive in. Returns false for an event already here.
+   */
+  ingest(e: SignedEvent): boolean {
+    if (this.db.prepare('SELECT 1 FROM events WHERE id = ?').get(e.id)) return false;
+    if (this.db.prepare('SELECT 1 FROM events WHERE author = ? AND n = ?').get(e.author, e.n)) return false;
+    const entity = entityOf(e.type, e.data);
+    this.clock.observe(e.at);
+    this.db.exec('BEGIN');
+    try {
+      this.db
+        .prepare('INSERT INTO events (id, at, author, type, data, n, sig, entity) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+        .run(e.id, e.at, e.author, e.type, JSON.stringify(e.data), e.n, e.sig, entity);
+      // The author's head moves over every event now present without a gap.
+      let head = this.head(e.author);
+      while (this.db.prepare('SELECT 1 FROM events WHERE author = ? AND n = ?').get(e.author, head + 1)) head += 1;
+      this.db.prepare('INSERT OR REPLACE INTO heads (author, n) VALUES (?, ?)').run(e.author, head);
+      const last = this.db.prepare('SELECT at FROM entity_at WHERE entity = ?').get(entity) as Row | undefined;
+      if (!last || e.at > String(last.at)) {
+        this.apply({ type: e.type, data: e.data } as WorkspaceEvent);
+        this.db.prepare('INSERT OR REPLACE INTO entity_at (entity, at) VALUES (?, ?)').run(entity, e.at);
+      } else {
+        this.rebuild(entity);
+      }
+      this.db.exec('COMMIT');
+    } catch (err) {
+      this.db.exec('ROLLBACK');
+      throw err;
+    }
+    return true;
+  }
+
+  /** Builds one entity again from its events in clock order. */
+  private rebuild(entity: string): void {
+    const [kind, id] = [entity.slice(0, entity.indexOf(':')), entity.slice(entity.indexOf(':') + 1)];
+    const table = TABLES[kind];
+    if (!table) return;
+    this.db.prepare(`DELETE FROM ${table} WHERE id = ?`).run(id);
+    const rows = this.db.prepare('SELECT type, data, at FROM events WHERE entity = ? ORDER BY at').all(entity) as Row[];
+    for (const r of rows) this.apply({ type: String(r.type), data: json(r.data) } as WorkspaceEvent);
+    const last = rows.at(-1);
+    if (last)
+      this.db.prepare('INSERT OR REPLACE INTO entity_at (entity, at) VALUES (?, ?)').run(entity, String(last.at));
   }
 
   private apply(e: WorkspaceEvent): void {

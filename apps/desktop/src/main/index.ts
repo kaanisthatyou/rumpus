@@ -15,6 +15,7 @@ import {
   utilityProcess,
 } from 'electron';
 import type { UpdateState } from '../shared/bridge.js';
+import { Identity } from './identity.js';
 import { errorCode, Providers } from './providers.js';
 import { Updater } from './updater.js';
 import { loadWindowState, trackWindowState } from './window-state.js';
@@ -33,6 +34,7 @@ let quitting = false;
 let coreRestarts = 0;
 const updater = new Updater();
 let providers: Providers | undefined;
+let identity: Identity | undefined;
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
@@ -55,6 +57,7 @@ function startCore(): void {
     },
   });
   providers?.attach(core);
+  identity?.attach(core);
   core.on('exit', () => {
     core = undefined;
     if (quitting || coreRestarts > 5) return;
@@ -207,6 +210,7 @@ function createWindow(): BrowserWindow {
 
 function start(): void {
   providers = new Providers(appDir);
+  identity = new Identity(appDir);
   providers.onChange((state) => {
     if (win && !win.isDestroyed()) win.webContents.send('providers:changed', state);
   });

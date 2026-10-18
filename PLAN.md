@@ -636,6 +636,12 @@ The details behind 5.11 and 6.5, decided before building.
   rail lists them and ＋ makes a team lonca; the open one is a setting. Workspaces in the background keep running
   (jobs, goals, advisors); their callbacks run in their own scope, so a background job or an agent's tool call reads
   and writes its own workspace, and only the open workspace's events reach the window.
+  3.2. The device key (Ed25519, sealed in `<app>/identity.json`, signing in the main process through
+  `PortSigner`); the device id stays the existing random one and certificates will bind it to the key. The log gets
+  author counts, signatures (own events are signed after they are applied, so committing stays synchronous) and
+  entities; `ingest` takes a peer's event, and an event older than what its entity shows rebuilds the entity from
+  the log in clock order. Heads count only gap-free, signed events. Unit tests shuffle the same events into fresh
+  copies and get the same tables every time.
 - **Slices:** 3.1 several workspaces; 3.2 identity, signed log, last-writer-wins; 3.3 transport and sync between
   two apps (two `LONCA_HOME` instances on one PC in tests); 3.4 invites, roles, members panel; 3.5 cross-member
   jobs and agent access; 3.6 presence, typing, notifications; 3.7 the phone companion.

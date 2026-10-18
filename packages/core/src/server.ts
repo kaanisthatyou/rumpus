@@ -36,6 +36,7 @@ import { Blobs } from './blobs.js';
 import type { OpenSession } from './drivers/types.js';
 import { Gateway, type Tool, type ToolContent } from './gateway.js';
 import { Goals, gitWorktrees } from './goals.js';
+import type { Signer } from './identity.js';
 import { newId } from './ids.js';
 import { Instructions } from './instructions.js';
 import { Jobs } from './jobs.js';
@@ -67,6 +68,8 @@ export interface CoreOptions {
   launch?: (path: string) => Launch;
   /** Model providers (the main process in the app). */
   llm?: Llm;
+  /** The device key's signer (the main process in the app). */
+  signer?: Signer;
 }
 
 interface Workspace {
