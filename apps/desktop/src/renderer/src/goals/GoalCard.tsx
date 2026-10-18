@@ -21,6 +21,7 @@ export function GoalCard({ goal, agent }: { goal: Goal; agent: Agent | undefined
   const approveGoal = useApp((s) => s.approveGoal);
   const stopGoal = useApp((s) => s.stopGoal);
   const resumeGoal = useApp((s) => s.resumeGoal);
+  const removeWorktree = useApp((s) => s.removeWorktree);
   const openJob = useApp((s) => s.openJob);
   const [comments, setComments] = useState<Record<string, string>>({});
   const [open, setOpen] = useState<string>();
@@ -134,6 +135,33 @@ export function GoalCard({ goal, agent }: { goal: Goal; agent: Agent | undefined
           <Icon name="chat" size={12} />
           {goal.comments.find((c) => !c.stepId)?.text}
         </p>
+      )}
+
+      {goal.worktree && (
+        <div className={`goal__tree ${goal.worktree.removed ? 'is-gone' : ''}`}>
+          <Icon name="folder" size={13} />
+          <span>{t('goal.branch')}</span>
+          <code className="l-mono">{goal.worktree.branch}</code>
+          <span className="grow" />
+          {goal.worktree.removed ? (
+            <span className="muted">{t('goal.worktreeRemoved')}</span>
+          ) : (
+            <>
+              <Button
+                size="sm"
+                variant="quiet"
+                onClick={() => goal.worktree && void window.lonca.shell.openFolder(goal.worktree.path)}
+              >
+                {t('goal.openFolder')}
+              </Button>
+              {!OPEN.has(goal.state) && (
+                <Button size="sm" variant="quiet" icon="trash" onClick={() => void removeWorktree(goal.id)}>
+                  {t('goal.removeWorktree')}
+                </Button>
+              )}
+            </>
+          )}
+        </div>
       )}
 
       {goal.lastCheck && (

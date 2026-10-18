@@ -3,6 +3,7 @@
 // stop a slow job in the agent's own channel, edit and delete a message, restart and find everything again.
 // Usage: node e2e/channel.mjs   (after electron-vite build; E2E_EXE=release/win-unpacked/Lonca.exe for packaged)
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
@@ -287,6 +288,28 @@ try {
   await page.getByRole('button', { name: L.shell.goals, exact: true }).click();
   await page.getByRole('region', { name: L.goal.title }).getByText(L.goal.state.done, { exact: true }).waitFor();
 
+  // A goal in its own git worktree: the project becomes a repository, the goal runs on a branch of its own, and
+  // the worktree is removed afterwards (the branch stays).
+  const git = (...args) => execFileSync('git', ['-C', project, ...args], { stdio: 'pipe' });
+  git('init', '-q');
+  git('config', 'user.email', 'e2e@example.com');
+  git('config', 'user.name', 'e2e');
+  git('add', '.');
+  git('commit', '-qm', 'first');
+  await page.getByRole('button', { name: 'genel', exact: true }).click();
+  await composer.fill('/goal Ayrı dalda dene');
+  await composer.press('Enter');
+  await goalDialog.getByRole('switch', { name: L.goal.worktree }).click();
+  await goalDialog.getByRole('button', { name: L.goal.start }).click();
+  const treeCard = page.getByRole('region', { name: L.goal.title }).filter({ hasText: 'Ayrı dalda dene' });
+  await treeCard.getByText('lonca/goal-').waitFor();
+  await treeCard.getByRole('button', { name: L.goal.approve, exact: true }).click();
+  await treeCard.getByText(L.goal.state.done, { exact: true }).waitFor({ timeout: 30_000 });
+  await shot(page, 'goal-worktree');
+  await treeCard.getByRole('button', { name: L.goal.removeWorktree }).click();
+  await treeCard.getByText(L.goal.worktreeRemoved).waitFor();
+  assert.match(git('branch', '--list', 'lonca/*').toString(), /lonca\/goal-/);
+
   // Edit and delete own messages.
   await page.getByRole('button', { name: 'genel', exact: true }).click();
   const own = page.locator('.msg--person').first();
@@ -317,7 +340,11 @@ try {
   await page.getByText('(düzeltildi)').waitFor();
   await page.getByText('sahte proje').first().waitFor();
   assert.equal(await page.getByText('silinecek mesaj').count(), 0);
-  await page.getByRole('region', { name: L.goal.title }).getByText(L.goal.state.done, { exact: true }).waitFor();
+  await page
+    .getByRole('region', { name: L.goal.title })
+    .first()
+    .getByText(L.goal.state.done, { exact: true })
+    .waitFor();
   await page.getByRole('button', { name: '@claude', exact: true }).click();
   await page.getByText(L.job.state.stopped).first().waitFor();
   await shot(page, 'restart');

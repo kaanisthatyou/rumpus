@@ -52,6 +52,8 @@ export interface JobsDeps {
 interface Live {
   agent: Agent;
   channelId: string;
+  /** The session's place: the channel, or the channel plus a scope (a goal in its own worktree). */
+  slot: string;
   session: AgentSession;
   job: Job | undefined;
   queue: string[];
@@ -63,6 +65,8 @@ interface Live {
 
 const MENTION = /(^|[^\w@])@([a-z0-9][a-z0-9-]{0,31})\b/g;
 const EMIT_EVERY_MS = 120;
+
+const slotOf = (channelId: string, scope?: string) => (scope ? `${channelId}#${scope}` : channelId);
 
 export function mentions(text: string): string[] {
   return [...new Set([...text.matchAll(MENTION)].map((m) => m[2] ?? ''))];
@@ -155,18 +159,35 @@ export class Jobs {
     return failed;
   }
 
-  /** Starts a job with Lonca's own prompt (goal mode); `request` is the message its card hangs under. */
-  startWith(agent: Agent, channel: Channel, request: Message, prompt: string): Promise<Job> {
-    return this.start(agent, channel, request, prompt);
+  /**
+   * Starts a job with Lonca's own prompt (goal mode); `request` is the message its card hangs under. With a
+   * `scope`, the job runs in a session of its own (and `folder`, when given, instead of the agent's folder).
+   */
+  startWith(
+    agent: Agent,
+    channel: Channel,
+    request: Message,
+    prompt: string,
+    opts: { folder?: string; scope?: string } = {},
+  ): Promise<Job> {
+    return this.start(agent, channel, request, prompt, opts);
   }
 
-  /** Whether the agent is working (or waiting on a person) in that channel now. */
-  busy(agentId: string, channelId: string): boolean {
-    const job = this.live.get(this.key(agentId, channelId))?.job;
+  /** Whether the agent is working (or waiting on a person) in that channel, or that scope of it, now. */
+  busy(agentId: string, channelId: string, scope?: string): boolean {
+    const job = this.live.get(this.key(agentId, slotOf(channelId, scope)))?.job;
     return job?.state === 'running' || job?.state === 'attention';
   }
 
-  private async start(agent: Agent, channel: Channel, request: Message, prompt?: string): Promise<Job> {
+  private async start(
+    base: Agent,
+    channel: Channel,
+    request: Message,
+    prompt?: string,
+    opts: { folder?: string; scope?: string } = {},
+  ): Promise<Job> {
+    const agent = opts.folder ? { ...base, folder: opts.folder } : base;
+    const slot = slotOf(channel.id, opts.scope);
     const job: Job = {
       id: newId(),
       channelId: channel.id,
@@ -185,7 +206,7 @@ export class Jobs {
     if (!cli?.path) return this.fail(job, 'cli_missing');
     if (!isDir(agent.folder)) return this.fail(job, 'folder_missing');
 
-    const key = this.key(agent.id, channel.id);
+    const key = this.key(agent.id, slot);
     let live = this.live.get(key);
     const layers = JSON.stringify(this.deps.layers?.() ?? {});
     if (
@@ -201,12 +222,13 @@ export class Jobs {
     }
     if (!live) {
       const me = this.deps.me();
-      const resume = this.deps.store.session(agent.id, channel.id);
+      const resume = this.deps.store.session(agent.id, slot);
       const mcpUrl = this.deps.gateway ? await this.deps.gateway.ready() : undefined;
       const token = mcpUrl ? this.deps.gateway?.issue({ agentId: agent.id, channelId: channel.id }) : undefined;
       const created: Live = {
         agent,
         channelId: channel.id,
+        slot,
         session: undefined as unknown as AgentSession,
         job: undefined,
         queue: [],
@@ -319,6 +341,16 @@ export class Jobs {
     this.deps.store.setSession(agentId, channelId, undefined);
   }
 
+  /** Ends the session of a scope (a goal in its own worktree), so its process lets go of the folder. */
+  closeScope(agentId: string, channelId: string, scope: string): void {
+    const key = this.key(agentId, slotOf(channelId, scope));
+    const live = this.live.get(key);
+    if (!live) return;
+    if (live.job?.state === 'running' || live.job?.state === 'attention') this.stop(live.job.id);
+    this.close(live);
+    this.live.delete(key);
+  }
+
   /** Stops everything an agent runs (it was deleted or changed). */
   dropAgent(agentId: string): void {
     for (const [key, live] of this.live) {
@@ -347,7 +379,12 @@ export class Jobs {
 
   /** A progress note from the agent (Lonca's post_progress tool) on its current job. */
   note(agentId: string, channelId: string, text: string): boolean {
-    const live = this.live.get(this.key(agentId, channelId));
+    const live = [...this.live.values()].find(
+      (l) =>
+        l.agent.id === agentId &&
+        l.channelId === channelId &&
+        (l.job?.state === 'running' || l.job?.state === 'attention'),
+    );
     const job = live?.job;
     if (!live || !job || (job.state !== 'running' && job.state !== 'attention')) return false;
     const line = text.trim().split('\n')[0]?.slice(0, 200) ?? '';
@@ -363,7 +400,7 @@ export class Jobs {
 
   private onEvent(live: Live, e: DriverEvent): void {
     if (e.type === 'session') {
-      this.deps.store.setSession(live.agent.id, live.channelId, e.id);
+      this.deps.store.setSession(live.agent.id, live.slot, e.id);
       return;
     }
     if (e.type === 'quota') {

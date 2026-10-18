@@ -107,6 +107,7 @@ interface AppState {
   approveGoal(id: string, comments: GoalComment[]): Promise<void>;
   stopGoal(id: string): Promise<void>;
   resumeGoal(id: string, more?: Partial<GoalBudget>): Promise<void>;
+  removeWorktree(id: string): Promise<void>;
   saveAdvisor(input: AdvisorInput): Promise<boolean>;
   deleteAdvisor(id: string): Promise<void>;
   council(channelId: string, topic: string): Promise<boolean>;
@@ -461,6 +462,10 @@ export const useApp = create<AppState>((set, get) => {
 
     async stopGoal(id) {
       await attempt(() => core.call('goals.stop', { id }));
+    },
+
+    async removeWorktree(id) {
+      await attempt(() => core.call('goals.removeWorktree', { id }));
     },
 
     async resumeGoal(id, more) {

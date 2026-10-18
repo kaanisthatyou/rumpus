@@ -34,7 +34,7 @@ import { detectAgents, loginCommand } from './agents.js';
 import { Blobs } from './blobs.js';
 import type { OpenSession } from './drivers/types.js';
 import { Gateway, type Tool, type ToolContent } from './gateway.js';
-import { Goals } from './goals.js';
+import { Goals, gitWorktrees } from './goals.js';
 import { newId } from './ids.js';
 import { Instructions } from './instructions.js';
 import { Jobs } from './jobs.js';
@@ -197,6 +197,7 @@ export class Core {
       'goals.create': async (p) => this.workspace().goals.create(p),
       'goals.approve': async (p) => this.workspace().goals.approve(String(p?.id ?? ''), p?.comments ?? []),
       'goals.stop': async (p) => this.workspace().goals.stop(String(p?.id ?? '')),
+      'goals.removeWorktree': async (p) => this.workspace().goals.removeWorktree(String(p?.id ?? '')),
       'goals.resume': async (p) => this.workspace().goals.resume(String(p?.id ?? ''), p?.more ?? {}),
       'agents.newSession': async (p) => {
         if (typeof p?.agentId !== 'string' || typeof p.channelId !== 'string') throw new CoreError('bad_request');
@@ -447,6 +448,8 @@ export class Core {
       emitGoal: (goal) => this.emit('goal.changed', goal),
       emitMessage: (message) => this.emit('message.added', message),
       runCheck: (command, cwd) => runShell(command, cwd),
+      git: gitWorktrees(this.opts.runner ?? run),
+      worktreesDir: join(this.dataDir(), 'worktrees'),
       onStep: (goal, step, report) => advisors.onGoalStep(goal, step, report),
     });
     goals.recover();

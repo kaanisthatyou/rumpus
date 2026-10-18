@@ -163,6 +163,8 @@ export interface CoreMethods {
   /** Approve the plan, with comments that travel with every step. */
   'goals.approve': { params: { id: string; comments: GoalComment[] }; result: Goal };
   'goals.stop': { params: { id: string }; result: Goal };
+  /** Removes a finished goal's worktree (its branch stays). */
+  'goals.removeWorktree': { params: { id: string }; result: Goal };
   /** Continue a paused goal, optionally with more budget. */
   'goals.resume': { params: { id: string; more?: Partial<GoalBudget> }; result: Goal };
   /** `/meclis`: the advisors in the channel discuss a topic in turn and one sums up. */
@@ -232,6 +234,8 @@ export const ERROR_CODES = [
   'invalid_advisor',
   'invalid_goal',
   'goal_state',
+  'not_git',
+  'worktree_failed',
   'no_advisors',
   'over_budget',
   'provider_bad_url',

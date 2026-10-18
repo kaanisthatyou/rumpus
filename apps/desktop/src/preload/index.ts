@@ -11,6 +11,7 @@ const bridge: LoncaBridge = {
   shell: {
     pickFolder: () => ipcRenderer.invoke('shell:pickFolder'),
     openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
+    openFolder: (path) => ipcRenderer.invoke('shell:openFolder', path),
     copy: (text) => ipcRenderer.invoke('shell:copy', text),
     appInfo: () => ipcRenderer.invoke('shell:appInfo'),
     setTitleBar: (colors) => ipcRenderer.invoke('shell:setTitleBar', colors),

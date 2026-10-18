@@ -1,3 +1,4 @@
+import { statSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   app,
@@ -93,6 +94,11 @@ function registerIpc(): void {
   });
   handle('shell:openExternal', async (_e, url) => {
     if (typeof url === 'string' && /^https:\/\//.test(url)) await shell.openExternal(url);
+  });
+  handle('shell:openFolder', async (_e, path) => {
+    // Folders only: a file path could start a program.
+    if (typeof path === 'string' && statSync(path, { throwIfNoEntry: false })?.isDirectory())
+      await shell.openPath(path);
   });
   handle('shell:copy', (_e, text) => {
     if (typeof text === 'string') clipboard.writeText(text);

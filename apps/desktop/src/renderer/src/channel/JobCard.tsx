@@ -96,34 +96,31 @@ export function JobCard({ job, agent }: { job: Job; agent: Agent | undefined }) 
           ))}
         </motion.ol>
       )}
-      {/* One panel at a time: a new approval waits until the previous panel has gone. */}
-      <AnimatePresence mode="wait">
-        {job.state === 'attention' && job.approval && (
-          <motion.div
-            key={job.approval.id}
-            className="job__approval"
-            role="alert"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-          >
-            <div className="job__approval-text">
-              <b>{t('job.approval.title')}</b>
-              <span>
-                {t(`job.tool.${job.approval.label}`, job.approval.label)}
-                {job.approval.arg && <code>{job.approval.arg}</code>}
-              </span>
-              {job.approval.detail && <span className="job__approval-detail">{job.approval.detail}</span>}
-            </div>
-            <Button size="sm" variant="danger" icon="close" onClick={() => void answerJob(job.id, false)}>
-              {t('job.approval.deny')}
-            </Button>
-            <Button size="sm" variant="primary" icon="check" onClick={() => void answerJob(job.id, true)}>
-              {t('job.approval.allow')}
-            </Button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* No exit animation: an answered approval goes at once, so a closing panel never sits next to a new one. */}
+      {job.state === 'attention' && job.approval && (
+        <motion.div
+          key={job.approval.id}
+          className="job__approval"
+          role="alert"
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+        >
+          <div className="job__approval-text">
+            <b>{t('job.approval.title')}</b>
+            <span>
+              {t(`job.tool.${job.approval.label}`, job.approval.label)}
+              {job.approval.arg && <code>{job.approval.arg}</code>}
+            </span>
+            {job.approval.detail && <span className="job__approval-detail">{job.approval.detail}</span>}
+          </div>
+          <Button size="sm" variant="danger" icon="close" onClick={() => void answerJob(job.id, false)}>
+            {t('job.approval.deny')}
+          </Button>
+          <Button size="sm" variant="primary" icon="check" onClick={() => void answerJob(job.id, true)}>
+            {t('job.approval.allow')}
+          </Button>
+        </motion.div>
+      )}
       {running && job.preview && <p className="job__preview">{job.preview.slice(-280)}</p>}
       {error && job.state !== 'done' && <p className="job__error">{error}</p>}
       <div className="job__foot">

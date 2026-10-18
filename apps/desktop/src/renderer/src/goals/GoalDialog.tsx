@@ -1,5 +1,5 @@
 // `/goal`: the goal, the agent that works on it, its budget and the done check.
-import { Button, IconButton, TextField } from '@lonca/ui';
+import { Button, IconButton, Switch, TextField } from '@lonca/ui';
 import { motion } from 'motion/react';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -18,6 +18,7 @@ export function GoalDialog() {
   const [minutes, setMinutes] = useState('60');
   const [tokens, setTokens] = useState('');
   const [check, setCheck] = useState('');
+  const [apart, setApart] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -59,6 +60,7 @@ export function GoalDialog() {
               ...(tokenLimit ? { tokens: tokenLimit } : {}),
             },
             ...(check.trim() ? { check: check.trim() } : {}),
+            ...(apart ? { worktree: true } : {}),
           });
           setBusy(false);
         }}
@@ -135,6 +137,13 @@ export function GoalDialog() {
             hint={t('goal.checkHint')}
             onChange={(e) => setCheck(e.target.value)}
           />
+          <div className="row-field">
+            <Switch checked={apart} onChange={setApart} label={t('goal.worktree')} />
+            <div>
+              <span>{t('goal.worktree')}</span>
+              <p className="l-field__hint">{t('goal.worktreeHint')}</p>
+            </div>
+          </div>
           <ErrorLine />
         </div>
         <footer className="agentform__foot">

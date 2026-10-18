@@ -228,7 +228,9 @@
     "no_advisors": "Bu kanalda danışman yok.",
     "over_budget": "Günlük bütçe doldu.",
     "invalid_goal": "Hedef bilgileri eksik ya da geçersiz.",
-    "goal_state": "Hedef bu işlem için uygun durumda değil."
+    "goal_state": "Hedef bu işlem için uygun durumda değil.",
+    "not_git": "Agent'ın klasörü bir git deposu değil.",
+    "worktree_failed": "Git çalışma ağacı işlemi başarısız oldu. Kaydedilmemiş değişiklik olabilir."
   },
   "channel": {
     "newSession": "Yeni oturum",
@@ -610,6 +612,12 @@
       "interrupted": "Uygulama kapandığında çalışıyordu."
     },
     "viewHint": "Açık hedefler önce.",
-    "emptyHint": "Bir kanalda /goal ile başlar."
+    "emptyHint": "Bir kanalda /goal ile başlar.",
+    "worktree": "Ayrı çalışma ağacında çalış",
+    "worktreeHint": "Agent'ın klasörü bir git deposuysa hedef kendi dalında, ayrı bir git çalışma ağacında yürür; ana klasör değişmez ve agent aynı anda başka işe bakabilir. Her adım bir commit ile biter.",
+    "branch": "Dal",
+    "openFolder": "Klasörü aç",
+    "removeWorktree": "Çalışma ağacını kaldır",
+    "worktreeRemoved": "Çalışma ağacı kaldırıldı; dal duruyor."
   }
 }

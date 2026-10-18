@@ -228,7 +228,9 @@
     "no_advisors": "No advisors in this channel.",
     "over_budget": "Daily budget used up.",
     "invalid_goal": "Goal details are missing or invalid.",
-    "goal_state": "The goal is not in a state for this."
+    "goal_state": "The goal is not in a state for this.",
+    "not_git": "The agent's folder is not a git repository.",
+    "worktree_failed": "The git worktree operation failed. There may be uncommitted changes."
   },
   "channel": {
     "newSession": "New session",
@@ -610,6 +612,12 @@
       "interrupted": "It was running when the app closed."
     },
     "viewHint": "Open goals first.",
-    "emptyHint": "Started with /goal in a channel."
+    "emptyHint": "Started with /goal in a channel.",
+    "worktree": "Run in a separate worktree",
+    "worktreeHint": "When the agent's folder is a git repository, the goal runs on its own branch in a separate git worktree; the main folder stays as it is and the agent can take other work meanwhile. Each step ends with a commit.",
+    "branch": "Branch",
+    "openFolder": "Open folder",
+    "removeWorktree": "Remove worktree",
+    "worktreeRemoved": "Worktree removed; the branch stays."
   }
 }

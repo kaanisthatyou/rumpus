@@ -1,10 +1,12 @@
-import { mkdtempSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Agent, Channel, Goal, Job } from '@lonca/protocol';
 import { describe, expect, it } from 'vitest';
-import { Goals, parsePlan } from '../src/goals.js';
+import { Goals, gitWorktrees, parsePlan } from '../src/goals.js';
 import { newId } from '../src/ids.js';
+import { run } from '../src/proc.js';
 import { WorkspaceStore } from '../src/store.js';
 
 const tmp = (p: string) => mkdtempSync(join(tmpdir(), p));
@@ -28,14 +30,17 @@ function setup(checks: boolean[] = []) {
   store.commit({ type: 'channel.created', data: channel });
   store.commit({ type: 'agent.saved', data: agent });
   const started: { prompt: string; job: Job }[] = [];
+  const opts: unknown[] = [];
   const stopped: string[] = [];
+  const closed: string[] = [];
   const steps: string[] = [];
   let busy = false;
   let now = 1_000_000;
   const goals = new Goals({
     store,
     jobs: {
-      startWith: async (a, c, request, prompt) => {
+      startWith: async (a, c, request, prompt, o = {}) => {
+        opts.push(o);
         const job: Job = {
           id: newId(),
           channelId: c.id,
@@ -54,8 +59,13 @@ function setup(checks: boolean[] = []) {
         stopped.push(id);
         return true;
       },
+      closeScope: (_a, _c, scope) => {
+        closed.push(scope);
+      },
     },
     me: () => ({ id: 'dev', name: 'Kaan', language: 'tr' }),
+    git: gitWorktrees(run),
+    worktreesDir: join(tmp('lonca-goal-trees-'), 'worktrees'),
     emitGoal: () => {},
     emitMessage: () => {},
     runCheck: async () => ({ ok: checks.shift() ?? true, output: 'FAIL src/a.test.ts' }),
@@ -64,8 +74,9 @@ function setup(checks: boolean[] = []) {
     retryMs: 5,
   });
   /** The latest job ends with an answer. */
-  const finish = (text: string, state: Job['state'] = 'done') => {
-    const last = started.at(-1);
+  const finish = (text: string, state: Job['state'] = 'done', goalId?: string) => {
+    const g = goalId ? goals.list().find((x) => x.id === goalId) : undefined;
+    const last = g ? started.filter((s) => s.job.requestId === g.requestId).at(-1) : started.at(-1);
     if (!last) throw new Error('no job');
     now += 60_000;
     store.commit({
@@ -86,6 +97,8 @@ function setup(checks: boolean[] = []) {
     store,
     goals,
     started,
+    opts,
+    closed,
     stopped,
     steps,
     finish,
@@ -119,7 +132,7 @@ describe('parsePlan', () => {
 describe('Goals', () => {
   it('plans, waits for approval with comments, runs steps with the check, and finishes', async () => {
     const t = setup([false, true]);
-    const created = t.goals.create(input());
+    const created = await t.goals.create(input());
     expect(created.state).toBe('planning');
     expect(t.store.message(created.requestId)?.text).toBe('/goal Login ekranını bitir');
     await settle();
@@ -156,7 +169,7 @@ describe('Goals', () => {
 
   it('pauses on the step budget and goes on with more', async () => {
     const t = setup();
-    t.goals.create(input({ budget: { steps: 1, minutes: 60 }, check: '' }));
+    await t.goals.create(input({ budget: { steps: 1, minutes: 60 }, check: '' }));
     await settle();
     t.finish('1. a\n2. b');
     t.goals.approve(t.goal().id, []);
@@ -178,7 +191,7 @@ describe('Goals', () => {
 
   it('finishes early on GOAL_DONE with a passing check, and adds a fix step when the plan ends with a failing one', async () => {
     const t = setup([true]);
-    t.goals.create(input());
+    await t.goals.create(input());
     await settle();
     t.finish('1. a\n2. b\n3. c');
     t.goals.approve(t.goal().id, []);
@@ -188,7 +201,7 @@ describe('Goals', () => {
     expect(t.goal().state).toBe('done');
 
     const u = setup([false, true]);
-    u.goals.create(input());
+    await u.goals.create(input());
     await settle();
     u.finish('1. tek adım');
     u.goals.approve(u.goal().id, []);
@@ -205,7 +218,7 @@ describe('Goals', () => {
   it('waits while the agent is busy, pauses when a step fails, stops on request, and recovers after a restart', async () => {
     const t = setup();
     t.setBusy(true);
-    t.goals.create(input({ check: '' }));
+    await t.goals.create(input({ check: '' }));
     await settle();
     expect(t.started).toHaveLength(0);
     t.setBusy(false);
@@ -225,22 +238,57 @@ describe('Goals', () => {
     expect(t.stopped).toEqual([running]);
 
     const u = setup();
-    u.goals.create(input({ check: '' }));
+    await u.goals.create(input({ check: '' }));
     await settle();
     u.goals.recover();
     expect(u.goal()).toMatchObject({ state: 'paused', pause: 'interrupted' });
-    expect(() => u.goals.create(input({ text: 'ikinci' }))).not.toThrow();
+    await u.goals.create(input({ text: 'ikinci' }));
   });
 
-  it('refuses bad input and a second open goal for the same agent', () => {
+  it('refuses bad input and a second open goal for the same agent in the same folder', async () => {
     const t = setup();
-    expect(() => t.goals.create(input({ agentId: 'nope' }))).toThrow(expect.objectContaining({ code: 'invalid_goal' }));
-    expect(() => t.goals.create(input({ text: '  ' }))).toThrow(expect.objectContaining({ code: 'invalid_goal' }));
-    expect(() => t.goals.create(input({ check: 'a\nb' }))).toThrow(expect.objectContaining({ code: 'invalid_goal' }));
-    expect(() => t.goals.create(input({ budget: { steps: 5, minutes: 10, tokens: 5 } }))).toThrow(
-      expect.objectContaining({ code: 'invalid_goal' }),
-    );
-    t.goals.create(input());
-    expect(() => t.goals.create(input())).toThrow('busy');
+    const bad = { code: 'invalid_goal' };
+    await expect(t.goals.create(input({ agentId: 'nope' }))).rejects.toMatchObject(bad);
+    await expect(t.goals.create(input({ text: '  ' }))).rejects.toMatchObject(bad);
+    await expect(t.goals.create(input({ check: 'a\nb' }))).rejects.toMatchObject(bad);
+    await expect(t.goals.create(input({ budget: { steps: 5, minutes: 10, tokens: 5 } }))).rejects.toMatchObject(bad);
+    await t.goals.create(input());
+    await expect(t.goals.create(input())).rejects.toMatchObject({ code: 'busy' });
+    await expect(t.goals.create(input({ worktree: true }))).rejects.toMatchObject({ code: 'not_git' });
+  });
+
+  it('runs a goal in its own git worktree and branch, and removes the worktree when asked', async () => {
+    const t = setup();
+    const repo = t.store.agent('ag')?.folder ?? '';
+    const git = (...args: string[]) => execFileSync('git', ['-C', repo, ...args], { stdio: 'pipe' });
+    git('init', '-q');
+    git('config', 'user.email', 'test@example.com');
+    git('config', 'user.name', 'Test');
+    writeFileSync(join(repo, 'README.md'), '# x\n');
+    git('add', '.');
+    git('commit', '-qm', 'first');
+
+    const g = await t.goals.create(input({ worktree: true, check: '' }));
+    expect(g.worktree?.branch).toMatch(/^lonca\/goal-[a-z0-9_-]{6}$/);
+    const path = g.worktree?.path ?? '';
+    expect(existsSync(join(path, 'README.md'))).toBe(true);
+    await settle();
+    expect(t.opts[0]).toEqual({ folder: path, scope: g.id });
+    expect(t.started[0]?.prompt).toContain(g.worktree?.branch);
+    // The same agent can work in the main folder meanwhile.
+    await t.goals.create(input({ text: 'ana klasörde' }));
+
+    t.finish('1. tek adım', 'done', g.id);
+    t.goals.approve(g.id, []);
+    await settle();
+    expect(t.started.at(-1)?.prompt).toContain('Commit your changes');
+    t.finish('bitti\nGOAL_DONE', 'done', g.id);
+    await settle();
+    expect(t.goals.list().find((x) => x.id === g.id)?.state).toBe('done');
+    expect(t.closed).toContain(g.id);
+    const removed = await t.goals.removeWorktree(g.id);
+    expect(removed.worktree?.removed).toBe(true);
+    expect(existsSync(path)).toBe(false);
+    expect(git('branch', '--list', g.worktree?.branch ?? '').toString()).toContain('lonca/goal-');
   });
 });

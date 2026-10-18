@@ -2,6 +2,8 @@
 // writes a plan; the person approves it, with comments on any step; then each step is one job, followed by the
 // check, until the goal is done, the budget runs out, a step fails, or someone stops it. Every step continues the
 // person's approved goal, so work still starts only from a person.
+
+import { join } from 'node:path';
 import type {
   Agent,
   Channel,
@@ -18,20 +20,46 @@ import type {
 import { CoreError } from '@lonca/protocol';
 import { newId } from './ids.js';
 import type { Jobs } from './jobs.js';
+import type { Runner } from './proc.js';
 import type { WorkspaceStore } from './store.js';
 
 const LANGUAGE_NAMES: Record<Language, string> = { tr: 'Turkish', en: 'English' };
 export const MAX_PLAN_STEPS = 30;
 const DONE_MARK = /^\s*GOAL_DONE\s*$/m;
 
+export interface GitWorktrees {
+  isRepo(folder: string): Promise<boolean>;
+  add(repo: string, path: string, branch: string): Promise<{ ok: boolean; output: string }>;
+  remove(repo: string, path: string): Promise<{ ok: boolean; output: string }>;
+}
+
+/** Git worktrees through the git CLI. Removal never forces: a worktree with changes stays. */
+export function gitWorktrees(runner: Runner): GitWorktrees {
+  const git = async (args: string[]) => {
+    const r = await runner('git', args, { timeoutMs: 60_000 });
+    return { ok: !r.failed && r.code === 0, output: `${r.stdout}\n${r.stderr}`.trim() };
+  };
+  return {
+    isRepo: async (folder) => {
+      const r = await git(['-C', folder, 'rev-parse', '--is-inside-work-tree']);
+      return r.ok && r.output.startsWith('true');
+    },
+    add: (repo, path, branch) => git(['-C', repo, 'worktree', 'add', '-b', branch, path, 'HEAD']),
+    remove: (repo, path) => git(['-C', repo, 'worktree', 'remove', path]),
+  };
+}
+
 export interface GoalsDeps {
   store: WorkspaceStore;
-  jobs: Pick<Jobs, 'startWith' | 'busy' | 'stop'>;
+  jobs: Pick<Jobs, 'startWith' | 'busy' | 'stop' | 'closeScope'>;
   me(): { id: string; name: string; language: Language };
   emitGoal(goal: Goal): void;
   emitMessage(message: Message): void;
   /** Runs the done check in the agent's folder; exit code 0 is a pass. */
   runCheck(command: string, cwd: string): Promise<{ ok: boolean; output: string }>;
+  /** Worktrees for goals that run apart, and where they go. */
+  git?: GitWorktrees;
+  worktreesDir?: string;
   /** A step finished: advisors may comment on its report. */
   onStep?(goal: Goal, step: GoalStep, report: string): void;
   now?(): number;
@@ -65,6 +93,10 @@ function cleanBudget(b: Partial<GoalBudget> | undefined): GoalBudget {
     ...(tokens !== undefined ? { tokens } : {}),
   };
 }
+
+/** A goal in its own worktree runs in a session of its own. */
+const scopeOf = (goal: Goal) => (goal.worktree ? goal.id : undefined);
+const where = (goal: Goal) => (goal.worktree ? { folder: goal.worktree.path, scope: goal.id } : {});
 
 export class Goals {
   private readonly timers = new Set<NodeJS.Timeout>();
@@ -105,7 +137,7 @@ export class Goals {
     }
   }
 
-  create(input: GoalInput): Goal {
+  async create(input: GoalInput): Promise<Goal> {
     const { store } = this.deps;
     const channel = typeof input?.channelId === 'string' ? store.channel(input.channelId) : undefined;
     if (!channel) throw new CoreError('not_found', 'channel');
@@ -115,8 +147,27 @@ export class Goals {
     if (!text || text.length > 4000) throw new CoreError('invalid_goal', 'text');
     const check = typeof input.check === 'string' ? input.check.trim() : '';
     if (check.length > 500 || /[\r\n]/.test(check)) throw new CoreError('invalid_goal', 'check');
-    if (this.list().some((g) => g.agentId === agent.id && ['planning', 'review', 'running'].includes(g.state)))
+    const apart = input.worktree === true;
+    // Two goals of one agent may run at once only when they do not share a folder.
+    if (
+      !apart &&
+      this.list().some(
+        (g) => g.agentId === agent.id && !g.worktree && ['planning', 'review', 'running'].includes(g.state),
+      )
+    )
       throw new CoreError('busy');
+    const id = newId();
+    let worktree: Goal['worktree'];
+    if (apart) {
+      const { git, worktreesDir } = this.deps;
+      if (!git || !worktreesDir) throw new CoreError('invalid_goal', 'worktree');
+      if (!(await git.isRepo(agent.folder))) throw new CoreError('not_git');
+      const branch = `lonca/goal-${id.slice(-6).toLowerCase()}`;
+      const path = join(worktreesDir, id);
+      const made = await git.add(agent.folder, path, branch);
+      if (!made.ok) throw new CoreError('worktree_failed', made.output.slice(-400));
+      worktree = { path, branch };
+    }
     const me = this.deps.me();
     const request: Message = {
       id: newId(),
@@ -128,7 +179,7 @@ export class Goals {
     store.commit({ type: 'message.posted', data: request });
     this.deps.emitMessage(request);
     const goal = this.save({
-      id: newId(),
+      id,
       channelId: channel.id,
       agentId: agent.id,
       requestId: request.id,
@@ -138,6 +189,7 @@ export class Goals {
       comments: [],
       budget: cleanBudget(input.budget),
       ...(check ? { check } : {}),
+      ...(worktree ? { worktree } : {}),
       used: { steps: 0, tokens: 0, ms: 0 },
       created: this.now(),
     });
@@ -161,6 +213,23 @@ export class Goals {
     return next;
   }
 
+  async removeWorktree(id: string): Promise<Goal> {
+    const goal = this.get(id);
+    if (!goal.worktree || goal.worktree.removed) throw new CoreError('goal_state');
+    if (['planning', 'review', 'running'].includes(goal.state)) throw new CoreError('goal_state');
+    const agent = this.deps.store.agent(goal.agentId);
+    if (!agent || !this.deps.git) throw new CoreError('not_found');
+    this.release(goal);
+    // The session's process may take a moment to let go of the folder (Windows keeps it locked until then).
+    let r = await this.deps.git.remove(agent.folder, goal.worktree.path);
+    for (let i = 0; !r.ok && i < 5 && /denied|busy|used by another|unable to|Permission/i.test(r.output); i++) {
+      await new Promise((ok) => setTimeout(ok, 400));
+      r = await this.deps.git.remove(agent.folder, goal.worktree.path);
+    }
+    if (!r.ok) throw new CoreError('worktree_failed', r.output.slice(-400));
+    return this.save({ ...goal, worktree: { ...goal.worktree, removed: true } });
+  }
+
   stop(id: string): Goal {
     const goal = this.get(id);
     if (['done', 'failed', 'stopped'].includes(goal.state)) return goal;
@@ -173,6 +242,7 @@ export class Goals {
     const running =
       goal.steps.find((s) => s.state === 'running')?.jobId ?? (goal.state === 'planning' ? goal.planJobId : undefined);
     if (running) this.deps.jobs.stop(running);
+    this.release(stopped);
     return stopped;
   }
 
@@ -209,6 +279,11 @@ export class Goals {
 
   // ---------------------------------------------------------------- running
 
+  /** A goal in its own worktree that has ended no longer needs its session. */
+  private release(goal: Goal): void {
+    if (goal.worktree) this.deps.jobs.closeScope(goal.agentId, goal.channelId, goal.id);
+  }
+
   private later(fn: () => void): void {
     const t = setTimeout(() => {
       this.timers.delete(t);
@@ -235,8 +310,9 @@ export class Goals {
     if (this.disposed || goal?.state !== 'planning') return;
     const ctx = this.context(goal);
     if (!ctx) return void this.pause(goal, 'agent_missing');
-    if (this.deps.jobs.busy(ctx.agent.id, ctx.channel.id)) return this.later(() => void this.startPlan(id));
-    const job = await this.deps.jobs.startWith(ctx.agent, ctx.channel, ctx.request, this.planPrompt(goal));
+    if (this.deps.jobs.busy(ctx.agent.id, ctx.channel.id, scopeOf(goal)))
+      return this.later(() => void this.startPlan(id));
+    const job = await this.deps.jobs.startWith(ctx.agent, ctx.channel, ctx.request, this.planPrompt(goal), where(goal));
     const current = this.deps.store.goal(id);
     if (!current) return;
     this.save({ ...current, planJobId: job.id });
@@ -253,12 +329,19 @@ export class Goals {
     if (!step) return; // nothing left: decided in onJob
     const ctx = this.context(goal);
     if (!ctx) return void this.pause(goal, 'agent_missing');
-    if (this.deps.jobs.busy(ctx.agent.id, ctx.channel.id)) return this.later(() => void this.runNext(id));
+    if (this.deps.jobs.busy(ctx.agent.id, ctx.channel.id, scopeOf(goal)))
+      return this.later(() => void this.runNext(id));
     const marked = this.save({
       ...goal,
       steps: goal.steps.map((s) => (s.id === step.id ? { ...s, state: 'running' } : s)),
     });
-    const job = await this.deps.jobs.startWith(ctx.agent, ctx.channel, ctx.request, this.stepPrompt(marked, step));
+    const job = await this.deps.jobs.startWith(
+      ctx.agent,
+      ctx.channel,
+      ctx.request,
+      this.stepPrompt(marked, step),
+      where(marked),
+    );
     const current = this.deps.store.goal(id);
     if (!current) return;
     this.save({ ...current, steps: current.steps.map((s) => (s.id === step.id ? { ...s, jobId: job.id } : s)) });
@@ -318,7 +401,7 @@ export class Goals {
     let passed = true;
     if (goal.check && agent) {
       const started = this.now();
-      const result = await this.deps.runCheck(goal.check, agent.folder);
+      const result = await this.deps.runCheck(goal.check, goal.worktree?.path ?? agent.folder);
       goal = this.deps.store.goal(id);
       if (!goal) return;
       passed = result.ok;
@@ -331,7 +414,7 @@ export class Goals {
     }
     const left = goal.steps.some((s) => s.state === 'pending');
     if (passed && (saysDone || !left)) {
-      this.save({ ...goal, state: 'done', ended: this.now() });
+      this.release(this.save({ ...goal, state: 'done', ended: this.now() }));
       return;
     }
     if (!left) {
@@ -361,6 +444,9 @@ export class Goals {
         ? `Done check: Lonca itself runs \`${goal.check}\` in your folder after each step (exit code 0 means the goal is done) and tells you when it fails. Do not plan a step for running it.`
         : '',
       `Budget: ${this.budgetLine(goal)}.`,
+      goal.worktree
+        ? `The goal runs in its own git worktree (${goal.worktree.path}) on the branch ${goal.worktree.branch}; each step ends with a commit there.`
+        : '',
       `Write the plan only; do not change anything yet. Reply with a numbered list of at most ${goal.budget.steps} steps, as few as the goal needs (a small change is one step), one line each, each small enough for one turn, in ${LANGUAGE_NAMES[me.language]}. No other text.`,
     ]
       .filter(Boolean)
@@ -388,6 +474,9 @@ export class Goals {
         : '',
       step.fix ? 'Do this step: make the done check pass.' : `Do only this step: ${step.text}`,
       goal.check ? 'Lonca runs the done check after this step; there is no need to run it yourself.' : '',
+      goal.worktree
+        ? `You work in a git worktree made for this goal (${goal.worktree.path}, branch ${goal.worktree.branch}), not in the main folder. Commit your changes there at the end of the step with a short message.`
+        : '',
       'End with a short report: what you did and what is left. If the whole goal is complete, put GOAL_DONE alone on the last line.',
     ]
       .filter(Boolean)

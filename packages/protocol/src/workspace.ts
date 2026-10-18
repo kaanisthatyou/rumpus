@@ -247,6 +247,8 @@ export interface Goal {
   /** A shell command run in the agent's folder after each step; exit code 0 means done. */
   check?: string;
   lastCheck?: { at: number; ok: boolean; output: string };
+  /** The goal's own git worktree and branch, when it runs apart from the agent's folder. */
+  worktree?: { path: string; branch: string; removed?: boolean };
   used: { steps: number; tokens: number; ms: number };
   pause?: GoalPause;
   planJobId?: string;
@@ -260,6 +262,8 @@ export interface GoalInput {
   text: string;
   budget: GoalBudget;
   check?: string;
+  /** Run in a new git worktree on a branch of its own. */
+  worktree?: boolean;
 }
 
 export const RECORD_KINDS = ['idea', 'reference', 'command'] as const;

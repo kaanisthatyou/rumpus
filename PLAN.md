@@ -585,6 +585,11 @@ public, which waits for the owners' go.
   steering and approvals; finished ones open from their step. Advisors of the channel take turns commenting on
   each step. A Goals view lists them. Tested with unit tests and `e2e/channel.mjs` against the fake CLI, and once
   with the real Claude Code on Haiku (`e2e/real-claude.mjs`: a four-step plan, an approval, the check passed).
+- Worktrees: a goal can run in its own git worktree (`<data>/worktrees/<goal id>`, branch `lonca/goal-<id>`), in a
+  CLI session of its own, so the main folder stays as it is and the agent can take other work meanwhile; each step
+  ends with a commit, the done check runs in the worktree, and the session closes when the goal ends. The card
+  shows the branch, opens the folder, and removes the worktree when the goal is over (never forced: a worktree
+  with changes stays; the branch always stays). Tested with real git in unit tests and `e2e/channel.mjs`.
 
 ## 9. Risks
 

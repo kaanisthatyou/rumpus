@@ -21,6 +21,8 @@ export interface LoncaBridge {
   shell: {
     pickFolder(): Promise<string | null>;
     openExternal(url: string): Promise<void>;
+    /** Opens a folder in the system's file manager (folders only). */
+    openFolder(path: string): Promise<void>;
     copy(text: string): Promise<void>;
     appInfo(): Promise<AppInfo>;
     setTitleBar(colors: { background: string; symbols: string }): Promise<void>;
