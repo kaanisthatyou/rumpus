@@ -1,7 +1,17 @@
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { Agent, Channel, Frame, Job, Message, Response, WorkspaceState, WorkspaceSummary } from '@lonca/protocol';
+import type {
+  Agent,
+  Channel,
+  Frame,
+  Job,
+  Message,
+  ProjectView,
+  Response,
+  WorkspaceState,
+  WorkspaceSummary,
+} from '@lonca/protocol';
 import { afterAll, describe, expect, it } from 'vitest';
 import type { AgentSession, DriverEvent, OpenSession } from '../src/drivers/types.js';
 import { eventPayload, LocalSigner, type SignedEvent } from '../src/identity.js';
@@ -205,6 +215,27 @@ describe('team workspaces between two apps', () => {
     await arda.call('messages.send', { channelId: genel, text: '@claude gizli iş' });
     await new Promise((r) => setTimeout(r, 1500));
     expect(kaan.sessions.some((x) => x.sent.some((t) => t.includes('gizli iş')))).toBe(false);
+
+    // A project syncs without Kaan's folder; Arda points it at her own clone and edits the status page.
+    const ardaDevice0 = aState.members?.find((m) => m.me)?.device ?? '';
+    const project = await kaan.call<ProjectView>('projects.save', {
+      name: 'Kumbara',
+      areas: [{ path: 'src/ui', member: ardaDevice0, note: 'arayüz' }],
+      folder: tmp('lonca-team-kclone-'),
+    });
+    const synced = await until(async () => {
+      const list = await arda.call<ProjectView[]>('projects.list');
+      return list.find((p) => p.id === project.id);
+    }, 'arda sees the project');
+    expect(synced.folder).toBeUndefined();
+    expect(synced.areas[0]?.member).toBe(ardaDevice0);
+    const ardaClone = tmp('lonca-team-aclone-');
+    expect((await arda.call<ProjectView>('projects.save', { ...synced, folder: ardaClone })).folder).toBe(ardaClone);
+    await arda.call('projects.status', { id: project.id, next: ['Giriş ekranı'] });
+    await until(async () => {
+      const [p] = await kaan.call<ProjectView[]>('projects.list');
+      return p?.status.next[0] === 'Giriş ekranı' && p.status.by === 'Arda' && p.folder !== ardaClone;
+    }, 'kaan sees arda edit the page, keeping his own folder');
 
     // An editor cannot make channels; an admin can make the editor a viewer, and remove them.
     await expect(arda.call('channels.create', { name: 'gizli' })).rejects.toThrow('not_allowed');

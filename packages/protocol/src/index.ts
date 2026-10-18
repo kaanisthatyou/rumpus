@@ -9,6 +9,7 @@ import type {
   Card,
   CardStatus,
   Channel,
+  GitState,
   Goal,
   GoalBudget,
   GoalComment,
@@ -18,6 +19,9 @@ import type {
   MemorySection,
   MemoryState,
   Message,
+  ProjectInput,
+  ProjectStatusInput,
+  ProjectView,
   Quota,
   RecordInput,
   RecordItem,
@@ -249,6 +253,17 @@ export interface CoreMethods {
   'instructions.save': { params: { layer: 'worker' | 'workspace'; text: string }; result: InstructionLayers };
   'instructions.reset': { params: { layer: 'worker' }; result: InstructionLayers };
   'instructions.preview': { params: { agentId: string }; result: string };
+  'projects.list': { params: undefined; result: ProjectView[] };
+  /** Makes or changes a project; `folder` is this computer's clone and stays on this computer. */
+  'projects.save': { params: ProjectInput; result: ProjectView };
+  'projects.delete': { params: { id: string }; result: { ok: true } };
+  'projects.status': { params: ProjectStatusInput; result: ProjectView };
+  /** The clone's git state; `fetch` asks the remote first (at most every five minutes unless `force`). */
+  'projects.git': { params: { id: string; fetch?: boolean; force?: boolean }; result: GitState };
+  'projects.pull': { params: { id: string }; result: { ok: boolean; output: string; git: GitState } };
+  'projects.push': { params: { id: string }; result: { ok: boolean; output: string; git: GitState } };
+  /** The status page as Markdown in Fabrika's `progress.md` shape. */
+  'projects.export': { params: { id: string }; result: string };
 }
 
 export interface CoreEvents {
@@ -268,6 +283,8 @@ export interface CoreEvents {
   'record.changed': RecordItem;
   'record.deleted': { id: string };
   'goal.changed': Goal;
+  'project.changed': ProjectView;
+  'project.deleted': { id: string };
   /** Another member is typing in a channel of the open workspace. */
   'person.typing': { channelId: string; device: string; name: string };
   /** Something new from another member in a workspace that is not open. */
@@ -310,6 +327,8 @@ export const ERROR_CODES = [
   'unreachable',
   'worktree_failed',
   'no_advisors',
+  'invalid_project',
+  'no_folder',
   'over_budget',
   'provider_bad_url',
   'provider_bad_key',

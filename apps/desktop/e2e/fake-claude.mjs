@@ -136,6 +136,32 @@ async function run() {
       });
       continue;
     }
+    if (mcp && /durumu güncelle/i.test(text)) {
+      // The project's status page through Lonca's tools: read it, tick every milestone, rewrite where it stands.
+      n += 1;
+      if (!started) {
+        out({ type: 'system', subtype: 'init', session_id: session, tools: ['mcp__lonca__read_status'] });
+        started = true;
+      }
+      const page = await callAndShow(`r${n}`, 'read_status', {});
+      const milestones = [...page.matchAll(/- \[[ x]\] (.+)/g)].map((m) => ({ text: m[1], done: true }));
+      await callAndShow(`s${n}`, 'update_status', {
+        left_off: 'Sahte ajan durumu güncelledi.',
+        ...(milestones.length ? { milestones } : {}),
+      });
+      const answer = `Durum sayfası güncellendi (${milestones.length} kilometre taşı).`;
+      out({ type: 'assistant', message: { content: [{ type: 'text', text: answer }] } });
+      out({
+        type: 'result',
+        subtype: 'success',
+        is_error: false,
+        result: answer,
+        total_cost_usd: 0,
+        usage: { input_tokens: 10, output_tokens: 5 },
+        queued_turn_count: queue.length,
+      });
+      continue;
+    }
     // Goal mode: a two-step plan, then each step's report; the last step says the goal is done.
     const goalStep = /GOAL MODE: STEP (\d+) of (\d+)/.exec(text);
     if (/GOAL MODE: PLAN/.test(text) || goalStep) {

@@ -40,8 +40,8 @@ export interface JobsDeps {
   launch?: (path: string) => Launch;
   /** The records a message refers to: their notes for the prompt, their images as attachments. */
   refs?: (ids: string[]) => { notes: string[]; images: Attachment[] };
-  /** The editable instruction layers, read when a session starts. */
-  layers?: () => PromptLayers;
+  /** The editable instruction layers (and the agent's project), read when a session starts. */
+  layers?: (agent: Agent) => PromptLayers;
   /** How many memory sections the prompt carries (shown on the job card). */
   recalled?: () => number;
   /**
@@ -254,7 +254,8 @@ export class Jobs {
 
     const key = this.key(agent.id, slot);
     let live = this.live.get(key);
-    const layers = JSON.stringify(this.deps.layers?.() ?? {});
+    const layerSet = this.deps.layers?.(base) ?? {};
+    const layers = JSON.stringify(layerSet);
     if (
       live &&
       (live.layers !== layers ||
@@ -287,7 +288,7 @@ export class Jobs {
           mode: agent.mode,
           ...(agent.model ? { model: agent.model } : {}),
           ...(resume ? { resume } : {}),
-          systemPrompt: systemPrompt(agent, { user: me.name, language: me.language }, this.deps.layers?.() ?? {}),
+          systemPrompt: systemPrompt(agent, { user: me.name, language: me.language }, layerSet),
           ...(mcpUrl && token ? { mcp: { url: mcpUrl, token } } : {}),
         },
         (e) => this.onEvent(created, e),

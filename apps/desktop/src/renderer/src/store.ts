@@ -16,6 +16,9 @@ import type {
   MemorySection,
   MemoryState,
   Message,
+  ProjectInput,
+  ProjectStatusInput,
+  ProjectView,
   ProviderInfo,
   ProviderInput,
   ProvidersState,
@@ -35,7 +38,7 @@ import type { AppInfo, UpdateState } from '../../shared/bridge';
 import i18n from './i18n';
 import { core, RpcError } from './rpc';
 
-export type View = 'channel' | 'tasks' | 'goals' | 'ideas' | 'references' | 'commands' | 'memory';
+export type View = 'channel' | 'tasks' | 'goals' | 'ideas' | 'references' | 'commands' | 'memory' | 'project';
 
 interface AppState {
   settings?: Settings;
@@ -79,6 +82,11 @@ interface AppState {
   typing: Record<string, string[]>;
   cards: Card[];
   records: RecordItem[];
+  projects: ProjectView[];
+  /** The project shown when the view is `project`. */
+  projectId?: string;
+  /** The project dialog: a project to edit, `new`, or closed. */
+  projectDialog?: ProjectView | 'new';
   /** Records attached to the next message, per channel. */
   attached: Record<string, string[]>;
   /** Full images of references, loaded when first shown. */
@@ -152,6 +160,11 @@ interface AppState {
   removeProviderKey(id: string, keyId: string): Promise<void>;
   fetchModels(id: string): Promise<void>;
   saveRecord(input: RecordInput): Promise<RecordItem | undefined>;
+  openProject(id: string): void;
+  openProjectDialog(target: AppState['projectDialog']): void;
+  saveProject(input: ProjectInput): Promise<ProjectView | undefined>;
+  deleteProject(id: string): Promise<void>;
+  saveStatus(input: ProjectStatusInput): Promise<boolean>;
   deleteRecord(id: string): Promise<void>;
   attach(id: string): void;
   detach(id: string): void;
@@ -213,6 +226,7 @@ export const useApp = create<AppState>((set, get) => {
     quota: {},
     cards: [],
     records: [],
+    projects: [],
     attached: {},
     images: {},
     paletteOpen: false,
@@ -316,6 +330,19 @@ export const useApp = create<AppState>((set, get) => {
         })),
       );
       core.on('record.deleted', ({ id }) => set((s) => ({ records: s.records.filter((r) => r.id !== id) })));
+      core.on('project.changed', (project) =>
+        set((s) => ({
+          projects: s.projects.some((p) => p.id === project.id)
+            ? s.projects.map((p) => (p.id === project.id ? project : p))
+            : [...s.projects, project],
+        })),
+      );
+      core.on('project.deleted', ({ id }) =>
+        set((s) => ({
+          projects: s.projects.filter((p) => p.id !== id),
+          ...(s.projectId === id && s.view === 'project' ? { view: 'channel' as const, projectId: undefined } : {}),
+        })),
+      );
       core.on('advisor.typing', ({ advisorId, channelId, on }) =>
         set((s) => {
           const now = (s.typing[channelId] ?? []).filter((id) => id !== advisorId);
@@ -424,7 +451,8 @@ export const useApp = create<AppState>((set, get) => {
       const records = (await attempt(() => core.call('records.list', {}))) ?? [];
       const goals = (await attempt(() => core.call('goals.list'))) ?? [];
       const memory = await attempt(() => core.call('memory.get'));
-      set({ workspace, jobs, quota, cards, records, goals, ...(memory ? { memory } : {}) });
+      const projects = (await attempt(() => core.call('projects.list'))) ?? [];
+      set({ workspace, jobs, quota, cards, records, goals, projects, ...(memory ? { memory } : {}) });
       const current = get().channelId ?? lastChannel.get(workspace.id);
       const target = workspace.channels.find((c) => c.id === current) ?? workspace.channels[0];
       if (target) await get().openChannel(target.id);
@@ -680,6 +708,28 @@ export const useApp = create<AppState>((set, get) => {
 
     async deleteRecord(id) {
       await attempt(() => core.call('records.delete', { id }));
+    },
+
+    openProject(id) {
+      set({ view: 'project', projectId: id, panel: undefined });
+    },
+
+    openProjectDialog(target) {
+      set({ projectDialog: target, error: undefined });
+    },
+
+    async saveProject(input) {
+      const project = await attempt(() => core.call('projects.save', input));
+      if (project) set({ projectDialog: undefined });
+      return project;
+    },
+
+    async deleteProject(id) {
+      if (await attempt(() => core.call('projects.delete', { id }))) set({ projectDialog: undefined });
+    },
+
+    async saveStatus(input) {
+      return Boolean(await attempt(() => core.call('projects.status', input)));
     },
 
     attach(id) {

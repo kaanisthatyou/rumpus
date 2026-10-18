@@ -53,6 +53,9 @@ function minRole(type: string, data: Record<string, unknown>): Role | undefined 
     case 'agent.deleted':
     case 'advisor.saved':
     case 'advisor.deleted':
+    case 'project.saved':
+    case 'project.deleted':
+    case 'progress.saved':
       return 'editor';
     case 'channel.created':
       // An agent's own channel comes with the agent; other channels are an admin's.

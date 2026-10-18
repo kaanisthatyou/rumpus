@@ -7,6 +7,7 @@ import { GoalDialog } from './goals/GoalDialog';
 import { actionFor } from './keys';
 import { Launcher } from './launcher/Launcher';
 import { Palette, ShortcutsDialog } from './palette/Palette';
+import { ProjectDialog } from './projects/ProjectDialog';
 import { SettingsDialog } from './settings/SettingsDialog';
 import { InviteDialog } from './shell/InviteDialog';
 import { NewWorkspaceDialog } from './shell/NewWorkspaceDialog';
@@ -28,6 +29,7 @@ export function App() {
   const agentDialog = useApp((s) => s.agentDialog);
   const advisorDialog = useApp((s) => s.advisorDialog);
   const goalDialog = useApp((s) => s.goalDialog);
+  const projectDialog = useApp((s) => s.projectDialog);
   const newWorkspaceOpen = useApp((s) => s.newWorkspaceOpen);
   const inviteOpen = useApp((s) => s.inviteOpen);
   const paletteOpen = useApp((s) => s.paletteOpen);
@@ -120,6 +122,9 @@ export function App() {
         <AnimatePresence>{agentDialog && <AgentDialog key="agent-dialog" />}</AnimatePresence>
         <AnimatePresence>{advisorDialog && <AdvisorDialog key="advisor-dialog" />}</AnimatePresence>
         <AnimatePresence>{goalDialog && <GoalDialog key="goal-dialog" />}</AnimatePresence>
+        <AnimatePresence>
+          {projectDialog && <ProjectDialog key={projectDialog === 'new' ? 'new' : projectDialog.id} />}
+        </AnimatePresence>
         <AnimatePresence>{onboarded && newWorkspaceOpen && <NewWorkspaceDialog key="new-workspace" />}</AnimatePresence>
         <AnimatePresence>{onboarded && inviteOpen && <InviteDialog key="invite" />}</AnimatePresence>
         <AnimatePresence>

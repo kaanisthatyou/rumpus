@@ -1,0 +1,178 @@
+/* Projects: git state, status page, areas (PLAN.md 5.13) */
+.proj {
+  gap: 20px;
+}
+.proj__git {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+}
+.proj__gitline,
+.proj__gitactions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+.proj__gitline > .l-icon {
+  color: var(--meta);
+  flex: none;
+}
+.proj__folder {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.proj__changes {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--meta);
+}
+.proj__changes.is-on {
+  color: var(--accent-ink);
+}
+.proj__fetched {
+  font-size: 12px;
+}
+.proj__gitnote {
+  margin: 0;
+  font-size: 13px;
+}
+.proj__gitnote.is-bad,
+.proj__out.is-bad {
+  color: var(--bad);
+}
+.proj__out {
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--card-2);
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 160px;
+  overflow: auto;
+}
+.proj__commits {
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 6px 0 0;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+}
+.proj__commits li {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  min-width: 0;
+}
+.proj__subject {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.proj__page,
+.proj__areas {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.proj__by {
+  font-size: 12px;
+}
+.proj__rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.proj__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.proj__row .l-input {
+  height: 30px;
+  min-width: 0;
+}
+.proj__row .l-input.is-done {
+  color: var(--meta);
+  text-decoration: line-through;
+}
+.proj__row input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  flex: none;
+}
+.proj__num {
+  width: 22px;
+  text-align: right;
+  flex: none;
+  font-size: 12px;
+}
+.proj__arealist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.proj__arealist li {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  padding: 7px 10px;
+  font-size: 13px;
+}
+.proj__desc {
+  min-height: 64px;
+}
+.proj__areaform {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.proj__arearow {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.4fr) auto;
+  gap: 6px;
+  align-items: center;
+}
+.proj__arearow .l-input {
+  height: 30px;
+  min-width: 0;
+}
+.proj__seed {
+  margin: 0;
+  font-size: 12px;
+}
+
+@media (max-width: 760px) {
+  .proj__arearow {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .proj__arearow select,
+  .proj__arearow input:not(:first-child) {
+    grid-column: 1;
+  }
+  .proj__commits li > span:nth-child(3) {
+    display: none;
+  }
+}

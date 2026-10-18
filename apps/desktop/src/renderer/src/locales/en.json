@@ -148,7 +148,9 @@
     "settings": "Settings",
     "shortcuts": "Shortcuts",
     "waiting": "Waiting",
-    "teamStorage": "Team lonca"
+    "teamStorage": "Team lonca",
+    "projects": "Projects",
+    "project": "Project"
   },
   "settings": {
     "title": "Settings",
@@ -240,7 +242,9 @@
     "bad_code": "The invite code could not be read.",
     "already_member": "This lonca is already joined, or a request is waiting.",
     "invite_refused": "The invite was not accepted: the code may be used or expired.",
-    "unreachable": "The inviting computer could not be reached. Tailscale and the inviter's Lonca must be running."
+    "unreachable": "The inviting computer could not be reached. Tailscale and the inviter's Lonca must be running.",
+    "invalid_project": "Project not saved: invalid value.",
+    "no_folder": "No folder chosen for this project on this computer."
   },
   "channel": {
     "newSession": "New session",
@@ -399,7 +403,7 @@
     "remember": "Adds a line to the personal notes"
   },
   "palette": {
-    "placeholder": "Channel, agent, view, action or message",
+    "placeholder": "Channel, agent, project, view, action or message",
     "channels": "Channels",
     "agents": "Agents",
     "views": "Views",
@@ -409,7 +413,8 @@
     "addAgent": "Add agent",
     "createChannel": "Create channel",
     "settings": "Settings",
-    "shortcuts": "Shortcuts"
+    "shortcuts": "Shortcuts",
+    "projects": "Projects"
   },
   "shortcuts": {
     "title": "Shortcuts",
@@ -760,5 +765,58 @@
       "encoded": "encoded data",
       "long": "long"
     }
+  },
+  "project": {
+    "new": "New project",
+    "edit": "Edit project",
+    "name": "Name",
+    "description": "Description",
+    "folder": "Folder on this computer",
+    "folderHint": "The project's git clone. The folder stays on this computer; each member picks their own clone. Agents working inside it get the status page and the areas.",
+    "clearFolder": "Remove",
+    "pickFolder": "Choose folder",
+    "noFolder": "No folder chosen on this computer.",
+    "openFolder": "Open folder",
+    "git": "Git state",
+    "reading": "Reading.",
+    "notRepo": "The folder is not a git repository.",
+    "detached": "no branch",
+    "noUpstream": "no upstream",
+    "aheadBehind": "{{upstream}} · {{ahead}} ahead · {{behind}} behind",
+    "changes": "{{count}} changed · {{untracked}} untracked",
+    "fetched": "Remote checked at {{time}}",
+    "notFetched": "Remote not checked",
+    "fetch": "Refresh",
+    "pull": "Pull",
+    "push": "Push",
+    "pullDone": "Pulled.",
+    "pushDone": "Pushed.",
+    "pullFailed": "Pull failed.",
+    "pushFailed": "Push failed.",
+    "commits": "Recent commits",
+    "status": "Status page",
+    "updatedBy": "Last change: {{name}} · {{time}}",
+    "leftOff": "Where it stands",
+    "leftOffPlaceholder": "The project's current state, in a short paragraph.",
+    "milestones": "Milestones",
+    "milestone": "Milestone",
+    "milestoneDone": "Done: {{text}}",
+    "addMilestone": "Add milestone",
+    "next": "Next",
+    "nextStep": "Next {{n}}",
+    "addNext": "Add step",
+    "moveDown": "Move down",
+    "removeRow": "Remove row",
+    "save": "Save",
+    "areas": "Areas",
+    "areasHint": "A record of who mostly works where. It blocks nobody: an agent may change any area it is asked to, and says so in its summary when the area is someone else's.",
+    "noAreas": "No areas.",
+    "shared": "Shared",
+    "areaPath": "Folder or pattern",
+    "areaMember": "Member",
+    "areaNote": "Note",
+    "addArea": "Add area",
+    "seedHint": "A progress.md in the folder starts the status page.",
+    "delete": "Delete project"
   }
 }

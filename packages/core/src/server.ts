@@ -29,6 +29,10 @@ import {
   type Message,
   type MethodName,
   type PhoneState,
+  type Project,
+  ProjectInputSchema,
+  ProjectStatusInputSchema,
+  type ProjectView,
   RECORD_KINDS,
   type RecordItem,
   type WorkspaceState,
@@ -50,6 +54,7 @@ import { appendLine, isPersonal, limitOf, memoryPrompt, memoryState, newSuggesti
 import { PEER_PORT, PeerClient, PeerError, type PeerRequest, PeerServer } from './peer.js';
 import { PHONE_PORT, PhoneServer } from './phone.js';
 import { killTree, type Launch, openConsole, type Runner, run } from './proc.js';
+import { EMPTY_STATUS, ProjectGit, progressMarkdown, projectOf, projectPrompt, readProgressFile } from './projects.js';
 import { CORE_RULES, systemPrompt } from './prompts.js';
 import { runReadTool } from './readTools.js';
 import { SettingsStore } from './settings.js';
@@ -210,6 +215,7 @@ export class Core {
   private phoneStarting: Promise<void> | undefined;
   private phonePort: number | undefined;
   private readonly projectCache = new Map<string, { at: number; text: Promise<string> }>();
+  private projectGitRunner: ProjectGit | undefined;
   private readonly handlers: { [M in MethodName]: Handler<M> };
 
   constructor(private readonly opts: CoreOptions) {
@@ -415,6 +421,28 @@ export class Core {
           { user: this.me().name, language: this.settings.get().language },
           { worker: instructions.worker().text, workspace: instructions.workspace() },
         );
+      },
+      'projects.list': async () => this.projectViews(),
+      'projects.save': async (p) => this.saveProject(p),
+      'projects.delete': async (p) => this.deleteProject(p?.id),
+      'projects.status': async (p) => this.saveStatus(p, this.me().name),
+      'projects.git': async (p) =>
+        this.projectGit().state(this.projectFolder(p?.id), { fetch: p?.fetch === true, force: p?.force === true }),
+      'projects.pull': async (p) => {
+        const folder = this.projectFolder(p?.id);
+        const r = await this.projectGit().pull(folder);
+        return { ...r, git: await this.projectGit().state(folder) };
+      },
+      'projects.push': async (p) => {
+        const folder = this.projectFolder(p?.id);
+        const r = await this.projectGit().push(folder);
+        return { ...r, git: await this.projectGit().state(folder) };
+      },
+      'projects.export': async (p) => {
+        const { store } = this.workspace();
+        const project = typeof p?.id === 'string' ? store.project(p.id) : undefined;
+        if (!project) throw new CoreError('not_found');
+        return progressMarkdown(project, store.progress(project.id) ?? EMPTY_STATUS(project.id));
       },
       'records.image': async (p) => {
         const { store, blobs } = this.workspace();
@@ -810,10 +838,11 @@ export class Core {
       },
       store,
       dir,
-      layers: () => ({
+      layers: (agent) => ({
         worker: instructions.worker().text,
         workspace: instructions.workspace(),
         memory: memoryPrompt(this.me().name, this.personal().read(), store.memory()).text,
+        project: this.projectLayer(store, agent.folder),
       }),
       recalled: () => memoryPrompt(this.me().name, this.personal().read(), store.memory()).sections,
       refs: (ids) => inWs(() => this.refsFor(ids)),
@@ -877,7 +906,8 @@ export class Core {
             // a card that cannot be made is not worth an error
           }
         }),
-      project: (folder) => this.project(folder),
+      project: async (folder) =>
+        [await this.project(folder), this.projectLayer(store, folder, false)].filter(Boolean).join('\n\n'),
       memory: () => memoryPrompt(this.me().name, this.personal().read(), store.memory()).text,
       readTool: (folder, call) => runReadTool(folder, call, this.opts.runner ?? run),
     });
@@ -1414,6 +1444,15 @@ export class Core {
         case 'memory.saved':
           this.emit('memory.changed', memoryState(this.personal(), store));
           break;
+        case 'project.saved':
+        case 'progress.saved': {
+          const project = store.project(id);
+          if (project) this.emit('project.changed', this.projectView(store, project));
+          break;
+        }
+        case 'project.deleted':
+          this.emit('project.deleted', { id });
+          break;
         default:
           structure = true;
       }
@@ -1825,6 +1864,63 @@ export class Core {
         },
       },
       {
+        name: 'read_status',
+        description:
+          'Reads the status page of the project you work in (where it stands, milestones, next steps) and its areas (who mostly works on what).',
+        inputSchema: { type: 'object', properties: {} },
+        run: (_a, ctx) => {
+          const project = this.agentProject(ctx.agentId);
+          if (!project) return text('Your folder is not part of a project in Lonca.');
+          const { store } = this.workspace();
+          return text(
+            projectPrompt(project, store.progress(project.id) ?? EMPTY_STATUS(project.id), (d) =>
+              this.memberName(store, d),
+            ),
+          );
+        },
+      },
+      {
+        name: 'update_status',
+        description:
+          'Updates the status page of the project you work in, after work that changes where it stands. Each field you give replaces the old one: left_off is a short current paragraph (rewrite it, do not append a log), milestones the whole checklist, next the whole ordered list.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            left_off: { type: 'string' },
+            milestones: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: { text: { type: 'string' }, done: { type: 'boolean' } },
+                required: ['text', 'done'],
+              },
+            },
+            next: { type: 'array', items: { type: 'string' } },
+          },
+        },
+        run: (a, ctx) => {
+          const project = this.agentProject(ctx.agentId);
+          if (!project) return text('Your folder is not part of a project in Lonca.');
+          const agent = this.workspace().store.agent(ctx.agentId);
+          try {
+            this.saveStatus(
+              {
+                id: project.id,
+                ...(typeof a.left_off === 'string' ? { leftOff: a.left_off } : {}),
+                ...(Array.isArray(a.milestones) ? { milestones: a.milestones } : {}),
+                ...(Array.isArray(a.next) ? { next: a.next } : {}),
+              },
+              agent?.name ?? 'agent',
+            );
+          } catch (err) {
+            return text(
+              `Not saved: ${err instanceof CoreError ? err.code : 'error'}. left_off up to 4000 characters, at most 60 milestones and 40 next steps of up to 300 characters.`,
+            );
+          }
+          return text(`Saved the status page of "${project.name}".`);
+        },
+      },
+      {
         name: 'post_progress',
         description: 'Posts a one-line progress note on your current job card, for people watching a long job.',
         inputSchema: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] },
@@ -1878,6 +1974,147 @@ export class Core {
       workspace: instructions.workspace(),
       variables: ['agent', 'handle', 'cli', 'user', 'folder', 'mode', 'language'],
     };
+  }
+
+  // ---------------------------------------------------------------- projects (PLAN.md 5.13)
+
+  private projectGit(): ProjectGit {
+    this.projectGitRunner ??= new ProjectGit(this.opts.runner ?? run);
+    return this.projectGitRunner;
+  }
+
+  private projectView(store: WorkspaceStore, project: Project): ProjectView {
+    const folder = store.projectFolder(project.id);
+    return {
+      ...project,
+      status: store.progress(project.id) ?? EMPTY_STATUS(project.id),
+      ...(folder ? { folder } : {}),
+    };
+  }
+
+  private projectViews(): ProjectView[] {
+    const { store } = this.workspace();
+    return store.projects().map((p) => this.projectView(store, p));
+  }
+
+  /** This computer's clone of a project; refused when none is set or it is gone. */
+  private projectFolder(id: unknown): string {
+    const { store } = this.workspace();
+    const project = typeof id === 'string' ? store.project(id) : undefined;
+    if (!project) throw new CoreError('not_found');
+    const folder = store.projectFolder(project.id);
+    if (!folder) throw new CoreError('no_folder');
+    if (!isDir(folder)) throw new CoreError('folder_missing');
+    return folder;
+  }
+
+  private memberName(store: WorkspaceStore, device: string): string | undefined {
+    if (device === this.deviceId) return this.me().name;
+    return store.member(device)?.name;
+  }
+
+  /** The project an agent (or advisor) folder is in, put into words for its prompt. */
+  private projectLayer(store: WorkspaceStore, folder: string | undefined, forAgent = true): string {
+    if (!folder) return '';
+    const withFolders = store.projects().map((p) => ({ project: p, folder: store.projectFolder(p.id) }));
+    const hit = projectOf(folder, withFolders, this.opts.platform ?? process.platform);
+    if (!hit) return '';
+    const text = projectPrompt(hit.project, store.progress(hit.project.id) ?? EMPTY_STATUS(hit.project.id), (d) =>
+      this.memberName(store, d),
+    );
+    // Advisors only read: the closing line about the update tool is for agents.
+    return forAgent ? text : text.split('\n\n').slice(0, -1).join('\n\n');
+  }
+
+  /** The project an agent works in, for Lonca's tools. */
+  private agentProject(agentId: string): Project | undefined {
+    const { store } = this.workspace();
+    const agent = store.agent(agentId);
+    if (!agent) return undefined;
+    const withFolders = store.projects().map((p) => ({ project: p, folder: store.projectFolder(p.id) }));
+    return projectOf(agent.folder, withFolders, this.opts.platform ?? process.platform)?.project;
+  }
+
+  private saveProject(input: unknown): ProjectView {
+    const { store } = this.workspace();
+    const parsed = ProjectInputSchema.safeParse(input);
+    if (!parsed.success) throw new CoreError('invalid_project', parsed.error.message);
+    const p = parsed.data;
+    const existing = p.id ? store.project(p.id) : undefined;
+    if (p.id && !existing) throw new CoreError('not_found');
+    const folder = p.folder?.trim();
+    if (folder && !isDir(folder)) throw new CoreError('folder_missing');
+    const known = (d: string) => d === this.deviceId || Boolean(store.member(d));
+    const areas = p.areas.map((a) => ({
+      path: a.path,
+      ...(a.member && known(a.member) ? { member: a.member } : {}),
+      note: a.note.trim(),
+    }));
+    const next: Project = {
+      id: existing?.id ?? newId(),
+      name: p.name,
+      description: p.description.trim(),
+      areas,
+      created: existing?.created ?? Date.now(),
+      updated: Date.now(),
+    };
+    const same =
+      existing &&
+      existing.name === next.name &&
+      existing.description === next.description &&
+      JSON.stringify(existing.areas) === JSON.stringify(next.areas);
+    // Pointing a project at this computer's clone is this computer's business; changing the project is an editor's.
+    if (!same) {
+      this.requireRole('editor');
+      store.commit({ type: 'project.saved', data: next });
+    }
+    if (p.folder !== undefined) store.setProjectFolder(next.id, folder || undefined);
+    // A clone that already keeps a Fabrika-style progress.md starts the page from it.
+    if (!existing && folder && !store.progress(next.id)) {
+      const seeded = readProgressFile(folder);
+      if (seeded)
+        store.commit({
+          type: 'progress.saved',
+          data: { id: next.id, ...seeded, updated: Date.now(), by: this.me().name },
+        });
+    }
+    const view = this.projectView(store, same ? existing : next);
+    this.emit('project.changed', view);
+    return view;
+  }
+
+  private deleteProject(id: unknown): { ok: true } {
+    const { store } = this.workspace();
+    const project = typeof id === 'string' ? store.project(id) : undefined;
+    if (!project) throw new CoreError('not_found');
+    this.requireRole('editor');
+    store.commit({ type: 'project.deleted', data: { id: project.id } });
+    store.setProjectFolder(project.id, undefined);
+    this.emit('project.deleted', { id: project.id });
+    return { ok: true };
+  }
+
+  private saveStatus(input: unknown, by: string): ProjectView {
+    this.requireRole('editor');
+    const { store } = this.workspace();
+    const parsed = ProjectStatusInputSchema.safeParse(input);
+    if (!parsed.success) throw new CoreError('invalid_project', parsed.error.message);
+    const p = parsed.data;
+    const project = store.project(p.id);
+    if (!project) throw new CoreError('not_found');
+    const current = store.progress(project.id) ?? EMPTY_STATUS(project.id);
+    const status = {
+      ...current,
+      ...(p.leftOff !== undefined ? { leftOff: p.leftOff.trim() } : {}),
+      ...(p.milestones !== undefined ? { milestones: p.milestones } : {}),
+      ...(p.next !== undefined ? { next: p.next } : {}),
+      updated: Date.now(),
+      by,
+    };
+    store.commit({ type: 'progress.saved', data: status });
+    const view = this.projectView(store, project);
+    this.emit('project.changed', view);
+    return view;
   }
 
   // ---------------------------------------------------------------- records

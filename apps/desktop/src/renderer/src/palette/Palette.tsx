@@ -11,7 +11,7 @@ import { useApp, type View } from '../store';
 
 interface Item {
   id: string;
-  group: 'channels' | 'agents' | 'views' | 'actions' | 'messages';
+  group: 'channels' | 'agents' | 'projects' | 'views' | 'actions' | 'messages';
   icon: IconName;
   label: string;
   detail?: string;
@@ -67,6 +67,15 @@ export function Palette({ onSettings }: { onSettings: () => void }) {
         run: () => void s.openChannel(c.id),
       });
     }
+    for (const p of s.projects)
+      all.push({
+        id: `p-${p.id}`,
+        group: 'projects',
+        icon: 'folder',
+        label: p.name,
+        ...(p.status.next[0] ? { detail: p.status.next[0] } : {}),
+        run: () => s.openProject(p.id),
+      });
     for (const v of VIEWS)
       all.push({
         id: `v-${v.view}`,
@@ -82,6 +91,13 @@ export function Palette({ onSettings }: { onSettings: () => void }) {
         icon: 'plus',
         label: t('palette.addAgent'),
         run: () => s.openAgentDialog('new'),
+      },
+      {
+        id: 'a-project',
+        group: 'actions',
+        icon: 'folder',
+        label: t('project.new'),
+        run: () => s.openProjectDialog('new'),
       },
       { id: 'a-settings', group: 'actions', icon: 'settings', label: t('palette.settings'), run: onSettings },
       {
@@ -113,7 +129,7 @@ export function Palette({ onSettings }: { onSettings: () => void }) {
     close();
     item.run();
   };
-  const groups = ['channels', 'agents', 'views', 'actions', 'messages'] as const;
+  const groups = ['channels', 'agents', 'projects', 'views', 'actions', 'messages'] as const;
   const index = items.length ? pick % items.length : 0;
 
   return (

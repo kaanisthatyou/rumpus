@@ -148,7 +148,9 @@
     "settings": "Ayarlar",
     "shortcuts": "Kısayollar",
     "waiting": "Bekleyenler",
-    "teamStorage": "Ekip loncası"
+    "teamStorage": "Ekip loncası",
+    "projects": "Projeler",
+    "project": "Proje"
   },
   "settings": {
     "title": "Ayarlar",
@@ -240,7 +242,9 @@
     "bad_code": "Davet kodu okunamadı.",
     "already_member": "Bu loncaya zaten katılınmış ya da istek bekliyor.",
     "invite_refused": "Davet kabul edilmedi: kod kullanılmış ya da süresi dolmuş olabilir.",
-    "unreachable": "Davet eden bilgisayara ulaşılamadı. Tailscale ve davet edenin Lonca'sının açık olması gerekir."
+    "unreachable": "Davet eden bilgisayara ulaşılamadı. Tailscale ve davet edenin Lonca'sının açık olması gerekir.",
+    "invalid_project": "Proje kaydedilmedi: geçersiz değer.",
+    "no_folder": "Bu bilgisayarda projenin klasörü seçilmedi."
   },
   "channel": {
     "newSession": "Yeni oturum",
@@ -399,7 +403,7 @@
     "remember": "Kişisel notlara bir satır ekler"
   },
   "palette": {
-    "placeholder": "Kanal, agent, görünüm, eylem ya da mesaj",
+    "placeholder": "Kanal, agent, proje, görünüm, eylem ya da mesaj",
     "channels": "Kanallar",
     "agents": "Agentlar",
     "views": "Görünümler",
@@ -409,7 +413,8 @@
     "addAgent": "Agent ekle",
     "createChannel": "Kanal oluştur",
     "settings": "Ayarlar",
-    "shortcuts": "Kısayollar"
+    "shortcuts": "Kısayollar",
+    "projects": "Projeler"
   },
   "shortcuts": {
     "title": "Kısayollar",
@@ -760,5 +765,58 @@
       "encoded": "kodlanmış veri",
       "long": "uzun"
     }
+  },
+  "project": {
+    "new": "Yeni proje",
+    "edit": "Projeyi düzenle",
+    "name": "Ad",
+    "description": "Açıklama",
+    "folder": "Bu bilgisayardaki klasör",
+    "folderHint": "Projenin git klonu. Klasör yalnızca bu bilgisayarda tutulur; her üye kendi klonunu seçer. Bu klasörün içinde çalışan ajanlara durum sayfası ve alanlar verilir.",
+    "clearFolder": "Kaldır",
+    "pickFolder": "Klasör seç",
+    "noFolder": "Bu bilgisayarda klasör seçilmedi.",
+    "openFolder": "Klasörü aç",
+    "git": "Git durumu",
+    "reading": "Okunuyor.",
+    "notRepo": "Klasör bir git deposu değil.",
+    "detached": "dal yok",
+    "noUpstream": "uzak dal yok",
+    "aheadBehind": "{{upstream}} · {{ahead}} ileri · {{behind}} geri",
+    "changes": "{{count}} değişiklik · {{untracked}} izlenmeyen",
+    "fetched": "Uzak depo {{time}} sorgulandı",
+    "notFetched": "Uzak depo sorgulanmadı",
+    "fetch": "Yenile",
+    "pull": "Çek",
+    "push": "Gönder",
+    "pullDone": "Çekildi.",
+    "pushDone": "Gönderildi.",
+    "pullFailed": "Çekilemedi.",
+    "pushFailed": "Gönderilemedi.",
+    "commits": "Son commitler",
+    "status": "Durum sayfası",
+    "updatedBy": "Son değişiklik: {{name}} · {{time}}",
+    "leftOff": "Nerede kaldık",
+    "leftOffPlaceholder": "Projenin şu anki durumu, kısa bir paragraf.",
+    "milestones": "Kilometre taşları",
+    "milestone": "Kilometre taşı",
+    "milestoneDone": "Tamamlandı: {{text}}",
+    "addMilestone": "Kilometre taşı ekle",
+    "next": "Sıradakiler",
+    "nextStep": "Sıradaki {{n}}",
+    "addNext": "Adım ekle",
+    "moveDown": "Aşağı taşı",
+    "removeRow": "Satırı kaldır",
+    "save": "Kaydet",
+    "areas": "Alanlar",
+    "areasHint": "Kimin çoğunlukla nerede çalıştığının kaydı. Kimseyi engellemez: ajan istenen her alanı değiştirebilir, başkasının alanını değiştirdiğinde bunu özetinde belirtir.",
+    "noAreas": "Alan tanımlanmadı.",
+    "shared": "Ortak",
+    "areaPath": "Klasör veya desen",
+    "areaMember": "Üye",
+    "areaNote": "Not",
+    "addArea": "Alan ekle",
+    "seedHint": "Klasörde progress.md varsa durum sayfası ondan başlar.",
+    "delete": "Projeyi sil"
   }
 }

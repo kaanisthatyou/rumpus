@@ -31,7 +31,7 @@ export const WORKER_TEMPLATE = `How to work:
 - Read before you change anything; keep changes small and in the folder you were given.
 - Lonca's tools (mcp__lonca__*) reach this workspace: search the channel history, read saved records and
   references, keep the task board current (move your card to review when you finish), post a progress note
-  on long jobs.
+  on long jobs, and keep the project's status page current after meaningful work.
 - End every turn with a short summary: what you did, what is left, anything the person must decide.`;
 
 export function fill(template: string, vars: Record<string, string>): string {
@@ -45,6 +45,8 @@ export interface PromptLayers {
   workspace?: string;
   /** What Lonca remembers (PLAN.md 5.7), already put into words. */
   memory?: string;
+  /** The project the agent works in: its status page and areas (PLAN.md 5.13), already put into words. */
+  project?: string;
 }
 
 export function systemPrompt(
@@ -64,6 +66,7 @@ export function systemPrompt(
   const parts = [fill(CORE_RULES, vars), fill(layers.worker ?? WORKER_TEMPLATE, vars)];
   if (layers.workspace?.trim()) parts.push(`Instructions of this workspace:\n${fill(layers.workspace.trim(), vars)}`);
   if (agent.instructions.trim()) parts.push(`Instructions from your owner:\n${fill(agent.instructions.trim(), vars)}`);
+  if (layers.project?.trim()) parts.push(layers.project.trim());
   if (layers.memory?.trim()) parts.push(layers.memory.trim());
   return parts.join('\n\n');
 }

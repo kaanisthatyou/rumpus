@@ -310,6 +310,45 @@ try {
   await treeCard.getByText(L.goal.worktreeRemoved).waitFor();
   assert.match(git('branch', '--list', 'lonca/*').toString(), /lonca\/goal-/);
 
+  // A project on the same repository: its progress.md starts the status page, the git panel shows the clone, the
+  // agent working in the folder reads and updates the page through Lonca's tools, and a person edits it.
+  writeFileSync(
+    join(project, 'progress.md'),
+    '# Fake — progress\n\n## Where we left off\n\nİskelet hazır.\n\n## Milestones\n\n- [x] Kavram yazıldı\n- [ ] Yayınlandı\n\n## Next\n\n1. Testleri ekle\n',
+  );
+  await page.getByRole('button', { name: L.project.new }).click();
+  const projectDialog = page.getByRole('dialog', { name: L.project.new });
+  await projectDialog.getByLabel(L.project.name).fill('Sahte proje');
+  await projectDialog.getByRole('button', { name: L.agentForm.pick, exact: true }).click();
+  await projectDialog.getByText(project).waitFor();
+  await projectDialog.getByRole('button', { name: L.project.addArea }).click();
+  await projectDialog.getByLabel(L.project.areaPath).fill('src');
+  await projectDialog.getByLabel(L.project.areaNote).fill('arayüz');
+  await shot(page, 'project-form');
+  await projectDialog.getByRole('button', { name: L.project.save }).click();
+  await page.getByRole('dialog').waitFor({ state: 'detached' });
+  await page.getByRole('heading', { name: 'Sahte proje' }).waitFor();
+  const commits = page.getByRole('list', { name: L.project.commits });
+  await commits.getByText('first').waitFor();
+  await page.getByText(L.project.changes.replace('{{count}}', '0').replace('{{untracked}}', '1')).waitFor();
+  assert.equal(await page.getByLabel(L.project.milestone).first().inputValue(), 'Kavram yazıldı');
+  assert.equal(await page.getByLabel(L.project.leftOff).inputValue(), 'İskelet hazır.');
+  await shot(page, 'project');
+  await page.getByRole('button', { name: 'genel', exact: true }).click();
+  await composer.fill('@claude durumu güncelle');
+  await composer.press('Enter');
+  await page.getByText('Durum sayfası güncellendi (2 kilometre taşı).').waitFor({ timeout: 20_000 });
+  await page.getByRole('button', { name: 'Sahte proje', exact: true }).click();
+  await until(
+    async () => (await page.getByLabel(L.project.leftOff).inputValue()) === 'Sahte ajan durumu güncelledi.',
+    'status page updated by the agent',
+  );
+  assert.equal(await page.getByLabel(L.project.milestoneDone.replace('{{text}}', 'Yayınlandı')).isChecked(), true);
+  await page.getByLabel(L.project.nextStep.replace('{{n}}', '1')).fill('Yayın notlarını yaz');
+  await page.getByRole('button', { name: L.project.save }).click();
+  await page.getByText(L.project.updatedBy.replace('{{name}}', 'Kaan').split(' · ')[0]).waitFor();
+  await shot(page, 'project-updated');
+
   // Memory: /hatırla writes a note, the profile is saved in Bellek, and the next job says what it recalled.
   await page.getByRole('button', { name: 'genel', exact: true }).click();
   await composer.fill('/hatırla Cuma günleri deploy yok');
@@ -368,6 +407,8 @@ try {
     .waitFor();
   await page.getByRole('button', { name: '@claude', exact: true }).click();
   await page.getByText(L.job.state.stopped).first().waitFor();
+  await page.getByRole('button', { name: 'Sahte proje', exact: true }).click();
+  assert.equal(await page.getByLabel(L.project.nextStep.replace('{{n}}', '1')).inputValue(), 'Yayın notlarını yaz');
   await shot(page, 'restart');
   assert.deepEqual(second.errors, [], second.errors.join('\n'));
 } finally {

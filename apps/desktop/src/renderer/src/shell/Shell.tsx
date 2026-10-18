@@ -10,6 +10,7 @@ import { ChannelView } from '../channel/ChannelView';
 import { LiveView } from '../channel/LiveView';
 import { GoalsView } from '../goals/GoalsView';
 import { MemoryView } from '../memory/MemoryView';
+import { ProjectPage } from '../projects/ProjectView';
 import { RecordsView } from '../records/RecordsView';
 import { useApp, type View } from '../store';
 import { enablePush, pushState } from '../web';
@@ -32,6 +33,7 @@ const ICON_OF: Record<View, IconName> = {
   references: 'image',
   commands: 'bookmark',
   memory: 'layers',
+  project: 'folder',
 };
 
 function NavButton({
@@ -129,6 +131,10 @@ function Sidebar({ onSettings }: { onSettings: () => void }) {
   const openChannel = useApp((s) => s.openChannel);
   const setView = useApp((s) => s.setView);
   const createChannel = useApp((s) => s.createChannel);
+  const projects = useApp((s) => s.projects);
+  const projectId = useApp((s) => s.projectId);
+  const openProject = useApp((s) => s.openProject);
+  const openProjectDialog = useApp((s) => s.openProjectDialog);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const channels = workspace?.channels.filter((c) => c.kind === 'channel') ?? [];
@@ -213,6 +219,21 @@ function Sidebar({ onSettings }: { onSettings: () => void }) {
           ))}
         </div>
       )}
+      <div className="grp">
+        <h2>
+          <span className="grow">{t('shell.projects')}</span>
+          <IconButton size="sm" icon="plus" label={t('project.new')} onClick={() => openProjectDialog('new')} />
+        </h2>
+        {projects.map((p) => (
+          <NavButton
+            key={p.id}
+            on={view === 'project' && projectId === p.id}
+            icon="folder"
+            label={p.name}
+            onClick={() => openProject(p.id)}
+          />
+        ))}
+      </div>
       {waiting.length > 0 && (
         <div className="grp">
           <button
@@ -612,6 +633,8 @@ export function Shell({ onSettings }: { onSettings: () => void }) {
         <GoalsView />
       ) : view === 'memory' ? (
         <MemoryView />
+      ) : view === 'project' ? (
+        <ProjectPage />
       ) : view === 'ideas' || view === 'references' || view === 'commands' ? (
         <RecordsView key={view} kind={view === 'ideas' ? 'idea' : view === 'references' ? 'reference' : 'command'} />
       ) : (

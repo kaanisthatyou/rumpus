@@ -277,8 +277,10 @@ the PC. Needs-attention pushes from day one.
 
 A project = a git repo; each member points it at their own clone. Lonca shows branch, changes, ahead/behind, and
 offers pull/push; jobs can end with a commit (owner's choice). Advisors read commits and diffs. Areas (folders
-owned by a member) generalize Fabrika's `split.md`: every job gets the rules, and editing another member's area
-needs a claim.
+a member mostly works on) generalize Fabrika's `split.md`: every job gets them as a record, never a lock (Fabrika
+dropped its claim rule on 2026-10-16 because it only slowed two people down); an agent that changes someone else's
+area says so in its summary. The project's status page generalizes Fabrika's `progress.md` (where it stands,
+milestones, next) and agents keep it current through Lonca's tools.
 
 ### 5.14 Agent instructions (system prompts)
 
@@ -700,6 +702,16 @@ The details behind 5.11 and 6.5, decided before building.
   things that look like steering (instructions, role changes, markup, secrets, passwords in addresses, encoded
   blobs, length) until a person edits and accepts or rejects them. Not yet: upkeep by a cheap model (summaries),
   per-advisor notes, and search over jobs and records as an agent tool (messages already have one).
+- 4.2 Projects (5.13), Fabrika's per-game folder made general: a project is shared (name, description, areas as
+  signed `project.saved` events, the status page as `progress.saved`), its folder is each computer's own clone (a
+  local table, never synced). The page shows the clone's git state (branch, upstream, ahead/behind, changes, recent
+  commits; fetch at most every five minutes unless asked, `pull --ff-only` and `push`, never forced, git never
+  prompts), the status page ("where it stands", milestones, next; a clone with a Fabrika `progress.md` starts the
+  page from it) and the areas. An agent whose folder is inside a project's clone gets the page and the areas in its
+  prompt and two MCP tools, `read_status` and `update_status`; advisors whose folder is inside one get the page too.
+  Areas are a record, not a lock. Covered by unit tests (git with real repositories, two cores syncing a project and
+  a page edit) and `e2e/channel.mjs` (a project from a repository with `progress.md`, the fake agent updating the
+  page, a person editing it, the page after a restart).
 
 ## 9. Risks
 

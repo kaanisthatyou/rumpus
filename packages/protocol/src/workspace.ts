@@ -389,6 +389,97 @@ export interface RecordInput {
   pinned?: boolean;
 }
 
+/**
+ * A project (PLAN.md 5.13): a git repository every member points at their own clone of. Fabrika's per-game folder
+ * generalized: its status page is `progress.md`, its areas are `split.md`. The folder is this computer's only.
+ */
+export interface Project {
+  id: string;
+  name: string;
+  description: string;
+  /**
+   * Who mostly works on what. A record that every job is told about, never a lock: anyone may change any area when
+   * asked (Fabrika dropped its ownership rules on 2026-10-16 for this reason) and says so when it is someone else's.
+   */
+  areas: ProjectArea[];
+  created: number;
+  updated: number;
+}
+
+export interface ProjectArea {
+  /** A folder or file pattern inside the repository, as people write it (`src/ui`, `docs/*.md`). */
+  path: string;
+  /** The member (device id) who mostly works there; none for a shared area. */
+  member?: string;
+  note: string;
+}
+
+/** The project's status page: where it stands, kept current by people and by agents after their work. */
+export interface ProjectStatus {
+  /** The project's id. */
+  id: string;
+  /** "Where we left off": a short paragraph. */
+  leftOff: string;
+  milestones: { text: string; done: boolean }[];
+  /** What comes next, in order. */
+  next: string[];
+  updated: number;
+  /** Who changed it last: a person's or an agent's name. */
+  by?: string;
+}
+
+export const ProjectInputSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().trim().min(1).max(60),
+  description: z.string().max(2000).default(''),
+  areas: z
+    .array(
+      z.object({
+        path: z.string().trim().min(1).max(200),
+        member: z.string().max(64).optional(),
+        note: z.string().max(300).default(''),
+      }),
+    )
+    .max(40)
+    .default([]),
+  /** This computer's clone of the repository. */
+  folder: z.string().max(1000).optional(),
+});
+export type ProjectInput = z.input<typeof ProjectInputSchema>;
+
+export const ProjectStatusInputSchema = z.object({
+  id: z.string().min(1),
+  leftOff: z.string().max(4000).optional(),
+  milestones: z
+    .array(z.object({ text: z.string().trim().min(1).max(300), done: z.boolean() }))
+    .max(60)
+    .optional(),
+  next: z.array(z.string().trim().min(1).max(300)).max(40).optional(),
+});
+export type ProjectStatusInput = z.input<typeof ProjectStatusInputSchema>;
+
+/** The git state of this computer's clone. */
+export interface GitState {
+  /** False when the folder is missing or not a git repository. */
+  repo: boolean;
+  branch?: string;
+  upstream?: string;
+  ahead?: number;
+  behind?: number;
+  /** Changed, added or deleted files that are not committed. */
+  changes?: number;
+  untracked?: number;
+  commits?: { hash: string; date: string; author: string; subject: string }[];
+  /** When the remote was last fetched by Lonca (ms). */
+  fetched?: number;
+}
+
+/** A project as one computer sees it: shared data plus this computer's folder and its git state. */
+export interface ProjectView extends Project {
+  status: ProjectStatus;
+  folder?: string;
+}
+
 export const CARD_STATUSES = ['todo', 'doing', 'review', 'done'] as const;
 export type CardStatus = (typeof CARD_STATUSES)[number];
 

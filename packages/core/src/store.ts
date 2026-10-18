@@ -14,6 +14,8 @@ import type {
   Job,
   MemorySuggestion,
   Message,
+  Project,
+  ProjectStatus,
   RecordItem,
 } from '@lonca/protocol';
 import type { SignedEvent } from './identity.js';
@@ -84,6 +86,11 @@ CREATE TABLE IF NOT EXISTS heads (author TEXT PRIMARY KEY, n INTEGER NOT NULL);
 CREATE TRIGGER IF NOT EXISTS messages_ad AFTER DELETE ON messages BEGIN
   INSERT INTO messages_fts (messages_fts, rowid, text) VALUES ('delete', old.rowid, old.text);
 END;
+CREATE TABLE IF NOT EXISTS projects (
+  id TEXT PRIMARY KEY, data TEXT NOT NULL, created INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS progress (id TEXT PRIMARY KEY, data TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS project_folders (id TEXT PRIMARY KEY, folder TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS sessions (
   agent_id TEXT NOT NULL, channel_id TEXT NOT NULL, session_id TEXT NOT NULL, PRIMARY KEY (agent_id, channel_id)
 );
@@ -110,7 +117,10 @@ export type WorkspaceEvent =
   | { type: 'card.saved'; data: Card }
   | { type: 'card.deleted'; data: { id: string } }
   | { type: 'record.saved'; data: RecordItem }
-  | { type: 'record.deleted'; data: { id: string } };
+  | { type: 'record.deleted'; data: { id: string } }
+  | { type: 'project.saved'; data: Project }
+  | { type: 'project.deleted'; data: { id: string } }
+  | { type: 'progress.saved'; data: ProjectStatus };
 
 const json = <T>(text: unknown): T => JSON.parse(String(text)) as T;
 
@@ -127,6 +137,8 @@ const TABLES: Record<string, string> = {
   device: 'endpoints',
   job: 'jobs',
   memory: 'memory',
+  project: 'projects',
+  progress: 'progress',
 };
 
 export function entityOf(type: string, data: unknown): string {
@@ -548,6 +560,21 @@ export class WorkspaceStore {
       case 'record.deleted':
         this.db.prepare('UPDATE records SET deleted = 1 WHERE id = ?').run(e.data.id);
         return;
+      case 'project.saved':
+        this.db
+          .prepare(
+            'INSERT INTO projects (id, data, created) VALUES (?, ?, ?) ON CONFLICT (id) DO UPDATE SET data = excluded.data, deleted = 0',
+          )
+          .run(e.data.id, JSON.stringify(e.data), e.data.created);
+        return;
+      case 'project.deleted':
+        this.db.prepare('UPDATE projects SET deleted = 1 WHERE id = ?').run(e.data.id);
+        return;
+      case 'progress.saved':
+        this.db
+          .prepare('INSERT OR REPLACE INTO progress (id, data) VALUES (?, ?)')
+          .run(e.data.id, JSON.stringify(e.data));
+        return;
     }
   }
 
@@ -677,6 +704,41 @@ export class WorkspaceStore {
   card(id: string): Card | undefined {
     const r = this.db.prepare('SELECT data FROM cards WHERE id = ? AND deleted = 0').get(id) as Row | undefined;
     return r ? json<Card>(r.data) : undefined;
+  }
+
+  projects(): Project[] {
+    return (this.db.prepare('SELECT data FROM projects WHERE deleted = 0 ORDER BY created').all() as Row[]).map((r) =>
+      json<Project>(r.data),
+    );
+  }
+
+  project(id: string): Project | undefined {
+    const r = this.db.prepare('SELECT data FROM projects WHERE id = ? AND deleted = 0').get(id) as Row | undefined;
+    return r ? json<Project>(r.data) : undefined;
+  }
+
+  progress(id: string): ProjectStatus | undefined {
+    const r = this.db.prepare('SELECT data FROM progress WHERE id = ?').get(id) as Row | undefined;
+    return r ? json<ProjectStatus>(r.data) : undefined;
+  }
+
+  // ---------------------------------------------------------------- project folders (local: each member's own clone)
+
+  projectFolder(id: string): string | undefined {
+    const r = this.db.prepare('SELECT folder FROM project_folders WHERE id = ?').get(id) as Row | undefined;
+    return r ? String(r.folder) : undefined;
+  }
+
+  setProjectFolder(id: string, folder: string | undefined): void {
+    if (folder) {
+      this.db
+        .prepare(
+          'INSERT INTO project_folders (id, folder) VALUES (?, ?) ON CONFLICT (id) DO UPDATE SET folder = excluded.folder',
+        )
+        .run(id, folder);
+    } else {
+      this.db.prepare('DELETE FROM project_folders WHERE id = ?').run(id);
+    }
   }
 
   // ---------------------------------------------------------------- jobs and sessions (local)
