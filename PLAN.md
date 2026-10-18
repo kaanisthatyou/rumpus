@@ -669,6 +669,10 @@ The details behind 5.11 and 6.5, decided before building.
   everyone's card about once a second (only the agent's owner may report it). The members list shows who answered
   the last sync. A message from another member in a background lonca marks it in the rail; while Lonca is in the
   background a message from another member gives an OS notification.
+  0.5.0-alpha.0 (2026-10-18): the packaged app passes all e2e tests; `e2e/tailscale.mjs` (by hand, on a computer
+  with Tailscale) has one app listen on its real Tailscale address: the invite carried `100.76.173.48:47640` and the
+  second app joined and chatted through it. Still to do in Phase 3: 3.7 the phone companion, and the real test
+  between Kaan's and Arda's computers.
 - **Slices:** 3.1 several workspaces; 3.2 identity, signed log, last-writer-wins; 3.3 transport and sync between
   two apps (two `LONCA_HOME` instances on one PC in tests); 3.4 invites, roles, members panel; 3.5 cross-member
   jobs and agent access; 3.6 presence, typing, notifications; 3.7 the phone companion.
