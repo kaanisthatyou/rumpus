@@ -249,6 +249,7 @@ export const ERROR_CODES = [
   'provider_cancelled',
   'provider_bad_response',
   'provider_refused',
+  'provider_no_tools',
   'internal',
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];

@@ -1,6 +1,6 @@
 // Talks to model providers over HTTP: OpenAI-style chat completions or Anthropic's messages API, streamed, with a
 // chain of keys (the next key on 401, 403 or 429). Runs in Electron's main process, where the keys are.
-import type { LlmMessage, LlmResult, ProviderWire } from '@lonca/protocol';
+import type { LlmMessage, LlmResult, LlmTool, ProviderWire } from '@lonca/protocol';
 
 export type ProviderErrorCode =
   | 'bad_request'
@@ -15,6 +15,7 @@ export type ProviderErrorCode =
   | 'provider_timeout'
   | 'provider_cancelled'
   | 'provider_bad_response'
+  | 'provider_no_tools'
   | 'provider_refused';
 
 export class ProviderError extends Error {
@@ -41,6 +42,7 @@ export interface CompleteOptions {
   model: string;
   system?: string;
   messages: LlmMessage[];
+  tools?: LlmTool[];
   maxTokens?: number;
   temperature?: number;
   signal?: AbortSignal;
@@ -167,11 +169,178 @@ async function readSse(res: Response, onData: (data: string) => void): Promise<v
 
 const estimate = (text: string) => Math.ceil(text.length / 4);
 
+/** Plain turns for the streamed path (no tools): tool turns become text the model can still read. */
+function plainTurns(messages: LlmMessage[]): { role: 'user' | 'assistant'; content: string }[] {
+  return messages.map((m) =>
+    m.role === 'tool'
+      ? { role: 'user', content: `[${m.name} result]\n${m.content}` }
+      : { role: m.role, content: m.content },
+  );
+}
+
+function openaiTurns(messages: LlmMessage[]): unknown[] {
+  return messages.map((m) => {
+    if (m.role === 'tool') return { role: 'tool', tool_call_id: m.callId, content: m.content };
+    if (m.role === 'assistant' && m.calls?.length) {
+      return {
+        role: 'assistant',
+        content: m.content || null,
+        tool_calls: m.calls.map((c) => ({
+          id: c.id,
+          type: 'function',
+          function: { name: c.name, arguments: JSON.stringify(c.args) },
+        })),
+      };
+    }
+    return { role: m.role, content: m.content };
+  });
+}
+
+/** Anthropic wants tool results in a user turn, several results of one round together. */
+function anthropicTurns(messages: LlmMessage[]): unknown[] {
+  const out: { role: string; content: unknown }[] = [];
+  for (const m of messages) {
+    if (m.role === 'tool') {
+      const block = { type: 'tool_result', tool_use_id: m.callId, content: m.content };
+      const last = out.at(-1);
+      if (last?.role === 'user' && Array.isArray(last.content)) (last.content as unknown[]).push(block);
+      else out.push({ role: 'user', content: [block] });
+    } else if (m.role === 'assistant' && m.calls?.length) {
+      out.push({
+        role: 'assistant',
+        content: [
+          ...(m.content ? [{ type: 'text', text: m.content }] : []),
+          ...m.calls.map((c) => ({ type: 'tool_use', id: c.id, name: c.name, input: c.args })),
+        ],
+      });
+    } else {
+      out.push({ role: m.role, content: m.content });
+    }
+  }
+  return out;
+}
+
+const argsOf = (raw: unknown): Record<string, unknown> => {
+  if (raw && typeof raw === 'object') return raw as Record<string, unknown>;
+  try {
+    const v = JSON.parse(String(raw ?? '{}')) as unknown;
+    return v && typeof v === 'object' ? (v as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
+};
+
+/** One turn with tools, not streamed: the text and the tool calls the model asks for. */
+async function completeWithTools(
+  ep: Endpoint,
+  opts: CompleteOptions & { tools: LlmTool[] },
+  signal: AbortSignal,
+): Promise<LlmResult & { index: number }> {
+  const maxTokens = opts.maxTokens ?? 1024;
+  const anthropic = ep.wire === 'anthropic';
+  const body = JSON.stringify(
+    anthropic
+      ? {
+          model: opts.model,
+          max_tokens: maxTokens,
+          ...(opts.system ? { system: opts.system } : {}),
+          messages: anthropicTurns(opts.messages),
+          tools: opts.tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.parameters })),
+          ...(opts.temperature !== undefined ? { temperature: opts.temperature } : {}),
+        }
+      : {
+          model: opts.model,
+          messages: [...(opts.system ? [{ role: 'system', content: opts.system }] : []), ...openaiTurns(opts.messages)],
+          tools: opts.tools.map((t) => ({
+            type: 'function',
+            function: { name: t.name, description: t.description, parameters: t.parameters },
+          })),
+          max_tokens: maxTokens,
+          ...(opts.temperature !== undefined ? { temperature: opts.temperature } : {}),
+        },
+  );
+  const { res, index } = await withKeys(ep, (key) =>
+    fetch(url(ep.baseUrl, anthropic ? 'messages' : 'chat/completions'), {
+      method: 'POST',
+      headers: headers(ep.wire, key),
+      body,
+      signal,
+    }),
+  );
+  if (!res.ok) {
+    const err = await refusal(res);
+    // Models and servers without tool support say so in a 400 (or 404/422 on some local servers).
+    if ([400, 404, 422].includes(res.status) && /tool|function/i.test(err.message)) {
+      throw new ProviderError('provider_no_tools', err.message, res.status);
+    }
+    throw err;
+  }
+  const json = (await res.json().catch(() => {
+    throw new ProviderError('provider_bad_response');
+  })) as Record<string, unknown>;
+  if (anthropic) {
+    const blocks = (json.content ?? []) as {
+      type?: string;
+      text?: string;
+      id?: string;
+      name?: string;
+      input?: unknown;
+    }[];
+    const u = (json.usage ?? {}) as Record<string, number>;
+    const calls = blocks
+      .filter((b) => b.type === 'tool_use' && b.id && b.name)
+      .map((b) => ({ id: String(b.id), name: String(b.name), args: argsOf(b.input) }));
+    const text = blocks
+      .filter((b) => b.type === 'text')
+      .map((b) => b.text ?? '')
+      .join('');
+    return {
+      text,
+      ...(calls.length ? { calls } : {}),
+      usage: finish(
+        {
+          in: (u.input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0),
+          out: u.output_tokens ?? 0,
+        },
+        opts,
+        text,
+      ),
+      index,
+    };
+  }
+  const message = ((json.choices as { message?: Record<string, unknown> }[] | undefined)?.[0]?.message ?? {}) as {
+    content?: unknown;
+    tool_calls?: { id?: string; function?: { name?: string; arguments?: unknown } }[];
+  };
+  const text = typeof message.content === 'string' ? message.content : '';
+  const calls = (message.tool_calls ?? [])
+    .filter((c) => c.function?.name)
+    .map((c, i) => ({
+      id: String(c.id ?? `call_${i}`),
+      name: String(c.function?.name),
+      args: argsOf(c.function?.arguments),
+    }));
+  const u = json.usage as { prompt_tokens?: number; completion_tokens?: number } | undefined;
+  return {
+    text,
+    ...(calls.length ? { calls } : {}),
+    usage: finish(u ? { in: u.prompt_tokens ?? 0, out: u.completion_tokens ?? 0 } : {}, opts, text),
+    index,
+  };
+}
+
 export async function complete(ep: Endpoint, opts: CompleteOptions): Promise<LlmResult & { index: number }> {
   const signal = AbortSignal.any([
     AbortSignal.timeout(opts.timeoutMs ?? 120_000),
     ...(opts.signal ? [opts.signal] : []),
   ]);
+  if (opts.tools?.length) {
+    try {
+      return await completeWithTools(ep, { ...opts, tools: opts.tools }, signal);
+    } catch (e) {
+      throw fetchError(e, opts.signal);
+    }
+  }
   const maxTokens = opts.maxTokens ?? 1024;
   let text = '';
   let usage: { in?: number; out?: number } = {};
@@ -186,7 +355,7 @@ export async function complete(ep: Endpoint, opts: CompleteOptions): Promise<Llm
         model: opts.model,
         max_tokens: maxTokens,
         ...(opts.system ? { system: opts.system } : {}),
-        messages: opts.messages,
+        messages: plainTurns(opts.messages),
         ...(opts.temperature !== undefined ? { temperature: opts.temperature } : {}),
         stream: true,
       });
@@ -221,7 +390,7 @@ export async function complete(ep: Endpoint, opts: CompleteOptions): Promise<Llm
     const make = (withUsage: boolean) =>
       JSON.stringify({
         model: opts.model,
-        messages: [...(opts.system ? [{ role: 'system', content: opts.system }] : []), ...opts.messages],
+        messages: [...(opts.system ? [{ role: 'system', content: opts.system }] : []), ...plainTurns(opts.messages)],
         max_tokens: maxTokens,
         ...(opts.temperature !== undefined ? { temperature: opts.temperature } : {}),
         stream: true,

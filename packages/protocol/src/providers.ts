@@ -123,22 +123,39 @@ export interface ProvidersState {
   protection: KeyProtection;
 }
 
-export interface LlmMessage {
-  role: 'user' | 'assistant';
-  content: string;
+/** A tool the model may call; `parameters` is a JSON schema. */
+export interface LlmTool {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
 }
+
+export interface LlmCall {
+  id: string;
+  name: string;
+  args: Record<string, unknown>;
+}
+
+/** A turn of the conversation, the same for every wire; the client turns it into the provider's format. */
+export type LlmMessage =
+  | { role: 'user'; content: string }
+  | { role: 'assistant'; content: string; calls?: LlmCall[] }
+  | { role: 'tool'; callId: string; name: string; content: string };
 
 export interface LlmRequest {
   providerId: string;
   model: string;
   system?: string;
   messages: LlmMessage[];
+  /** With tools the answer is not streamed, and may be tool calls instead of (or next to) text. */
+  tools?: LlmTool[];
   maxTokens?: number;
   temperature?: number;
 }
 
 export interface LlmResult {
   text: string;
+  calls?: LlmCall[];
   usage: { in: number; out: number; estimated?: boolean };
 }
 

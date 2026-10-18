@@ -7,6 +7,7 @@ import {
   type KeyProtection,
   type LlmMessage,
   type LlmResult,
+  type LlmTool,
   type ProviderInfo,
   type ProviderInput,
   type ProvidersState,
@@ -130,6 +131,7 @@ export class ProviderVault {
       model: string;
       system?: string;
       messages: LlmMessage[];
+      tools?: LlmTool[];
       maxTokens?: number;
       temperature?: number;
     },
@@ -139,6 +141,7 @@ export class ProviderVault {
     const { index, ...result } = await complete(this.endpoint(p), {
       model: req.model,
       messages: req.messages,
+      ...(req.tools?.length ? { tools: req.tools } : {}),
       ...(req.system ? { system: req.system } : {}),
       ...(req.maxTokens ? { maxTokens: req.maxTokens } : {}),
       ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),

@@ -1,6 +1,6 @@
 # Lonca v2: plan
 
-Status: **Phase 1 done** (2026-10-18), Phase 2 next; see "Phase 0 status" and "Phase 1 status" under section 8. Owners: Kaan and Arda. v0.1 (the
+Status: **Phase 2 built** (2026-10-18; its done-check, a goal finishing on its own with advisors commenting, waits for real use), Phase 3 next; see "Phase 0 status" and "Phase 1 status" under section 8. Owners: Kaan and Arda. v0.1 (the
 Python chat server, tag `v0.1.0`) was the starting point for ideas and the security model, not for code.
 
 Research behind this plan: `docs/research/` (Claude Desktop, Antigravity, Hermes Agent + Jan, CLI agents, platform:
@@ -556,7 +556,7 @@ Left open from Phase 1: a logged-in Codex run (no Codex login on the dev machine
 public, which waits for the owners' go.
 
 
-### Phase 2 status (started 2026-10-18)
+### Phase 2 status (built 2026-10-18)
 
 - Providers: presets (Groq, Anthropic, Gemini, NVIDIA NIM, DeepSeek, OpenRouter, OpenAI, Ollama, LM Studio,
   llama.cpp, any OpenAI-compatible URL), kept by the main process in `<app>/providers.json` with keys sealed by
@@ -574,8 +574,12 @@ public, which waits for the owners' go.
   person speaks, one unasked turn per channel per hour, one turn at a time per channel. They never write code or
   start jobs; a `/todo` line in their answer becomes a board card. `/meclis [topic]`: two rounds in turn, then a
   summary. Each advisor runs on the device that added it. Tested with unit tests and `e2e/advisors.mjs`; not yet
-  run against a real provider with a real key. Their context is gathered by Lonca (channel, board, git); tool
-  calls of their own (reading files on request) are still to do.
+  run against a real provider with a real key. Lonca gathers the channel, the board and git history for them;
+  with a project folder they also get read-only tools (`list_files`, `read_file`, `search`, `git_log`,
+  `git_show`), kept inside the folder (symlinks included) with git on fixed arguments: up to three rounds of
+  calls, then they answer with what they have; every round counts against the budget. The provider client speaks
+  tool calls on both wires (not streamed); a model or server without tools is remembered and gets the gathered
+  context only.
 - `/goal`: a dialog for the goal, the agent, the budget (steps, minutes, optional tokens) and an optional done
   check (a shell command in the agent's folder; exit code 0 means done). The agent writes a numbered plan; the
   goal card shows it with a comment box on every step and on the plan, and "approve with N comments" sends the

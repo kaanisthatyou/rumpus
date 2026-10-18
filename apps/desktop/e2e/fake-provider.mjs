@@ -20,6 +20,24 @@ export async function startFakeProvider(answer = () => 'Tamam.') {
         .end(JSON.stringify({ data: [{ id: 'fake-small' }, { id: 'fake-large' }] }));
       return;
     }
+    if (req.url === '/v1/chat/completions' && body.tools) {
+      // With tools: a mention first reads README.md, then answers (not streamed).
+      const user = body.messages.find((m) => m.role === 'user')?.content ?? '';
+      const read = body.messages.some((m) => m.role === 'tool');
+      const message =
+        !read && user.includes('mentions you')
+          ? {
+              content: null,
+              tool_calls: [
+                { id: 'call_1', type: 'function', function: { name: 'read_file', arguments: '{"path":"README.md"}' } },
+              ],
+            }
+          : { content: String(await answer(body)) };
+      res
+        .writeHead(200, { 'content-type': 'application/json' })
+        .end(JSON.stringify({ choices: [{ message }], usage: { prompt_tokens: 120, completion_tokens: 15 } }));
+      return;
+    }
     if (req.url === '/v1/chat/completions') {
       const text = String(await answer(body));
       res.writeHead(200, { 'content-type': 'text/event-stream' });

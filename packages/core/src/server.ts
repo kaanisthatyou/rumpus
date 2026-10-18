@@ -41,6 +41,7 @@ import { Jobs } from './jobs.js';
 import { type Llm, noLlm } from './llm.js';
 import { killTree, type Launch, openConsole, type Runner, run } from './proc.js';
 import { CORE_RULES, systemPrompt } from './prompts.js';
+import { runReadTool } from './readTools.js';
 import { SettingsStore } from './settings.js';
 import { WorkspaceStore } from './store.js';
 import { tailscaleStatus } from './tailscale.js';
@@ -440,6 +441,7 @@ export class Core {
         }
       },
       project: (folder) => this.project(folder),
+      readTool: (folder, call) => runReadTool(folder, call, this.opts.runner ?? run),
     });
     const goals = new Goals({
       store,

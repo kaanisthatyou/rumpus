@@ -39,8 +39,14 @@ const provider = await startFakeProvider((body) => {
   const who = /^You are ([^ ]+)/.exec(system)?.[1] ?? '?';
   if (user.includes('Sum it up')) return 'Özet: iki görüş var.';
   if (user.includes('council on')) return `${who} görüşü`;
-  return 'Login akışında hata durumu yok.\n/todo Login hatalarını göster';
+  // After reading README.md with its tools, the critic quotes the file's first line.
+  const read = body.messages.find((m) => m.role === 'tool')?.content ?? '';
+  const quote = /# [^\n]+/.exec(read)?.[0];
+  return `Login akışında hata durumu yok.${quote ? ` README: ${quote}` : ''}\n/todo Login hatalarını göster`;
 });
+// The critic's project folder (read through its tools).
+const project = mkdtempSync(join(tmpdir(), 'lonca-e2e-adv-project-'));
+writeFileSync(join(project, 'README.md'), '# Kumbara projesi\n\nBütçe uygulaması.\n');
 
 let n = 0;
 let current;
@@ -65,6 +71,10 @@ async function launch() {
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  // The folder picker is a native dialog: answer it with the project folder.
+  await app.evaluate(({ dialog }, dir) => {
+    dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [dir] });
+  }, project);
   return { app, page, errors };
 }
 
@@ -116,7 +126,11 @@ try {
     await dialog.getByText(L.advisorForm.personalities[personality], { exact: true }).click();
     await dialog.getByLabel(L.advisorForm.model, { exact: true }).fill('fake-small');
     await dialog.getByText(L.advisorForm.chatterLevels.off, { exact: true }).click();
-    if (personality === 'critical') await shot(page, 'advisor-dialog');
+    if (personality === 'critical') {
+      await dialog.getByRole('button', { name: L.agentForm.pick, exact: true }).click();
+      await dialog.getByText(project).waitFor();
+      await shot(page, 'advisor-dialog');
+    }
     await dialog.getByRole('button', { name: L.agentForm.save }).click();
     await dialog.waitFor({ state: 'detached' });
   };
@@ -131,7 +145,15 @@ try {
   const composer = page.getByRole('textbox', { name: 'Mesaj · #genel' });
   await composer.fill('@elestirmen login ne durumda?');
   await composer.press('Enter');
-  await page.locator('.msg--advisor', { hasText: 'Login akışında hata durumu yok.' }).waitFor();
+  await page
+    .locator('.msg--advisor', { hasText: 'Login akışında hata durumu yok. README: # Kumbara projesi' })
+    .waitFor();
+  assert.ok(
+    provider.requests.some((r) =>
+      r.body?.messages?.some((m) => m.role === 'tool' && m.content.includes('Kumbara projesi')),
+    ),
+    'the critic read README.md through its tools',
+  );
   await page.locator('.msg--advisor .msg__role').first().waitFor();
   await page.locator('.msg--advisor .msg__todo', { hasText: 'Login hatalarını göster' }).waitFor();
 
@@ -174,6 +196,7 @@ try {
   await run.app.close().catch(() => {});
   await provider.close();
   rmSync(home, { recursive: true, force: true });
+  rmSync(project, { recursive: true, force: true });
 }
 
 async function until(fn, what, ms = 20_000) {
