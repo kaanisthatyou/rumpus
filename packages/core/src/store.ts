@@ -7,6 +7,7 @@ import { DatabaseSync } from 'node:sqlite';
 import type { Advisor, Agent, Author, Card, Channel, Goal, Job, Message, RecordItem } from '@lonca/protocol';
 import type { SignedEvent } from './identity.js';
 import { Clock, newId } from './ids.js';
+import type { Genesis, Member } from './membership.js';
 
 type Row = Record<string, unknown>;
 
@@ -59,6 +60,12 @@ CREATE TABLE IF NOT EXISTS goals (
 CREATE TABLE IF NOT EXISTS advisor_spend (
   advisor_id TEXT NOT NULL, day TEXT NOT NULL, tokens INTEGER NOT NULL, PRIMARY KEY (advisor_id, day)
 );
+CREATE TABLE IF NOT EXISTS members (id TEXT PRIMARY KEY, data TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS endpoints (id TEXT PRIMARY KEY, data TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS invites (
+  token TEXT PRIMARY KEY, role TEXT NOT NULL, expires INTEGER NOT NULL, used INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS join_requests (id TEXT PRIMARY KEY, data TEXT NOT NULL, state TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS entity_at (entity TEXT PRIMARY KEY, at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS heads (author TEXT PRIMARY KEY, n INTEGER NOT NULL);
 CREATE TRIGGER IF NOT EXISTS messages_ad AFTER DELETE ON messages BEGIN
@@ -78,6 +85,10 @@ export type WorkspaceEvent =
   | { type: 'advisor.saved'; data: Advisor }
   | { type: 'advisor.deleted'; data: { id: string } }
   | { type: 'goal.saved'; data: Goal }
+  | { type: 'workspace.created'; data: Genesis }
+  | { type: 'member.certified'; data: Omit<Member, 'removed'> }
+  | { type: 'member.removed'; data: { device: string; at: number; upTo: number } }
+  | { type: 'device.endpoint'; data: { device: string; addresses: string[] } }
   | { type: 'message.posted'; data: Message }
   | { type: 'message.edited'; data: { id: string; text: string; edited: number } }
   | { type: 'message.deleted'; data: { id: string } }
@@ -97,6 +108,8 @@ const TABLES: Record<string, string> = {
   record: 'records',
   advisor: 'advisors',
   goal: 'goals',
+  member: 'members',
+  device: 'endpoints',
 };
 
 export function entityOf(type: string, data: unknown): string {
@@ -221,6 +234,49 @@ export class WorkspaceStore {
       this.db.exec('ROLLBACK');
       throw err;
     }
+    this.onCommit?.();
+  }
+
+  /** Called after every local event (a team workspace syncs then). */
+  onCommit: (() => void) | undefined;
+
+  // ---------------------------------------------------------------- invites (local to the inviter)
+
+  addInvite(tokenHash: string, role: string, expires: number): void {
+    this.db.prepare('INSERT INTO invites (token, role, expires) VALUES (?, ?, ?)').run(tokenHash, role, expires);
+  }
+
+  /** Uses up an invite: its role when it is valid, unused and not expired. */
+  takeInvite(tokenHash: string, now = Date.now()): string | undefined {
+    const r = this.db.prepare('SELECT role, expires, used FROM invites WHERE token = ?').get(tokenHash) as
+      | Row
+      | undefined;
+    if (!r || Number(r.used) || Number(r.expires) < now) return undefined;
+    this.db.prepare('UPDATE invites SET used = 1 WHERE token = ?').run(tokenHash);
+    return String(r.role);
+  }
+
+  saveJoinRequest<T extends { id: string }>(req: T, state: string): void {
+    this.db
+      .prepare('INSERT OR REPLACE INTO join_requests (id, data, state) VALUES (?, ?, ?)')
+      .run(req.id, JSON.stringify(req), state);
+  }
+
+  joinRequest<T>(id: string): { request: T; state: string } | undefined {
+    const r = this.db.prepare('SELECT data, state FROM join_requests WHERE id = ?').get(id) as Row | undefined;
+    return r ? { request: json<T>(r.data), state: String(r.state) } : undefined;
+  }
+
+  joinRequests<T>(state = 'pending'): T[] {
+    return (this.db.prepare('SELECT data FROM join_requests WHERE state = ?').all(state) as Row[]).map((r) =>
+      json<T>(r.data),
+    );
+  }
+
+  /** The channel a message was in, also after it was deleted. */
+  messageChannel(id: string): string | undefined {
+    const r = this.db.prepare('SELECT channel_id FROM messages WHERE id = ?').get(id) as Row | undefined;
+    return r ? String(r.channel_id) : undefined;
   }
 
   // ---------------------------------------------------------------- sync (Phase 3)
@@ -363,6 +419,31 @@ export class WorkspaceStore {
       case 'advisor.deleted':
         this.db.prepare('UPDATE advisors SET deleted = 1 WHERE id = ?').run(e.data.id);
         return;
+      case 'workspace.created':
+        // The first one wins; a second genesis for the same workspace is refused before it gets here.
+        if (!this.meta('genesis')) this.setMeta('genesis', JSON.stringify(e.data));
+        return;
+      case 'member.certified': {
+        const { device, publicKey, name, role, expires } = e.data;
+        this.db
+          .prepare('INSERT OR REPLACE INTO members (id, data) VALUES (?, ?)')
+          .run(device, JSON.stringify({ device, publicKey, name, role, expires }));
+        return;
+      }
+      case 'member.removed': {
+        const m = this.member(e.data.device);
+        if (m) {
+          this.db
+            .prepare('UPDATE members SET data = ? WHERE id = ?')
+            .run(JSON.stringify({ ...m, removed: e.data.at, upTo: e.data.upTo }), e.data.device);
+        }
+        return;
+      }
+      case 'device.endpoint':
+        this.db
+          .prepare('INSERT OR REPLACE INTO endpoints (id, data) VALUES (?, ?)')
+          .run(e.data.device, JSON.stringify({ addresses: e.data.addresses.slice(0, 8) }));
+        return;
       case 'goal.saved':
         this.db
           .prepare(
@@ -455,6 +536,31 @@ export class WorkspaceStore {
   advisor(id: string): Advisor | undefined {
     const r = this.db.prepare('SELECT data FROM advisors WHERE id = ? AND deleted = 0').get(id) as Row | undefined;
     return r ? json<Advisor>(r.data) : undefined;
+  }
+
+  member(device: string): Member | undefined {
+    const r = this.db.prepare('SELECT data FROM members WHERE id = ?').get(device) as Row | undefined;
+    return r ? json<Member>(r.data) : undefined;
+  }
+
+  members(): Member[] {
+    return (this.db.prepare('SELECT data FROM members').all() as Row[]).map((r) => json<Member>(r.data));
+  }
+
+  endpoints(): Record<string, string[]> {
+    const out: Record<string, string[]> = {};
+    for (const r of this.db.prepare('SELECT id, data FROM endpoints').all() as Row[]) {
+      out[String(r.id)] = json<{ addresses: string[] }>(r.data).addresses;
+    }
+    return out;
+  }
+
+  /** Who wrote an entity's first event: the owner of an agent or advisor, the writer of a message. */
+  firstAuthor(entity: string): string | undefined {
+    const r = this.db.prepare('SELECT author FROM events WHERE entity = ? ORDER BY at LIMIT 1').get(entity) as
+      | Row
+      | undefined;
+    return r ? String(r.author) : undefined;
   }
 
   goals(): Goal[] {

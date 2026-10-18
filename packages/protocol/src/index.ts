@@ -14,6 +14,7 @@ import type {
   GoalComment,
   GoalInput,
   Job,
+  MemberRole,
   Message,
   Quota,
   RecordInput,
@@ -150,6 +151,13 @@ export interface CoreMethods {
   'workspaces.create': { params: { name: string }; result: WorkspaceSummary };
   /** Makes a workspace the open one; others keep running in the background. */
   'workspaces.open': { params: { id: string }; result: WorkspaceState };
+  /** An invite code for the open team workspace (admins). */
+  'invites.create': { params: { role: MemberRole; hours?: number }; result: { code: string; expires: number } };
+  /** Asks to join a team workspace with a code; an admin of it approves. */
+  'invites.join': { params: { code: string }; result: WorkspaceSummary };
+  'invites.answer': { params: { id: string; approve: boolean }; result: { ok: true } };
+  'members.setRole': { params: { device: string; role: MemberRole }; result: { ok: true } };
+  'members.remove': { params: { device: string }; result: { ok: true } };
   'channels.create': { params: { name: string }; result: Channel };
   'channels.rename': { params: { id: string; name: string }; result: Channel };
   'channels.delete': { params: { id: string }; result: { ok: true } };
@@ -244,6 +252,13 @@ export const ERROR_CODES = [
   'invalid_goal',
   'goal_state',
   'not_git',
+  'not_allowed',
+  'no_identity',
+  'no_address',
+  'bad_code',
+  'already_member',
+  'invite_refused',
+  'unreachable',
   'worktree_failed',
   'no_advisors',
   'over_budget',

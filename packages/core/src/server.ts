@@ -1,7 +1,7 @@
 // The core's RPC server. It does not know the transport: Electron hands it MessagePorts, tests hand it fakes,
 // and later the phone and other members will reach the same methods over the network.
 import { spawn } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
@@ -36,16 +36,19 @@ import { Blobs } from './blobs.js';
 import type { OpenSession } from './drivers/types.js';
 import { Gateway, type Tool, type ToolContent } from './gateway.js';
 import { Goals, gitWorktrees } from './goals.js';
-import type { Signer } from './identity.js';
+import { canonical, type SignedEvent, type Signer, verifySignature } from './identity.js';
 import { newId } from './ids.js';
 import { Instructions } from './instructions.js';
 import { Jobs } from './jobs.js';
 import { type Llm, noLlm } from './llm.js';
+import { type Member, Membership, ROLES, type Role } from './membership.js';
+import { PEER_PORT, PeerClient, PeerError, type PeerRequest, PeerServer } from './peer.js';
 import { killTree, type Launch, openConsole, type Runner, run } from './proc.js';
 import { CORE_RULES, systemPrompt } from './prompts.js';
 import { runReadTool } from './readTools.js';
 import { SettingsStore } from './settings.js';
 import { WorkspaceStore } from './store.js';
+import { Sync } from './sync.js';
 import { tailscaleStatus } from './tailscale.js';
 
 export interface Peer {
@@ -70,11 +73,46 @@ export interface CoreOptions {
   llm?: Llm;
   /** The device key's signer (the main process in the app). */
   signer?: Signer;
+  /** Where to listen for other members: the Tailscale address and port 47640 unless given (tests use loopback). */
+  peer?: { host?: string; port?: number };
 }
+
+/** A team workspace's entry in `<data>/workspaces.json`. */
+interface TeamEntry {
+  id: string;
+  name: string;
+  created: number;
+  /** Addresses to sync with before any member has published one: the inviter's. */
+  seeds?: string[];
+  /** Asked to join, waiting for an admin. */
+  joining?: { address: string; request: string };
+  denied?: boolean;
+}
+
+interface JoinRequestData {
+  id: string;
+  device: string;
+  publicKey: string;
+  name: string;
+  role: Role;
+  at: number;
+}
+
+const DAY = 24 * 60 * 60 * 1000;
+const certOf = (m: Member) => ({
+  device: m.device,
+  publicKey: m.publicKey,
+  name: m.name,
+  role: m.role,
+  expires: m.expires,
+});
+const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
 
 interface Workspace {
   id: string;
   kind: 'personal' | 'team';
+  membership?: Membership;
+  sync?: Sync;
   dir: string;
   store: WorkspaceStore;
   jobs: Jobs;
@@ -152,6 +190,11 @@ export class Core {
   private readonly open = new Map<string, Workspace>();
   /** The workspace a background task (a job, an advisor, an agent's tool call) runs in while it runs. */
   private scope: Workspace | undefined;
+  private peerServer: PeerServer | undefined;
+  private peerAddress: string | undefined;
+  private peerStarting: Promise<void> | undefined;
+  private readonly reach = new Map<string, boolean>();
+  private readonly joinPolls = new Map<string, NodeJS.Timeout>();
   private readonly projectCache = new Map<string, { at: number; text: Promise<string> }>();
   private readonly handlers: { [M in MethodName]: Handler<M> };
 
@@ -184,6 +227,11 @@ export class Core {
       'workspaces.list': async () => this.registry(),
       'workspaces.create': async (p) => this.createWorkspace(p?.name),
       'workspaces.open': async (p) => this.openWorkspace(p?.id),
+      'invites.create': async (p) => this.createInvite(p?.role, p?.hours),
+      'invites.join': async (p) => this.join(p?.code),
+      'invites.answer': async (p) => this.answerJoin(p?.id, p?.approve === true),
+      'members.setRole': async (p) => this.setRole(p?.device, p?.role),
+      'members.remove': async (p) => this.removeMember(p?.device),
       'channels.create': async (p) => this.createChannel(p?.name),
       'channels.rename': async (p) => this.renameChannel(p?.id, p?.name),
       'channels.delete': async (p) => this.deleteChannel(p?.id),
@@ -285,6 +333,18 @@ export class Core {
         return blobs.dataUrl(record.image.blob, record.image.mime);
       },
     };
+    // Team workspaces sync in the background from the start, not only once they are opened.
+    setTimeout(() => this.startTeams(), 0).unref?.();
+  }
+
+  private startTeams(): void {
+    const teams = this.teams();
+    if (teams.length === 0) return;
+    for (const t of teams) {
+      if (t.joining) this.pollJoin(t.id, 500);
+      else if (!t.denied) this.load(t.id);
+    }
+    void this.ensurePeer();
   }
 
   // ---------------------------------------------------------------- paths and identity
@@ -380,48 +440,87 @@ export class Core {
 
   // ---------------------------------------------------------------- workspace
 
-  /** The workspaces besides the personal one live in `<data>/workspaces.json`. */
-  private registry(): WorkspaceSummary[] {
-    let teams: WorkspaceSummary[] = [];
+  /** The team workspaces, as `<data>/workspaces.json` keeps them. */
+  private teams(): TeamEntry[] {
     try {
-      const data = JSON.parse(readFileSync(join(this.dataDir(), 'workspaces.json'), 'utf8')) as {
-        list?: WorkspaceSummary[];
-      };
-      if (Array.isArray(data.list)) {
-        teams = data.list
-          .filter((w) => typeof w?.id === 'string' && /^[\w-]{1,40}$/.test(w.id) && w.id !== 'personal')
-          .map((w) => ({
-            id: w.id,
-            name: String(w.name ?? '').slice(0, 40),
-            kind: 'team',
-            created: Number(w.created) || 0,
-          }));
-      }
+      const data = JSON.parse(readFileSync(join(this.dataDir(), 'workspaces.json'), 'utf8')) as { list?: TeamEntry[] };
+      if (!Array.isArray(data.list)) return [];
+      return data.list
+        .filter((w) => typeof w?.id === 'string' && /^[\w-]{1,40}$/.test(w.id) && w.id !== 'personal')
+        .map((w) => ({
+          id: w.id,
+          name: String(w.name ?? '').slice(0, 40),
+          created: Number(w.created) || 0,
+          ...(Array.isArray(w.seeds) ? { seeds: w.seeds.filter((a) => typeof a === 'string').slice(0, 4) } : {}),
+          ...(w.joining?.address && w.joining.request ? { joining: w.joining } : {}),
+          ...(w.denied ? { denied: true } : {}),
+        }));
     } catch {
-      // no file yet: only the personal workspace
+      return [];
     }
-    return [{ id: 'personal', name: '', kind: 'personal', created: 0 }, ...teams];
+  }
+
+  private saveTeams(list: TeamEntry[]): void {
+    mkdirSync(this.dataDir(), { recursive: true });
+    writeFileSync(join(this.dataDir(), 'workspaces.json'), JSON.stringify({ v: 1, list }, null, 1));
+    this.emit('workspaces.changed', this.registry());
+  }
+
+  private registry(): WorkspaceSummary[] {
+    return [
+      { id: 'personal', name: '', kind: 'personal', created: 0 },
+      ...this.teams().map(
+        (t): WorkspaceSummary => ({
+          id: t.id,
+          name: t.name,
+          kind: 'team',
+          created: t.created,
+          ...(t.denied ? { state: 'denied' as const } : t.joining ? { state: 'joining' as const } : {}),
+        }),
+      ),
+    ];
   }
 
   private currentId(): string {
     const id = this.settings.get().workspace;
-    return this.registry().some((w) => w.id === id) ? id : 'personal';
+    return this.registry().some((w) => w.id === id && !w.state) ? id : 'personal';
   }
 
+  /** A new team workspace: its first event names this device the root admin. */
   private createWorkspace(name: unknown): WorkspaceSummary {
     const clean = typeof name === 'string' ? name.trim().slice(0, 40) : '';
     if (!clean) throw new CoreError('bad_request', 'name');
-    const created: WorkspaceSummary = { id: newId(), name: clean, kind: 'team', created: Date.now() };
-    const teams = [...this.registry().filter((w) => w.kind === 'team'), created];
-    mkdirSync(this.dataDir(), { recursive: true });
-    writeFileSync(join(this.dataDir(), 'workspaces.json'), JSON.stringify({ v: 1, list: teams }, null, 1));
-    this.emit('workspaces.changed', this.registry());
-    this.openWorkspace(created.id);
-    return created;
+    const publicKey = this.opts.signer?.publicKey();
+    if (!publicKey) throw new CoreError('no_identity');
+    const entry: TeamEntry = { id: newId(), name: clean, created: Date.now() };
+    this.saveTeams([...this.teams(), entry]);
+    const ws = this.load(entry.id);
+    this.within(ws, () => {
+      const me = this.me();
+      ws.store.commit({ type: 'workspace.created', data: { id: entry.id, name: clean, root: me.id, publicKey } });
+      ws.store.commit({
+        type: 'member.certified',
+        data: { device: me.id, publicKey, name: me.name, role: 'admin', expires: Date.now() + 36500 * DAY },
+      });
+      ws.store.commit({
+        type: 'channel.created',
+        data: {
+          id: newId(),
+          name: this.settings.get().language === 'tr' ? 'genel' : 'general',
+          kind: 'channel',
+          topic: '',
+          created: Date.now(),
+        },
+      });
+    });
+    void this.ensurePeer();
+    this.openWorkspace(entry.id);
+    return { id: entry.id, name: clean, kind: 'team', created: entry.created };
   }
 
   private openWorkspace(id: unknown): WorkspaceState {
-    if (typeof id !== 'string' || !this.registry().some((w) => w.id === id)) throw new CoreError('not_found');
+    if (typeof id !== 'string' || !this.registry().some((w) => w.id === id && !w.state))
+      throw new CoreError('not_found');
     this.emit('settings.changed', this.settings.update({ workspace: id }));
     const state = this.state();
     this.emit('workspace.changed', state);
@@ -455,6 +554,9 @@ export class Core {
     if (!store.meta('created')) {
       store.setMeta('created', String(Date.now()));
       store.setMeta('name', kind === 'personal' ? 'personal' : (summary?.name ?? id));
+    }
+    // A team workspace's channels come from its log (the creator writes the first one).
+    if (kind === 'personal' && store.channels().length === 0) {
       const channel: Channel = {
         id: newId(),
         name: this.settings.get().language === 'tr' ? 'genel' : 'general',
@@ -549,13 +651,61 @@ export class Core {
     goals.recover();
     const timer = setInterval(() => advisors.tick(), 60_000);
     timer.unref?.();
-    ref.ws = { id, kind, dir, store, jobs, blobs, instructions, gateway, advisors, goals, ended: new Set(), timer };
+    let membership: Membership | undefined;
+    let sync: Sync | undefined;
+    if (kind === 'team') {
+      membership = new Membership(store, id);
+      const signer = this.opts.signer;
+      if (signer) {
+        sync = new Sync({
+          ws: id,
+          deviceId: this.deviceId,
+          store,
+          membership,
+          signer,
+          peers: new PeerClient(this.deviceId, signer),
+          onIngested: (events) => inWs(() => this.afterIngest(ref.ws, events)),
+          onReach: (device, ok) => {
+            if (this.reach.get(device) !== ok) {
+              this.reach.set(device, ok);
+              inWs(() => this.changed());
+            }
+          },
+          seeds: () => this.teams().find((t) => t.id === id)?.seeds ?? [],
+          beforeRound: () => inWs(() => this.renewCertificates(ref.ws)),
+        });
+        store.onCommit = () => sync?.kick();
+      }
+    }
+    ref.ws = {
+      id,
+      kind,
+      dir,
+      store,
+      jobs,
+      blobs,
+      instructions,
+      gateway,
+      advisors,
+      goals,
+      ended: new Set(),
+      timer,
+      ...(membership ? { membership } : {}),
+      ...(sync ? { sync } : {}),
+    };
     this.open.set(id, ref.ws);
+    if (!this.teams().find((t) => t.id === id)?.joining) sync?.start();
     return ref.ws;
   }
 
   private closeAll(): void {
+    for (const t of this.joinPolls.values()) clearTimeout(t);
+    this.joinPolls.clear();
+    this.peerServer?.close();
+    this.peerServer = undefined;
+    this.peerAddress = undefined;
     for (const ws of this.open.values()) {
+      ws.sync?.stop();
       clearInterval(ws.timer);
       ws.advisors.dispose();
       ws.goals.dispose();
@@ -564,6 +714,353 @@ export class Core {
       ws.store.close();
     }
     this.open.clear();
+  }
+
+  // ---------------------------------------------------------------- team workspaces (Phase 3)
+
+  private teamState(ws: Workspace): Partial<WorkspaceState> {
+    if (ws.kind !== 'team' || !ws.membership) return {};
+    const me = ws.membership.member(this.deviceId);
+    const now = Date.now();
+    const role = me && !me.removed && me.expires > now ? me.role : undefined;
+    return {
+      members: ws.store
+        .members()
+        .filter((m) => !m.removed)
+        .map((m) => ({
+          device: m.device,
+          name: m.name,
+          role: m.role,
+          me: m.device === this.deviceId,
+          ...(m.device === this.deviceId
+            ? { online: true }
+            : this.reach.has(m.device)
+              ? { online: this.reach.get(m.device) === true }
+              : {}),
+        })),
+      ...(role ? { role } : {}),
+      ...(role === 'admin'
+        ? {
+            joins: ws.store
+              .joinRequests<JoinRequestData>()
+              .map(({ id, device, name, role: r, at }) => ({ id, device, name, role: r, at })),
+          }
+        : {}),
+      ...(this.peerAddress ? { address: this.peerAddress } : {}),
+    };
+  }
+
+  /** In a team workspace, refuses what this device's role does not allow (other members would refuse it too). */
+  private requireRole(needed: Role): void {
+    const ws = this.workspace();
+    if (ws.kind !== 'team') return;
+    if (!ws.membership?.can(this.deviceId, needed)) throw new CoreError('not_allowed');
+  }
+
+  /** Starts the peer API once there is a team workspace, and keeps this device's address current in each. */
+  private ensurePeer(): Promise<void> {
+    this.peerStarting ??= (async () => {
+      if (!this.peerServer) {
+        const host =
+          this.opts.peer?.host ??
+          (
+            await tailscaleStatus({
+              ...(this.opts.runner ? { runner: this.opts.runner } : {}),
+              ...(this.opts.env ? { env: this.opts.env } : {}),
+              ...(this.opts.platform ? { platform: this.opts.platform } : {}),
+            })
+          ).ip;
+        if (!host) return;
+        const server = new PeerServer({
+          open: new Set(['/v1/join', '/v1/join/status']),
+          keyOf: (ws, device) => this.peerKey(ws, device),
+          handle: (req) => this.peerHandle(req),
+        });
+        try {
+          this.peerAddress = await server.listen(host, this.opts.peer?.port ?? PEER_PORT);
+          this.peerServer = server;
+        } catch {
+          return;
+        }
+      }
+      for (const t of this.teams()) {
+        if (!t.joining && !t.denied) this.publishEndpoint(this.load(t.id));
+      }
+    })().finally(() => {
+      this.peerStarting = undefined;
+    });
+    return this.peerStarting;
+  }
+
+  private publishEndpoint(ws: Workspace): void {
+    const address = this.peerAddress;
+    if (!address || !ws.membership?.can(this.deviceId, 'viewer')) return;
+    const known = ws.store.endpoints()[this.deviceId] ?? [];
+    if (known.length === 1 && known[0] === address) return;
+    this.within(ws, () =>
+      ws.store.commit({ type: 'device.endpoint', data: { device: this.deviceId, addresses: [address] } }),
+    );
+  }
+
+  private peerKey(wsId: string, device: string): string | undefined {
+    const entry = this.teams().find((t) => t.id === wsId);
+    if (!entry || entry.joining || entry.denied) return undefined;
+    const ws = this.load(wsId);
+    return ws.membership?.can(device, 'viewer') ? ws.membership.member(device)?.publicKey : undefined;
+  }
+
+  private async peerHandle(req: PeerRequest): Promise<unknown> {
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    if (req.path === '/v1/join') return this.joinRequested(body);
+    if (req.path === '/v1/join/status') {
+      const ws = this.teams().some((t) => t.id === body.ws) ? this.load(String(body.ws)) : undefined;
+      const found = ws?.store.joinRequest<JoinRequestData>(String(body.request ?? ''));
+      if (!found || found.request.device !== body.device) throw new PeerError(404, 'request');
+      return { state: found.state };
+    }
+    const ws = this.load(req.ws);
+    if (!ws.sync) throw new PeerError(404, 'workspace');
+    if (req.path === '/v1/sync') {
+      ws.sync.kick();
+      return ws.sync.serve((body.heads ?? {}) as Record<string, number>);
+    }
+    if (req.path === '/v1/push') {
+      const events = Array.isArray(body.events) ? (body.events as SignedEvent[]).slice(0, 1000) : [];
+      this.within(ws, () => ws.sync?.receive(events));
+      return { ok: true };
+    }
+    throw new PeerError(404, 'path');
+  }
+
+  /** Someone with a code asks to join: an admin of the workspace decides. */
+  private joinRequested(body: Record<string, unknown>): { request: string } {
+    const wsId = String(body.ws ?? '');
+    if (!this.teams().some((t) => t.id === wsId && !t.joining)) throw new PeerError(404, 'workspace');
+    const ws = this.load(wsId);
+    const { token, device, publicKey, name, proof } = body;
+    if ([token, device, publicKey, name, proof].some((v) => typeof v !== 'string')) throw new PeerError(400, 'fields');
+    const fields = { ws: wsId, token, device, publicKey, name };
+    if (
+      !/^[\w-]{8,64}$/.test(String(device)) ||
+      !verifySignature(canonical(fields), String(proof), String(publicKey))
+    ) {
+      throw new PeerError(400, 'proof');
+    }
+    if (ws.membership?.member(String(device))) throw new PeerError(409, 'member');
+    const role = ws.store.takeInvite(sha256(String(token)));
+    if (!role) throw new PeerError(403, 'invite');
+    const request: JoinRequestData = {
+      id: newId(),
+      device: String(device),
+      publicKey: String(publicKey),
+      name: String(name).trim().slice(0, 40) || '?',
+      role: role as Role,
+      at: Date.now(),
+    };
+    ws.store.saveJoinRequest(request, 'pending');
+    this.within(ws, () => this.changed());
+    return { request: request.id };
+  }
+
+  private createInvite(role: unknown, hours: unknown): { code: string; expires: number } {
+    const ws = this.workspace();
+    if (ws.kind !== 'team') throw new CoreError('bad_request', 'personal');
+    this.requireRole('admin');
+    if (!ROLES.includes(role as Role)) throw new CoreError('bad_request', 'role');
+    if (!this.peerAddress) {
+      void this.ensurePeer();
+      throw new CoreError('no_address');
+    }
+    const token = randomBytes(16).toString('base64url');
+    const h = Math.min(7 * 24, Math.max(1, Math.round(Number(hours) || 24)));
+    const expires = Date.now() + h * 60 * 60 * 1000;
+    ws.store.addInvite(sha256(token), String(role), expires);
+    const name = ws.store.meta('name') ?? '';
+    const payload = JSON.stringify({ w: ws.id, n: name, a: [this.peerAddress], t: token });
+    return { code: `LONCA1.${Buffer.from(payload).toString('base64url')}`, expires };
+  }
+
+  /** Asks the inviter's app to join; the workspace waits as "joining" until an admin answers. */
+  private async join(code: unknown): Promise<WorkspaceSummary> {
+    const raw = typeof code === 'string' ? code.trim() : '';
+    let invite: { w?: unknown; n?: unknown; a?: unknown; t?: unknown };
+    try {
+      if (!raw.startsWith('LONCA1.')) throw new Error('prefix');
+      invite = JSON.parse(Buffer.from(raw.slice(7), 'base64url').toString('utf8'));
+    } catch {
+      throw new CoreError('bad_code');
+    }
+    const wsId = String(invite.w ?? '');
+    const address = Array.isArray(invite.a) ? String(invite.a[0] ?? '') : '';
+    if (!/^[\w-]{1,40}$/.test(wsId) || !/^[\w.:[\]-]{3,80}$/.test(address) || typeof invite.t !== 'string') {
+      throw new CoreError('bad_code');
+    }
+    if (this.teams().some((t) => t.id === wsId && !t.denied)) throw new CoreError('already_member');
+    const signer = this.opts.signer;
+    const publicKey = signer?.publicKey();
+    if (!signer || !publicKey) throw new CoreError('no_identity');
+    const fields = { ws: wsId, token: invite.t, device: this.deviceId, publicKey, name: this.me().name };
+    const proof = await signer.sign(canonical(fields));
+    let answer: { request?: string };
+    try {
+      answer = (await new PeerClient(this.deviceId, signer).call(address, '/v1/join', wsId, { ...fields, proof })) as {
+        request?: string;
+      };
+    } catch (e) {
+      throw new CoreError(e instanceof PeerError && e.status === 403 ? 'invite_refused' : 'unreachable');
+    }
+    if (!answer.request) throw new CoreError('invite_refused');
+    const entry: TeamEntry = {
+      id: wsId,
+      name: String(invite.n ?? '').slice(0, 40) || wsId,
+      created: Date.now(),
+      seeds: [address],
+      joining: { address, request: answer.request },
+    };
+    this.saveTeams([...this.teams().filter((t) => t.id !== wsId), entry]);
+    this.pollJoin(wsId);
+    return { id: wsId, name: entry.name, kind: 'team', created: entry.created, state: 'joining' };
+  }
+
+  private pollJoin(wsId: string, delay = 2000): void {
+    clearTimeout(this.joinPolls.get(wsId));
+    const timer = setTimeout(async () => {
+      this.joinPolls.delete(wsId);
+      const entry = this.teams().find((t) => t.id === wsId);
+      const signer = this.opts.signer;
+      if (!entry?.joining || !signer) return;
+      let state = 'pending';
+      try {
+        const answer = (await new PeerClient(this.deviceId, signer).call(
+          entry.joining.address,
+          '/v1/join/status',
+          wsId,
+          {
+            ws: wsId,
+            request: entry.joining.request,
+            device: this.deviceId,
+          },
+        )) as { state?: string };
+        state = String(answer.state ?? 'pending');
+      } catch {
+        // the inviter is offline: ask again later
+      }
+      if (state === 'approved') {
+        const { joining: _done, ...rest } = entry;
+        this.saveTeams(this.teams().map((t) => (t.id === wsId ? rest : t)));
+        const ws = this.load(wsId);
+        ws.sync?.start();
+        await ws.sync?.round();
+        void this.ensurePeer();
+      } else if (state === 'denied') {
+        const { joining: _done, ...rest } = entry;
+        this.saveTeams(this.teams().map((t) => (t.id === wsId ? { ...rest, denied: true } : t)));
+      } else {
+        this.pollJoin(wsId, Math.min(delay * 1.5, 30_000));
+      }
+    }, delay);
+    timer.unref?.();
+    this.joinPolls.set(wsId, timer);
+  }
+
+  private answerJoin(id: unknown, approve: boolean): { ok: true } {
+    const ws = this.workspace();
+    this.requireRole('admin');
+    const found = typeof id === 'string' ? ws.store.joinRequest<JoinRequestData>(id) : undefined;
+    if (found?.state !== 'pending') throw new CoreError('not_found');
+    const r = found.request;
+    if (approve) {
+      ws.store.commit({
+        type: 'member.certified',
+        data: { device: r.device, publicKey: r.publicKey, name: r.name, role: r.role, expires: Date.now() + 30 * DAY },
+      });
+    }
+    ws.store.saveJoinRequest(r, approve ? 'approved' : 'denied');
+    this.changed();
+    return { ok: true };
+  }
+
+  private setRole(device: unknown, role: unknown): { ok: true } {
+    const ws = this.workspace();
+    this.requireRole('admin');
+    const m = typeof device === 'string' ? ws.membership?.member(device) : undefined;
+    if (!m || m.removed || !ROLES.includes(role as Role)) throw new CoreError('not_found');
+    if (m.device === ws.membership?.genesis()?.root) throw new CoreError('not_allowed');
+    ws.store.commit({ type: 'member.certified', data: { ...certOf(m), role: role as Role } });
+    this.changed();
+    return { ok: true };
+  }
+
+  private removeMember(device: unknown): { ok: true } {
+    const ws = this.workspace();
+    this.requireRole('admin');
+    const m = typeof device === 'string' ? ws.membership?.member(device) : undefined;
+    if (!m || m.removed) throw new CoreError('not_found');
+    if (m.device === this.deviceId || m.device === ws.membership?.genesis()?.root) throw new CoreError('not_allowed');
+    const upTo = ws.store.heads()[m.device] ?? 0;
+    ws.store.commit({ type: 'member.removed', data: { device: m.device, at: Date.now(), upTo } });
+    this.changed();
+    return { ok: true };
+  }
+
+  /** An admin's app renews certificates that end within ten days. */
+  private renewCertificates(ws: Workspace): void {
+    if (!ws.membership?.can(this.deviceId, 'admin')) return;
+    const soon = Date.now() + 10 * DAY;
+    for (const m of ws.store.members()) {
+      if (m.removed || m.expires > soon) continue;
+      ws.store.commit({ type: 'member.certified', data: { ...certOf(m), expires: Date.now() + 30 * DAY } });
+    }
+  }
+
+  /** Events from peers changed the tables: the window hears about it like about its own changes. */
+  private afterIngest(ws: Workspace, events: SignedEvent[]): void {
+    const { store } = ws;
+    let structure = false;
+    for (const e of events) {
+      const id = String((e.data as { id?: unknown })?.id ?? '');
+      switch (e.type) {
+        case 'message.posted': {
+          const m = store.message(id);
+          if (m) this.emit('message.added', m);
+          break;
+        }
+        case 'message.edited': {
+          const m = store.message(id);
+          if (m) this.emit('message.updated', m);
+          break;
+        }
+        case 'message.deleted': {
+          const channelId = store.messageChannel(id);
+          if (channelId) this.emit('message.deleted', { id, channelId });
+          break;
+        }
+        case 'card.saved': {
+          const c = store.card(id);
+          if (c) this.emit('card.changed', c);
+          break;
+        }
+        case 'card.deleted':
+          this.emit('card.deleted', { id });
+          break;
+        case 'record.saved': {
+          const r = store.record(id);
+          if (r) this.emit('record.changed', r);
+          break;
+        }
+        case 'record.deleted':
+          this.emit('record.deleted', { id });
+          break;
+        case 'goal.saved': {
+          const g = store.goal(id);
+          if (g) this.emit('goal.changed', g);
+          break;
+        }
+        default:
+          structure = true;
+      }
+    }
+    if (structure) this.changed();
   }
 
   private state(): WorkspaceState {
@@ -578,6 +1075,7 @@ export class Core {
       advisors: store.advisors(),
       spend: advisors.spendToday(),
       active: jobs.active(),
+      ...this.teamState(this.workspace()),
     };
   }
 
@@ -586,6 +1084,7 @@ export class Core {
   }
 
   private createChannel(name: unknown): Channel {
+    this.requireRole('admin');
     const { store } = this.workspace();
     const clean = typeof name === 'string' ? name.trim().replace(/İ/g, 'i').toLowerCase().replace(/\s+/g, '-') : '';
     if (!CHANNEL_NAME.test(clean)) throw new CoreError('bad_request', 'name');
@@ -597,6 +1096,7 @@ export class Core {
   }
 
   private renameChannel(id: unknown, name: unknown): Channel {
+    this.requireRole('admin');
     const { store } = this.workspace();
     const channel = typeof id === 'string' ? store.channel(id) : undefined;
     if (channel?.kind !== 'channel') throw new CoreError('not_found');
@@ -608,6 +1108,7 @@ export class Core {
   }
 
   private deleteChannel(id: unknown): { ok: true } {
+    this.requireRole('admin');
     const { store } = this.workspace();
     const channel = typeof id === 'string' ? store.channel(id) : undefined;
     if (channel?.kind !== 'channel') throw new CoreError('not_found');
@@ -618,6 +1119,7 @@ export class Core {
   }
 
   private send(channelId: unknown, value: unknown, refs?: unknown): Message {
+    this.requireRole('viewer');
     const { store, jobs } = this.workspace();
     const channel = typeof channelId === 'string' ? store.channel(channelId) : undefined;
     if (!channel) throw new CoreError('not_found');
@@ -667,6 +1169,7 @@ export class Core {
   }
 
   private saveAgent(input: unknown): Agent {
+    this.requireRole('editor');
     const { store, jobs } = this.workspace();
     const parsed = AgentInputSchema.safeParse(input);
     if (!parsed.success) throw new CoreError('invalid_agent', parsed.error.message);
@@ -718,6 +1221,7 @@ export class Core {
   }
 
   private saveAdvisor(input: unknown): Advisor {
+    this.requireRole('editor');
     const { store } = this.workspace();
     const parsed = AdvisorInputSchema.safeParse(input);
     if (!parsed.success) throw new CoreError('invalid_advisor', parsed.error.message);

@@ -642,6 +642,16 @@ The details behind 5.11 and 6.5, decided before building.
   entities; `ingest` takes a peer's event, and an event older than what its entity shows rebuilds the entity from
   the log in clock order. Heads count only gap-free, signed events. Unit tests shuffle the same events into fresh
   copies and get the same tables every time.
+  3.3 and the core of 3.4. A team workspace starts with a self-signed genesis naming the root admin, who certifies
+  itself; `Membership` checks every incoming event (signature, a certificate valid by this device's clock, the role
+  table of 5.11, owners for agents, advisors, messages and endpoints; a removed member's events count only up to what
+  the admin had from them). `PeerServer` / `PeerClient`: signed HTTP on the Tailscale address (loopback in tests),
+  with time, address-range and membership checks. `Sync` signs own events, compares heads with each member (or the
+  inviter's address, for a device that just joined) and takes and gives what is missing, retrying events whose
+  certificate comes later. Invites: a code with the workspace, the inviter's address and a one-time token; the joiner
+  proves its key, an admin approves, the joiner polls and then pulls everything. Roles: set, remove (the removed
+  device hears it for a day), automatic renewal by admins, local actions refused above the role. Tested with two
+  cores in one process over loopback (invite, approve, messages both ways, roles, removal) and membership unit tests.
 - **Slices:** 3.1 several workspaces; 3.2 identity, signed log, last-writer-wins; 3.3 transport and sync between
   two apps (two `LONCA_HOME` instances on one PC in tests); 3.4 invites, roles, members panel; 3.5 cross-member
   jobs and agent access; 3.6 presence, typing, notifications; 3.7 the phone companion.

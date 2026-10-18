@@ -181,6 +181,28 @@ export interface WorkspaceSummary {
   name: string;
   kind: 'personal' | 'team';
   created: number;
+  /** A team workspace this device asked to join: waiting for an admin, or turned down. */
+  state?: 'joining' | 'denied';
+}
+
+export const MEMBER_ROLES = ['viewer', 'editor', 'admin'] as const;
+export type MemberRole = (typeof MEMBER_ROLES)[number];
+
+export interface MemberInfo {
+  device: string;
+  name: string;
+  role: MemberRole;
+  me: boolean;
+  /** Reached in the last sync round. */
+  online?: boolean;
+}
+
+export interface JoinRequest {
+  id: string;
+  device: string;
+  name: string;
+  role: MemberRole;
+  at: number;
 }
 
 export interface WorkspaceState {
@@ -195,6 +217,12 @@ export interface WorkspaceState {
   spend: Record<string, number>;
   /** Jobs still running or waiting, so a reloaded window shows them. */
   active: Job[];
+  /** Team workspaces: the members, this device's role, and join requests waiting for an admin. */
+  members?: MemberInfo[];
+  role?: MemberRole;
+  joins?: JoinRequest[];
+  /** This app's address for other members, once it listens. */
+  address?: string;
 }
 
 /**

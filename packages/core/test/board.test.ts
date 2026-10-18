@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import type { Card, Frame, Message, RecordItem, Response, WorkspaceState, WorkspaceSummary } from '@lonca/protocol';
 import { describe, expect, it } from 'vitest';
 import type { AgentSession, DriverEvent, OpenSession } from '../src/drivers/types.js';
+import { LocalSigner } from '../src/identity.js';
 import { Core } from '../src/server.js';
 
 const tmp = (p: string) => mkdtempSync(join(tmpdir(), p));
@@ -40,6 +41,8 @@ function setup() {
     }),
     drivers: { 'claude-code': open },
     launch: (path) => ({ file: path, args: [] }),
+    signer: new LocalSigner(),
+    peer: { host: '127.0.0.1', port: 0 },
   });
   let listener: (f: unknown) => void = () => {};
   const sent: Frame[] = [];
@@ -179,7 +182,7 @@ describe('instructions', () => {
 
 describe('workspaces', () => {
   it('keeps workspaces apart, and lets a background job finish without reaching the window', async () => {
-    const { call, sessions, sent } = setup();
+    const { core, call, sessions, sent } = setup();
     const folder = tmp('lonca-proj-');
     const personal = await call<WorkspaceState>('workspace.get');
     expect(personal).toMatchObject({ id: 'personal', kind: 'personal' });
@@ -210,5 +213,6 @@ describe('workspaces', () => {
     expect(page.messages.map((m) => m.text)).toContain('README bir proje anlatıyor.');
     await expect(call('workspaces.open', { id: 'nope' })).rejects.toThrow('not_found');
     await expect(call('workspaces.create', { name: '  ' })).rejects.toThrow('bad_request');
+    core.shutdown();
   });
 });

@@ -11,7 +11,15 @@ const locale = (process.env.LONCA_LOCALE ?? 'en').toLowerCase();
 const llm = new PortLlm((m) => process.parentPort.postMessage(m));
 // The device key signs in the main process too.
 const signer = new PortSigner((m) => process.parentPort.postMessage(m));
-const core = new Core({ appDir, language: locale.startsWith('tr') ? 'tr' : 'en', llm, signer });
+// Other members reach this app on its Tailscale address; tests point two apps at loopback instead.
+const peerHost = process.env.LONCA_PEER_HOST;
+const core = new Core({
+  appDir,
+  language: locale.startsWith('tr') ? 'tr' : 'en',
+  llm,
+  signer,
+  ...(peerHost ? { peer: { host: peerHost, port: Number(process.env.LONCA_PEER_PORT) || 0 } } : {}),
+});
 
 process.parentPort.on('message', (event: { data: unknown; ports: MessagePortMain[] }) => {
   const port = event.ports[0];
