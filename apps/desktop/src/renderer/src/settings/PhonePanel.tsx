@@ -91,6 +91,7 @@ export function PhonePanel() {
               <span className="muted">
                 {t('phone.paired', { time: when(p.created) })}
                 {p.lastSeen ? ` · ${t('phone.seen', { time: when(p.lastSeen) })}` : ''}
+                {` · ${p.push ? t('phone.pushYes') : t('phone.pushNo')}`}
               </span>
             </li>
           ))}

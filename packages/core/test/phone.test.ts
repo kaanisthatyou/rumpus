@@ -119,3 +119,71 @@ describe('phone companion', () => {
     await expect(fetch(`${base}/api/ping`)).rejects.toThrow();
   });
 });
+
+describe('phone pushes', () => {
+  it('pushes to a subscribed phone that is not looking, never to one that is, and forgets dead subscriptions', async () => {
+    const { PhoneServer } = await import('../src/phone.js');
+    const { createECDH, randomBytes } = await import('node:crypto');
+    const { createServer } = await import('node:http');
+    const received: { path: string; size: number }[] = [];
+    let status = 201;
+    const service = createServer(async (req, res) => {
+      let size = 0;
+      for await (const c of req) size += (c as Buffer).length;
+      received.push({ path: req.url ?? '', size });
+      res.writeHead(status).end();
+    });
+    await new Promise<void>((r) => service.listen(0, '127.0.0.1', r));
+    const pushBase = `http://127.0.0.1:${(service.address() as { port: number }).port}`;
+
+    const dir = tmp('lonca-push-');
+    const host = { answer: async () => ({ id: 0, result: {} }) as Frame, subscribe: () => () => {} };
+    const server = new PhoneServer(join(dir, 'phones.json'), host, undefined, { allowHttpPush: true });
+    const port = await server.listen(0);
+    const base = `http://127.0.0.1:${port}`;
+    const { code } = server.pairingCode();
+    const paired = await fetch(`${base}/api/pair`, {
+      method: 'POST',
+      headers: { 'x-lonca': '1' },
+      body: JSON.stringify({ code }),
+    });
+    const { token } = (await paired.json()) as { token: string };
+    const headers = { 'x-lonca': '1', 'x-lonca-phone': token };
+    const key = (await (await fetch(`${base}/api/push-key`, { headers })).json()) as { key: string };
+    expect(Buffer.from(key.key, 'base64url')).toHaveLength(65);
+
+    const ua = createECDH('prime256v1');
+    ua.generateKeys();
+    const subscription = {
+      endpoint: `${pushBase}/sub/1`,
+      keys: { p256dh: ua.getPublicKey().toString('base64url'), auth: randomBytes(16).toString('base64url') },
+    };
+    const bad = await fetch(`${base}/api/push`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ subscription: { endpoint: 'nope' } }),
+    });
+    expect(bad.status).toBe(400);
+    expect(
+      (await fetch(`${base}/api/push`, { method: 'POST', headers, body: JSON.stringify({ subscription }) })).status,
+    ).toBe(200);
+    expect(server.phones()[0]?.push).toBe(true);
+
+    expect(await server.notify({ title: 'Onay bekliyor', body: 'Claude' })).toBe(1);
+    expect(received).toMatchObject([{ path: '/sub/1' }]);
+
+    // While the phone has the app open, no push.
+    const ac = new AbortController();
+    await fetch(`${base}/api/events?k=${token}`, { signal: ac.signal });
+    expect(await server.notify({ title: 'x', body: '' })).toBe(0);
+    ac.abort();
+    await new Promise((r) => setTimeout(r, 100));
+
+    // A subscription the push service no longer knows is dropped.
+    status = 410;
+    expect(await server.notify({ title: 'x', body: '' })).toBe(0);
+    expect(server.phones()[0]?.push).toBe(false);
+    server.close();
+    service.close();
+  });
+});

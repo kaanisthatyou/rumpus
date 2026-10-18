@@ -81,7 +81,7 @@ export interface CoreOptions {
   /** Where to listen for other members: the Tailscale address and port 47640 unless given (tests use loopback). */
   peer?: { host?: string; port?: number };
   /** The built UI, served to paired phones; and the loopback port for them (47620 unless given). */
-  web?: { dir?: string; port?: number; https?: boolean };
+  web?: { dir?: string; port?: number; https?: boolean; allowHttpPush?: boolean };
 }
 
 /** A team workspace's entry in `<data>/workspaces.json`. */
@@ -527,7 +527,9 @@ export class Core {
         this.phoneProblem = undefined;
         return;
       }
-      this.phone ??= new PhoneServer(join(this.opts.appDir, 'phones.json'), this, this.opts.web?.dir);
+      this.phone ??= new PhoneServer(join(this.opts.appDir, 'phones.json'), this, this.opts.web?.dir, {
+        ...(this.opts.web?.allowHttpPush ? { allowHttpPush: true } : {}),
+      });
       let local: number;
       try {
         local = this.phone.running && this.phonePort ? this.phonePort : await this.phone.listen(port);
@@ -570,6 +572,23 @@ export class Core {
       this.changedPhones();
     });
     return this.phoneStarting;
+  }
+
+  /** A push to the phones that are not looking at the app; nothing when phones are off. */
+  private pushToPhones(kind: 'approval' | 'join' | 'message', args: Record<string, string>): void {
+    if (!this.phone?.running) return;
+    const tr = this.settings.get().language === 'tr';
+    const titles = {
+      approval: tr ? 'Onay bekliyor' : 'Waiting for approval',
+      join: tr ? 'Katılma isteği' : 'Join request',
+      message: args.where ?? '',
+    };
+    const bodies = {
+      approval: `${args.agent ?? ''}${args.what ? `: ${args.what}` : ''}`,
+      join: `${args.name ?? ''} · ${args.ws ?? ''}`,
+      message: `${args.name ?? ''}: ${(args.text ?? '').slice(0, 180)}`,
+    };
+    void this.phone.notify({ title: titles[kind], body: bodies[kind], tag: `${kind}:${args.tag ?? ''}` });
   }
 
   private async pairPhone(): Promise<{ url: string; expires: number }> {
@@ -745,6 +764,8 @@ export class Core {
     const instructions = new Instructions(this.dataDir(), dir);
     // Every callback below runs as this workspace's own work, whichever workspace is open.
     const ref = {} as { ws: Workspace };
+    /** The approval each job last pushed to phones for. */
+    const attention = new Map<string, string | undefined>();
     const inWs = <T>(fn: () => T): T => this.within(ref.ws, fn);
     const gateway = new Gateway(this.tools().map((t) => ({ ...t, run: (a, ctx) => inWs(() => t.run(a, ctx)) })));
     let starting: Promise<number> | undefined;
@@ -768,6 +789,15 @@ export class Core {
       me: () => ({ ...this.me(), language: this.settings.get().language }),
       emitJob: (job) =>
         inWs(() => {
+          if (job.state === 'attention' && attention.get(job.id) !== job.approval?.id) {
+            attention.set(job.id, job.approval?.id);
+            const agent = store.agent(job.agentId);
+            this.pushToPhones('approval', {
+              agent: agent?.name ?? '',
+              what: [job.approval?.label, job.approval?.arg].filter(Boolean).join(' '),
+              tag: job.id,
+            });
+          }
           this.emit('job.updated', job);
           // Others see this device's running jobs move, about once a second; the end comes as a signed event.
           if (kind === 'team' && (job.state === 'running' || job.state === 'attention')) this.liveJob(ref.ws, job);
@@ -1083,6 +1113,7 @@ export class Core {
     };
     ws.store.saveJoinRequest(request, 'pending');
     this.within(ws, () => this.changed());
+    this.pushToPhones('join', { name: request.name, ws: ws.store.meta('name') ?? '', tag: request.id });
     return { request: request.id };
   }
 
@@ -1295,6 +1326,15 @@ export class Core {
           if (!m) break;
           this.emit('message.added', m);
           if (ws.id !== this.currentId()) this.within(ws, () => this.emitGlobal('workspace.activity', { id: ws.id }));
+          if (m.author.kind === 'person' && m.author.id !== this.deviceId) {
+            const channelName = store.channel(m.channelId)?.name ?? '';
+            this.pushToPhones('message', {
+              where: `#${channelName} · ${store.meta('name') ?? ''}`,
+              name: m.author.name,
+              text: m.text,
+              tag: m.channelId,
+            });
+          }
           // Another member called one of this device's agents: the access rules decide.
           const channel = store.channel(m.channelId);
           if (channel && m.author.kind === 'person') void ws.jobs.onMessage(m, channel);

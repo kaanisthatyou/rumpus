@@ -713,6 +713,10 @@
     "unpaired": {
       "title": "Bu telefon eşleşmedi",
       "how": "Bilgisayardaki Lonca'da Ayarlar → Telefon → Telefon ekle ile çıkan QR kod okutulur."
-    }
+    },
+    "pushOff": "Bildirimler kapalı: onay bekleyen işler ve mesajlar telefona gelmez.",
+    "pushOn": "Bildirimleri aç",
+    "pushYes": "bildirimler açık",
+    "pushNo": "bildirimler kapalı"
   }
 }

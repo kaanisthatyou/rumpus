@@ -1,6 +1,6 @@
 # Lonca v2: plan
 
-Status: **Phase 2 built** (2026-10-18; its done-check, a goal finishing on its own with advisors commenting, waits for real use), Phase 3 next; see "Phase 0 status" and "Phase 1 status" under section 8. Owners: Kaan and Arda. v0.1 (the
+Status: **Phase 3 built** (2026-10-18; the done-checks of Phases 1-3 wait for real use by Kaan and Arda), Phase 4 next; see "Phase 0 status" and "Phase 1 status" under section 8. Owners: Kaan and Arda. v0.1 (the
 Python chat server, tag `v0.1.0`) was the starting point for ideas and the security model, not for code.
 
 Research behind this plan: `docs/research/` (Claude Desktop, Antigravity, Hermes Agent + Jan, CLI agents, platform:
@@ -680,8 +680,12 @@ The details behind 5.11 and 6.5, decided before building.
   kept) and can be removed alone. Writes need the `x-lonca` header and a matching origin. On a narrow screen the UI
   is one column with a bottom bar (Kanallar, Görevler, Bekleyenler, Loncadakiler, Ayarlar) and full-screen dialogs;
   settings about the PC itself are not offered on the phone. `e2e/phone.mjs` pairs a narrow window as the phone.
-  Still to do in Phase 3: push notifications to phones (Web Push), and the real test between Kaan's and Arda's
-  computers.
+  Pushes: Web Push with no library (RFC 8291 aes128gcm, RFC 8292 VAPID with a key made once on the PC); the phone
+  turns them on with one tap (a banner), its service worker shows them, and the PC sends one when a job waits for
+  approval, someone asks to join, or another member writes, but never to a phone that has the app open; dead
+  subscriptions are dropped. Tested against a stand-in push service that decrypts what it gets.
+  Phase 3 is built (2026-10-18). Left: the real test between Kaan's and Arda's computers over Tailscale (the
+  phase's done-check), and a real phone with HTTPS certificates turned on in the tailnet.
 - **Slices:** 3.1 several workspaces; 3.2 identity, signed log, last-writer-wins; 3.3 transport and sync between
   two apps (two `LONCA_HOME` instances on one PC in tests); 3.4 invites, roles, members panel; 3.5 cross-member
   jobs and agent access; 3.6 presence, typing, notifications; 3.7 the phone companion.

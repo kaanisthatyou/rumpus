@@ -147,7 +147,7 @@ export interface PhoneState {
   url?: string;
   /** Why it does not work yet: `tailscale` (not running), `https` (the tailnet gives no certificates), `serve`. */
   problem?: 'tailscale' | 'https' | 'serve' | 'port';
-  phones: { id: string; name: string; created: number; lastSeen?: number }[];
+  phones: { id: string; name: string; created: number; lastSeen?: number; push: boolean }[];
 }
 
 export interface TailscaleInfo {

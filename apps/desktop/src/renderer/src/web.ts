@@ -50,7 +50,44 @@ export async function startWeb(): Promise<'desktop' | 'ready' | 'unpaired'> {
     .catch(() => false);
   if (!ok) return 'unpaired';
   core.connectHttp(token);
+  navigator.serviceWorker?.register('/sw.js').catch(() => {});
   return 'ready';
+}
+
+/** Whether this phone can get pushes, and whether it already allowed them. */
+export function pushState(): 'unsupported' | 'off' | 'on' | 'blocked' {
+  if (
+    !window.isSecureContext ||
+    !('serviceWorker' in navigator) ||
+    typeof Notification === 'undefined' ||
+    !('PushManager' in window)
+  )
+    return 'unsupported';
+  return Notification.permission === 'granted' ? 'on' : Notification.permission === 'denied' ? 'blocked' : 'off';
+}
+
+/** Asks for notifications (from a tap) and hands the subscription to the PC. */
+export async function enablePush(): Promise<boolean> {
+  if (pushState() === 'unsupported') return false;
+  if ((await Notification.requestPermission()) !== 'granted') return false;
+  const token = storedKey();
+  const headers: Record<string, string> = {
+    'content-type': 'application/json',
+    'x-lonca': '1',
+    ...(token ? { 'x-lonca-phone': token } : {}),
+  };
+  const { key } = (await (await fetch('/api/push-key', { headers })).json()) as { key: string };
+  const registration = await navigator.serviceWorker.ready;
+  const subscription = await registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: Uint8Array.from(atob(key.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0)),
+  });
+  const res = await fetch('/api/push', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ subscription: subscription.toJSON() }),
+  });
+  return res.ok;
 }
 
 function phoneName(): string {

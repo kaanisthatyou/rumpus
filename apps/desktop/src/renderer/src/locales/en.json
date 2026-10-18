@@ -713,6 +713,10 @@
     "unpaired": {
       "title": "This phone is not paired",
       "how": "In Lonca on the computer, Settings → Phone → Add a phone shows the QR code to scan."
-    }
+    },
+    "pushOff": "Notifications are off: jobs waiting for approval and messages do not reach the phone.",
+    "pushOn": "Turn on notifications",
+    "pushYes": "notifications on",
+    "pushNo": "notifications off"
   }
 }

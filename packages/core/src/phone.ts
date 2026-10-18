@@ -7,6 +7,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { AddressInfo } from 'node:net';
 import { extname, join, normalize, sep } from 'node:path';
 import type { Frame } from '@lonca/protocol';
+import { type PushMessage, type PushSubscription, sendPush, Vapid } from './push.js';
 
 export const PHONE_PORT = 47620;
 const PAIR_MS = 10 * 60 * 1000;
@@ -22,6 +23,8 @@ export interface PhoneInfo {
 
 interface Stored extends PhoneInfo {
   hash: string;
+  /** The phone's push subscription, once it turned notifications on. */
+  push?: PushSubscription;
 }
 
 /** What the phone server needs from the core: answer one request, and a stream of events. */
@@ -53,12 +56,37 @@ function same(a: string, b: string): boolean {
 export class PhoneServer {
   private server: Server | undefined;
   private readonly codes = new Map<string, number>();
+  /** Open event streams per phone: a phone looking at the app gets no push. */
+  private readonly connected = new Map<string, number>();
+  private vapidKey: Vapid | undefined;
 
   constructor(
     private readonly file: string,
     private readonly host: PhoneHost,
     private readonly webDir: string | undefined,
+    /** Tests point subscriptions at a plain-http stand-in. */
+    private readonly opts: { allowHttpPush?: boolean } = {},
   ) {}
+
+  private vapid(): Vapid {
+    this.vapidKey ??= new Vapid(this.file.replace(/phones\.json$/, 'vapid.json'));
+    return this.vapidKey;
+  }
+
+  /** Tells every paired phone that is not looking at the app (and has notifications on). */
+  async notify(message: PushMessage): Promise<number> {
+    let sent = 0;
+    const gone: string[] = [];
+    for (const p of this.load()) {
+      if (!p.push || (this.connected.get(p.id) ?? 0) > 0) continue;
+      const r = await sendPush(this.vapid(), p.push, message, { allowHttp: this.opts.allowHttpPush === true });
+      if (r.ok) sent += 1;
+      if (r.gone) gone.push(p.id);
+    }
+    if (gone.length)
+      this.save(this.load().map((p) => (gone.includes(p.id) ? (({ push: _p, ...rest }) => rest)(p) : p)));
+    return sent;
+  }
 
   // ---------------------------------------------------------------- phones
 
@@ -77,8 +105,8 @@ export class PhoneServer {
     renameSync(`${this.file}.tmp`, this.file);
   }
 
-  phones(): PhoneInfo[] {
-    return this.load().map(({ hash: _h, ...p }) => p);
+  phones(): (PhoneInfo & { push: boolean })[] {
+    return this.load().map(({ hash: _h, push, ...p }) => ({ ...p, push: Boolean(push) }));
   }
 
   /** A one-time code for a QR, valid for ten minutes. */
@@ -194,6 +222,30 @@ export class PhoneServer {
           if (!this.trusted(req)) return this.json(res, 403, { error: 'origin' });
           return this.json(res, 200, await this.host.answer(await this.body(req)));
         }
+        if (url.pathname === '/api/push-key' && req.method === 'GET') {
+          return this.json(res, 200, { key: this.vapid().publicKey });
+        }
+        if (url.pathname === '/api/push' && req.method === 'POST') {
+          if (!this.trusted(req)) return this.json(res, 403, { error: 'origin' });
+          const sub = ((await this.body(req)) as { subscription?: PushSubscription }).subscription;
+          const okUrl = (() => {
+            try {
+              const u = new URL(String(sub?.endpoint));
+              return u.protocol === 'https:' || (this.opts.allowHttpPush === true && u.protocol === 'http:');
+            } catch {
+              return false;
+            }
+          })();
+          if (!okUrl || typeof sub?.keys?.p256dh !== 'string' || typeof sub.keys.auth !== 'string') {
+            return this.json(res, 400, { error: 'subscription' });
+          }
+          const clean: PushSubscription = {
+            endpoint: String(sub.endpoint),
+            keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth },
+          };
+          this.save(this.load().map((p) => (p.id === phone.id ? { ...p, push: clean } : p)));
+          return this.json(res, 200, { ok: true });
+        }
         if (url.pathname === '/api/events' && req.method === 'GET') {
           res.writeHead(200, {
             'content-type': 'text/event-stream',
@@ -203,9 +255,11 @@ export class PhoneServer {
           res.write(': lonca\n\n');
           const stop = this.host.subscribe((frame) => res.write(`data: ${JSON.stringify(frame)}\n\n`));
           const ping = setInterval(() => res.write(': ping\n\n'), 25_000);
+          this.connected.set(phone.id, (this.connected.get(phone.id) ?? 0) + 1);
           req.on('close', () => {
             clearInterval(ping);
             stop();
+            this.connected.set(phone.id, Math.max(0, (this.connected.get(phone.id) ?? 1) - 1));
           });
           return;
         }

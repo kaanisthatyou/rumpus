@@ -11,6 +11,7 @@ import { LiveView } from '../channel/LiveView';
 import { GoalsView } from '../goals/GoalsView';
 import { RecordsView } from '../records/RecordsView';
 import { useApp, type View } from '../store';
+import { enablePush, pushState } from '../web';
 
 const BOARD: { view: View; icon: IconName }[] = [
   { view: 'tasks', icon: 'tasks' },
@@ -302,6 +303,22 @@ function QuotaBlock({ kind, quota }: { kind: CliKind; quota: Quota }) {
           <span className="quota__pct l-mono">%{Math.round(w.used * 100)}</span>
         </div>
       ))}
+    </div>
+  );
+}
+
+/** On a phone with notifications not yet allowed: one tap turns pushes on. */
+function PushBanner() {
+  const { t } = useTranslation();
+  const [state, setState] = useState(() => pushState());
+  if (state !== 'off' || document.documentElement.dataset.phone !== '1') return null;
+  return (
+    <div className="pushbanner" role="status">
+      <Icon name="alert" size={14} />
+      <span className="grow">{t('phone.pushOff')}</span>
+      <Button size="sm" variant="primary" onClick={async () => setState((await enablePush()) ? 'on' : pushState())}>
+        {t('phone.pushOn')}
+      </Button>
     </div>
   );
 }
@@ -600,6 +617,7 @@ export function Shell({ onSettings }: { onSettings: () => void }) {
       <AnimatePresence mode="wait">
         {watching ? <LiveView key={watching} jobId={watching} /> : <Crew key="crew" />}
       </AnimatePresence>
+      <PushBanner />
       <PhoneBar onSettings={onSettings} />
     </motion.div>
   );
