@@ -583,7 +583,8 @@ public, which waits for the owners' go.
   plan is done but the check fails, `GOAL_DONE` to finish early (only with a passing check). Pauses on the budget
   (continue with more), a failed step, or an app restart; stop at any time. The running step's job card stays for
   steering and approvals; finished ones open from their step. Advisors of the channel take turns commenting on
-  each step. A Goals view lists them. Tested with unit tests and `e2e/channel.mjs` against the fake CLI.
+  each step. A Goals view lists them. Tested with unit tests and `e2e/channel.mjs` against the fake CLI, and once
+  with the real Claude Code on Haiku (`e2e/real-claude.mjs`: a four-step plan, an approval, the check passed).
 
 ## 9. Risks
 

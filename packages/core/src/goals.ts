@@ -358,10 +358,10 @@ export class Goals {
       `${me.name || 'A person'} set a goal for you:`,
       `<goal>\n${goal.text}\n</goal>`,
       goal.check
-        ? `Done check (a command Lonca runs in your folder after each step; exit code 0 means the goal is done): ${goal.check}`
+        ? `Done check: Lonca itself runs \`${goal.check}\` in your folder after each step (exit code 0 means the goal is done) and tells you when it fails. Do not plan a step for running it.`
         : '',
       `Budget: ${this.budgetLine(goal)}.`,
-      `Write the plan only; do not change anything yet. Reply with a numbered list of at most ${goal.budget.steps} steps, one line each, each small enough for one turn, in ${LANGUAGE_NAMES[me.language]}. No other text.`,
+      `Write the plan only; do not change anything yet. Reply with a numbered list of at most ${goal.budget.steps} steps, as few as the goal needs (a small change is one step), one line each, each small enough for one turn, in ${LANGUAGE_NAMES[me.language]}. No other text.`,
     ]
       .filter(Boolean)
       .join('\n\n');
@@ -387,6 +387,7 @@ export class Goals {
         ? `The done check (${goal.check}) failed after the last step:\n\`\`\`\n${goal.lastCheck?.output.slice(-2000) ?? ''}\n\`\`\``
         : '',
       step.fix ? 'Do this step: make the done check pass.' : `Do only this step: ${step.text}`,
+      goal.check ? 'Lonca runs the done check after this step; there is no need to run it yourself.' : '',
       'End with a short report: what you did and what is left. If the whole goal is complete, put GOAL_DONE alone on the last line.',
     ]
       .filter(Boolean)

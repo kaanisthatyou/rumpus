@@ -96,9 +96,11 @@ export function JobCard({ job, agent }: { job: Job; agent: Agent | undefined }) 
           ))}
         </motion.ol>
       )}
-      <AnimatePresence>
+      {/* One panel at a time: a new approval waits until the previous panel has gone. */}
+      <AnimatePresence mode="wait">
         {job.state === 'attention' && job.approval && (
           <motion.div
+            key={job.approval.id}
             className="job__approval"
             role="alert"
             initial={{ opacity: 0, height: 0 }}
