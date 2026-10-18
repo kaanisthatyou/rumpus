@@ -9,6 +9,10 @@ import type {
   Card,
   CardStatus,
   Channel,
+  Goal,
+  GoalBudget,
+  GoalComment,
+  GoalInput,
   Job,
   Message,
   Quota,
@@ -154,6 +158,13 @@ export interface CoreMethods {
   'agents.newSession': { params: { agentId: string; channelId: string }; result: { ok: true } };
   'advisors.save': { params: AdvisorInput; result: Advisor };
   'advisors.delete': { params: { id: string }; result: { ok: true } };
+  'goals.list': { params: undefined; result: Goal[] };
+  'goals.create': { params: GoalInput; result: Goal };
+  /** Approve the plan, with comments that travel with every step. */
+  'goals.approve': { params: { id: string; comments: GoalComment[] }; result: Goal };
+  'goals.stop': { params: { id: string }; result: Goal };
+  /** Continue a paused goal, optionally with more budget. */
+  'goals.resume': { params: { id: string; more?: Partial<GoalBudget> }; result: Goal };
   /** `/meclis`: the advisors in the channel discuss a topic in turn and one sums up. */
   'advisors.council': { params: { channelId: string; topic: string }; result: Message };
   'jobs.stop': { params: { id: string }; result: { ok: true } };
@@ -192,6 +203,7 @@ export interface CoreEvents {
   'card.deleted': { id: string };
   'record.changed': RecordItem;
   'record.deleted': { id: string };
+  'goal.changed': Goal;
   /** An advisor is writing (or stopped writing) in a channel. */
   'advisor.typing': { advisorId: string; channelId: string; on: boolean };
   'advisor.spend': Record<string, number>;
@@ -218,6 +230,8 @@ export const ERROR_CODES = [
   'cli_missing',
   'busy',
   'invalid_advisor',
+  'invalid_goal',
+  'goal_state',
   'no_advisors',
   'over_budget',
   'provider_bad_url',

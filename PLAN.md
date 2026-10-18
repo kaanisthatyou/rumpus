@@ -576,6 +576,14 @@ public, which waits for the owners' go.
   summary. Each advisor runs on the device that added it. Tested with unit tests and `e2e/advisors.mjs`; not yet
   run against a real provider with a real key. Their context is gathered by Lonca (channel, board, git); tool
   calls of their own (reading files on request) are still to do.
+- `/goal`: a dialog for the goal, the agent, the budget (steps, minutes, optional tokens) and an optional done
+  check (a shell command in the agent's folder; exit code 0 means done). The agent writes a numbered plan; the
+  goal card shows it with a comment box on every step and on the plan, and "approve with N comments" sends the
+  comments as structured data with every step. Then one job per step, the check after each, a fix step when the
+  plan is done but the check fails, `GOAL_DONE` to finish early (only with a passing check). Pauses on the budget
+  (continue with more), a failed step, or an app restart; stop at any time. The running step's job card stays for
+  steering and approvals; finished ones open from their step. Advisors of the channel take turns commenting on
+  each step. A Goals view lists them. Tested with unit tests and `e2e/channel.mjs` against the fake CLI.
 
 ## 9. Risks
 

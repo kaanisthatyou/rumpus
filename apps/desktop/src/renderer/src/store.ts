@@ -7,6 +7,10 @@ import type {
   CardStatus,
   CliInfo,
   CliKind,
+  Goal,
+  GoalBudget,
+  GoalComment,
+  GoalInput,
   Job,
   Message,
   ProviderInfo,
@@ -54,6 +58,9 @@ interface AppState {
   /** The agent dialog: an agent to edit, `new` for a new one, or closed. */
   agentDialog?: Agent | 'new' | { kind: CliKind };
   advisorDialog?: Advisor | 'new';
+  goals: Goal[];
+  /** `/goal`: the dialog, with the goal text typed so far. */
+  goalDialog?: { channelId: string; text: string; agentId?: string };
   /** Advisors writing right now, per channel. */
   typing: Record<string, string[]>;
   cards: Card[];
@@ -95,6 +102,11 @@ interface AppState {
   watch(jobId: string | undefined): void;
   openAgentDialog(target: AppState['agentDialog']): void;
   openAdvisorDialog(target: AppState['advisorDialog']): void;
+  openGoalDialog(target: AppState['goalDialog']): void;
+  createGoal(input: GoalInput): Promise<boolean>;
+  approveGoal(id: string, comments: GoalComment[]): Promise<void>;
+  stopGoal(id: string): Promise<void>;
+  resumeGoal(id: string, more?: Partial<GoalBudget>): Promise<void>;
   saveAdvisor(input: AdvisorInput): Promise<boolean>;
   deleteAdvisor(id: string): Promise<void>;
   council(channelId: string, topic: string): Promise<boolean>;
@@ -179,6 +191,7 @@ export const useApp = create<AppState>((set, get) => {
     images: {},
     paletteOpen: false,
     typing: {},
+    goals: [],
     shortcutsOpen: false,
 
     async init() {
@@ -240,6 +253,13 @@ export const useApp = create<AppState>((set, get) => {
           const now = (s.typing[channelId] ?? []).filter((id) => id !== advisorId);
           return { typing: { ...s.typing, [channelId]: on ? [...now, advisorId] : now } };
         }),
+      );
+      core.on('goal.changed', (goal) =>
+        set((s) => ({
+          goals: s.goals.some((g) => g.id === goal.id)
+            ? s.goals.map((g) => (g.id === goal.id ? goal : g))
+            : [...s.goals, goal],
+        })),
       );
       core.on('advisor.spend', (spend) => set((s) => (s.workspace ? { workspace: { ...s.workspace, spend } } : {})));
       core.on('advisor.failed', ({ advisorId, code }) => {
@@ -332,7 +352,8 @@ export const useApp = create<AppState>((set, get) => {
       const quota = (await attempt(() => core.call('quota.get'))) ?? {};
       const cards = (await attempt(() => core.call('cards.list'))) ?? [];
       const records = (await attempt(() => core.call('records.list', {}))) ?? [];
-      set({ workspace, jobs, quota, cards, records });
+      const goals = (await attempt(() => core.call('goals.list'))) ?? [];
+      set({ workspace, jobs, quota, cards, records, goals });
       const current = get().channelId ?? lastChannel.get();
       const target = workspace.channels.find((c) => c.id === current) ?? workspace.channels[0];
       if (target) await get().openChannel(target.id);
@@ -418,6 +439,32 @@ export const useApp = create<AppState>((set, get) => {
 
     openAgentDialog(target) {
       set({ agentDialog: target, error: undefined });
+    },
+
+    openGoalDialog(target) {
+      set({ goalDialog: target, error: undefined });
+    },
+
+    async createGoal(input) {
+      const goal = await attempt(() => core.call('goals.create', input));
+      if (!goal) return false;
+      set((s) => ({
+        goalDialog: undefined,
+        goals: s.goals.some((g) => g.id === goal.id) ? s.goals : [...s.goals, goal],
+      }));
+      return true;
+    },
+
+    async approveGoal(id, comments) {
+      await attempt(() => core.call('goals.approve', { id, comments }));
+    },
+
+    async stopGoal(id) {
+      await attempt(() => core.call('goals.stop', { id }));
+    },
+
+    async resumeGoal(id, more) {
+      await attempt(() => core.call('goals.resume', { id, ...(more ? { more } : {}) }));
     },
 
     openAdvisorDialog(target) {

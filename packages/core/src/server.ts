@@ -1,5 +1,6 @@
 // The core's RPC server. It does not know the transport: Electron hands it MessagePorts, tests hand it fakes,
 // and later the phone and other members will reach the same methods over the network.
+import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -33,11 +34,12 @@ import { detectAgents, loginCommand } from './agents.js';
 import { Blobs } from './blobs.js';
 import type { OpenSession } from './drivers/types.js';
 import { Gateway, type Tool, type ToolContent } from './gateway.js';
+import { Goals } from './goals.js';
 import { newId } from './ids.js';
 import { Instructions } from './instructions.js';
 import { Jobs } from './jobs.js';
 import { type Llm, noLlm } from './llm.js';
-import { type Launch, openConsole, type Runner, run } from './proc.js';
+import { killTree, type Launch, openConsole, type Runner, run } from './proc.js';
 import { CORE_RULES, systemPrompt } from './prompts.js';
 import { SettingsStore } from './settings.js';
 import { WorkspaceStore } from './store.js';
@@ -73,6 +75,7 @@ interface Workspace {
   instructions: Instructions;
   gateway: Gateway;
   advisors: Advisors;
+  goals: Goals;
   /** Jobs already handed to the advisors when they ended. */
   ended: Set<string>;
   timer: NodeJS.Timeout;
@@ -89,6 +92,37 @@ function isDir(path: string): boolean {
   } catch {
     return false;
   }
+}
+
+/** A goal's done check: the person's own command, in the agent's folder, with a ten-minute limit. */
+function runShell(command: string, cwd: string, timeoutMs = 10 * 60_000): Promise<{ ok: boolean; output: string }> {
+  return new Promise((resolve) => {
+    let output = '';
+    const keep = (c: Buffer) => {
+      output = (output + c.toString()).slice(-8000);
+    };
+    let child: ReturnType<typeof spawn>;
+    try {
+      child = spawn(command, { cwd, shell: true, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    } catch (e) {
+      resolve({ ok: false, output: String(e) });
+      return;
+    }
+    const timer = setTimeout(() => {
+      output += '\n[stopped after the time limit]';
+      killTree(child.pid);
+    }, timeoutMs);
+    child.stdout?.on('data', keep);
+    child.stderr?.on('data', keep);
+    child.on('error', (e) => {
+      clearTimeout(timer);
+      resolve({ ok: false, output: `${output}\n${String(e)}` });
+    });
+    child.on('close', (code) => {
+      clearTimeout(timer);
+      resolve({ ok: code === 0, output: output.trim() });
+    });
+  });
 }
 
 function text(value: unknown): string {
@@ -159,6 +193,11 @@ export class Core {
       'advisors.save': async (p) => this.saveAdvisor(p),
       'advisors.delete': async (p) => this.deleteAdvisor(p?.id),
       'advisors.council': async (p) => this.council(p?.channelId, p?.topic),
+      'goals.list': async () => this.workspace().goals.list(),
+      'goals.create': async (p) => this.workspace().goals.create(p),
+      'goals.approve': async (p) => this.workspace().goals.approve(String(p?.id ?? ''), p?.comments ?? []),
+      'goals.stop': async (p) => this.workspace().goals.stop(String(p?.id ?? '')),
+      'goals.resume': async (p) => this.workspace().goals.resume(String(p?.id ?? ''), p?.more ?? {}),
       'agents.newSession': async (p) => {
         if (typeof p?.agentId !== 'string' || typeof p.channelId !== 'string') throw new CoreError('bad_request');
         this.workspace().jobs.newSession(p.agentId, p.channelId);
@@ -362,10 +401,19 @@ export class Core {
       emitJob: (job) => {
         this.emit('job.updated', job);
         this.cardFollowsJob(job.id, job.state);
-        if (job.state === 'done' && this.ws && !this.ws.ended.has(job.id)) {
+        const over = job.state !== 'running' && job.state !== 'attention';
+        if (over && this.ws && !this.ws.ended.has(job.id)) {
           this.ws.ended.add(job.id);
-          // After the answer message is stored.
-          setTimeout(() => this.ws?.advisors.onJobEnded(job), 0);
+          // After the answer message is stored. A goal's steps get their comments from the goal.
+          setTimeout(() => {
+            const ws = this.ws;
+            if (!ws) return;
+            const inGoal = ws.goals
+              .list()
+              .some((g) => g.planJobId === job.id || g.steps.some((s) => s.jobId === job.id));
+            if (inGoal) ws.goals.onJob(job);
+            else ws.advisors.onJobEnded(job);
+          }, 0);
         }
       },
       emitMessage: (message) => this.emit('message.added', message),
@@ -392,9 +440,19 @@ export class Core {
       },
       project: (folder) => this.project(folder),
     });
+    const goals = new Goals({
+      store,
+      jobs,
+      me: () => ({ ...this.me(), language: this.settings.get().language }),
+      emitGoal: (goal) => this.emit('goal.changed', goal),
+      emitMessage: (message) => this.emit('message.added', message),
+      runCheck: (command, cwd) => runShell(command, cwd),
+      onStep: (goal, step, report) => advisors.onGoalStep(goal, step, report),
+    });
+    goals.recover();
     const timer = setInterval(() => advisors.tick(), 60_000);
     timer.unref?.();
-    this.ws = { dir, store, jobs, blobs, instructions, gateway, advisors, ended: new Set(), timer };
+    this.ws = { dir, store, jobs, blobs, instructions, gateway, advisors, goals, ended: new Set(), timer };
     return this.ws;
   }
 
@@ -402,6 +460,7 @@ export class Core {
     if (!this.ws) return;
     clearInterval(this.ws.timer);
     this.ws.advisors.dispose();
+    this.ws.goals.dispose();
     this.ws.jobs.disposeAll();
     this.ws.gateway.close();
     this.ws.store.close();

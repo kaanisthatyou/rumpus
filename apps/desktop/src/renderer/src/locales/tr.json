@@ -226,7 +226,9 @@
     "provider_refused": "Sağlayıcı isteği reddetti.",
     "invalid_advisor": "Danışman bilgileri eksik ya da geçersiz.",
     "no_advisors": "Bu kanalda danışman yok.",
-    "over_budget": "Günlük bütçe doldu."
+    "over_budget": "Günlük bütçe doldu.",
+    "invalid_goal": "Hedef bilgileri eksik ya da geçersiz.",
+    "goal_state": "Hedef bu işlem için uygun durumda değil."
   },
   "channel": {
     "newSession": "Yeni oturum",
@@ -366,7 +368,8 @@
     "todo": "Panoya görev ekler",
     "newSession": "Agent bu kanaldaki konuşmayı bırakır",
     "search": "Mesajlarda arar",
-    "council": "Danışmanlar bir konuyu sırayla tartışır, biri özetler"
+    "council": "Danışmanlar bir konuyu sırayla tartışır, biri özetler",
+    "goal": "Bir agent'a hedef: plan, onay, adım adım iş"
   },
   "palette": {
     "placeholder": "Kanal, agent, görünüm, eylem ya da mesaj",
@@ -556,5 +559,57 @@
     "folderHint": "İsteğe bağlı. Son commit'ler ve git durumu salt okunur olarak danışmana gösterilir.",
     "noFolder": "Kaldır",
     "delete": "Danışmanı sil"
+  },
+  "goal": {
+    "title": "Hedef",
+    "new": "Yeni hedef",
+    "intro": "Agent önce bir plan yazar. Plan onaylanınca adım adım çalışır; her adımdan sonra rapor verir ve bitti kontrolü çalışır. Hedef bitince, bütçe dolunca ya da durdurulunca durur.",
+    "text": "Hedef",
+    "agent": "Agent",
+    "agentHint": "Adımlar agent'ın izin düzeyiyle çalışır.",
+    "noAgent": "Hedef için önce bir agent eklenir.",
+    "maxSteps": "En çok adım",
+    "maxMinutes": "En çok dakika",
+    "maxTokens": "En çok token (bin)",
+    "noLimit": "Sınır yok",
+    "check": "Bitti kontrolü",
+    "checkHint": "İsteğe bağlı. Agent'ın klasöründe her adımdan sonra çalışan komut; çıkış kodu 0 ise hedef bitmiş sayılır.",
+    "start": "Plan iste",
+    "planning": "Agent planı yazıyor.",
+    "state": {
+      "planning": "Plan yazılıyor",
+      "review": "Onay bekliyor",
+      "running": "Çalışıyor",
+      "paused": "Duraklatıldı",
+      "done": "Bitti",
+      "failed": "Başarısız",
+      "stopped": "Durduruldu"
+    },
+    "fixStep": "Bitti kontrolünü geçir",
+    "commentOn": "{{n}}. adıma yorum",
+    "commentPlan": "Plana yorum",
+    "watchStep": "{{n}}. adımı izle",
+    "approve": "Onayla",
+    "approveWith_one": "{{count}} yorumla onayla",
+    "approveWith_other": "{{count}} yorumla onayla",
+    "reject": "Reddet",
+    "stop": "Durdur",
+    "resume": "Devam et",
+    "more": "Bütçeyi artırıp devam et",
+    "checkOk": "Bitti kontrolü geçti",
+    "checkFailed": "Bitti kontrolü geçmedi",
+    "used": "adım {{steps}}/{{maxSteps}} · {{minutes}}/{{maxMinutes}} dk",
+    "tokens": "{{used}}k/{{max}}k token",
+    "pause": {
+      "budget_steps": "Adım bütçesi doldu.",
+      "budget_time": "Süre bütçesi doldu.",
+      "budget_tokens": "Token bütçesi doldu.",
+      "job_failed": "Bir adım başarısız oldu ya da durduruldu.",
+      "agent_missing": "Agent, kanal ya da hedef mesajı bulunamadı.",
+      "no_plan": "Agent'ın yanıtında plan bulunamadı; devam edilince yeniden plan istenir.",
+      "interrupted": "Uygulama kapandığında çalışıyordu."
+    },
+    "viewHint": "Açık hedefler önce.",
+    "emptyHint": "Bir kanalda /goal ile başlar."
   }
 }

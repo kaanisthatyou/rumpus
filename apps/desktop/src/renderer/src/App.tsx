@@ -3,6 +3,7 @@ import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import { useCallback, useEffect, useState } from 'react';
 import { AdvisorDialog } from './agents/AdvisorDialog';
 import { AgentDialog } from './agents/AgentDialog';
+import { GoalDialog } from './goals/GoalDialog';
 import { actionFor } from './keys';
 import { Launcher } from './launcher/Launcher';
 import { Palette, ShortcutsDialog } from './palette/Palette';
@@ -24,6 +25,7 @@ export function App() {
   const settings = useApp((s) => s.settings);
   const agentDialog = useApp((s) => s.agentDialog);
   const advisorDialog = useApp((s) => s.advisorDialog);
+  const goalDialog = useApp((s) => s.goalDialog);
   const paletteOpen = useApp((s) => s.paletteOpen);
   const shortcutsOpen = useApp((s) => s.shortcutsOpen);
   const init = useApp((s) => s.init);
@@ -113,6 +115,7 @@ export function App() {
         <AnimatePresence>{settingsOpen && <SettingsDialog onClose={closeSettings} />}</AnimatePresence>
         <AnimatePresence>{agentDialog && <AgentDialog key="agent-dialog" />}</AnimatePresence>
         <AnimatePresence>{advisorDialog && <AdvisorDialog key="advisor-dialog" />}</AnimatePresence>
+        <AnimatePresence>{goalDialog && <GoalDialog key="goal-dialog" />}</AnimatePresence>
         <AnimatePresence>
           {onboarded && paletteOpen && <Palette key="palette" onSettings={openSettings} />}
         </AnimatePresence>

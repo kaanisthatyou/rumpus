@@ -3,7 +3,7 @@
 // mentioned, react now and then to finished jobs and new ideas, drop in on their own in their channels, and take
 // part in `/meclis`. Limits: a daily token budget each, quiet hours for unasked turns, and at most a few bot
 // turns in a row before a person speaks.
-import type { Advisor, Channel, Chatter, Job, Language, Message, RecordItem } from '@lonca/protocol';
+import type { Advisor, Channel, Chatter, Goal, GoalStep, Job, Language, Message, RecordItem } from '@lonca/protocol';
 import { newId } from './ids.js';
 import { mentions } from './jobs.js';
 import { type Llm, LlmError } from './llm.js';
@@ -50,6 +50,7 @@ type Reason =
   | { kind: 'job'; answer: string; agent: string }
   | { kind: 'idea'; record: RecordItem }
   | { kind: 'idle' }
+  | { kind: 'goalStep'; goal: string; index: number; total: number; step: string; report: string }
   | { kind: 'council'; topic: string; round: number; rounds: number }
   | { kind: 'summary'; topic: string };
 
@@ -173,6 +174,26 @@ export class Advisors {
     void this.speak(pick, channel, { kind: 'idea', record });
   }
 
+  /** A goal step finished: the advisors of the channel take turns commenting on its report. */
+  onGoalStep(goal: Goal, step: GoalStep, report: string): void {
+    if (this.disposed) return;
+    const channel = this.deps.store.channel(goal.channelId);
+    if (channel?.kind !== 'channel' || inQuietHours(new Date(this.now()), this.deps.quietHours())) return;
+    const members = this.mine().filter((a) => this.livesIn(a, channel) && a.chatter !== 'off');
+    if (members.length === 0) return;
+    const a = members[(goal.used.steps - 1 + members.length) % members.length];
+    if (!a) return;
+    const index = goal.steps.findIndex((s) => s.id === step.id);
+    void this.speak(a, channel, {
+      kind: 'goalStep',
+      goal: goal.text,
+      index: index + 1,
+      total: goal.steps.length,
+      step: step.text,
+      report,
+    });
+  }
+
   /** One advisor living in the channel, chosen at random, if its rate allows this time. */
   private pickOne(channel: Channel, what: 'job' | 'idea'): Advisor | undefined {
     const eligible = this.mine().filter((a) => this.livesIn(a, channel) && CHATTER_RATES[a.chatter][what] > 0);
@@ -251,7 +272,7 @@ export class Advisors {
     // Read the advisor again: it may have been changed or deleted while the turn waited.
     const advisor = this.deps.store.advisor(a.id);
     if (!advisor) return;
-    if (!asked(reason) && this.streak(channel.id) >= MAX_BOT_STREAK) return;
+    if (!asked(reason) && reason.kind !== 'goalStep' && this.streak(channel.id) >= MAX_BOT_STREAK) return;
     const day = localDay(this.now());
     if ((this.deps.store.spend(day)[advisor.id] ?? 0) >= advisor.dailyTokens) return fail('over_budget');
     if (!this.deps.llm.state().providers.some((p) => p.id === advisor.providerId)) return fail('provider_no_key');
@@ -361,6 +382,12 @@ export class Advisors {
       case 'idle':
         parts.push(
           'Task: drop in with one useful observation about the project or the conversation: a risk, an open question, a next step, a thing that has gone quiet. Or reply SKIP.',
+        );
+        break;
+      case 'goalStep':
+        parts.push(
+          `<event>Goal: ${reason.goal}\nStep ${reason.index} of ${reason.total} just finished: ${reason.step}\nThe worker's report:\n${reason.report.slice(0, 3000)}\n</event>`,
+          'Task: in one to three sentences, say whether the step really looks done and what to watch in the next step. Or reply SKIP.',
         );
         break;
       case 'council':

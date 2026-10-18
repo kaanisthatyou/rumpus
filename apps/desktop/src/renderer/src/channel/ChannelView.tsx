@@ -3,6 +3,7 @@ import { Avatar, Button, Chip, Icon, IconButton, Kbd } from '@lonca/ui';
 import { AnimatePresence, motion } from 'motion/react';
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { GoalCard } from '../goals/GoalCard';
 import { fillCommand, RefImage, readImage } from '../records/RecordsView';
 import { useApp } from '../store';
 import { clock, dayKey, dayLabel } from './format';
@@ -58,6 +59,9 @@ function MessageRow({ message, agents, jobs }: { message: Message; agents: Agent
   const own = a.kind === 'person' && a.id === me;
   // An advisor's suggested task (`/todo …`) is already a board card: shown as a line of its own.
   const { body, todos } = useMemo(() => {
+    // The agent's end-of-goal mark is for Lonca, not for people.
+    if (a.kind === 'agent')
+      return { body: message.text.replace(/^\s*GOAL_DONE\s*$/m, '').trim(), todos: [] as string[] };
     if (a.kind !== 'advisor') return { body: message.text, todos: [] as string[] };
     const lines = message.text.split('\n');
     const tasks = lines.flatMap((l) => /^\/todo\s+(.+)$/.exec(l.trim())?.[1] ?? []);
@@ -66,6 +70,7 @@ function MessageRow({ message, agents, jobs }: { message: Message; agents: Agent
   const name = a.kind === 'system' ? 'Lonca' : a.name;
   const agent = a.kind === 'agent' ? agents.find((x) => x.id === a.id) : undefined;
   const advisor = useApp((s) => (a.kind === 'advisor' ? s.workspace?.advisors.find((x) => x.id === a.id) : undefined));
+  const goal = useApp((s) => (a.kind === 'person' ? s.goals.find((g) => g.requestId === message.id) : undefined));
 
   return (
     <motion.article
@@ -150,9 +155,13 @@ function MessageRow({ message, agents, jobs }: { message: Message; agents: Agent
             ))}
           </div>
         ) : null}
-        {jobs.map((job) => (
-          <JobCard key={job.id} job={job} agent={agents.find((x) => x.id === job.agentId)} />
-        ))}
+        {goal && <GoalCard goal={goal} agent={agents.find((x) => x.id === goal.agentId)} />}
+        {jobs
+          // A goal's finished jobs are reached from its steps; the running one stays, for steering and approvals.
+          .filter((job) => !goal || job.state === 'running' || job.state === 'attention')
+          .map((job) => (
+            <JobCard key={job.id} job={job} agent={agents.find((x) => x.id === job.agentId)} />
+          ))}
       </div>
     </motion.article>
   );
@@ -190,7 +199,7 @@ interface Suggestion {
   insert: string;
   label: string;
   detail: string;
-  icon: 'terminal' | 'chevronRight' | 'chat';
+  icon: 'terminal' | 'chevronRight' | 'chat' | 'target';
 }
 
 function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
@@ -223,6 +232,7 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
   const command = /^\/([a-z-]*)$/.exec(text.slice(0, caret));
   const commands: Suggestion[] = [
     { key: 'todo', insert: '/todo ', label: '/todo', detail: t('commands.todo'), icon: 'chevronRight' },
+    { key: 'goal', insert: '/goal ', label: '/goal', detail: t('commands.goal'), icon: 'target' as const },
     ...(channel.kind === 'channel'
       ? [{ key: 'meclis', insert: '/meclis ', label: '/meclis', detail: t('commands.council'), icon: 'chat' as const }]
       : []),
@@ -325,6 +335,19 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
         setText('');
         flash(t('board.added'));
       }
+      return;
+    }
+    const goalText = /^\/goal(?:\s+([\s\S]*))?$/.exec(value);
+    if (goalText) {
+      const body = goalText[1]?.trim() ?? '';
+      const handle = /(^|\s)@([a-z0-9][a-z0-9-]*)/.exec(body)?.[2];
+      const named = handle ? agents.find((x) => x.handle === handle) : undefined;
+      useApp.getState().openGoalDialog({
+        channelId: channel.id,
+        text: named ? body.replace(/(^|\s)@[a-z0-9][a-z0-9-]*/, ' ').trim() : body,
+        ...(named ? { agentId: named.id } : own ? { agentId: own.id } : {}),
+      });
+      setText('');
       return;
     }
     const meclis = /^\/meclis(?:\s+([\s\S]*))?$/.exec(value);

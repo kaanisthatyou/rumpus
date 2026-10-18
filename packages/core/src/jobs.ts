@@ -155,7 +155,18 @@ export class Jobs {
     return failed;
   }
 
-  private async start(agent: Agent, channel: Channel, request: Message): Promise<void> {
+  /** Starts a job with Lonca's own prompt (goal mode); `request` is the message its card hangs under. */
+  startWith(agent: Agent, channel: Channel, request: Message, prompt: string): Promise<Job> {
+    return this.start(agent, channel, request, prompt);
+  }
+
+  /** Whether the agent is working (or waiting on a person) in that channel now. */
+  busy(agentId: string, channelId: string): boolean {
+    const job = this.live.get(this.key(agentId, channelId))?.job;
+    return job?.state === 'running' || job?.state === 'attention';
+  }
+
+  private async start(agent: Agent, channel: Channel, request: Message, prompt?: string): Promise<Job> {
     const job: Job = {
       id: newId(),
       channelId: channel.id,
@@ -170,9 +181,9 @@ export class Jobs {
 
     const open = (this.deps.drivers ?? DRIVERS)[agent.kind];
     const cli = (await this.deps.clis()).find((c) => c.kind === agent.kind);
-    if (!open) return void this.fail(job, 'driver_missing');
-    if (!cli?.path) return void this.fail(job, 'cli_missing');
-    if (!isDir(agent.folder)) return void this.fail(job, 'folder_missing');
+    if (!open) return this.fail(job, 'driver_missing');
+    if (!cli?.path) return this.fail(job, 'cli_missing');
+    if (!isDir(agent.folder)) return this.fail(job, 'folder_missing');
 
     const key = this.key(agent.id, channel.id);
     let live = this.live.get(key);
@@ -222,10 +233,15 @@ export class Jobs {
     live.job = job;
     live.lastText = '';
     live.queue = [];
+    if (prompt !== undefined) {
+      live.session.send(prompt);
+      return job;
+    }
     const context = this.contextFor(agent, channel, request);
     const refs = request.refs?.length && this.deps.refs ? this.deps.refs(request.refs) : { notes: [], images: [] };
     const notes = refs.notes.length ? `\n\n<references>\n${refs.notes.join('\n')}\n</references>` : '';
     live.session.send(turnPrompt(request, context, channel.name) + notes, refs.images);
+    return job;
   }
 
   /** Messages since the agent last answered in this channel (others' words, marked as context). */

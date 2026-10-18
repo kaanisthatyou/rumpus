@@ -188,6 +188,80 @@ export interface WorkspaceState {
   active: Job[];
 }
 
+/**
+ * Goal mode (PLAN.md 5.5): the agent writes a plan, a person approves it (with comments on any step), then the
+ * agent works step by step, each step reported and followed by the done check, until the goal is done, the
+ * budget runs out, or someone stops it.
+ * - `planning`: the agent is writing the plan.
+ * - `review`: the plan waits for a person.
+ * - `running`: steps are being worked on.
+ * - `paused`: stopped by a limit or a failure; a person can continue it.
+ */
+export const GOAL_STATES = ['planning', 'review', 'running', 'paused', 'done', 'failed', 'stopped'] as const;
+export type GoalState = (typeof GOAL_STATES)[number];
+
+export interface GoalStep {
+  id: string;
+  text: string;
+  state: 'pending' | 'running' | 'done' | 'failed';
+  jobId?: string;
+  /** Extra steps Lonca adds when the plan is done but the done check still fails. */
+  fix?: boolean;
+}
+
+export interface GoalComment {
+  /** The step the comment is on; none for the plan as a whole. */
+  stepId?: string;
+  text: string;
+}
+
+export interface GoalBudget {
+  /** Most step jobs (plan steps and fixes). */
+  steps: number;
+  /** Most minutes of running time. */
+  minutes: number;
+  /** Most tokens (new input and output) over all jobs; none means no limit. */
+  tokens?: number;
+}
+
+export type GoalPause =
+  | 'budget_steps'
+  | 'budget_time'
+  | 'budget_tokens'
+  | 'job_failed'
+  | 'agent_missing'
+  | 'no_plan'
+  | 'interrupted';
+
+export interface Goal {
+  id: string;
+  channelId: string;
+  agentId: string;
+  /** The person's `/goal` message. */
+  requestId: string;
+  text: string;
+  state: GoalState;
+  steps: GoalStep[];
+  comments: GoalComment[];
+  budget: GoalBudget;
+  /** A shell command run in the agent's folder after each step; exit code 0 means done. */
+  check?: string;
+  lastCheck?: { at: number; ok: boolean; output: string };
+  used: { steps: number; tokens: number; ms: number };
+  pause?: GoalPause;
+  planJobId?: string;
+  created: number;
+  ended?: number;
+}
+
+export interface GoalInput {
+  channelId: string;
+  agentId: string;
+  text: string;
+  budget: GoalBudget;
+  check?: string;
+}
+
 export const RECORD_KINDS = ['idea', 'reference', 'command'] as const;
 export type RecordKind = (typeof RECORD_KINDS)[number];
 export const IDEA_STATUSES = ['new', 'later', 'doing', 'done', 'dropped'] as const;

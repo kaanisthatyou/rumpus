@@ -4,7 +4,7 @@
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import type { Advisor, Agent, Author, Card, Channel, Job, Message, RecordItem } from '@lonca/protocol';
+import type { Advisor, Agent, Author, Card, Channel, Goal, Job, Message, RecordItem } from '@lonca/protocol';
 import { Clock, newId } from './ids.js';
 
 type Row = Record<string, unknown>;
@@ -52,6 +52,9 @@ CREATE TABLE IF NOT EXISTS records (
 CREATE TABLE IF NOT EXISTS advisors (
   id TEXT PRIMARY KEY, data TEXT NOT NULL, created INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS goals (
+  id TEXT PRIMARY KEY, data TEXT NOT NULL, created INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS advisor_spend (
   advisor_id TEXT NOT NULL, day TEXT NOT NULL, tokens INTEGER NOT NULL, PRIMARY KEY (advisor_id, day)
 );
@@ -68,6 +71,7 @@ export type WorkspaceEvent =
   | { type: 'agent.deleted'; data: { id: string } }
   | { type: 'advisor.saved'; data: Advisor }
   | { type: 'advisor.deleted'; data: { id: string } }
+  | { type: 'goal.saved'; data: Goal }
   | { type: 'message.posted'; data: Message }
   | { type: 'message.edited'; data: { id: string; text: string; edited: number } }
   | { type: 'message.deleted'; data: { id: string } }
@@ -187,6 +191,13 @@ export class WorkspaceStore {
       case 'advisor.deleted':
         this.db.prepare('UPDATE advisors SET deleted = 1 WHERE id = ?').run(e.data.id);
         return;
+      case 'goal.saved':
+        this.db
+          .prepare(
+            'INSERT INTO goals (id, data, created) VALUES (?, ?, ?) ON CONFLICT (id) DO UPDATE SET data = excluded.data',
+          )
+          .run(e.data.id, JSON.stringify(e.data), e.data.created);
+        return;
       case 'message.posted': {
         const m = e.data;
         this.db
@@ -272,6 +283,15 @@ export class WorkspaceStore {
   advisor(id: string): Advisor | undefined {
     const r = this.db.prepare('SELECT data FROM advisors WHERE id = ? AND deleted = 0').get(id) as Row | undefined;
     return r ? json<Advisor>(r.data) : undefined;
+  }
+
+  goals(): Goal[] {
+    return (this.db.prepare('SELECT data FROM goals ORDER BY created').all() as Row[]).map((r) => json<Goal>(r.data));
+  }
+
+  goal(id: string): Goal | undefined {
+    const r = this.db.prepare('SELECT data FROM goals WHERE id = ?').get(id) as Row | undefined;
+    return r ? json<Goal>(r.data) : undefined;
   }
 
   message(id: string): Message | undefined {

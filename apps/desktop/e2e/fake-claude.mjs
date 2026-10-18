@@ -136,6 +136,31 @@ async function run() {
       });
       continue;
     }
+    // Goal mode: a two-step plan, then each step's report; the last step says the goal is done.
+    const goalStep = /GOAL MODE: STEP (\d+) of (\d+)/.exec(text);
+    if (/GOAL MODE: PLAN/.test(text) || goalStep) {
+      n += 1;
+      if (!started) {
+        out({ type: 'system', subtype: 'init', session_id: session, tools: ['Read'] });
+        started = true;
+      }
+      const heard = /Comments from/.test(text) ? ' (yorum alındı)' : '';
+      const answer = goalStep
+        ? `Adım ${goalStep[1]} bitti${heard}.${goalStep[1] === goalStep[2] ? '\nGOAL_DONE' : ''}`
+        : '1. Formu yaz\n2. Testleri ekle';
+      await sleep(200);
+      out({ type: 'assistant', message: { content: [{ type: 'text', text: answer }] } });
+      out({
+        type: 'result',
+        subtype: 'success',
+        is_error: false,
+        result: answer,
+        total_cost_usd: 0,
+        usage: { input_tokens: 800, output_tokens: 60 },
+        queued_turn_count: queue.length,
+      });
+      continue;
+    }
     const slow = /yavaş|slow/i.test(text);
     n += 1;
     if (!started) {

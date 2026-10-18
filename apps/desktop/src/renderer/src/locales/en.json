@@ -226,7 +226,9 @@
     "provider_refused": "The provider refused the request.",
     "invalid_advisor": "Advisor details are missing or invalid.",
     "no_advisors": "No advisors in this channel.",
-    "over_budget": "Daily budget used up."
+    "over_budget": "Daily budget used up.",
+    "invalid_goal": "Goal details are missing or invalid.",
+    "goal_state": "The goal is not in a state for this."
   },
   "channel": {
     "newSession": "New session",
@@ -366,7 +368,8 @@
     "todo": "Adds a task to the board",
     "newSession": "The agent leaves the conversation in this channel",
     "search": "Searches messages",
-    "council": "Advisors discuss a topic in turn and one sums up"
+    "council": "Advisors discuss a topic in turn and one sums up",
+    "goal": "A goal for an agent: plan, approval, step by step"
   },
   "palette": {
     "placeholder": "Channel, agent, view, action or message",
@@ -556,5 +559,57 @@
     "folderHint": "Optional. Recent commits and git status are shown to the advisor, read only.",
     "noFolder": "Remove",
     "delete": "Delete advisor"
+  },
+  "goal": {
+    "title": "Goal",
+    "new": "New goal",
+    "intro": "The agent writes a plan first. Once the plan is approved it works step by step; after each step it reports and the done check runs. It stops when the goal is done, the budget runs out, or it is stopped.",
+    "text": "Goal",
+    "agent": "Agent",
+    "agentHint": "Steps run at the agent's permission level.",
+    "noAgent": "A goal needs an agent first.",
+    "maxSteps": "Most steps",
+    "maxMinutes": "Most minutes",
+    "maxTokens": "Most tokens (thousands)",
+    "noLimit": "No limit",
+    "check": "Done check",
+    "checkHint": "Optional. A command run in the agent's folder after each step; exit code 0 means the goal is done.",
+    "start": "Ask for a plan",
+    "planning": "The agent is writing the plan.",
+    "state": {
+      "planning": "Planning",
+      "review": "Waiting for approval",
+      "running": "Running",
+      "paused": "Paused",
+      "done": "Done",
+      "failed": "Failed",
+      "stopped": "Stopped"
+    },
+    "fixStep": "Make the done check pass",
+    "commentOn": "Comment on step {{n}}",
+    "commentPlan": "Comment on the plan",
+    "watchStep": "Watch step {{n}}",
+    "approve": "Approve",
+    "approveWith_one": "Approve with {{count}} comment",
+    "approveWith_other": "Approve with {{count}} comments",
+    "reject": "Reject",
+    "stop": "Stop",
+    "resume": "Continue",
+    "more": "Add budget and continue",
+    "checkOk": "Done check passed",
+    "checkFailed": "Done check failed",
+    "used": "step {{steps}}/{{maxSteps}} · {{minutes}}/{{maxMinutes}} min",
+    "tokens": "{{used}}k/{{max}}k tokens",
+    "pause": {
+      "budget_steps": "Step budget used up.",
+      "budget_time": "Time budget used up.",
+      "budget_tokens": "Token budget used up.",
+      "job_failed": "A step failed or was stopped.",
+      "agent_missing": "The agent, channel or goal message is missing.",
+      "no_plan": "No plan found in the agent's answer; continuing asks for a plan again.",
+      "interrupted": "It was running when the app closed."
+    },
+    "viewHint": "Open goals first.",
+    "emptyHint": "Started with /goal in a channel."
   }
 }

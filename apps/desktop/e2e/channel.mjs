@@ -261,6 +261,32 @@ try {
   await page.getByText(L.job.state.stopped).first().waitFor();
   await shot(page, 'job-stopped');
 
+  // Goal mode: /goal opens the dialog, the plan waits for approval, a step comment travels with every step,
+  // the done check runs after each step, and the goal ends when the agent says so and the check passes.
+  await page.getByRole('button', { name: 'genel', exact: true }).click();
+  await composer.fill('/goal Login ekranını bitir');
+  await composer.press('Enter');
+  const goalDialog = page.getByRole('dialog', { name: L.goal.new });
+  await goalDialog.getByLabel(L.goal.check, { exact: true }).fill('exit 0');
+  await goalDialog.getByRole('button', { name: L.goal.start }).click();
+  const goalCard = page.getByRole('region', { name: L.goal.title });
+  await goalCard.getByText(L.goal.state.review).waitFor();
+  await goalCard.getByText('Testleri ekle').waitFor();
+  const onStep2 = L.goal.commentOn.replace('{{n}}', '2');
+  await goalCard.getByRole('button', { name: onStep2 }).click();
+  await goalCard.getByRole('textbox', { name: onStep2 }).fill('Vitest kullan');
+  await goalCard.getByRole('textbox', { name: onStep2 }).press('Enter');
+  await goalCard.locator('.goalstep__note', { hasText: 'Vitest kullan' }).waitFor();
+  await shot(page, 'goal-review');
+  await goalCard.getByRole('button', { name: L.goal.approveWith_one.replace('{{count}}', '1') }).click();
+  await goalCard.getByText(L.goal.state.done, { exact: true }).waitFor({ timeout: 30_000 });
+  await goalCard.getByText(L.goal.checkOk).waitFor();
+  await page.getByText('Adım 2 bitti (yorum alındı).').waitFor();
+  assert.equal(await page.getByText('GOAL_DONE').count(), 0);
+  await shot(page, 'goal-done');
+  await page.getByRole('button', { name: L.shell.goals, exact: true }).click();
+  await page.getByRole('region', { name: L.goal.title }).getByText(L.goal.state.done, { exact: true }).waitFor();
+
   // Edit and delete own messages.
   await page.getByRole('button', { name: 'genel', exact: true }).click();
   const own = page.locator('.msg--person').first();
@@ -291,6 +317,7 @@ try {
   await page.getByText('(düzeltildi)').waitFor();
   await page.getByText('sahte proje').first().waitFor();
   assert.equal(await page.getByText('silinecek mesaj').count(), 0);
+  await page.getByRole('region', { name: L.goal.title }).getByText(L.goal.state.done, { exact: true }).waitFor();
   await page.getByRole('button', { name: '@claude', exact: true }).click();
   await page.getByText(L.job.state.stopped).first().waitFor();
   await shot(page, 'restart');
