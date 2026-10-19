@@ -758,7 +758,7 @@ The details behind 5.11 and 6.5, decided before building.
   prompts (`.claude/commands/*.md`) and games with a status page (`games/*/progress.md`, as projects pointed at the game
   folder) into records and projects of the open workspace. Nothing in the folder changes; things already here (same
   kind and title, same project name) are skipped; advisors stay quiet about imported ideas. On the real roblox-factory
-  it reads 20 ideas, 40 references, 9 prompts and 7 games. Covered by unit tests.
+  it reads 20 ideas, 40 references, 9 prompts and 7 games. Covered by unit tests and `e2e/channel.mjs`.
 
 ## 9. Risks
 

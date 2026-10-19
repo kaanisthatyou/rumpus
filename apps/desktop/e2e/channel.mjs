@@ -53,7 +53,14 @@ const shot = async (page, name) => {
   await page.waitForTimeout(500);
   n += 1;
   const png = await current.evaluate(async ({ BrowserWindow }) =>
-    (await BrowserWindow.getAllWindows()[0].webContents.capturePage()).toPNG().toString('base64'),
+    // The main window: the quick-entry window (once made) is a second one.
+    (
+      await BrowserWindow.getAllWindows()
+        .find((w) => !w.webContents.getURL().includes('#quick'))
+        .webContents.capturePage()
+    )
+      .toPNG()
+      .toString('base64'),
   );
   writeFileSync(join(shots, `ch-${String(n).padStart(2, '0')}-${name}.png`), Buffer.from(png, 'base64'));
 };
@@ -422,6 +429,36 @@ try {
   await quickPage.getByText(L.quick.sent).waitFor();
   await page.getByRole('button', { name: 'genel', exact: true }).click();
   await page.getByText('hızlı girişten not').waitFor();
+
+  // Moving from Fabrika: the palette imports a roblox-factory-shaped folder (the folder picker answers with the project).
+  mkdirSync(join(project, 'ideas'), { recursive: true });
+  writeFileSync(
+    join(project, 'ideas', '20261009-030000-dice-zoo.md'),
+    [
+      '---',
+      'title: Dice Zoo',
+      'kind: game',
+      'status: new',
+      'tags: [rng]',
+      '---',
+      'Roll dice, collect animals.',
+      '',
+    ].join(String.fromCharCode(10)),
+  );
+  mkdirSync(join(project, '.claude', 'commands'), { recursive: true });
+  writeFileSync(join(project, '.claude', 'commands', 'deep-dive.md'), 'Study a game in depth.');
+  await page.keyboard.press('Control+k');
+  await search.fill(L.fabrika.import.split(' (')[0]);
+  await search.press('Enter');
+  try {
+    await page.getByText(L.fabrika.done.split(':')[0]).waitFor({ timeout: 15_000 });
+  } catch (err) {
+    await shot(page, 'fabrika-failed');
+    throw err;
+  }
+  await page.getByRole('button', { name: L.shell.ideas, exact: true }).click();
+  await page.locator('.rec', { hasText: 'Dice Zoo' }).first().waitFor();
+  await shot(page, 'fabrika-import');
 
   // Edit and delete own messages.
   await page.getByRole('button', { name: 'genel', exact: true }).click();
