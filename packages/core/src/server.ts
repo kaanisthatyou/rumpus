@@ -1231,16 +1231,25 @@ export class Core {
   ): { allow: boolean; mode?: AgentMode; approveFirst?: boolean } {
     if (ws.kind !== 'team') return { allow: true };
     if (this.agentOwner(ws.store, agent.id) !== this.deviceId) return { allow: false };
-    // A handed-over part runs as the request of the person whose job it continues.
-    const requester = message.handover ? ws.store.message(message.handover.requestId)?.author : undefined;
-    const sender =
-      message.author.kind === 'person' ? message.author.id : requester?.kind === 'person' ? requester.id : '';
-    if (sender === this.deviceId) return { allow: true };
-    const access = agent.access ?? DEFAULT_ACCESS;
-    if (access.who !== 'members' || !ws.membership?.can(sender, 'editor')) return { allow: false };
     const rank: Record<AgentMode, number> = { read: 0, edit: 1, full: 2 };
-    const mode = rank[access.maxMode] < rank[agent.mode] ? access.maxMode : agent.mode;
-    return { allow: true, mode, approveFirst: access.approveOthers };
+    const access = agent.access ?? DEFAULT_ACCESS;
+    const as = (sender: string): { allow: boolean; mode?: AgentMode; approveFirst?: boolean } => {
+      if (sender && sender === this.deviceId) return { allow: true };
+      if (access.who !== 'members' || !ws.membership?.can(sender, 'editor')) return { allow: false };
+      const mode = rank[access.maxMode] < rank[agent.mode] ? access.maxMode : agent.mode;
+      return { allow: true, mode, approveFirst: access.approveOthers };
+    };
+    if (!message.handover) return as(message.author.kind === 'person' ? message.author.id : '');
+    // A handed-over part runs as the request of the person whose job it continues, and never with more than the
+    // handing agent's owner could ask for: a member cannot borrow someone else's rights by naming their message.
+    const requester = ws.store.message(message.handover.requestId)?.author;
+    const byPerson = as(requester?.kind === 'person' ? requester.id : '');
+    const byOwner = as(this.agentOwner(ws.store, message.handover.agentId) ?? '');
+    if (!byPerson.allow || !byOwner.allow) return { allow: false };
+    const modes = [byPerson.mode ?? agent.mode, byOwner.mode ?? agent.mode];
+    const mode = modes.reduce((a, b) => (rank[a] <= rank[b] ? a : b));
+    const approveFirst = Boolean(byPerson.approveFirst || byOwner.approveFirst);
+    return mode === agent.mode && !approveFirst ? { allow: true } : { allow: true, mode, approveFirst };
   }
 
   /** A job's state, for the other members: steps shortened, the streaming preview left out. */

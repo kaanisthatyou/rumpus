@@ -722,7 +722,9 @@ The details behind 5.11 and 6.5, decided before building.
 - 4.3 Hand-over (Fabrika's `job_request.py`): the MCP tool `hand_over` posts a self-contained part of the person's
   request the agent is working on as `@other task`, marked with the request it continues; it runs in a session of
   its own (closed when the part ends), as that person's request: the other agent's access rules and mode cap apply,
-  also when it belongs to another member and runs on their computer. `part_status` gives the state and, once done,
+  also when it belongs to another member and runs on their computer, and a part never gets more than the handing
+  agent's owner could ask for (the stricter of the two), so a member cannot borrow someone's rights by naming their
+  message. `part_status` gives the state and, once done,
   the answer (waiting up to 50 seconds per call). Refused for a job that is itself a part, for the agent itself, and
   past six parts per request; a part may start up to two hours after the handing job started. The message shows a
   "handed-over part" label. Covered by unit tests on one computer and between two (Kaan's agent hands a part to

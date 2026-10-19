@@ -280,6 +280,50 @@ describe('team workspaces between two apps', () => {
     );
     splitter.emit({ type: 'end', ok: true, final: 'Bölündü.' });
 
+    // Arda asks Kaan's agent, which hands a part back to Arda's agent: the part is Arda's request, but it never gets
+    // more than Kaan (the handing agent's owner) could ask of Arda's agent, so it stays at read.
+    await kaan.call('agents.save', { ...agent, access: { who: 'members', maxMode: 'read', approveOthers: false } });
+    await until(
+      async () =>
+        (await arda.call<WorkspaceState>('workspace.get')).agents.some(
+          (a) => a.id === agent.id && a.access?.approveOthers === false && a.access.who === 'members',
+        ),
+      'open access synced',
+    );
+    await until(async () => {
+      const page = await kaan.call<{ jobs: Job[] }>('messages.list', { channelId: genel });
+      return page.jobs.every((j) => j.state !== 'running');
+    }, 'kaan agent idle');
+    await arda.call('messages.send', { channelId: genel, text: '@claude ikinci bölme' });
+    const second = await until(
+      async () => kaan.sessions.find((x) => x.sent.some((t) => t.includes('ikinci bölme'))),
+      'kaan agent works for arda',
+    );
+    await until(async () => {
+      const page = await arda.call<{ jobs: Job[] }>('messages.list', { channelId: genel });
+      return page.jobs.some((j) => j.agentId === agent.id && j.state === 'running');
+    }, 'arda sees the job running');
+    const tool2 = async (name: string, args: Record<string, unknown>) => {
+      const r = await fetch(second.mcp?.url ?? '', {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${second.mcp?.token}`,
+          'content-type': 'application/json',
+          accept: 'application/json, text/event-stream',
+        },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }),
+      });
+      return ((await r.json()) as { result: { content: { text: string }[] } }).result.content[0]?.text ?? '';
+    };
+    expect(await tool2('hand_over', { agent: 'yardimci', task: 'Kenar durumlarını yaz.' })).toMatch(/^Handed over/);
+    const capped = await until(
+      async () => arda.sessions.find((x) => x.sent.some((t) => t.includes('Kenar durumlarını yaz.'))),
+      'arda runs the second part',
+    );
+    expect(capped.mode).toBe('read');
+    capped.emit({ type: 'end', ok: true, final: 'Yazıldı.' });
+    second.emit({ type: 'end', ok: true, final: 'Tamam.' });
+
     // Only the owner: Arda's call does nothing.
     await kaan.call('agents.save', { ...agent, access: { who: 'me', maxMode: 'read', approveOthers: false } });
     await until(
