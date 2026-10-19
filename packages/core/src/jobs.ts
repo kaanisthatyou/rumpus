@@ -54,7 +54,7 @@ export interface JobsDeps {
   /** Lonca's MCP endpoint; each session gets its own token. */
   gateway?: {
     ready(): Promise<string>;
-    issue(ctx: { agentId: string; channelId: string }): string;
+    issue(ctx: { agentId: string; channelId: string; slot?: string }): string;
     revoke(token: string): void;
   };
 }
@@ -77,6 +77,12 @@ const MENTION = /(^|[^\w@])@([a-z0-9][a-z0-9-]{0,31})\b/g;
 const EMIT_EVERY_MS = 120;
 
 const slotOf = (channelId: string, scope?: string) => (scope ? `${channelId}#${scope}` : channelId);
+/** The scope a handed-over part runs in: a session of its own, closed when the part ends. */
+const PART = 'part-';
+/** Parts one person's request may be split into. */
+export const MAX_PARTS = 6;
+/** How long after the handing job started a part may still start. */
+const PART_WINDOW_MS = 2 * 60 * 60 * 1000;
 
 export function mentions(text: string): string[] {
   return [...new Set([...text.matchAll(MENTION)].map((m) => m[2] ?? ''))];
@@ -115,8 +121,37 @@ export class Jobs {
     return work;
   }
 
+  /**
+   * Whether an agent's message is a valid handed-over part: it continues a person's message that the handing agent
+   * is (or was lately) working on, and that request is not itself a part, so work fans out one step at most.
+   */
+  isPart(message: Message): boolean {
+    const h = message.handover;
+    if (!h || message.author.kind !== 'agent' || message.author.id !== h.agentId) return false;
+    const request = this.deps.store.message(h.requestId);
+    if (request?.author.kind !== 'person' || request.handover) return false;
+    return this.deps.store
+      .jobsFor([h.requestId])
+      .some((j) => j.agentId === h.agentId && j.started > this.now() - PART_WINDOW_MS);
+  }
+
   private async route(message: Message, channel: Channel): Promise<void> {
-    if (message.author.kind !== 'person') return; // only a person's message starts work
+    // Only a person's message starts work, or a part of a person's job that its agent handed over.
+    const part = message.author.kind === 'agent' && this.isPart(message);
+    if (message.author.kind !== 'person' && !part) return;
+    if (part) {
+      // A part names its agent with @, in any channel (also the handing agent's own one).
+      const handles = mentions(message.text);
+      const from = message.author.kind === 'agent' ? message.author.id : '';
+      const target = this.deps.store.agents().find((a) => handles.includes(a.handle) && a.id !== from);
+      if (!target) return;
+      const rule = this.deps.access?.(target, message) ?? { allow: true };
+      if (!rule.allow) return;
+      const agent = rule.mode ? { ...target, mode: rule.mode } : target;
+      if (rule.approveFirst) this.hold(agent, channel, message);
+      else await this.start(agent, channel, message, undefined, { scope: `${PART}${message.id}` });
+      return;
+    }
     for (const target of this.targets(message, channel, this.deps.store.agents())) {
       const rule = this.deps.access?.(target, message) ?? { allow: true };
       if (!rule.allow) continue;
@@ -214,6 +249,12 @@ export class Jobs {
     return this.start(agent, channel, request, prompt, opts);
   }
 
+  /** The job a session (an agent in a channel, or a scope of it) is working on now. */
+  current(agentId: string, channelId: string, slot?: string): Job | undefined {
+    const job = this.live.get(this.key(agentId, slot ?? channelId))?.job;
+    return job?.state === 'running' || job?.state === 'attention' ? job : undefined;
+  }
+
   /** Whether the agent is working (or waiting on a person) in that channel, or that scope of it, now. */
   busy(agentId: string, channelId: string, scope?: string): boolean {
     const job = this.live.get(this.key(agentId, slotOf(channelId, scope)))?.job;
@@ -271,7 +312,9 @@ export class Jobs {
       const me = this.deps.me();
       const resume = this.deps.store.session(agent.id, slot);
       const mcpUrl = this.deps.gateway ? await this.deps.gateway.ready() : undefined;
-      const token = mcpUrl ? this.deps.gateway?.issue({ agentId: agent.id, channelId: channel.id }) : undefined;
+      const token = mcpUrl
+        ? this.deps.gateway?.issue({ agentId: agent.id, channelId: channel.id, ...(opts.scope ? { slot } : {}) })
+        : undefined;
       const created: Live = {
         agent,
         channelId: channel.id,
@@ -346,7 +389,8 @@ export class Jobs {
       const job = this.deps.store.job(jobId);
       if (!job) return false;
       if (allow) {
-        void this.start(held.agent, held.channel, held.message, undefined, {}, job);
+        const opts = held.message.handover ? { scope: `${PART}${held.message.id}` } : {};
+        void this.start(held.agent, held.channel, held.message, undefined, opts, job);
       } else {
         const { approval: _a, ...rest } = job;
         this.save({ ...rest, state: 'stopped', error: 'denied_by_owner', ended: this.now() }, true);
@@ -389,6 +433,7 @@ export class Jobs {
     live.session.stop();
     this.transcript(job.id, { t: 'end', ok: false, error: 'stopped', at: this.now() });
     this.save(job, true);
+    this.endPart(live);
     return true;
   }
 
@@ -572,16 +617,30 @@ export class Jobs {
         this.save(ended, true);
         const answer = (e.final ?? live.lastText).trim();
         if (answer) this.postAnswer(live, ended, answer);
+        this.endPart(live);
         return;
       }
       case 'exit': {
         const failed = this.fail(job, job.error ?? (e.stderr ? `exited: ${e.stderr.slice(-400)}` : 'exited'));
         live.job = failed;
+        this.endPart(live);
         return;
       }
     }
     live.job = next;
     this.save(next);
+  }
+
+  /** A handed-over part's session ends with its job: the next part starts fresh. */
+  private endPart(live: Live): void {
+    if (!live.slot.includes(`#${PART}`)) return;
+    setTimeout(() => {
+      const key = this.key(live.agent.id, live.slot);
+      if (this.live.get(key) !== live) return;
+      this.close(live);
+      this.live.delete(key);
+      this.deps.store.setSession(live.agent.id, live.slot, undefined);
+    }, 0);
   }
 
   private postAnswer(live: Live, job: Job, text: string): void {

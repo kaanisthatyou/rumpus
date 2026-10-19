@@ -818,5 +818,9 @@
     "addArea": "Alan ekle",
     "seedHint": "Klasörde progress.md varsa durum sayfası ondan başlar.",
     "delete": "Projeyi sil"
+  },
+  "handover": {
+    "part": "Devredilen parça",
+    "hint": "Bir kişinin isteği üzerinde çalışan ajanın başka bir ajana verdiği parça. Aynı kişinin isteği olarak çalışır; bir daha devredilemez."
   }
 }

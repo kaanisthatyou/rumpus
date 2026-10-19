@@ -135,6 +135,11 @@ export interface Message {
   jobId?: string;
   /** References attached to the message; a job started by it gets their images. */
   refs?: string[];
+  /**
+   * A part of a person's job that the agent doing it handed to another agent (Fabrika's job_request.py): the
+   * person's message it continues and the agent that handed it over. A handed part never hands over again.
+   */
+  handover?: { requestId: string; agentId: string };
 }
 
 /** idle is never stored: a job is running, waiting on a person, or over. */

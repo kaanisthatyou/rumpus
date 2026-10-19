@@ -59,7 +59,10 @@ From the Q&A on 2026-10-16.
 2. **The owner's machine decides what an agent may do; the workspace decides who may call it.** Agent folders,
    modes, connectors and limits are set only on the owner's computer and cannot be changed remotely (v0.1 rule).
 3. **Only a person starts work.** A person's message, card or goal starts a job. Advisors and agents never start
-   jobs; an advisor may propose one as a card a person approves with one click.
+   jobs of their own; an advisor may propose one as a card a person approves with one click. The agent working on a
+   person's request may hand parts of it to other agents (Fabrika's hand-over, 2026-10-17): a part continues that
+   person's request under the other agent's owner's limits, and a part is never handed on, so work fans out one step
+   from a person and agents can never keep each other going.
 4. **Safe defaults.** New agents: read-only, callable only by their owner. Others' requests are capped at read
    unless the owner raises it. Channel text reaches agents marked as untrusted.
 5. **No credential handling.** Lonca never reads, copies or moves a CLI's login files. It spawns the unmodified
@@ -712,6 +715,14 @@ The details behind 5.11 and 6.5, decided before building.
   Areas are a record, not a lock. Covered by unit tests (git with real repositories, two cores syncing a project and
   a page edit) and `e2e/channel.mjs` (a project from a repository with `progress.md`, the fake agent updating the
   page, a person editing it, the page after a restart).
+- 4.3 Hand-over (Fabrika's `job_request.py`): the MCP tool `hand_over` posts a self-contained part of the person's
+  request the agent is working on as `@other task`, marked with the request it continues; it runs in a session of
+  its own (closed when the part ends), as that person's request: the other agent's access rules and mode cap apply,
+  also when it belongs to another member and runs on their computer. `part_status` gives the state and, once done,
+  the answer (waiting up to 50 seconds per call). Refused for a job that is itself a part, for the agent itself, and
+  past six parts per request; a part may start up to two hours after the handing job started. The message shows a
+  "handed-over part" label. Covered by unit tests on one computer and between two (Kaan's agent hands a part to
+  Arda's, which runs capped at read on Arda's computer and answers back).
 
 ## 9. Risks
 

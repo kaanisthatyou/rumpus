@@ -30,9 +30,14 @@ function app(name: string) {
   // A fake Claude Code: found on PATH, signed in, and a session that records what it is sent.
   const bin = tmp('lonca-team-bin-');
   writeFileSync(join(bin, 'claude'), '');
-  const sessions: { emit: (e: DriverEvent) => void; sent: string[]; mode: string }[] = [];
+  const sessions: {
+    emit: (e: DriverEvent) => void;
+    sent: string[];
+    mode: string;
+    mcp?: { url: string; token: string };
+  }[] = [];
   const open: OpenSession = (o, emit) => {
-    const s = { emit, sent: [] as string[], mode: o.mode };
+    const s = { emit, sent: [] as string[], mode: o.mode, ...(o.mcp ? { mcp: o.mcp } : {}) };
     sessions.push(s);
     const session: AgentSession = {
       steering: 'live',
@@ -205,6 +210,65 @@ describe('team workspaces between two apps', () => {
         kaan.sessions.some((x) => x.sent.some((t) => t.includes('testleri çalıştır'))),
       'approved job runs',
     );
+
+    // Kaan's agent hands a part of Kaan's request to Arda's agent: it runs on Arda's computer as Kaan's request,
+    // under Arda's limits, and the answer comes back to Kaan's agent.
+    const ardaAgent = await arda.call<Agent>('agents.save', {
+      kind: 'claude-code',
+      name: 'Yardımcı',
+      handle: 'yardimci',
+      folder: tmp('lonca-team-aproj-'),
+      mode: 'edit',
+      access: { who: 'members', maxMode: 'read', approveOthers: false },
+    });
+    await until(
+      async () => (await kaan.call<WorkspaceState>('workspace.get')).agents.some((a) => a.id === ardaAgent.id),
+      'kaan sees arda agent',
+    );
+    // The approved job ends first: a message to a busy agent would steer that job (Arda's request) instead.
+    kaan.sessions
+      .find((x) => x.sent.some((t) => t.includes('testleri çalıştır')))
+      ?.emit({ type: 'end', ok: true, final: 'Testler geçti.' });
+    await until(async () => {
+      const page = await kaan.call<{ jobs: Job[] }>('messages.list', { channelId: genel });
+      return page.jobs.every((j) => j.state !== 'running');
+    }, 'no job running');
+    await kaan.call('messages.send', { channelId: genel, text: '@claude işi böl' });
+    const splitter = await until(
+      async () => kaan.sessions.find((x) => x.sent.some((t) => t.includes('işi böl'))),
+      'kaan agent works',
+    );
+    const call = async (name: string, args: Record<string, unknown>) => {
+      const r = await fetch(splitter.mcp?.url ?? '', {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${splitter.mcp?.token}`,
+          'content-type': 'application/json',
+          accept: 'application/json, text/event-stream',
+        },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }),
+      });
+      return ((await r.json()) as { result: { content: { text: string }[] } }).result.content[0]?.text ?? '';
+    };
+    // Kaan's job must be visible to Arda before the part can be checked there.
+    await until(async () => {
+      const page = await arda.call<{ jobs: Job[] }>('messages.list', { channelId: genel });
+      return page.jobs.some((j) => j.agentId === agent.id && j.state === 'running');
+    }, 'arda sees the running job');
+    const handed = await call('hand_over', { agent: 'yardimci', task: 'Arayüz metinlerini kontrol et.' });
+    const partId = /part (\S+?)\./.exec(handed)?.[1] ?? '';
+    expect(partId).not.toBe('');
+    const helper = await until(
+      async () => arda.sessions.find((x) => x.sent.some((t) => t.includes('Arayüz metinlerini kontrol et.'))),
+      'arda runs the part',
+    );
+    expect(helper.mode).toBe('read');
+    helper.emit({ type: 'end', ok: true, final: 'Metinler tutarlı.' });
+    await until(
+      async () => (await call('part_status', { id: partId })).includes('Metinler tutarlı.'),
+      'the answer comes back to kaan agent',
+    );
+    splitter.emit({ type: 'end', ok: true, final: 'Bölündü.' });
 
     // Only the owner: Arda's call does nothing.
     await kaan.call('agents.save', { ...agent, access: { who: 'me', maxMode: 'read', approveOthers: false } });

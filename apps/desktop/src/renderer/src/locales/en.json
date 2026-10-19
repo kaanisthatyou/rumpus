@@ -818,5 +818,9 @@
     "addArea": "Add area",
     "seedHint": "A progress.md in the folder starts the status page.",
     "delete": "Delete project"
+  },
+  "handover": {
+    "part": "Handed-over part",
+    "hint": "A part of a person's request that the agent working on it gave to another agent. It runs as the same person's request and cannot be handed on."
   }
 }

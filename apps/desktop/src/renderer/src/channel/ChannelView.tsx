@@ -86,6 +86,11 @@ function MessageRow({ message, agents, jobs }: { message: Message; agents: Agent
           {agent && <Chip mono>@{agent.handle}</Chip>}
           {advisor && <Chip mono>@{advisor.handle}</Chip>}
           {a.kind === 'advisor' && <span className="msg__role">{t('advisor.role')}</span>}
+          {message.handover && (
+            <span className="msg__role" title={t('handover.hint')}>
+              {t('handover.part')}
+            </span>
+          )}
           <time className="l-mono">{clock(message.created)}</time>
           {message.edited && <span className="msg__edited">{t('channel.edited')}</span>}
           {!editing && (

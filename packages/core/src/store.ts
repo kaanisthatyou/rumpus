@@ -180,6 +180,7 @@ function toMessage(r: Row): Message {
     ...(r.edited ? { edited: Number(r.edited) } : {}),
     ...(r.job_id ? { jobId: String(r.job_id) } : {}),
     ...(r.refs ? { refs: json<string[]>(r.refs) } : {}),
+    ...(r.handover ? { handover: json<{ requestId: string; agentId: string }>(r.handover) } : {}),
   };
 }
 
@@ -196,6 +197,7 @@ export class WorkspaceStore {
     this.db.exec(SCHEMA);
     const columns = (this.db.prepare('PRAGMA table_info(messages)').all() as Row[]).map((r) => String(r.name));
     if (!columns.includes('refs')) this.db.exec('ALTER TABLE messages ADD COLUMN refs TEXT');
+    if (!columns.includes('handover')) this.db.exec('ALTER TABLE messages ADD COLUMN handover TEXT');
     this.migrateEvents();
     this.clock = new Clock(deviceId);
     const latest = this.db.prepare('SELECT MAX(at) AS at FROM events').get() as Row | undefined;
@@ -519,7 +521,7 @@ export class WorkspaceStore {
         const m = e.data;
         this.db
           .prepare(
-            'INSERT OR IGNORE INTO messages (id, channel_id, author, text, created, job_id, refs) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            'INSERT OR IGNORE INTO messages (id, channel_id, author, text, created, job_id, refs, handover) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
           )
           .run(
             m.id,
@@ -529,6 +531,7 @@ export class WorkspaceStore {
             m.created,
             m.jobId ?? null,
             m.refs?.length ? JSON.stringify(m.refs) : null,
+            m.handover ? JSON.stringify({ requestId: m.handover.requestId, agentId: m.handover.agentId }) : null,
           );
         return;
       }
@@ -653,6 +656,14 @@ export class WorkspaceStore {
 
   message(id: string): Message | undefined {
     const r = this.db.prepare('SELECT * FROM messages WHERE id = ? AND deleted = 0').get(id) as Row | undefined;
+    return r ? toMessage(r) : undefined;
+  }
+
+  /** The answer message a job ended with. */
+  answerOf(jobId: string): Message | undefined {
+    const r = this.db
+      .prepare('SELECT * FROM messages WHERE job_id = ? AND deleted = 0 ORDER BY created DESC LIMIT 1')
+      .get(jobId) as Row | undefined;
     return r ? toMessage(r) : undefined;
   }
 

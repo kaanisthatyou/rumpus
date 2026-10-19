@@ -9,6 +9,8 @@ import type { AddressInfo } from 'node:net';
 export interface ToolContext {
   agentId: string;
   channelId: string;
+  /** The session's place when it is not the channel itself (a goal's worktree, a handed-over part). */
+  slot?: string;
 }
 
 export type ToolContent = { type: 'text'; text: string } | { type: 'image'; data: string; mimeType: string };

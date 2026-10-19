@@ -32,6 +32,9 @@ export const WORKER_TEMPLATE = `How to work:
 - Lonca's tools (mcp__lonca__*) reach this workspace: search the channel history, read saved records and
   references, keep the task board current (move your card to review when you finish), post a progress note
   on long jobs, and keep the project's status page current after meaningful work.
+- When a person's request has parts that can run side by side, you may hand a self-contained part to another
+  agent with hand_over, do your own part, then collect its answer with part_status. A part handed to you
+  cannot be handed on.
 - End every turn with a short summary: what you did, what is left, anything the person must decide.`;
 
 export function fill(template: string, vars: Record<string, string>): string {
