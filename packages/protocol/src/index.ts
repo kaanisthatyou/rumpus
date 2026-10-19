@@ -292,6 +292,14 @@ export interface CoreMethods {
   'instructions.reset': { params: { layer: 'worker' }; result: InstructionLayers };
   'instructions.preview': { params: { agentId: string }; result: string };
   'projects.list': { params: undefined; result: ProjectView[] };
+  /**
+   * Takes over a Fabrika repository (roblox-factory): its ideas, references, saved prompts and games with a status
+   * page become records and projects. Things already here (same kind and title, same project name) are skipped.
+   */
+  'fabrika.import': {
+    params: { folder: string };
+    result: { ideas: number; references: number; commands: number; projects: number; skipped: number };
+  };
   /** Makes or changes a project; `folder` is this computer's clone and stays on this computer. */
   'projects.save': { params: ProjectInput; result: ProjectView };
   'projects.delete': { params: { id: string }; result: { ok: true } };
@@ -370,6 +378,7 @@ export const ERROR_CODES = [
   'no_advisors',
   'invalid_project',
   'no_folder',
+  'not_fabrika',
   'over_budget',
   'provider_bad_url',
   'provider_bad_key',

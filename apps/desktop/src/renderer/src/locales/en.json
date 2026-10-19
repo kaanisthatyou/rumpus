@@ -244,7 +244,8 @@
     "invite_refused": "The invite was not accepted: the code may be used or expired.",
     "unreachable": "The inviting computer could not be reached. Tailscale and the inviter's Lonca must be running.",
     "invalid_project": "Project not saved: invalid value.",
-    "no_folder": "No folder chosen for this project on this computer."
+    "no_folder": "No folder chosen for this project on this computer.",
+    "not_fabrika": "The folder has none of Fabrika's ideas, references, .claude/commands or games."
   },
   "channel": {
     "newSession": "New session",
@@ -853,5 +854,9 @@
     "message": "Message",
     "placeholder": "Message or task · Enter sends",
     "sent": "Sent."
+  },
+  "fabrika": {
+    "import": "Import from Fabrika (a roblox-factory folder)",
+    "done": "Imported: {{ideas}} ideas, {{references}} references, {{commands}} commands, {{projects}} projects; {{skipped}} were already here."
   }
 }

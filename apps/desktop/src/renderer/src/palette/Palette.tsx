@@ -92,6 +92,27 @@ export function Palette({ onSettings }: { onSettings: () => void }) {
         label: t('palette.addAgent'),
         run: () => s.openAgentDialog('new'),
       },
+      ...(document.documentElement.dataset.phone === '1'
+        ? []
+        : [
+            {
+              id: 'a-fabrika',
+              group: 'actions' as const,
+              icon: 'download' as const,
+              label: t('fabrika.import'),
+              run: async () => {
+                const folder = await window.lonca.shell.pickFolder();
+                if (!folder) return;
+                try {
+                  const r = await core.call('fabrika.import', { folder });
+                  s.flash(t('fabrika.done', r));
+                  useApp.setState({ records: await core.call('records.list', {}) });
+                } catch (err) {
+                  s.flash(t(`errors.${(err as { code?: string }).code ?? 'internal'}`, t('errors.internal')));
+                }
+              },
+            },
+          ]),
       {
         id: 'a-project',
         group: 'actions',

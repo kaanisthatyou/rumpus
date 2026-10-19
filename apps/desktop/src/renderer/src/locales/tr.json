@@ -244,7 +244,8 @@
     "invite_refused": "Davet kabul edilmedi: kod kullanılmış ya da süresi dolmuş olabilir.",
     "unreachable": "Davet eden bilgisayara ulaşılamadı. Tailscale ve davet edenin Lonca'sının açık olması gerekir.",
     "invalid_project": "Proje kaydedilmedi: geçersiz değer.",
-    "no_folder": "Bu bilgisayarda projenin klasörü seçilmedi."
+    "no_folder": "Bu bilgisayarda projenin klasörü seçilmedi.",
+    "not_fabrika": "Klasörde Fabrika'ya ait ideas, references, .claude/commands ya da games bulunamadı."
   },
   "channel": {
     "newSession": "Yeni oturum",
@@ -853,5 +854,9 @@
     "message": "Mesaj",
     "placeholder": "Mesaj ya da iş · Enter gönderir",
     "sent": "Gönderildi."
+  },
+  "fabrika": {
+    "import": "Fabrika'dan içe aktar (roblox-factory klasörü)",
+    "done": "İçe aktarıldı: {{ideas}} fikir, {{references}} referans, {{commands}} komut, {{projects}} proje; {{skipped}} zaten vardı."
   }
 }

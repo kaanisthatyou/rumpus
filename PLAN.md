@@ -753,6 +753,12 @@ The details behind 5.11 and 6.5, decided before building.
 - 4.8 Per-advisor notes (5.7): an advisor that ends an answer with a `/not <note>` line keeps the note (dated, at most
   2000 characters, the oldest lines go first) on the computer it runs on; the line is not shown, and the notes go
   into that advisor's prompt only. Its owner reads and edits them in the advisor form. Covered by a unit test.
+- 4.9 Moving from Fabrika: `Ctrl K` → "Fabrika'dan içe aktar" takes a roblox-factory folder and turns its ideas
+  (`ideas/*.md`, front matter kept as status and tags), references (`references/*.json` with their images), saved
+  prompts (`.claude/commands/*.md`) and games with a status page (`games/*/progress.md`, as projects pointed at the game
+  folder) into records and projects of the open workspace. Nothing in the folder changes; things already here (same
+  kind and title, same project name) are skipped; advisors stay quiet about imported ideas. On the real roblox-factory
+  it reads 20 ideas, 40 references, 9 prompts and 7 games. Covered by unit tests.
 
 ## 9. Risks
 

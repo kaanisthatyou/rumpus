@@ -46,6 +46,7 @@ import { Advisors } from './advisors.js';
 import { detectAgents, loginCommand, readLogin } from './agents.js';
 import { Blobs } from './blobs.js';
 import type { OpenSession } from './drivers/types.js';
+import { isFabrika, readFabrika } from './fabrika.js';
 import { Gateway, type Tool, type ToolContent } from './gateway.js';
 import { Goals, gitWorktrees } from './goals.js';
 import { canonical, type SignedEvent, type Signer, verifySignature } from './identity.js';
@@ -487,6 +488,7 @@ export class Core {
         );
       },
       'projects.list': async () => this.projectViews(),
+      'fabrika.import': async (p) => this.importFabrika(p?.folder),
       'projects.save': async (p) => this.saveProject(p),
       'projects.delete': async (p) => this.deleteProject(p?.id),
       'projects.status': async (p) => this.saveStatus(p, this.me().name),
@@ -2504,7 +2506,48 @@ export class Core {
 
   // ---------------------------------------------------------------- records
 
-  private saveRecord(input: unknown): RecordItem {
+  /** Fabrika's ideas, references, prompts and games, as records and projects of the open workspace. */
+  private importFabrika(folder: unknown) {
+    this.requireRole('editor');
+    if (typeof folder !== 'string' || !isDir(folder)) throw new CoreError('folder_missing');
+    if (!isFabrika(folder)) throw new CoreError('not_fabrika');
+    const { store } = this.workspace();
+    const content = readFabrika(folder);
+    const have = new Set(store.records().map((r) => `${r.kind}:${r.title.toLowerCase()}`));
+    const out = { ideas: 0, references: 0, commands: 0, projects: 0, skipped: 0 };
+    const take = (kind: 'idea' | 'reference' | 'command', title: string, input: Record<string, unknown>) => {
+      if (have.has(`${kind}:${title.toLowerCase()}`)) {
+        out.skipped += 1;
+        return false;
+      }
+      try {
+        this.saveRecord({ kind, title, ...input }, { quiet: true });
+        have.add(`${kind}:${title.toLowerCase()}`);
+        return true;
+      } catch {
+        out.skipped += 1;
+        return false;
+      }
+    };
+    for (const i of content.ideas)
+      if (take('idea', i.title, { body: i.body, tags: i.tags, status: i.status })) out.ideas += 1;
+    for (const r of content.references)
+      if (take('reference', r.title, { body: r.body, tags: r.tags, imageData: r.imageData })) out.references += 1;
+    for (const c of content.commands) if (take('command', c.title, { body: c.body })) out.commands += 1;
+    const names = new Set(store.projects().map((p) => p.name.toLowerCase()));
+    for (const g of content.games) {
+      if (names.has(g.name.toLowerCase())) {
+        out.skipped += 1;
+        continue;
+      }
+      this.saveProject({ name: g.name, folder: g.folder });
+      names.add(g.name.toLowerCase());
+      out.projects += 1;
+    }
+    return out;
+  }
+
+  private saveRecord(input: unknown, opts: { quiet?: boolean } = {}): RecordItem {
     const { store, blobs } = this.workspace();
     const p = (input ?? {}) as Record<string, unknown>;
     if (!(RECORD_KINDS as readonly unknown[]).includes(p.kind)) throw new CoreError('bad_request', 'kind');
@@ -2562,7 +2605,7 @@ export class Core {
     };
     store.commit({ type: 'record.saved', data: record });
     this.emit('record.changed', record);
-    if (!existing) this.workspace().advisors.onIdea(record);
+    if (!existing && !opts.quiet) this.workspace().advisors.onIdea(record);
     return record;
   }
 
