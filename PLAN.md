@@ -729,6 +729,10 @@ The details behind 5.11 and 6.5, decided before building.
   state is read with the CLI's status command under that folder. An agent can run on an account; its quota shows
   under the account's name. Accounts stay on this computer (`<app>/accounts.json`); removing one leaves its folder.
   Covered by a unit test and `e2e/channel.mjs` (an account added, signed out, offered in the agent form).
+- 4.5 `/durum` (also in `Ctrl K`): every computer's installed CLIs (version, plan, login state), extra logins and
+  latest quota, this computer first. In a team workspace the others are asked over the live link (never stored) and
+  answer within seconds, at most every three seconds each; answers are kept to their expected shape. Covered by the
+  two-core unit test and `e2e/channel.mjs`.
 
 ## 9. Risks
 

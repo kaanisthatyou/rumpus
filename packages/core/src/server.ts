@@ -17,10 +17,12 @@ import {
   type CliAccount,
   type CliInfo,
   type CliKind,
+  type CliState,
   CoreError,
   type CoreEvents,
   type CoreMethods,
   DEFAULT_ACCESS,
+  type DeviceStatus,
   type EventName,
   type Frame,
   IDEA_STATUSES,
@@ -219,6 +221,9 @@ export class Core {
   private readonly projectCache = new Map<string, { at: number; text: Promise<string> }>();
   private projectGitRunner: ProjectGit | undefined;
   private readonly accounts: Accounts;
+  /** What other members' computers said about their CLIs and quota (`/durum`), per workspace and device. */
+  private readonly peerStatus = new Map<string, DeviceStatus>();
+  private statusSent = 0;
   private readonly handlers: { [M in MethodName]: Handler<M> };
 
   constructor(private readonly opts: CoreOptions) {
@@ -238,6 +243,15 @@ export class Core {
       'clis.list': async (params) => this.listClis(params?.refresh === true),
       'clis.login': async (params) => this.login(params?.kind, params?.account),
       'accounts.list': async (p) => this.accountList(p?.refresh === true),
+      'status.get': async () => {
+        const ws = this.workspace();
+        const mine = await this.ownStatus();
+        if (ws.kind === 'team') this.live(ws, { kind: 'statusAsk' });
+        const others = [...this.peerStatus.entries()]
+          .filter(([key, s]) => key.startsWith(`${ws.id}:`) && Date.now() - s.at < 30 * 60_000)
+          .map(([, s]) => s);
+        return [mine, ...others];
+      },
       'accounts.add': async (p) => {
         const name = typeof p?.name === 'string' ? p.name.trim().slice(0, 40) : '';
         if (!name || (p?.kind !== 'claude-code' && p?.kind !== 'codex')) throw new CoreError('bad_request');
@@ -706,6 +720,102 @@ export class Core {
   }
 
   private accountCache: CliAccount[] | undefined;
+
+  /** This computer's part of `/durum`: installed CLIs, extra logins and the latest quota of each. */
+  private async ownStatus(): Promise<DeviceStatus> {
+    const clis = (await this.listClis(false))
+      .filter((c) => c.state !== 'missing')
+      .map((c) => ({
+        kind: c.kind,
+        state: c.state,
+        ...(c.version ? { version: c.version } : {}),
+        ...(c.plan ? { plan: c.plan } : {}),
+      }));
+    const accounts = await this.accountList(false);
+    const latest = new Map<string, DeviceStatus['quotas'][number]['quota']>();
+    for (const ws of this.open.values()) {
+      for (const [key, q] of Object.entries(ws.jobs.quotas)) {
+        const seen = latest.get(key);
+        if (!seen || q.at > seen.at) latest.set(key, q);
+      }
+    }
+    const quotas = [...latest.entries()].map(([key, quota]) => {
+      const [kind, accountId] = key.split(':') as [CliKind, string | undefined];
+      const account = accountId ? accounts.find((a) => a.id === accountId)?.name : undefined;
+      return { kind, ...(account ? { account } : {}), quota };
+    });
+    return {
+      device: this.deviceId,
+      name: this.me().name,
+      me: true,
+      clis,
+      accounts: accounts.map((a) => ({
+        name: a.name,
+        kind: a.kind,
+        state: a.state,
+        ...(a.plan ? { plan: a.plan } : {}),
+      })),
+      quotas,
+      at: Date.now(),
+    };
+  }
+
+  /** Another member's `/durum` answer, kept to its expected shape. */
+  private takeStatus(ws: Workspace, device: string, raw: unknown): void {
+    const s = (raw ?? {}) as Partial<DeviceStatus>;
+    const kinds = CLI_KINDS as readonly string[];
+    const states = ['ready', 'signed-out', 'needs-key', 'unknown', 'missing'];
+    const short = (v: unknown, n = 40) => (typeof v === 'string' ? v.slice(0, n) : undefined);
+    const ok = (x: { kind?: unknown; state?: unknown }) =>
+      kinds.includes(String(x.kind)) && states.includes(String(x.state));
+    const status: DeviceStatus = {
+      device,
+      name: ws.membership?.member(device)?.name ?? '',
+      me: false,
+      clis: (Array.isArray(s.clis) ? s.clis : [])
+        .filter(ok)
+        .slice(0, 10)
+        .map((c) => ({
+          kind: c.kind,
+          state: c.state as CliState,
+          ...(short(c.version) ? { version: short(c.version) } : {}),
+          ...(short(c.plan) ? { plan: short(c.plan) } : {}),
+        })),
+      accounts: (Array.isArray(s.accounts) ? s.accounts : [])
+        .filter(ok)
+        .slice(0, 10)
+        .map((a) => ({
+          name: short(a.name) ?? '',
+          kind: a.kind,
+          state: a.state as CliState,
+          ...(short(a.plan) ? { plan: short(a.plan) } : {}),
+        })),
+      quotas: (Array.isArray(s.quotas) ? s.quotas : [])
+        .filter((q) => kinds.includes(String(q?.kind)) && typeof q?.quota?.windows === 'object')
+        .slice(0, 12)
+        .map((q) => ({
+          kind: q.kind,
+          ...(short(q.account) ? { account: short(q.account) } : {}),
+          quota: {
+            windows: Object.fromEntries(
+              Object.entries(q.quota.windows ?? {})
+                .slice(0, 6)
+                .map(([k, w]) => [
+                  k.slice(0, 30),
+                  {
+                    used: Math.min(Math.max(Number(w?.used) || 0, 0), 1),
+                    ...(typeof w?.resets === 'number' ? { resets: w.resets } : {}),
+                  },
+                ]),
+            ),
+            at: Number(q.quota.at) || 0,
+          },
+        })),
+      at: Date.now(),
+    };
+    this.peerStatus.set(`${ws.id}:${device}`, status);
+    if (ws.id === this.currentId()) this.emit('status.changed', status);
+  }
 
   /** This computer's extra CLI logins, each read with its CLI's status command under its own config folder. */
   private async accountList(refresh: boolean): Promise<CliAccount[]> {
@@ -1407,6 +1517,17 @@ export class Core {
 
   /** A passing update from a member: shown, never stored. */
   private liveIn(ws: Workspace, device: string, body: Record<string, unknown>): void {
+    if (body.kind === 'statusAsk') {
+      // At most every few seconds, however often someone opens /durum.
+      if (Date.now() - this.statusSent < 3000) return;
+      this.statusSent = Date.now();
+      void this.ownStatus().then((status) => this.live(ws, { kind: 'status', status }));
+      return;
+    }
+    if (body.kind === 'status') {
+      this.takeStatus(ws, device, body.status);
+      return;
+    }
     if (body.kind === 'typing' && typeof body.channelId === 'string' && ws.store.channel(body.channelId)) {
       const name = ws.membership?.member(device)?.name ?? String(body.name ?? '').slice(0, 40);
       this.emit('person.typing', { channelId: body.channelId, device, name });

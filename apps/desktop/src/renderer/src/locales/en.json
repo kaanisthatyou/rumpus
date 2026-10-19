@@ -400,7 +400,8 @@
     "search": "Searches messages",
     "council": "Advisors discuss a topic in turn and one sums up",
     "goal": "A goal for an agent: plan, approval, step by step",
-    "remember": "Adds a line to the personal notes"
+    "remember": "Adds a line to the personal notes",
+    "status": "CLIs, accounts and quota on every computer"
   },
   "palette": {
     "placeholder": "Channel, agent, project, view, action or message",
@@ -834,5 +835,11 @@
     "agentField": "Account",
     "default": "Default login",
     "agentHint": "This agent's jobs run on the chosen login and its quota."
+  },
+  "status": {
+    "title": "Status",
+    "thisComputer": "this computer",
+    "noClis": "No CLI installed.",
+    "teamHint": "Other members' computers are added within a few seconds when they are on and connected."
   }
 }

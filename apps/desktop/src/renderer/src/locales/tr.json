@@ -400,7 +400,8 @@
     "search": "Mesajlarda arar",
     "council": "Danışmanlar bir konuyu sırayla tartışır, biri özetler",
     "goal": "Bir agent'a hedef: plan, onay, adım adım iş",
-    "remember": "Kişisel notlara bir satır ekler"
+    "remember": "Kişisel notlara bir satır ekler",
+    "status": "Her bilgisayardaki CLI'lar, hesaplar ve kotalar"
   },
   "palette": {
     "placeholder": "Kanal, agent, proje, görünüm, eylem ya da mesaj",
@@ -834,5 +835,11 @@
     "agentField": "Hesap",
     "default": "Varsayılan giriş",
     "agentHint": "Bu ajanın işleri seçilen girişle ve onun kotasıyla çalışır."
+  },
+  "status": {
+    "title": "Durum",
+    "thisComputer": "bu bilgisayar",
+    "noClis": "Kurulu CLI yok.",
+    "teamHint": "Diğer üyelerin bilgisayarları açık ve bağlıysa birkaç saniye içinde listeye eklenir."
   }
 }

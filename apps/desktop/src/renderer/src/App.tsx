@@ -12,6 +12,7 @@ import { SettingsDialog } from './settings/SettingsDialog';
 import { InviteDialog } from './shell/InviteDialog';
 import { NewWorkspaceDialog } from './shell/NewWorkspaceDialog';
 import { Shell } from './shell/Shell';
+import { StatusDialog } from './shell/StatusDialog';
 import { TitleBar } from './shell/TitleBar';
 import { useApp } from './store';
 import { useAppearance } from './theme';
@@ -30,6 +31,7 @@ export function App() {
   const advisorDialog = useApp((s) => s.advisorDialog);
   const goalDialog = useApp((s) => s.goalDialog);
   const projectDialog = useApp((s) => s.projectDialog);
+  const statusOpen = useApp((s) => s.statusOpen);
   const newWorkspaceOpen = useApp((s) => s.newWorkspaceOpen);
   const inviteOpen = useApp((s) => s.inviteOpen);
   const paletteOpen = useApp((s) => s.paletteOpen);
@@ -127,6 +129,7 @@ export function App() {
         </AnimatePresence>
         <AnimatePresence>{onboarded && newWorkspaceOpen && <NewWorkspaceDialog key="new-workspace" />}</AnimatePresence>
         <AnimatePresence>{onboarded && inviteOpen && <InviteDialog key="invite" />}</AnimatePresence>
+        <AnimatePresence>{onboarded && statusOpen && <StatusDialog key="status" />}</AnimatePresence>
         <AnimatePresence>
           {onboarded && paletteOpen && <Palette key="palette" onSettings={openSettings} />}
         </AnimatePresence>

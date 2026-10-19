@@ -8,6 +8,7 @@ import type {
   CliAccount,
   CliInfo,
   CliKind,
+  DeviceStatus,
   Goal,
   GoalBudget,
   GoalComment,
@@ -64,6 +65,9 @@ interface AppState {
   quota: Record<string, Quota>;
   /** This computer's extra CLI logins. */
   accounts: CliAccount[];
+  /** `/durum`: open, and what each computer reported. */
+  statusOpen?: boolean;
+  statuses: DeviceStatus[];
   /** The job shown in the live view, if any. */
   watching?: string;
   /** The agent dialog: an agent to edit, `new` for a new one, or closed. */
@@ -109,6 +113,7 @@ interface AppState {
   scan(): Promise<void>;
   login(kind: CliKind, account?: string): Promise<void>;
   loadAccounts(refresh?: boolean): Promise<void>;
+  loadStatus(): Promise<void>;
   addAccount(kind: CliKind, name: string): Promise<boolean>;
   removeAccount(id: string): Promise<void>;
   refreshTailscale(): Promise<void>;
@@ -232,6 +237,7 @@ export const useApp = create<AppState>((set, get) => {
     jobs: {},
     quota: {},
     accounts: [],
+    statuses: [],
     cards: [],
     records: [],
     projects: [],
@@ -292,6 +298,13 @@ export const useApp = create<AppState>((set, get) => {
         }
       });
       core.on('memory.changed', (memory) => set({ memory }));
+      core.on('status.changed', (status) =>
+        set((s) => ({
+          statuses: s.statuses.some((x) => x.device === status.device)
+            ? s.statuses.map((x) => (x.device === status.device ? status : x))
+            : [...s.statuses, status],
+        })),
+      );
       core.on('person.typing', ({ channelId, device, name }) =>
         set((s) => ({
           peopleTyping: {
@@ -435,6 +448,11 @@ export const useApp = create<AppState>((set, get) => {
     async loadAccounts(refresh = false) {
       const accounts = await attempt(() => core.call('accounts.list', { refresh }));
       if (accounts) set({ accounts });
+    },
+
+    async loadStatus() {
+      const statuses = await attempt(() => core.call('status.get'));
+      if (statuses) set({ statuses });
     },
 
     async addAccount(kind, name) {

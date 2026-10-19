@@ -237,6 +237,17 @@ try {
   assert.deepEqual(await accountSelect.locator('option').allTextContents(), [L.accounts.default, 'İkinci hesap']);
   await editAgent.getByRole('button', { name: L.agentForm.cancel }).click();
 
+  // /durum: this computer's CLIs, the extra account and the quota.
+  await page.getByRole('button', { name: 'genel', exact: true }).click();
+  await composer.fill('/durum');
+  await composer.press('Enter');
+  const statusDialog = page.getByRole('dialog', { name: L.status.title });
+  await statusDialog.getByText(L.status.thisComputer).waitFor();
+  await statusDialog.getByText('İkinci hesap').waitFor();
+  await statusDialog.getByText(L.quota.window.five_hour).first().waitFor();
+  await shot(page, 'status');
+  await page.keyboard.press('Escape');
+
   // The shortcut list, then back to the channel through the palette.
   await page.keyboard.press('Control+/');
   await page.getByRole('dialog', { name: L.shortcuts.title }).waitFor();

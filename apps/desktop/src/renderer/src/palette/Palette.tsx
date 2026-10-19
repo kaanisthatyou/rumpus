@@ -101,6 +101,14 @@ export function Palette({ onSettings }: { onSettings: () => void }) {
       },
       { id: 'a-settings', group: 'actions', icon: 'settings', label: t('palette.settings'), run: onSettings },
       {
+        id: 'a-status',
+        group: 'actions',
+        icon: 'terminal',
+        label: t('status.title'),
+        detail: '/durum',
+        run: () => useApp.setState({ statusOpen: true, statuses: [] }),
+      },
+      {
         id: 'a-shortcuts',
         group: 'actions',
         icon: 'keyboard',

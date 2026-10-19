@@ -267,6 +267,7 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
     ...(channel.kind === 'channel'
       ? [{ key: 'meclis', insert: '/meclis ', label: '/meclis', detail: t('commands.council'), icon: 'chat' as const }]
       : []),
+    { key: 'status', insert: '/durum', label: '/durum', detail: t('commands.status'), icon: 'terminal' as const },
     ...(own
       ? [
           {
@@ -392,6 +393,11 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
     const meclis = /^\/meclis(?:\s+([\s\S]*))?$/.exec(value);
     if (meclis && channel.kind === 'channel') {
       if (await council(channel.id, meclis[1]?.trim() ?? '')) setText('');
+      return;
+    }
+    if (value === '/durum') {
+      useApp.setState({ statusOpen: true, statuses: [] });
+      setText('');
       return;
     }
     if (value === '/yeni-oturum' && own) {

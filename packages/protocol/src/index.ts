@@ -158,6 +158,18 @@ export interface CliAccount {
   plan?: string;
 }
 
+/** `/durum`: one computer's CLIs, extra logins and quota, as that computer reports them (PLAN.md 5.5). */
+export interface DeviceStatus {
+  device: string;
+  name: string;
+  me: boolean;
+  /** Installed CLIs only. */
+  clis: { kind: CliKind; state: CliState; version?: string; plan?: string }[];
+  accounts: { name: string; kind: CliKind; state: CliState; plan?: string }[];
+  quotas: { kind: CliKind; account?: string; quota: Quota }[];
+  at: number;
+}
+
 export interface PhoneState {
   on: boolean;
   /** The address phones open (https behind `tailscale serve`), once it works. */
@@ -189,6 +201,8 @@ export interface CoreMethods {
   'clis.login': { params: { kind: CliKind; account?: string }; result: { opened: boolean } };
   /** This computer's extra CLI logins with their state (read with each CLI's status command, no tokens). */
   'accounts.list': { params: { refresh?: boolean }; result: CliAccount[] };
+  /** `/durum`: this computer, then the members of the open team workspace that answered lately (more arrive as events). */
+  'status.get': { params: undefined; result: DeviceStatus[] };
   'accounts.add': { params: { kind: CliKind; name: string }; result: CliAccount[] };
   /** Forgets an account; its folder stays (the CLI's own files). */
   'accounts.remove': { params: { id: string }; result: CliAccount[] };
@@ -296,6 +310,8 @@ export interface CoreEvents {
   'job.updated': Job;
   /** `kind` is the CLI, or `<cli>:<account id>` for an extra account. */
   'quota.changed': { kind: string; quota: Quota };
+  /** Another member's computer answered `/durum`. */
+  'status.changed': DeviceStatus;
   'card.changed': Card;
   'card.deleted': { id: string };
   'record.changed': RecordItem;

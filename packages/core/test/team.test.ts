@@ -162,6 +162,16 @@ describe('team workspaces between two apps', () => {
     await until(async () => kaan.events('person.typing').length > 0, 'kaan hears arda typing', 5000);
     expect(kaan.events('person.typing')[0]).toMatchObject({ channelId: genel, name: 'Arda' });
 
+    // /durum: Kaan's computer answers at once, Arda's answers over the live link.
+    const [own] = await kaan.call<{ me: boolean; name: string }[]>('status.get');
+    expect(own).toMatchObject({ me: true, name: 'Kaan' });
+    await until(async () => kaan.events('status.changed').length > 0, 'arda answers /durum', 5000);
+    expect(kaan.events('status.changed')[0]).toMatchObject({
+      name: 'Arda',
+      me: false,
+      clis: [{ kind: 'claude-code', state: 'ready' }],
+    });
+
     // Kaan's agent, open to editors at read level: Arda's mention runs it on Kaan's computer, capped at read.
     const agent = await kaan.call<Agent>('agents.save', {
       kind: 'claude-code',
