@@ -1,7 +1,10 @@
 # Lonca v2: plan
 
-Status: **Phase 3 built** (2026-10-18; the done-checks of Phases 1-3 wait for real use by Kaan and Arda), Phase 4 next; see "Phase 0 status" and "Phase 1 status" under section 8. Owners: Kaan and Arda. v0.1 (the
-Python chat server, tag `v0.1.0`) was the starting point for ideas and the security model, not for code.
+Status: **Phase 4 under way** (0.8.0-alpha.0, 2026-10-19): memory, projects with status pages, hand-over, several
+CLI logins, `/durum`, `/özet`, quick entry and advisor notes are built; voice is paused (Kaan, 2026-10-19) and the
+connector store is next. The done-checks of Phases 1-3 wait for real use by Kaan and Arda; see the status blocks
+under section 8. Owners: Kaan and Arda. v0.1 (the Python chat server, tag `v0.1.0`) was the starting point for
+ideas and the security model, not for code.
 
 Research behind this plan: `docs/research/` (Claude Desktop, Antigravity, Hermes Agent + Jan, CLI agents, platform:
 connectors, voice, networking). Theme: Grafit & tek vurgu, artboard 2 of the "Lonca theme directions" canvas
@@ -695,7 +698,7 @@ The details behind 5.11 and 6.5, decided before building.
   two apps (two `LONCA_HOME` instances on one PC in tests); 3.4 invites, roles, members panel; 3.5 cross-member
   jobs and agent access; 3.6 presence, typing, notifications; 3.7 the phone companion.
 
-### Phase 4 status (started 2026-10-18)
+### Phase 4 status (started 2026-10-18; voice paused on 2026-10-19)
 
 - 4.1 Memory: personal sections (profile, notes) in `<app>/memory.json`, on this computer only; workspace sections
   (decisions, conventions, glossary) as signed `memory.saved` events that editors write. Each section has a
