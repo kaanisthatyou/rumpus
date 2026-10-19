@@ -29,6 +29,11 @@ export interface LoncaBridge {
     /** An OS notification; clicking it brings Lonca forward. */
     notify(title: string, body: string): Promise<void>;
   };
+  /** The quick-entry window (Ctrl Alt Space from anywhere). */
+  quick: {
+    open(): Promise<void>;
+    hide(): Promise<void>;
+  };
   /** Model providers and their keys; keys go in and never come back out. Refusals reject with an error code. */
   providers: {
     state(): Promise<ProvidersState>;

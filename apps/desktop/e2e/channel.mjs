@@ -397,6 +397,29 @@ try {
     .first()
     .waitFor();
 
+  // Quick entry: a small window of its own (Ctrl Alt Space, or from the palette) writes to a channel.
+  await page.keyboard.press('Control+k');
+  await search.fill(L.quick.title);
+  await search.press('Enter');
+  let quickPage;
+  await until(async () => {
+    quickPage = first.app.windows().find((w) => w.url().includes('#quick'));
+    return Boolean(quickPage);
+  }, 'quick entry window');
+  const quickTo = quickPage.getByLabel(L.quick.to);
+  await until(async () => (await quickTo.locator('option').count()) > 0, 'channels in quick entry');
+  await quickTo.selectOption({ label: '#genel' });
+  await quickPage.getByLabel(L.quick.message).fill('hızlı girişten not');
+  const quickPng = await current.evaluate(async ({ BrowserWindow }) => {
+    const w = BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().includes('#quick'));
+    return w ? (await w.webContents.capturePage()).toPNG().toString('base64') : '';
+  });
+  if (quickPng) writeFileSync(join(shots, 'ch-quick-entry.png'), Buffer.from(quickPng, 'base64'));
+  await quickPage.getByLabel(L.quick.message).press('Enter');
+  await quickPage.getByText(L.quick.sent).waitFor();
+  await page.getByRole('button', { name: 'genel', exact: true }).click();
+  await page.getByText('hızlı girişten not').waitFor();
+
   // Edit and delete own messages.
   await page.getByRole('button', { name: 'genel', exact: true }).click();
   const own = page.locator('.msg--person').first();

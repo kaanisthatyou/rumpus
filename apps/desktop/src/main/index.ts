@@ -5,10 +5,12 @@ import {
   BrowserWindow,
   clipboard,
   dialog,
+  globalShortcut,
   type IpcMainInvokeEvent,
   ipcMain,
   MessageChannelMain,
   Notification,
+  screen,
   session,
   shell,
   type UtilityProcess,
@@ -29,6 +31,9 @@ const appDir = app.getPath('userData');
 const devUrl = process.env.ELECTRON_RENDERER_URL;
 
 let win: BrowserWindow | undefined;
+/** The quick-entry window (Ctrl Alt Space), made the first time it is asked for. */
+let quick: BrowserWindow | undefined;
+const QUICK_KEY = 'Control+Alt+Space';
 let core: UtilityProcess | undefined;
 let quitting = false;
 let coreRestarts = 0;
@@ -67,6 +72,7 @@ function startCore(): void {
     setTimeout(() => {
       startCore();
       if (win && !win.isDestroyed()) connect(win);
+      if (quick && !quick.isDestroyed()) connect(quick);
     }, 500 * coreRestarts);
   });
 }
@@ -156,6 +162,8 @@ function registerIpc(): void {
     'providers:models',
     guarded((id: unknown) => providers?.models(id)),
   );
+  handle('quick:hide', () => quick?.hide());
+  handle('quick:open', () => toggleQuick());
   handle('update:state', () => updater.get());
   handle('update:check', () => updater.check());
   handle('update:install', () => updater.install());
@@ -210,6 +218,57 @@ function createWindow(): BrowserWindow {
   return w;
 }
 
+function createQuickWindow(): BrowserWindow {
+  const q = new BrowserWindow({
+    width: 600,
+    height: 172,
+    show: false,
+    frame: false,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    title: 'Lonca',
+    backgroundColor: '#0a0b0d',
+    webPreferences: {
+      preload: join(here, '../preload/index.cjs'),
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
+      spellcheck: false,
+    },
+  });
+  q.webContents.on('did-finish-load', () => connect(q));
+  q.on('blur', () => q.hide());
+  q.on('closed', () => {
+    quick = undefined;
+  });
+  if (devUrl) void q.loadURL(`${devUrl}#quick`);
+  else void q.loadFile(join(here, '../renderer/index.html'), { hash: 'quick' });
+  return q;
+}
+
+/** Shows the quick-entry window on the screen the pointer is on, or hides it. */
+function toggleQuick(): void {
+  if (quick?.isVisible()) {
+    quick.hide();
+    return;
+  }
+  const q = quick ?? createQuickWindow();
+  quick = q;
+  const area = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
+  const [width = 600] = q.getSize();
+  q.setPosition(Math.round(area.x + (area.width - width) / 2), Math.round(area.y + area.height * 0.26));
+  const show = () => {
+    q.show();
+    q.focus();
+  };
+  if (q.webContents.isLoading()) q.once('ready-to-show', show);
+  else show();
+}
+
 function start(): void {
   providers = new Providers(appDir);
   identity = new Identity(appDir);
@@ -222,9 +281,18 @@ function start(): void {
   win = createWindow();
   win.on('closed', () => {
     win = undefined;
+    quick?.destroy();
   });
+  // Never Ctrl Space (editors use it); when another app holds the key, quick entry stays in the palette.
+  try {
+    globalShortcut.register(QUICK_KEY, toggleQuick);
+  } catch {
+    // taken
+  }
   updater.start();
 }
+
+app.on('will-quit', () => globalShortcut.unregisterAll());
 
 app.on('before-quit', () => {
   quitting = true;

@@ -100,6 +100,18 @@ export function Palette({ onSettings }: { onSettings: () => void }) {
         run: () => s.openProjectDialog('new'),
       },
       { id: 'a-settings', group: 'actions', icon: 'settings', label: t('palette.settings'), run: onSettings },
+      ...(document.documentElement.dataset.phone === '1'
+        ? []
+        : [
+            {
+              id: 'a-quick',
+              group: 'actions' as const,
+              icon: 'send' as const,
+              label: t('quick.title'),
+              detail: 'Ctrl Alt Space',
+              run: () => void window.lonca.quick.open(),
+            },
+          ]),
       {
         id: 'a-status',
         group: 'actions',

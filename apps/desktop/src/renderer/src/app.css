@@ -394,6 +394,49 @@
   border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
   color: var(--ink-2);
 }
+.quick {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--bg);
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  -webkit-app-region: drag;
+}
+.quick select,
+.quick textarea {
+  -webkit-app-region: no-drag;
+}
+.quick__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.quick__to {
+  height: 30px;
+  max-width: 220px;
+}
+.quick__ws,
+.quick__keys {
+  font-size: 12px;
+}
+.quick__text {
+  flex: 1;
+  resize: none;
+  padding: 8px 12px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.quick__note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--accent-ink);
+}
 .status {
   width: min(560px, calc(100vw - 32px));
   max-height: calc(100vh - 80px);

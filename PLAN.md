@@ -738,6 +738,12 @@ The details behind 5.11 and 6.5, decided before building.
   channel's last hours (24 by default): decisions, done work, what is open or blocked, who waits on whom. It reads up
   to 300 messages of the period instead of a normal turn's 30, on its own budget and provider; the summary is the
   advisor's message, so Lonca never speaks as itself. Covered by a unit test.
+- 4.7 Quick entry (5.10): `Ctrl Alt Space` from anywhere (registered globally by the main process; when another app
+  holds it, the palette's "Hızlı giriş" opens the same window) shows a small always-on-top window on the screen the
+  pointer is on: a channel or agent to write to (the last one used is remembered) and a message box; Enter sends and
+  the window hides, as it does on Esc or when it loses focus. It is the same UI bundle with its own connection to the
+  core. Not yet: rebinding its key in Settings. Covered by `e2e/channel.mjs` (opened from the palette, a message sent
+  to #genel).
 
 ## 9. Risks
 

@@ -842,5 +842,12 @@
     "thisComputer": "this computer",
     "noClis": "No CLI installed.",
     "teamHint": "Other members' computers are added within a few seconds when they are on and connected."
+  },
+  "quick": {
+    "title": "Quick entry",
+    "to": "To",
+    "message": "Message",
+    "placeholder": "Message or task · Enter sends",
+    "sent": "Sent."
   }
 }

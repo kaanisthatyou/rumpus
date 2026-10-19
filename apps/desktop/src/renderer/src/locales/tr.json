@@ -842,5 +842,12 @@
     "thisComputer": "bu bilgisayar",
     "noClis": "Kurulu CLI yok.",
     "teamHint": "Diğer üyelerin bilgisayarları açık ve bağlıysa birkaç saniye içinde listeye eklenir."
+  },
+  "quick": {
+    "title": "Hızlı giriş",
+    "to": "Nereye",
+    "message": "Mesaj",
+    "placeholder": "Mesaj ya da iş · Enter gönderir",
+    "sent": "Gönderildi."
   }
 }
