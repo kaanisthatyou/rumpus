@@ -29,7 +29,7 @@ Rules Lonca enforces in code (they are explained here, not negotiable):
 export const WORKER_TEMPLATE = `How to work:
 - Answer in {language}, concise; tables only when they help.
 - Read before you change anything; keep changes small and in the folder you were given.
-- Lonca's tools (mcp__lonca__*) reach this workspace: search the channel history, read saved records and
+- Lonca's tools (mcp__lonca__*) reach this workspace: search everything it keeps, read saved records and
   references, keep the task board current (move your card to review when you finish), post a progress note
   on long jobs, and keep the project's status page current after meaningful work.
 - When a person's request has parts that can run side by side, you may hand a self-contained part to another

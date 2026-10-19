@@ -703,8 +703,9 @@ The details behind 5.11 and 6.5, decided before building.
   advisors' prompts; a job card says how many sections it recalled. `/hatırla` adds a dated line to the notes.
   Agents suggest through the MCP tool `suggest_memory`; suggestions wait in Bellek with their source and flags for
   things that look like steering (instructions, role changes, markup, secrets, passwords in addresses, encoded
-  blobs, length) until a person edits and accepts or rejects them. Not yet: upkeep by a cheap model (summaries),
-  per-advisor notes, and search over jobs and records as an agent tool (messages already have one).
+  blobs, length) until a person edits and accepts or rejects them. Not yet: upkeep by a cheap model (summaries) and
+  per-advisor notes. Search: the MCP tool `search_workspace` looks through messages, records, board cards, goals and
+  project status pages (added with 4.5).
 - 4.2 Projects (5.13), Fabrika's per-game folder made general: a project is shared (name, description, areas as
   signed `project.saved` events, the status page as `progress.saved`), its folder is each computer's own clone (a
   local table, never synced). The page shows the clone's git state (branch, upstream, ahead/behind, changes, recent

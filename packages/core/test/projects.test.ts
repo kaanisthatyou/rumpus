@@ -196,6 +196,13 @@ describe('projects through the core', () => {
       }),
     ).toBe('Saved the status page of "CowFarm".');
     expect(await tool('update_status', { next: ['x'.repeat(400)] })).toMatch(/^Not saved: invalid_project/);
+    // Search reaches the page, cards and messages.
+    await call('cards.create', { title: 'Thumbnail için üç taslak' });
+    const found = await tool('search_workspace', { query: 'thumbnail' });
+    expect(found).toContain('- CowFarm: Published privately; waiting on the thumbnail.');
+    expect(found).toContain('Thumbnail için üç taslak');
+    expect(await tool('search_workspace', { query: 'what is next' })).toContain('#');
+    expect(await tool('search_workspace', { query: 'zzzz' })).toBe('Nothing found.');
     const [after] = await call<ProjectView[]>('projects.list');
     expect(after?.status).toMatchObject({
       leftOff: 'Published privately; waiting on the thumbnail.',
