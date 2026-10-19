@@ -14,6 +14,7 @@ import { motion } from 'motion/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ErrorLine } from '../parts';
+import { core } from '../rpc';
 import { useApp } from '../store';
 import { slug } from './AgentDialog';
 
@@ -44,6 +45,15 @@ export function AdvisorDialog() {
   const [chatter, setChatter] = useState<Chatter>(existing?.chatter ?? 'low');
   const [budget, setBudget] = useState(existing?.dailyTokens ?? 100_000);
   const [folder, setFolder] = useState(existing?.folder ?? '');
+  const mine = useApp((s) => existing !== undefined && existing.owner === s.workspace?.me.id);
+  const [notes, setNotes] = useState<string>();
+  useEffect(() => {
+    if (!existing || !mine) return;
+    void core
+      .call('advisors.notes', { id: existing.id })
+      .then(setNotes)
+      .catch(() => {});
+  }, [existing, mine]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close();
@@ -83,6 +93,8 @@ export function AdvisorDialog() {
         exit={{ opacity: 0, y: 8, scale: 0.98, transition: { duration: 0.15 } }}
         onSubmit={async (e) => {
           e.preventDefault();
+          if (existing && mine && notes !== undefined)
+            await core.call('advisors.saveNotes', { id: existing.id, text: notes }).catch(() => {});
           await saveAdvisor({
             ...(existing ? { id: existing.id } : {}),
             name,
@@ -262,6 +274,21 @@ export function AdvisorDialog() {
                 </div>
                 <span className="l-field__hint">{t('advisorForm.folderHint')}</span>
               </div>
+              {notes !== undefined && (
+                <div className="l-field">
+                  <label className="l-field__label" htmlFor="advisor-notes">
+                    {t('advisorForm.notes')}
+                  </label>
+                  <textarea
+                    id="advisor-notes"
+                    className="l-input agentform__text"
+                    value={notes}
+                    maxLength={2000}
+                    onChange={(e) => setNotes(e.target.value)}
+                  />
+                  <span className="l-field__hint">{t('advisorForm.notesHint')}</span>
+                </div>
+              )}
             </>
           )}
           <ErrorLine />

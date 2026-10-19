@@ -592,7 +592,9 @@
     "folder": "Project folder",
     "folderHint": "Optional. Recent commits and git status are shown to the advisor, read only.",
     "noFolder": "Remove",
-    "delete": "Delete advisor"
+    "delete": "Delete advisor",
+    "notes": "The advisor's own notes",
+    "notesHint": "Written here when the advisor ends an answer with a /not line, and given only to it in later turns. Stays on this computer; at most 2000 characters."
   },
   "goal": {
     "title": "Goal",

@@ -592,7 +592,9 @@
     "folder": "Proje klasörü",
     "folderHint": "İsteğe bağlı. Son commit'ler ve git durumu salt okunur olarak danışmana gösterilir.",
     "noFolder": "Kaldır",
-    "delete": "Danışmanı sil"
+    "delete": "Danışmanı sil",
+    "notes": "Danışmanın kendi notları",
+    "notesHint": "Danışman bir cevabın sonuna /not satırı ekleyince buraya yazılır ve sonraki turlarda yalnızca kendisine verilir. Bu bilgisayarda kalır; en çok 2000 karakter."
   },
   "goal": {
     "title": "Hedef",

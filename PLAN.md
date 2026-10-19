@@ -704,7 +704,7 @@ The details behind 5.11 and 6.5, decided before building.
   Agents suggest through the MCP tool `suggest_memory`; suggestions wait in Bellek with their source and flags for
   things that look like steering (instructions, role changes, markup, secrets, passwords in addresses, encoded
   blobs, length) until a person edits and accepts or rejects them. Not yet: upkeep by a cheap model (summaries) and
-  per-advisor notes. Search: the MCP tool `search_workspace` looks through messages, records, board cards, goals and
+  per-advisor notes (added as 4.8). Search: the MCP tool `search_workspace` looks through messages, records, board cards, goals and
   project status pages (added with 4.5).
 - 4.2 Projects (5.13), Fabrika's per-game folder made general: a project is shared (name, description, areas as
   signed `project.saved` events, the status page as `progress.saved`), its folder is each computer's own clone (a
@@ -744,6 +744,9 @@ The details behind 5.11 and 6.5, decided before building.
   the window hides, as it does on Esc or when it loses focus. It is the same UI bundle with its own connection to the
   core. Not yet: rebinding its key in Settings. Covered by `e2e/channel.mjs` (opened from the palette, a message sent
   to #genel).
+- 4.8 Per-advisor notes (5.7): an advisor that ends an answer with a `/not <note>` line keeps the note (dated, at most
+  2000 characters, the oldest lines go first) on the computer it runs on; the line is not shown, and the notes go
+  into that advisor's prompt only. Its owner reads and edits them in the advisor form. Covered by a unit test.
 
 ## 9. Risks
 

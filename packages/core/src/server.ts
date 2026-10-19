@@ -351,6 +351,20 @@ export class Core {
       'advisors.save': async (p) => this.saveAdvisor(p),
       'advisors.delete': async (p) => this.deleteAdvisor(p?.id),
       'advisors.council': async (p) => this.council(p?.channelId, p?.topic),
+      'advisors.notes': async (p) => {
+        const { store, advisors } = this.workspace();
+        const advisor = typeof p?.id === 'string' ? store.advisor(p.id) : undefined;
+        if (!advisor) throw new CoreError('not_found');
+        return advisor.owner === this.deviceId ? advisors.notes(advisor.id) : '';
+      },
+      'advisors.saveNotes': async (p) => {
+        const { store, advisors } = this.workspace();
+        const advisor = typeof p?.id === 'string' ? store.advisor(p.id) : undefined;
+        if (!advisor) throw new CoreError('not_found');
+        if (advisor.owner !== this.deviceId) throw new CoreError('not_allowed');
+        if (typeof p?.text !== 'string') throw new CoreError('bad_request');
+        return advisors.setNotes(advisor.id, p.text);
+      },
       'advisors.digest': async (p) => {
         const { store, advisors } = this.workspace();
         const channel = typeof p?.channelId === 'string' ? store.channel(p.channelId) : undefined;

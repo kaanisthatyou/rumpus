@@ -254,6 +254,20 @@ describe('Advisors', () => {
     expect(t.advisors.digest({ ...t.channel, id: 'nope' }, 24)).toBeDefined();
   });
 
+  it('keeps its own notes from /not lines, hides them, and reads them in later turns', async () => {
+    const t = setup(() => ['Asıl cevap.', '/not Login testi eksik, sonra bak'].join(String.fromCharCode(10)));
+    t.store.commit({ type: 'advisor.saved', data: advisor() });
+    t.advisors.onMessage(t.post('@elestirmen durum?'), t.channel);
+    await t.settle();
+    expect(t.events.messages[0]?.text).toBe('Asıl cevap.');
+    expect(t.advisors.notes('a1')).toMatch(/^- Login testi eksik, sonra bak \(\d{4}-\d\d-\d\d\)$/);
+    t.advisors.onMessage(t.post('@elestirmen ya şimdi?'), t.channel);
+    await t.settle();
+    expect(t.requests[1]?.system).toContain('Your own notes');
+    expect(t.requests[1]?.system).toContain('Login testi eksik');
+    expect(t.advisors.setNotes('a1', 'x'.repeat(3000))).toHaveLength(2000);
+  });
+
   it('runs a council: two rounds in turn, then a summary', async () => {
     const t = setup((req) => {
       const c = req.messages[0]?.content ?? '';
