@@ -1,5 +1,5 @@
 // Pieces shared by the launcher and the settings dialog.
-import { ACCENTS, type CliInfo, LANGUAGES } from '@lonca/protocol';
+import { ACCENTS, type CliInfo, type CliKind, LANGUAGES } from '@lonca/protocol';
 import {
   ACCENT_SWATCHES,
   Avatar,
@@ -259,6 +259,93 @@ function AgentRow({ agent }: { agent: CliInfo }) {
   );
 }
 
+/** Extra logins of a CLI on this computer (Fabrika's second worker): each is the CLI's own config folder. */
+function Accounts() {
+  const { t } = useTranslation();
+  const accounts = useApp((s) => s.accounts);
+  const clis = useApp((s) => s.clis);
+  const login = useApp((s) => s.login);
+  const addAccount = useApp((s) => s.addAccount);
+  const removeAccount = useApp((s) => s.removeAccount);
+  const kinds = (clis ?? [])
+    .filter((c) => (c.kind === 'claude-code' || c.kind === 'codex') && c.state !== 'missing')
+    .map((c) => c.kind);
+  const [kind, setKind] = useState<CliKind | ''>('');
+  const [name, setName] = useState('');
+  const chosen = kind || kinds[0];
+  if (kinds.length === 0 && accounts.length === 0) return null;
+  return (
+    <section className="accounts" aria-label={t('accounts.title')}>
+      <h3 className="accounts__title">{t('accounts.title')}</h3>
+      <p className="muted accounts__hint">{t('accounts.hint')}</p>
+      {accounts.length > 0 && (
+        <ul className="agents__list">
+          {accounts.map((a) => (
+            <li key={a.id} className="agent">
+              <div className="agent__row">
+                <Avatar name={a.name} size={32} presence={a.state === 'ready' ? 'on' : 'off'} />
+                <div className="agent__text">
+                  <b>{a.name}</b>
+                  <span className="l-mono">
+                    {[t(`agent.kind.${a.kind}`), a.auth && t(`agent.auth.${a.auth}`, a.auth), a.plan]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </span>
+                </div>
+                <Chip {...(stateTone(a.state) ? { tone: stateTone(a.state) } : {})}>{t(`agent.state.${a.state}`)}</Chip>
+                {a.state !== 'ready' && a.state !== 'missing' && (
+                  <Button size="sm" icon="login" onClick={() => void login(a.kind, a.id)}>
+                    {t('agent.login')}
+                  </Button>
+                )}
+                <IconButton
+                  size="sm"
+                  icon="trash"
+                  label={t('accounts.remove', { name: a.name })}
+                  onClick={() => void removeAccount(a.id)}
+                />
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      {kinds.length > 0 && chosen && (
+        <form
+          className="accounts__add"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (name.trim() && (await addAccount(chosen, name.trim()))) setName('');
+          }}
+        >
+          <select
+            className="l-input"
+            aria-label={t('accounts.kind')}
+            value={chosen}
+            onChange={(e) => setKind(e.target.value as CliKind)}
+          >
+            {kinds.map((k) => (
+              <option key={k} value={k}>
+                {t(`agent.kind.${k}`)}
+              </option>
+            ))}
+          </select>
+          <input
+            className="l-input grow"
+            value={name}
+            maxLength={40}
+            placeholder={t('accounts.namePlaceholder')}
+            aria-label={t('accounts.name')}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <Button size="sm" icon="plus" type="submit" disabled={!name.trim()}>
+            {t('accounts.add')}
+          </Button>
+        </form>
+      )}
+    </section>
+  );
+}
+
 export function AgentList() {
   const { t } = useTranslation();
   const agents = useApp((s) => s.clis);
@@ -309,6 +396,7 @@ export function AgentList() {
           ))}
         </motion.ul>
       )}
+      <Accounts />
     </div>
   );
 }

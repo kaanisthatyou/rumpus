@@ -394,6 +394,32 @@
   border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
   color: var(--ink-2);
 }
+.accounts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+.accounts__title {
+  margin: 0;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--meta);
+}
+.accounts__hint {
+  margin: 0;
+  font-size: 12px;
+}
+.accounts__add {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.accounts__add .l-input {
+  height: 32px;
+  min-width: 0;
+}
 .agents__list {
   list-style: none;
   margin: 0;

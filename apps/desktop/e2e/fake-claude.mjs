@@ -10,7 +10,14 @@ if (args[0] === '--version') {
   process.exit(0);
 }
 if (args[0] === 'auth') {
-  console.log(JSON.stringify({ loggedIn: true, authMethod: 'claude.ai', subscriptionType: 'pro' }));
+  // An extra account (its own config folder) is signed out until its own login ran.
+  console.log(
+    JSON.stringify(
+      process.env.CLAUDE_CONFIG_DIR
+        ? { loggedIn: false }
+        : { loggedIn: true, authMethod: 'claude.ai', subscriptionType: 'pro' },
+    ),
+  );
   process.exit(0);
 }
 

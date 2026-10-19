@@ -35,7 +35,10 @@ export interface JobsDeps {
   me: () => { id: string; name: string; language: Language };
   emitJob: (job: Job) => void;
   emitMessage: (message: Message) => void;
-  emitQuota: (kind: CliKind, quota: Quota) => void;
+  /** `key` is the CLI, or `<cli>:<account>` for an agent on an extra login. */
+  emitQuota: (key: string, quota: Quota) => void;
+  /** The environment of the agent's account (its CLI config folder), when it runs on an extra login. */
+  accountEnv?(agent: Agent): Record<string, string> | undefined;
   drivers?: Partial<Record<CliKind, OpenSession>>;
   launch?: (path: string) => Launch;
   /** The records a message refers to: their notes for the prompt, their images as attachments. */
@@ -91,7 +94,7 @@ export function mentions(text: string): string[] {
 export class Jobs {
   private readonly live = new Map<string, Live>();
   private readonly timers = new Map<string, NodeJS.Timeout>();
-  readonly quotas: Partial<Record<CliKind, Quota>> = {};
+  readonly quotas: Record<string, Quota> = {};
 
   constructor(private readonly deps: JobsDeps) {
     mkdirSync(join(deps.dir, 'jobs'), { recursive: true });
@@ -303,6 +306,7 @@ export class Jobs {
         live.agent.mode !== agent.mode ||
         live.agent.model !== agent.model ||
         live.agent.folder !== agent.folder ||
+        live.agent.account !== agent.account ||
         live.agent.instructions !== agent.instructions)
     ) {
       this.close(live); // settings changed: start again, keeping the conversation
@@ -311,6 +315,7 @@ export class Jobs {
     if (!live) {
       const me = this.deps.me();
       const resume = this.deps.store.session(agent.id, slot);
+      const env = this.deps.accountEnv?.(agent);
       const mcpUrl = this.deps.gateway ? await this.deps.gateway.ready() : undefined;
       const token = mcpUrl
         ? this.deps.gateway?.issue({ agentId: agent.id, channelId: channel.id, ...(opts.scope ? { slot } : {}) })
@@ -333,6 +338,7 @@ export class Jobs {
           ...(resume ? { resume } : {}),
           systemPrompt: systemPrompt(agent, { user: me.name, language: me.language }, layerSet),
           ...(mcpUrl && token ? { mcp: { url: mcpUrl, token } } : {}),
+          ...(env ? { env } : {}),
         },
         (e) => this.onEvent(created, e),
       );
@@ -509,8 +515,9 @@ export class Jobs {
       return;
     }
     if (e.type === 'quota') {
-      this.quotas[live.agent.kind] = e.quota;
-      this.deps.emitQuota(live.agent.kind, e.quota);
+      const key = live.agent.account ? `${live.agent.kind}:${live.agent.account}` : live.agent.kind;
+      this.quotas[key] = e.quota;
+      this.deps.emitQuota(key, e.quota);
       return;
     }
     const job = live.job;

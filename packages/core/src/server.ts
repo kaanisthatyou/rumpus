@@ -14,6 +14,7 @@ import {
   type Card,
   type Channel,
   CLI_KINDS,
+  type CliAccount,
   type CliInfo,
   type CliKind,
   CoreError,
@@ -38,8 +39,9 @@ import {
   type WorkspaceState,
   type WorkspaceSummary,
 } from '@lonca/protocol';
+import { Accounts } from './accounts.js';
 import { Advisors } from './advisors.js';
-import { detectAgents, loginCommand } from './agents.js';
+import { detectAgents, loginCommand, readLogin } from './agents.js';
 import { Blobs } from './blobs.js';
 import type { OpenSession } from './drivers/types.js';
 import { Gateway, type Tool, type ToolContent } from './gateway.js';
@@ -216,11 +218,13 @@ export class Core {
   private phonePort: number | undefined;
   private readonly projectCache = new Map<string, { at: number; text: Promise<string> }>();
   private projectGitRunner: ProjectGit | undefined;
+  private readonly accounts: Accounts;
   private readonly handlers: { [M in MethodName]: Handler<M> };
 
   constructor(private readonly opts: CoreOptions) {
     this.settings = new SettingsStore(join(opts.appDir, 'settings.json'), opts.language);
     this.deviceId = this.loadDeviceId();
+    this.accounts = new Accounts(join(opts.appDir, 'accounts.json'), join(opts.appDir, 'accounts'));
     this.handlers = {
       'settings.get': async () => this.settings.get(),
       'settings.update': async (patch) => {
@@ -232,7 +236,19 @@ export class Core {
         return next;
       },
       'clis.list': async (params) => this.listClis(params?.refresh === true),
-      'clis.login': async (params) => this.login(params?.kind),
+      'clis.login': async (params) => this.login(params?.kind, params?.account),
+      'accounts.list': async (p) => this.accountList(p?.refresh === true),
+      'accounts.add': async (p) => {
+        const name = typeof p?.name === 'string' ? p.name.trim().slice(0, 40) : '';
+        if (!name || (p?.kind !== 'claude-code' && p?.kind !== 'codex')) throw new CoreError('bad_request');
+        this.accounts.add(p.kind, name);
+        return this.accountList(true);
+      },
+      'accounts.remove': async (p) => {
+        if (typeof p?.id !== 'string' || !this.accounts.get(p.id)) throw new CoreError('not_found');
+        this.accounts.remove(p.id);
+        return this.accountList(false);
+      },
       'tailscale.status': async () =>
         tailscaleStatus({
           ...(opts.runner ? { runner: opts.runner } : {}),
@@ -672,7 +688,7 @@ export class Core {
     return clis;
   }
 
-  private async login(kind: unknown): Promise<{ opened: boolean }> {
+  private async login(kind: unknown, account?: unknown): Promise<{ opened: boolean }> {
     if (typeof kind !== 'string' || !(CLI_KINDS as readonly string[]).includes(kind)) {
       throw new CoreError('bad_request', 'kind');
     }
@@ -681,9 +697,33 @@ export class Core {
     const args = loginCommand(kind as CliKind);
     if (!cli?.path) throw new CoreError('not_installed', kind);
     if (!args) throw new CoreError('login_unavailable', kind);
-    const opened = (this.opts.openConsole ?? openConsole)(cli.path, args, this.opts.platform);
+    const entry = typeof account === 'string' ? this.accounts.get(account) : undefined;
+    if (account !== undefined && entry?.kind !== kind) throw new CoreError('not_found', 'account');
+    const env = this.accounts.env(entry?.id);
+    const opened = (this.opts.openConsole ?? openConsole)(cli.path, args, this.opts.platform, env);
     if (!opened) throw new CoreError('login_unavailable', kind);
     return { opened };
+  }
+
+  private accountCache: CliAccount[] | undefined;
+
+  /** This computer's extra CLI logins, each read with its CLI's status command under its own config folder. */
+  private async accountList(refresh: boolean): Promise<CliAccount[]> {
+    const entries = this.accounts.list();
+    if (!refresh && this.accountCache && this.accountCache.length === entries.length) return this.accountCache;
+    const clis = await this.listClis(false);
+    const base = this.opts.env ?? process.env;
+    const out = await Promise.all(
+      entries.map(async (a): Promise<CliAccount> => {
+        const path = clis.find((c) => c.kind === a.kind)?.path;
+        const reading = path
+          ? await readLogin(a.kind, path, { ...base, ...this.accounts.env(a.id) }, this.opts.runner ?? run)
+          : { state: 'missing' as const };
+        return { id: a.id, kind: a.kind, name: a.name, folder: this.accounts.folder(a.id), ...reading };
+      }),
+    );
+    this.accountCache = out;
+    return out;
   }
 
   // ---------------------------------------------------------------- workspace
@@ -885,6 +925,7 @@ export class Core {
         }),
       emitMessage: (message) => inWs(() => this.emit('message.added', message)),
       emitQuota: (kind, quota) => this.emit('quota.changed', { kind, quota }),
+      accountEnv: (agent) => this.accounts.env(agent.account),
       ...(this.opts.drivers ? { drivers: this.opts.drivers } : {}),
       ...(this.opts.launch ? { launch: this.opts.launch } : {}),
     });
@@ -1583,6 +1624,7 @@ export class Core {
     )
       throw new CoreError('handle_taken');
     if (!isDir(p.folder)) throw new CoreError('folder_missing');
+    if (p.account && this.accounts.get(p.account)?.kind !== p.kind) throw new CoreError('invalid_agent', 'account');
     const agent: Agent = {
       id: existing?.id ?? newId(),
       kind: p.kind,
@@ -1591,6 +1633,7 @@ export class Core {
       folder: p.folder,
       mode: p.mode,
       ...(p.model ? { model: p.model } : {}),
+      ...(p.account ? { account: p.account } : {}),
       instructions: p.instructions,
       owner: existing?.owner ?? this.deviceId,
       ...(p.access ? { access: p.access } : existing?.access ? { access: existing.access } : {}),

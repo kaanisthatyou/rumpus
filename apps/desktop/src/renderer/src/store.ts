@@ -5,6 +5,7 @@ import type {
   AgentInput,
   Card,
   CardStatus,
+  CliAccount,
   CliInfo,
   CliKind,
   Goal,
@@ -59,7 +60,10 @@ interface AppState {
   channelId?: string;
   messages: Record<string, Message[]>;
   jobs: Record<string, Job>;
-  quota: Partial<Record<CliKind, Quota>>;
+  /** Per CLI (`claude-code`) and per extra account (`claude-code:<id>`). */
+  quota: Record<string, Quota>;
+  /** This computer's extra CLI logins. */
+  accounts: CliAccount[];
   /** The job shown in the live view, if any. */
   watching?: string;
   /** The agent dialog: an agent to edit, `new` for a new one, or closed. */
@@ -103,7 +107,10 @@ interface AppState {
   init(): Promise<void>;
   patch(patch: SettingsPatch): Promise<void>;
   scan(): Promise<void>;
-  login(kind: CliKind): Promise<void>;
+  login(kind: CliKind, account?: string): Promise<void>;
+  loadAccounts(refresh?: boolean): Promise<void>;
+  addAccount(kind: CliKind, name: string): Promise<boolean>;
+  removeAccount(id: string): Promise<void>;
   refreshTailscale(): Promise<void>;
   refreshSystem(): Promise<void>;
   clearError(): void;
@@ -224,6 +231,7 @@ export const useApp = create<AppState>((set, get) => {
     messages: {},
     jobs: {},
     quota: {},
+    accounts: [],
     cards: [],
     records: [],
     projects: [],
@@ -376,6 +384,7 @@ export const useApp = create<AppState>((set, get) => {
       set({ settings, app, update });
       void get().refreshSystem();
       void get().scan();
+      void get().loadAccounts();
       void get().refreshTailscale();
       if (settings.onboarded) void get().loadWorkspace();
       // The core may restart; read its state again when a new connection arrives.
@@ -418,8 +427,25 @@ export const useApp = create<AppState>((set, get) => {
       }
     },
 
-    async login(kind) {
-      if (await attempt(() => core.call('clis.login', { kind }))) set({ loginPending: true });
+    async login(kind, account) {
+      if (await attempt(() => core.call('clis.login', { kind, ...(account ? { account } : {}) })))
+        set({ loginPending: true });
+    },
+
+    async loadAccounts(refresh = false) {
+      const accounts = await attempt(() => core.call('accounts.list', { refresh }));
+      if (accounts) set({ accounts });
+    },
+
+    async addAccount(kind, name) {
+      const accounts = await attempt(() => core.call('accounts.add', { kind, name }));
+      if (accounts) set({ accounts });
+      return Boolean(accounts);
+    },
+
+    async removeAccount(id) {
+      const accounts = await attempt(() => core.call('accounts.remove', { id }));
+      if (accounts) set({ accounts });
     },
 
     async refreshTailscale() {
@@ -787,5 +813,6 @@ window.addEventListener('focus', () => {
   if (s.loginPending) {
     useApp.setState({ loginPending: false });
     void s.scan();
+    void s.loadAccounts(true);
   }
 });

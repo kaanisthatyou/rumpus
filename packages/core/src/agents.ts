@@ -188,6 +188,20 @@ async function detectOne(spec: KindSpec, ctx: Ctx, runner: Runner): Promise<CliI
   };
 }
 
+/** The login state of one CLI under another config folder (an account), read with the CLI's own status command. */
+export async function readLogin(
+  kind: CliKind,
+  path: string,
+  env: NodeJS.ProcessEnv,
+  runner: Runner = defaultRun,
+): Promise<{ state: CliState; auth?: string; plan?: string }> {
+  const spec = SPECS.find((s) => s.kind === kind);
+  if (!spec?.authArgs || !spec.parseAuth) return { state: 'unknown' };
+  const r = await runner(path, spec.authArgs, { timeoutMs: 10_000, env });
+  if (r.timedOut || r.failed) return { state: 'unknown' };
+  return spec.parseAuth(r, { home: homedir(), env, platform: process.platform });
+}
+
 export async function detectAgents(opts: DetectOptions = {}): Promise<CliInfo[]> {
   const ctx: Ctx = {
     home: opts.home ?? homedir(),

@@ -221,6 +221,22 @@ try {
   await settingsDialog.getByText(L.instructions.isDefault, { exact: true }).waitFor();
   await page.keyboard.press('Escape');
 
+  // A second login of the CLI: added in Settings, signed out until its own login runs, offered in the agent form.
+  await page.keyboard.press('Control+Comma');
+  await settingsDialog.getByRole('button', { name: L.settings.tabs.agents }).click();
+  await settingsDialog.getByLabel(L.accounts.name).fill('İkinci hesap');
+  await settingsDialog.getByRole('button', { name: L.accounts.add }).click();
+  const accountRow = settingsDialog.locator('.accounts .agent', { hasText: 'İkinci hesap' });
+  await accountRow.getByText(L.agent.state['signed-out']).waitFor();
+  await accountRow.getByRole('button', { name: L.agent.login }).waitFor();
+  await shot(page, 'accounts');
+  await page.keyboard.press('Escape');
+  await page.locator('.who', { hasText: '@claude' }).getByRole('button', { name: L.agentForm.edit }).click();
+  const editAgent = page.getByRole('dialog', { name: L.agentForm.edit });
+  const accountSelect = editAgent.getByLabel(L.accounts.agentField);
+  assert.deepEqual(await accountSelect.locator('option').allTextContents(), [L.accounts.default, 'İkinci hesap']);
+  await editAgent.getByRole('button', { name: L.agentForm.cancel }).click();
+
   // The shortcut list, then back to the channel through the palette.
   await page.keyboard.press('Control+/');
   await page.getByRole('dialog', { name: L.shortcuts.title }).waitFor();

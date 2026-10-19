@@ -723,6 +723,12 @@ The details behind 5.11 and 6.5, decided before building.
   past six parts per request; a part may start up to two hours after the handing job started. The message shows a
   "handed-over part" label. Covered by unit tests on one computer and between two (Kaan's agent hands a part to
   Arda's, which runs capped at read on Arda's computer and answers back).
+- 4.4 Several logins per CLI (Fabrika's second worker on another Claude login): Settings → Agents → Accounts adds an
+  extra login of Claude Code or Codex on this computer. Each is a config folder of the CLI's own under
+  `<app>/accounts/<id>` (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`), signed in with the CLI's own login opened there; its
+  state is read with the CLI's status command under that folder. An agent can run on an account; its quota shows
+  under the account's name. Accounts stay on this computer (`<app>/accounts.json`); removing one leaves its folder.
+  Covered by a unit test and `e2e/channel.mjs` (an account added, signed out, offered in the agent form).
 
 ## 9. Risks
 

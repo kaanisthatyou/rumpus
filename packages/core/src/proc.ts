@@ -146,10 +146,17 @@ export function openConsole(
   file: string,
   args: readonly string[],
   platform: NodeJS.Platform = process.platform,
+  /** Extra variables for the CLI (an account's config folder). */
+  env?: Record<string, string>,
 ): boolean {
   const start = (cmd: string, cmdArgs: string[]): boolean => {
     try {
-      const child = nodeSpawn(cmd, cmdArgs, { detached: true, stdio: 'ignore', windowsHide: false });
+      const child = nodeSpawn(cmd, cmdArgs, {
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: false,
+        ...(env ? { env: { ...process.env, ...env } } : {}),
+      });
       child.on('error', () => {});
       child.unref();
       return true;

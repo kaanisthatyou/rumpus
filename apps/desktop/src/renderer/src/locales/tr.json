@@ -822,5 +822,17 @@
   "handover": {
     "part": "Devredilen parça",
     "hint": "Bir kişinin isteği üzerinde çalışan ajanın başka bir ajana verdiği parça. Aynı kişinin isteği olarak çalışır; bir daha devredilemez."
+  },
+  "accounts": {
+    "title": "Hesaplar",
+    "hint": "Aynı CLI'nin bu bilgisayardaki ek girişleri; örneğin bir aboneliğin kotası bitince ikinci bir hesap. Her hesap CLI'nin kendi ayar klasöründe tutulur ve CLI'nin kendi girişiyle açılır; Lonca giriş dosyalarını okumaz.",
+    "kind": "CLI",
+    "name": "Hesap adı",
+    "namePlaceholder": "Örneğin İkinci hesap",
+    "add": "Hesap ekle",
+    "remove": "{{name}} hesabını kaldır",
+    "agentField": "Hesap",
+    "default": "Varsayılan giriş",
+    "agentHint": "Bu ajanın işleri seçilen girişle ve onun kotasıyla çalışır."
   }
 }

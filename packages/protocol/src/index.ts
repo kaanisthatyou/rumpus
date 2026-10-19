@@ -147,6 +147,17 @@ export interface CliInfo {
   install: { windows: string; linux: string; docs: string };
 }
 
+/** An extra login of a CLI on this computer: its own config folder, signed in with the CLI's own login. */
+export interface CliAccount {
+  id: string;
+  kind: CliKind;
+  name: string;
+  folder: string;
+  state: CliState;
+  auth?: string;
+  plan?: string;
+}
+
 export interface PhoneState {
   on: boolean;
   /** The address phones open (https behind `tailscale serve`), once it works. */
@@ -175,7 +186,12 @@ export interface CoreMethods {
   'settings.get': { params: undefined; result: Settings };
   'settings.update': { params: SettingsPatch; result: Settings };
   'clis.list': { params: { refresh?: boolean }; result: CliInfo[] };
-  'clis.login': { params: { kind: CliKind }; result: { opened: boolean } };
+  'clis.login': { params: { kind: CliKind; account?: string }; result: { opened: boolean } };
+  /** This computer's extra CLI logins with their state (read with each CLI's status command, no tokens). */
+  'accounts.list': { params: { refresh?: boolean }; result: CliAccount[] };
+  'accounts.add': { params: { kind: CliKind; name: string }; result: CliAccount[] };
+  /** Forgets an account; its folder stays (the CLI's own files). */
+  'accounts.remove': { params: { id: string }; result: CliAccount[] };
   'tailscale.status': { params: undefined; result: TailscaleInfo };
   'system.info': {
     params: undefined;
@@ -236,7 +252,8 @@ export interface CoreMethods {
   'jobs.steer': { params: { id: string; text: string }; result: { ok: true } };
   'jobs.answer': { params: { id: string; allow: boolean }; result: { ok: true } };
   'jobs.transcript': { params: { id: string }; result: TranscriptEntry[] };
-  'quota.get': { params: undefined; result: Partial<Record<CliKind, Quota>> };
+  /** Quota per CLI (`claude-code`) and per extra account (`claude-code:<account id>`). */
+  'quota.get': { params: undefined; result: Record<string, Quota> };
   'cards.list': { params: undefined; result: Card[] };
   'cards.create': { params: { title: string; channelId?: string; agentHandle?: string }; result: Card };
   'cards.update': {
@@ -277,7 +294,8 @@ export interface CoreEvents {
   'message.updated': Message;
   'message.deleted': { id: string; channelId: string };
   'job.updated': Job;
-  'quota.changed': { kind: CliKind; quota: Quota };
+  /** `kind` is the CLI, or `<cli>:<account id>` for an extra account. */
+  'quota.changed': { kind: string; quota: Quota };
   'card.changed': Card;
   'card.deleted': { id: string };
   'record.changed': RecordItem;

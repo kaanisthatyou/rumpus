@@ -822,5 +822,17 @@
   "handover": {
     "part": "Handed-over part",
     "hint": "A part of a person's request that the agent working on it gave to another agent. It runs as the same person's request and cannot be handed on."
+  },
+  "accounts": {
+    "title": "Accounts",
+    "hint": "Extra logins of the same CLI on this computer, for example a second account for when a subscription's quota runs out. Each account is the CLI's own config folder and is signed in with the CLI's own login; Lonca does not read the login files.",
+    "kind": "CLI",
+    "name": "Account name",
+    "namePlaceholder": "For example Second account",
+    "add": "Add account",
+    "remove": "Remove account {{name}}",
+    "agentField": "Account",
+    "default": "Default login",
+    "agentHint": "This agent's jobs run on the chosen login and its quota."
   }
 }

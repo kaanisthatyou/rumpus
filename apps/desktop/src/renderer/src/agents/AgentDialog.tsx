@@ -55,6 +55,9 @@ export function AgentDialog() {
   const [model, setModel] = useState(existing?.model ?? '');
   const [instructions, setInstructions] = useState(existing?.instructions ?? '');
   const [access, setAccess] = useState<AgentAccess>(existing?.access ?? DEFAULT_ACCESS);
+  const [account, setAccount] = useState(existing?.account ?? '');
+  const allAccounts = useApp((s) => s.accounts);
+  const accounts = useMemo(() => allAccounts.filter((a) => a.kind === kind), [allAccounts, kind]);
   const team = useApp((s) => s.workspace?.kind === 'team');
 
   useEffect(() => {
@@ -92,6 +95,7 @@ export function AgentDialog() {
             folder,
             mode,
             ...(model.trim() ? { model: model.trim() } : {}),
+            ...(account && accounts.some((a) => a.id === account) ? { account } : {}),
             instructions,
             ...(team ? { access } : {}),
           });
@@ -212,6 +216,27 @@ export function AgentDialog() {
                   )}
                   <span className="l-field__hint">{t(`agentForm.access.hint.${access.who}`)}</span>
                 </fieldset>
+              )}
+              {accounts.length > 0 && (
+                <div className="l-field">
+                  <label className="l-field__label" htmlFor="agent-account">
+                    {t('accounts.agentField')}
+                  </label>
+                  <select
+                    id="agent-account"
+                    className="l-input"
+                    value={account}
+                    onChange={(e) => setAccount(e.target.value)}
+                  >
+                    <option value="">{t('accounts.default')}</option>
+                    {accounts.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="l-field__hint">{t('accounts.agentHint')}</span>
+                </div>
               )}
               <TextField
                 label={t('agentForm.model')}

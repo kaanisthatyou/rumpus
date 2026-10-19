@@ -311,13 +311,17 @@ function Placeholder({ view }: { view: View }) {
   );
 }
 
-function QuotaBlock({ kind, quota }: { kind: CliKind; quota: Quota }) {
+function QuotaBlock({ id, quota }: { id: string; quota: Quota }) {
   const { t } = useTranslation();
+  // `claude-code` or `claude-code:<account>`: an extra login is named after its account.
+  const [kind, accountId] = id.split(':') as [CliKind, string | undefined];
+  const account = useApp((s) => (accountId ? s.accounts.find((a) => a.id === accountId) : undefined));
   const windows = Object.entries(quota.windows).sort(([a], [b]) => a.localeCompare(b));
   if (windows.length === 0) return null;
+  const cli = t(`agent.kind.${kind}`);
   return (
     <div className="quota">
-      <b>{t('quota.title', { cli: t(`agent.kind.${kind}`) })}</b>
+      <b>{t('quota.title', { cli: account ? `${cli} · ${account.name}` : cli })}</b>
       {windows.map(([name, w]) => (
         <div key={name} className="quota__row">
           <span className="quota__name">{t(`quota.window.${name}`, name)}</span>
@@ -606,7 +610,7 @@ function Crew() {
         </div>
       )}
       <span className="grow" />
-      {Object.entries(quota).map(([kind, q]) => q && <QuotaBlock key={kind} kind={kind as CliKind} quota={q} />)}
+      {Object.entries(quota).map(([id, q]) => q && <QuotaBlock key={id} id={id} quota={q} />)}
     </motion.aside>
   );
 }
