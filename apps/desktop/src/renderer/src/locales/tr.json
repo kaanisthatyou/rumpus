@@ -401,7 +401,8 @@
     "council": "Danışmanlar bir konuyu sırayla tartışır, biri özetler",
     "goal": "Bir agent'a hedef: plan, onay, adım adım iş",
     "remember": "Kişisel notlara bir satır ekler",
-    "status": "Her bilgisayardaki CLI'lar, hesaplar ve kotalar"
+    "status": "Her bilgisayardaki CLI'lar, hesaplar ve kotalar",
+    "digest": "Kanalın son 24 saatini bir danışman özetler (/özet 6, /özet hafta, @danışman)"
   },
   "palette": {
     "placeholder": "Kanal, agent, proje, görünüm, eylem ya da mesaj",

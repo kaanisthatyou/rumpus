@@ -233,6 +233,27 @@ describe('Advisors', () => {
     expect(u.events.messages).toHaveLength(0);
   });
 
+  it('sums up the last hours of a channel on /özet, reading more of it than a normal turn', async () => {
+    const t = setup(() => '- Login bitti' + String.fromCharCode(10) + '- Testler açık');
+    t.store.commit({ type: 'advisor.saved', data: advisor() });
+    t.store.commit({ type: 'advisor.saved', data: advisor({ id: 'a2', handle: 'olumlu', name: 'Olumlu' }) });
+    t.post('dünkü konu');
+    t.setNow(NOON + 30 * 60 * 60 * 1000);
+    for (let i = 0; i < 40; i++) t.post(`mesaj ${i}`);
+    expect(t.advisors.digest(t.channel, 24, 'olumlu')?.handle).toBe('olumlu');
+    await t.settle();
+    expect(t.events.messages[0]).toMatchObject({
+      author: { name: 'Olumlu' },
+      text: '- Login bitti' + String.fromCharCode(10) + '- Testler açık',
+    });
+    const user = t.requests[0]?.messages[0]?.content ?? '';
+    expect(user).toContain('mesaj 0');
+    expect(user).toContain('mesaj 39');
+    expect(user).not.toContain('dünkü konu');
+    expect(user).toContain('last 24 hours');
+    expect(t.advisors.digest({ ...t.channel, id: 'nope' }, 24)).toBeDefined();
+  });
+
   it('runs a council: two rounds in turn, then a summary', async () => {
     const t = setup((req) => {
       const c = req.messages[0]?.content ?? '';

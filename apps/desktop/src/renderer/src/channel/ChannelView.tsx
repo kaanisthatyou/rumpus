@@ -265,7 +265,10 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
       icon: 'chevronRight' as const,
     },
     ...(channel.kind === 'channel'
-      ? [{ key: 'meclis', insert: '/meclis ', label: '/meclis', detail: t('commands.council'), icon: 'chat' as const }]
+      ? [
+          { key: 'meclis', insert: '/meclis ', label: '/meclis', detail: t('commands.council'), icon: 'chat' as const },
+          { key: 'digest', insert: '/özet ', label: '/özet', detail: t('commands.digest'), icon: 'chat' as const },
+        ]
       : []),
     { key: 'status', insert: '/durum', label: '/durum', detail: t('commands.status'), icon: 'terminal' as const },
     ...(own
@@ -393,6 +396,19 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
     const meclis = /^\/meclis(?:\s+([\s\S]*))?$/.exec(value);
     if (meclis && channel.kind === 'channel') {
       if (await council(channel.id, meclis[1]?.trim() ?? '')) setText('');
+      return;
+    }
+    // `/özet [hours | gün | hafta] [@advisor]`: a summary of the channel by one of its advisors.
+    const digest = /^\/(?:özet|ozet|summary)(?:\s+([\s\S]*))?$/i.exec(value);
+    if (digest && channel.kind === 'channel') {
+      const args = digest[1]?.trim() ?? '';
+      const handle = /@([a-z0-9][a-z0-9-]*)/.exec(args)?.[1];
+      const word = args
+        .replace(/@[a-z0-9-]+/g, '')
+        .trim()
+        .toLocaleLowerCase('tr');
+      const hours = /^\d+$/.test(word) ? Number(word) : /^(hafta|week)/.test(word) ? 168 : 24;
+      if (await useApp.getState().digest(channel.id, hours, handle)) setText('');
       return;
     }
     if (value === '/durum') {

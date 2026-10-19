@@ -73,10 +73,15 @@ type Reason =
   | { kind: 'idle' }
   | { kind: 'goalStep'; goal: string; index: number; total: number; step: string; report: string }
   | { kind: 'council'; topic: string; round: number; rounds: number }
-  | { kind: 'summary'; topic: string };
+  | { kind: 'summary'; topic: string }
+  | { kind: 'digest'; hours: number };
 
 /** Asked by a person: answered even in quiet hours and after a run of bot turns. */
-const asked = (r: Reason) => r.kind === 'mention' || r.kind === 'council' || r.kind === 'summary';
+const asked = (r: Reason) =>
+  r.kind === 'mention' || r.kind === 'council' || r.kind === 'summary' || r.kind === 'digest';
+/** `/özet`: the most messages and characters of the channel a summary reads. */
+const DIGEST_MESSAGES = 300;
+const DIGEST_CHARS = 40_000;
 
 export function inQuietHours(at: Date, quiet: { from: string; to: string }): boolean {
   const mins = (s: string) => {
@@ -268,6 +273,17 @@ export class Advisors {
     return run();
   }
 
+  /**
+   * `/özet [hours]`: one advisor of the channel (the one named, else the first) sums up its last hours. Returns the
+   * advisor, or undefined when the channel has none on this computer.
+   */
+  digest(channel: Channel, hours: number, handle?: string): Advisor | undefined {
+    const members = this.councilMembers(channel);
+    const a = (handle ? members.find((m) => m.handle === handle) : undefined) ?? members[0];
+    if (a) void this.speak(a, channel, { kind: 'digest', hours });
+    return a;
+  }
+
   councilMembers(channel: Channel): Advisor[] {
     return this.mine().filter((a) => this.livesIn(a, channel));
   }
@@ -315,7 +331,7 @@ export class Advisors {
             system,
             messages,
             ...(tools ? { tools } : {}),
-            maxTokens: reason.kind === 'summary' ? 900 : 700,
+            maxTokens: reason.kind === 'summary' || reason.kind === 'digest' ? 1200 : 700,
             temperature: 0.7,
           });
         } catch (e) {
@@ -409,7 +425,12 @@ export class Advisors {
     if (cards.length) parts.push(`<board>\n${cards.join('\n')}\n</board>`);
     const lines: string[] = [];
     let size = 0;
-    for (const m of store.messages(channel.id, { limit: HISTORY }).reverse()) {
+    const digest = reason.kind === 'digest';
+    const since = digest ? this.now() - reason.hours * HOUR : 0;
+    const history = store
+      .messages(channel.id, { limit: digest ? DIGEST_MESSAGES : HISTORY })
+      .filter((m) => m.created >= since);
+    for (const m of history.reverse()) {
       const who =
         m.author.kind === 'system'
           ? 'Lonca'
@@ -420,7 +441,7 @@ export class Advisors {
               : m.author.name;
       const line = `[${clockOf(m.created)}] ${who}: ${m.text.slice(0, 800)}`;
       size += line.length;
-      if (size > 12_000) break;
+      if (size > (digest ? DIGEST_CHARS : 12_000)) break;
       lines.unshift(line);
     }
     parts.push(`<channel name="#${channel.name}">\n${lines.join('\n') || '(empty)'}\n</channel>`);
@@ -455,6 +476,11 @@ export class Advisors {
       case 'council':
         parts.push(
           `Task: council on "${reason.topic}", round ${reason.round} of ${reason.rounds}. Give your view in two to four sentences.${reason.round > 1 ? ' Respond to points the other advisors made; do not repeat yourself.' : ''}`,
+        );
+        break;
+      case 'digest':
+        parts.push(
+          `Task: a person asked for a summary of this channel over the last ${reason.hours} hours (the messages above). Write five to ten short bullet points: what was decided, what was done (jobs and their results), what is open or blocked, and who waits on whom. Point at messages by their time. Facts first; add at most one line of your own view at the end.`,
         );
         break;
       case 'summary':

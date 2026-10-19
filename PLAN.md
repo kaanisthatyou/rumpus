@@ -734,6 +734,10 @@ The details behind 5.11 and 6.5, decided before building.
   latest quota, this computer first. In a team workspace the others are asked over the live link (never stored) and
   answer within seconds, at most every three seconds each; answers are kept to their expected shape. Covered by the
   two-core unit test and `e2e/channel.mjs`.
+- 4.6 `/özet [hours | hafta] [@advisor]`: an advisor of the channel (the one named, else the first) sums up the
+  channel's last hours (24 by default): decisions, done work, what is open or blocked, who waits on whom. It reads up
+  to 300 messages of the period instead of a normal turn's 30, on its own budget and provider; the summary is the
+  advisor's message, so Lonca never speaks as itself. Covered by a unit test.
 
 ## 9. Risks
 

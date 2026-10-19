@@ -401,7 +401,8 @@
     "council": "Advisors discuss a topic in turn and one sums up",
     "goal": "A goal for an agent: plan, approval, step by step",
     "remember": "Adds a line to the personal notes",
-    "status": "CLIs, accounts and quota on every computer"
+    "status": "CLIs, accounts and quota on every computer",
+    "digest": "An advisor sums up the channel's last 24 hours (/özet 6, /özet week, @advisor)"
   },
   "palette": {
     "placeholder": "Channel, agent, project, view, action or message",

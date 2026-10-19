@@ -262,6 +262,8 @@ export interface CoreMethods {
   'goals.resume': { params: { id: string; more?: Partial<GoalBudget> }; result: Goal };
   /** `/meclis`: the advisors in the channel discuss a topic in turn and one sums up. */
   'advisors.council': { params: { channelId: string; topic: string }; result: Message };
+  /** `/özet [hours]`: an advisor of the channel (the one named, else the first) sums up its last hours. */
+  'advisors.digest': { params: { channelId: string; hours?: number; handle?: string }; result: Message };
   'jobs.stop': { params: { id: string }; result: { ok: true } };
   'jobs.steer': { params: { id: string; text: string }; result: { ok: true } };
   'jobs.answer': { params: { id: string; allow: boolean }; result: { ok: true } };

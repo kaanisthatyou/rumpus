@@ -156,6 +156,7 @@ interface AppState {
   saveAdvisor(input: AdvisorInput): Promise<boolean>;
   deleteAdvisor(id: string): Promise<void>;
   council(channelId: string, topic: string): Promise<boolean>;
+  digest(channelId: string, hours: number, handle?: string): Promise<boolean>;
   createCard(title: string, opts?: { channelId?: string; agentHandle?: string }): Promise<boolean>;
   updateCard(
     id: string,
@@ -700,6 +701,12 @@ export const useApp = create<AppState>((set, get) => {
 
     async council(channelId, topic) {
       return Boolean(await attempt(() => core.call('advisors.council', { channelId, topic })));
+    },
+
+    async digest(channelId, hours, handle) {
+      return Boolean(
+        await attempt(() => core.call('advisors.digest', { channelId, hours, ...(handle ? { handle } : {}) })),
+      );
     },
 
     async createCard(title, opts = {}) {

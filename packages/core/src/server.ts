@@ -351,6 +351,26 @@ export class Core {
       'advisors.save': async (p) => this.saveAdvisor(p),
       'advisors.delete': async (p) => this.deleteAdvisor(p?.id),
       'advisors.council': async (p) => this.council(p?.channelId, p?.topic),
+      'advisors.digest': async (p) => {
+        const { store, advisors } = this.workspace();
+        const channel = typeof p?.channelId === 'string' ? store.channel(p.channelId) : undefined;
+        if (channel?.kind !== 'channel') throw new CoreError('not_found');
+        const hours = Math.min(Math.max(Math.round(Number(p?.hours) || 24), 1), 24 * 14);
+        const handle = typeof p?.handle === 'string' ? p.handle : undefined;
+        if (advisors.councilMembers(channel).length === 0) throw new CoreError('no_advisors');
+        const me = this.me();
+        const message: Message = {
+          id: newId(),
+          channelId: channel.id,
+          author: { kind: 'person', id: me.id, name: me.name },
+          text: `/özet ${hours}${handle ? ` @${handle}` : ''}`,
+          created: Date.now(),
+        };
+        store.commit({ type: 'message.posted', data: message });
+        this.emit('message.added', message);
+        advisors.digest(channel, hours, handle);
+        return message;
+      },
       'goals.list': async () => this.workspace().goals.list(),
       'goals.create': async (p) => {
         this.requireRole('editor');
