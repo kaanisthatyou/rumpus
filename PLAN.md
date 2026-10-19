@@ -747,8 +747,9 @@ The details behind 5.11 and 6.5, decided before building.
   holds it, the palette's "Hızlı giriş" opens the same window) shows a small always-on-top window on the screen the
   pointer is on: a channel or agent to write to (the last one used is remembered) and a message box; Enter sends and
   the window hides, as it does on Esc or when it loses focus. It is the same UI bundle with its own connection to the
-  core. Not yet: rebinding its key in Settings. Covered by `e2e/channel.mjs` (opened from the palette, a message sent
-  to #genel).
+  core. Its key is rebound in Settings → Shortcuts like the others; the main process registers the new one first and
+  keeps the old one when another app holds it. Covered by `e2e/channel.mjs` (opened from the palette, a message sent
+  to #genel, the key listed in Settings) and the packaged build's smoke and channel runs.
 - 4.8 Per-advisor notes (5.7): an advisor that ends an answer with a `/not <note>` line keeps the note (dated, at most
   2000 characters, the oldest lines go first) on the computer it runs on; the line is not shown, and the notes go
   into that advisor's prompt only. Its owner reads and edits them in the advisor form. Covered by a unit test.

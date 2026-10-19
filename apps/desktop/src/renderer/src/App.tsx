@@ -94,6 +94,9 @@ export function App() {
           );
           return go(() => next && void s.openJob(next.id));
         }
+        case 'quickEntry':
+          // Reaches the page only when the key could not be registered globally.
+          return go(() => void window.lonca.quick.open());
         case 'stop': {
           const running = Object.values(s.jobs)
             .filter((j) => j.channelId === s.channelId && (j.state === 'running' || j.state === 'attention'))

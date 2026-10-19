@@ -20,6 +20,7 @@ const bridge: LoncaBridge = {
   quick: {
     open: () => ipcRenderer.invoke('quick:open'),
     hide: () => ipcRenderer.invoke('quick:hide'),
+    setKey: (combo) => ipcRenderer.invoke('quick:setKey', combo),
   },
   providers: {
     state: () => ipcRenderer.invoke('providers:state'),

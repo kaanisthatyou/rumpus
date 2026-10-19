@@ -194,6 +194,9 @@ try {
   await page.keyboard.press('Control+Comma');
   const prefs = page.getByRole('dialog', { name: L.settings.title });
   await prefs.getByRole('button', { name: L.settings.tabs.shortcuts }).click();
+  // The global quick-entry key is listed with the others.
+  await prefs.getByText(L.shortcuts.quickEntry).waitFor();
+  await prefs.getByText('Ctrl Alt Space').waitFor();
   await prefs.getByRole('button', { name: L.shortcuts.change }).first().click();
   await page.keyboard.press('Control+j');
   await prefs.getByText('Ctrl J').waitFor();

@@ -33,6 +33,8 @@ export interface LoncaBridge {
   quick: {
     open(): Promise<void>;
     hide(): Promise<void>;
+    /** Registers the global key (`Ctrl+Alt+Space`); false when another app holds it (the old key stays). */
+    setKey(combo: string): Promise<boolean>;
   };
   /** Model providers and their keys; keys go in and never come back out. Refusals reject with an error code. */
   providers: {

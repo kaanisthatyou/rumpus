@@ -6,7 +6,7 @@ const MODIFIERS = new Set(['Control', 'Alt', 'Shift', 'Meta']);
 /** The combo of a key event, or undefined for a lone modifier. */
 export function comboOf(e: KeyboardEvent | React.KeyboardEvent): string | undefined {
   if (MODIFIERS.has(e.key)) return undefined;
-  const key = e.key.length === 1 ? e.key.toUpperCase() : e.key;
+  const key = e.key === ' ' ? 'Space' : e.key.length === 1 ? e.key.toUpperCase() : e.key;
   return [e.ctrlKey && 'Ctrl', e.altKey && 'Alt', e.shiftKey && 'Shift', key].filter(Boolean).join('+');
 }
 

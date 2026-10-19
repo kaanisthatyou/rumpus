@@ -437,7 +437,9 @@
     "taken": "Bu birleşim kullanımda: {{action}}",
     "needsModifier": "Ctrl ya da Alt ile birlikte basılır.",
     "reset": "Varsayılan",
-    "fixed": "Mesaj kutusu tuşları sabittir."
+    "fixed": "Mesaj kutusu tuşları sabittir.",
+    "quickEntry": "Hızlı giriş (her yerden)",
+    "globalTaken": "Bu tuşlar başka bir uygulamada kullanılıyor; önceki tuşlar kaldı."
   },
   "records": {
     "new": {

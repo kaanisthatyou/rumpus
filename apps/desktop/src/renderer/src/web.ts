@@ -119,7 +119,7 @@ function webBridge(): LoncaBridge {
       },
     },
     // The quick-entry window is the PC's own.
-    quick: { open: async () => {}, hide: async () => {} },
+    quick: { open: async () => {}, hide: async () => {}, setKey: async () => true },
     providers: {
       // Keys stay on the PC's main process: providers are managed there.
       state: async () => ({ providers: [], protection: 'none' }),

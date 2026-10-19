@@ -16,6 +16,7 @@ export const ACTION_LABEL: Record<ShortcutAction, string> = {
   stop: 'stop',
   prevWaiting: 'prevWaiting',
   nextWaiting: 'nextWaiting',
+  quickEntry: 'quickEntry',
 };
 
 export function ShortcutsPanel() {
@@ -50,9 +51,18 @@ export function ShortcutsPanel() {
       }
       const next = { ...(settings?.shortcuts ?? {}), [recording]: combo };
       if (combo === SHORTCUTS[recording]) delete next[recording];
-      void patch({ shortcuts: next });
+      const action = recording;
       setRecording(undefined);
       setProblem(undefined);
+      // The global one is tried first: when another app holds the keys, the old ones stay.
+      if (action === 'quickEntry') {
+        void window.lonca.quick.setKey(combo).then((ok) => {
+          if (ok) void patch({ shortcuts: next });
+          else setProblem(t('shortcuts.globalTaken'));
+        });
+        return;
+      }
+      void patch({ shortcuts: next });
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);

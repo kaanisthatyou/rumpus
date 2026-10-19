@@ -97,6 +97,8 @@ export const SHORTCUTS = {
   stop: 'Ctrl+.',
   prevWaiting: 'Ctrl+Shift+ArrowUp',
   nextWaiting: 'Ctrl+Shift+ArrowDown',
+  /** Global: works while another app is in front (never Ctrl Space, which editors use). */
+  quickEntry: 'Ctrl+Alt+Space',
 } as const;
 export type ShortcutAction = keyof typeof SHORTCUTS;
 

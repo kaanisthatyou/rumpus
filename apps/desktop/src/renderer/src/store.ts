@@ -396,6 +396,9 @@ export const useApp = create<AppState>((set, get) => {
       ]);
       await i18n.changeLanguage(settings.language);
       set({ settings, app, update });
+      // The quick-entry key lives in settings; the main process registers it for the whole system.
+      const quickKey = settings.shortcuts.quickEntry;
+      if (quickKey) void window.lonca.quick.setKey(quickKey);
       void get().refreshSystem();
       void get().scan();
       void get().loadAccounts();

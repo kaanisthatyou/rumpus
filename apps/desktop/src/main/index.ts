@@ -33,7 +33,30 @@ const devUrl = process.env.ELECTRON_RENDERER_URL;
 let win: BrowserWindow | undefined;
 /** The quick-entry window (Ctrl Alt Space), made the first time it is asked for. */
 let quick: BrowserWindow | undefined;
-const QUICK_KEY = 'Control+Alt+Space';
+/** The global key that opens it, as an Electron accelerator; the person can change it in Settings. */
+let quickKey: string | undefined;
+
+/** Lonca's combo (`Ctrl+Alt+Space`, `Ctrl+Shift+ArrowUp`) as an Electron accelerator. */
+function accelerator(combo: string): string {
+  return combo
+    .split('+')
+    .map((p) => (p === 'Ctrl' ? 'Control' : p.startsWith('Arrow') ? p.slice(5) : p))
+    .join('+');
+}
+
+/** Registers the quick-entry key; when it cannot be had, the old one stays. */
+function setQuickKey(combo: string): boolean {
+  const next = accelerator(combo);
+  if (next === quickKey) return true;
+  try {
+    if (!globalShortcut.register(next, toggleQuick)) return false;
+  } catch {
+    return false;
+  }
+  if (quickKey) globalShortcut.unregister(quickKey);
+  quickKey = next;
+  return true;
+}
 let core: UtilityProcess | undefined;
 let quitting = false;
 let coreRestarts = 0;
@@ -164,6 +187,7 @@ function registerIpc(): void {
   );
   handle('quick:hide', () => quick?.hide());
   handle('quick:open', () => toggleQuick());
+  handle('quick:setKey', (_e, combo) => (typeof combo === 'string' && combo.length < 40 ? setQuickKey(combo) : false));
   handle('update:state', () => updater.get());
   handle('update:check', () => updater.check());
   handle('update:install', () => updater.install());
@@ -284,11 +308,7 @@ function start(): void {
     quick?.destroy();
   });
   // Never Ctrl Space (editors use it); when another app holds the key, quick entry stays in the palette.
-  try {
-    globalShortcut.register(QUICK_KEY, toggleQuick);
-  } catch {
-    // taken
-  }
+  setQuickKey('Ctrl+Alt+Space');
   updater.start();
 }
 
