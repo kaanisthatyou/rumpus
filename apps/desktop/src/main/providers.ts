@@ -15,7 +15,8 @@ export type MainToCore =
   | { type: 'llm:done'; id: number; result: unknown }
   | { type: 'llm:error'; id: number; code: string; message: string };
 
-const cipher: Cipher = {
+/** safeStorage; also seals connectors' secrets for the core (`secrets.ts`). */
+export const cipher: Cipher = {
   protection(): KeyProtection {
     if (!safeStorage.isEncryptionAvailable()) return 'none';
     if (process.platform === 'linux' && safeStorage.getSelectedStorageBackend() === 'basic_text') return 'weak';

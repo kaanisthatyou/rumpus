@@ -35,6 +35,9 @@ export function codexArgs(opts: SessionOptions, images: string[] = []): string[]
           `mcp_servers.lonca.url="${opts.mcp.url}"`,
           '-c',
           'mcp_servers.lonca.bearer_token_env_var="LONCA_MCP_TOKEN"',
+          // A connector call may wait for a person on the job card (up to ten minutes).
+          '-c',
+          'mcp_servers.lonca.tool_timeout_sec=900',
         ]
       : []),
     ...images.flatMap((p) => ['--image', p]),

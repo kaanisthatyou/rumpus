@@ -14,6 +14,7 @@ import {
   ThemePicker,
 } from '../parts';
 import { useApp } from '../store';
+import { ConnectorsPanel } from './ConnectorsPanel';
 import { InstructionsPanel } from './InstructionsPanel';
 import { PhonePanel } from './PhonePanel';
 import { ProvidersPanel } from './ProvidersPanel';
@@ -25,6 +26,7 @@ const TABS: {
     | 'appearance'
     | 'agents'
     | 'providers'
+    | 'connectors'
     | 'instructions'
     | 'shortcuts'
     | 'team'
@@ -37,6 +39,7 @@ const TABS: {
   { id: 'appearance', icon: 'sun' },
   { id: 'agents', icon: 'terminal' },
   { id: 'providers', icon: 'key' },
+  { id: 'connectors', icon: 'plug' },
   { id: 'instructions', icon: 'layers' },
   { id: 'shortcuts', icon: 'keyboard' },
   { id: 'team', icon: 'network' },
@@ -46,7 +49,7 @@ const TABS: {
 ];
 type Tab = (typeof TABS)[number]['id'];
 /** Tabs about this computer itself: not offered on a phone. */
-const DESKTOP_ONLY = new Set<Tab>(['providers', 'phone', 'updates', 'team']);
+const DESKTOP_ONLY = new Set<Tab>(['providers', 'connectors', 'phone', 'updates', 'team']);
 const onPhone = typeof document !== 'undefined' && document.documentElement.dataset.phone === '1';
 
 function General() {
@@ -246,6 +249,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             {tab === 'appearance' && <Appearance />}
             {tab === 'agents' && <AgentList />}
             {tab === 'providers' && <ProvidersPanel />}
+            {tab === 'connectors' && <ConnectorsPanel />}
             {tab === 'instructions' && <InstructionsPanel />}
             {tab === 'shortcuts' && <ShortcutsPanel />}
             {tab === 'team' && <TailscaleRow />}

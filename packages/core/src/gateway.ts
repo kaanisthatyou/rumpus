@@ -1,7 +1,7 @@
 // Lonca's own MCP server for the agents it runs (PLAN.md 5.3, 5.9): a small Streamable HTTP endpoint on
 // 127.0.0.1 that answers JSON-RPC with plain JSON (no SSE stream). Each agent session gets its own bearer token,
-// which says who is calling; tools act only within that agent's workspace. Connectors from the store will be
-// served through the same endpoint later.
+// which says who is calling; tools act only within that agent's workspace. The connectors an agent may use are
+// served through the same endpoint, next to Lonca's own tools.
 import { randomBytes } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -15,11 +15,21 @@ export interface ToolContext {
 
 export type ToolContent = { type: 'text'; text: string } | { type: 'image'; data: string; mimeType: string };
 
+/** A connector's answer goes back as its server gave it. */
+export interface ToolResult {
+  content: unknown[];
+  isError?: boolean;
+  structuredContent?: unknown;
+}
+
 export interface Tool {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
-  run(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolContent[]> | ToolContent[];
+  run(
+    args: Record<string, unknown>,
+    ctx: ToolContext,
+  ): Promise<ToolContent[] | ToolResult> | ToolContent[] | ToolResult;
 }
 
 const SERVER_INFO = { name: 'lonca', version: '0.2.0' };
@@ -32,7 +42,15 @@ export class Gateway {
   /** Requests that came with a valid token (for tests and diagnostics). */
   served = 0;
 
-  constructor(private readonly tools: Tool[]) {}
+  constructor(
+    private readonly tools: Tool[],
+    /** Tools of one session only: the connectors its agent may use. */
+    private readonly extra: (ctx: ToolContext) => Tool[] = () => [],
+  ) {}
+
+  private toolsFor(ctx: ToolContext): Tool[] {
+    return [...this.tools, ...this.extra(ctx)];
+  }
 
   async start(): Promise<number> {
     if (this.server) return this.port;
@@ -103,20 +121,23 @@ export class Gateway {
           protocolVersion: typeof msg.params?.protocolVersion === 'string' ? msg.params.protocolVersion : '2025-06-18',
           capabilities: { tools: {} },
           serverInfo: SERVER_INFO,
-          instructions: 'Lonca workspace tools: channel history, records, the task board, progress notes.',
+          instructions:
+            'Lonca workspace tools: channel history, records, the task board, progress notes; and the connectors this agent may use.',
         });
       case 'ping':
         return reply({});
       case 'tools/list':
         return reply({
-          tools: this.tools.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })),
+          tools: this.toolsFor(ctx).map(({ name, description, inputSchema }) => ({ name, description, inputSchema })),
         });
       case 'tools/call': {
-        const tool = this.tools.find((t) => t.name === msg.params?.name);
+        const tool = this.toolsFor(ctx).find((t) => t.name === msg.params?.name);
         if (!tool) return fail(-32602, 'unknown tool');
-        const args = (msg.params?.arguments ?? {}) as Record<string, unknown>;
+        const raw = msg.params?.arguments;
+        const args = (raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}) as Record<string, unknown>;
         try {
-          return reply({ content: await tool.run(args, ctx) });
+          const out = await tool.run(args, ctx);
+          return reply(Array.isArray(out) ? { content: out } : out);
         } catch (err) {
           const text = err instanceof Error ? err.message : String(err);
           return reply({ content: [{ type: 'text', text }], isError: true });

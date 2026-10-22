@@ -19,6 +19,7 @@ import {
 import type { UpdateState } from '../shared/bridge.js';
 import { Identity } from './identity.js';
 import { errorCode, Providers } from './providers.js';
+import { attachSecrets } from './secrets.js';
 import { Updater } from './updater.js';
 import { loadWindowState, trackWindowState } from './window-state.js';
 
@@ -88,6 +89,7 @@ function startCore(): void {
   });
   providers?.attach(core);
   identity?.attach(core);
+  attachSecrets(core);
   core.on('exit', () => {
     core = undefined;
     if (quitting || coreRestarts > 5) return;

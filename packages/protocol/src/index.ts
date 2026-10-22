@@ -1,6 +1,8 @@
 // The contract between Lonca's core process and its clients (the renderer today; the phone and other
 // members' apps later). Everything that crosses a process boundary is defined here.
 import { z } from 'zod';
+import type { ConnectorInput, ConnectorsState, ToolPolicy } from './connectors.js';
+import type { RegistryServer } from './registry.js';
 import type {
   Advisor,
   AdvisorInput,
@@ -31,7 +33,10 @@ import type {
   WorkspaceSummary,
 } from './workspace.js';
 
+export * from './catalog.js';
+export * from './connectors.js';
 export * from './providers.js';
+export * from './registry.js';
 export * from './workspace.js';
 
 // ---------------------------------------------------------------- settings
@@ -310,6 +315,23 @@ export interface CoreMethods {
   'projects.push': { params: { id: string }; result: { ok: boolean; output: string; git: GitState } };
   /** The status page as Markdown in Fabrika's `progress.md` shape. */
   'projects.export': { params: { id: string }; result: string };
+  /** This computer's connectors (never synced); secrets come back only as their last characters. */
+  'connectors.list': { params: undefined; result: ConnectorsState };
+  /**
+   * Adds or changes a connector. A new or changed server is tested in the background (`initialize` and
+   * `tools/list`, a first `npx` download can take a while): it shows as `testing`, then `connectors.changed`.
+   */
+  'connectors.save': { params: ConnectorInput; result: ConnectorsState };
+  'connectors.test': { params: { id: string }; result: ConnectorsState };
+  'connectors.remove': { params: { id: string }; result: ConnectorsState };
+  'connectors.policy': { params: { id: string; tool: string; policy: ToolPolicy }; result: ConnectorsState };
+  /** The official MCP Registry, searched by name (community entries, not reviewed by Lonca). */
+  'connectors.search': {
+    params: { query: string; cursor?: string };
+    result: { servers: RegistryServer[]; next?: string };
+  };
+  /** Which programs that run connector packages this computer has. */
+  'connectors.runtimes': { params: undefined; result: { npx: boolean; uvx: boolean; docker: boolean } };
 }
 
 export interface CoreEvents {
@@ -317,6 +339,7 @@ export interface CoreEvents {
   'clis.changed': CliInfo[];
   'workspace.changed': WorkspaceState;
   'workspaces.changed': WorkspaceSummary[];
+  'connectors.changed': ConnectorsState;
   'phones.changed': PhoneState;
   'memory.changed': MemoryState;
   'message.added': Message;
@@ -379,6 +402,10 @@ export const ERROR_CODES = [
   'invalid_project',
   'no_folder',
   'not_fabrika',
+  'invalid_connector',
+  'connector_storage',
+  'connector_failed',
+  'registry_unreachable',
   'over_budget',
   'provider_bad_url',
   'provider_bad_key',

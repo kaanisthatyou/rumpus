@@ -5,6 +5,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { delimiter, dirname, join } from 'node:path';
@@ -12,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { _electron as electron } from 'playwright-core';
 
 const here = dirname(fileURLToPath(import.meta.url));
+const fakeMcp = join(here, '../../../packages/core/test/fixtures/fake-mcp.mjs');
 const PNG_1X1 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 const appDir = join(here, '..');
 const electronPath = createRequire(import.meta.url)('electron');
@@ -47,6 +49,44 @@ writeFileSync(
   }),
 );
 
+// A stand-in for the official MCP Registry: one entry Lonca can install, one it cannot (SSE only).
+const registry = createServer((req, res) => {
+  const servers = [
+    {
+      server: {
+        name: 'io.example/notlar',
+        description: 'Notlar tutan sahte bir sunucu.',
+        version: '1.0.0',
+        packages: [
+          {
+            registryType: 'npm',
+            identifier: 'notlar-mcp',
+            version: '1.0.0',
+            transport: { type: 'stdio' },
+            environmentVariables: [
+              { name: 'NOTLAR_TOKEN', isRequired: true, isSecret: true, description: 'Notlar anahtarı' },
+            ],
+          },
+        ],
+      },
+      _meta: { 'io.modelcontextprotocol.registry/official': { status: 'active' } },
+    },
+    {
+      server: {
+        name: 'io.example/eski',
+        description: 'Yalnızca SSE.',
+        remotes: [{ type: 'sse', url: 'https://example.com/sse' }],
+      },
+      _meta: { 'io.modelcontextprotocol.registry/official': { status: 'active' } },
+    },
+  ];
+  const q = new URL(req.url ?? '/', 'http://x').searchParams.get('search') ?? '';
+  res.writeHead(200, { 'content-type': 'application/json' });
+  res.end(JSON.stringify({ servers: servers.filter((e) => e.server.name.includes(q)), metadata: { count: 2 } }));
+});
+await new Promise((r) => registry.listen(0, '127.0.0.1', r));
+const registryUrl = `http://127.0.0.1:${registry.address().port}`;
+
 let n = 0;
 let current;
 const shot = async (page, name) => {
@@ -71,7 +111,13 @@ async function launch() {
   const app = await electron.launch({
     executablePath: packaged ?? electronPath,
     args: packaged ? [] : [appDir],
-    env: { ...process.env, [pathKey]: `${bin}${delimiter}${process.env[pathKey]}`, LONCA_HOME: home, LONCA_LANG: 'tr' },
+    env: {
+      ...process.env,
+      [pathKey]: `${bin}${delimiter}${process.env[pathKey]}`,
+      LONCA_HOME: home,
+      LONCA_LANG: 'tr',
+      LONCA_REGISTRY_URL: registryUrl,
+    },
   });
   current = app;
   const page = await app.firstWindow();
@@ -282,6 +328,63 @@ try {
   await page.getByRole('button', { name: L.job.approval.deny }).click();
   await page.getByText('Derleme reddedildi').waitFor();
   assert.equal(await page.getByRole('button', { name: L.shell.waiting }).count(), 0);
+
+  // A connector: a local program added in Settings with a secret, open to @claude; its writing tool asks first.
+  await page.keyboard.press('Control+Comma');
+  await settingsDialog.getByRole('button', { name: L.settings.tabs.connectors }).click();
+  await settingsDialog.getByText(L.connectors.empty).waitFor();
+  // The catalog: Lonca's checked entries, and the registry searched by name (community, not reviewed).
+  await settingsDialog.getByRole('button', { name: L.connectors.add }).click();
+  await settingsDialog.getByRole('button', { name: /Microsoft Learn/ }).waitFor();
+  await shot(page, 'catalog');
+  await settingsDialog.getByRole('button', { name: /^GitHub/ }).click();
+  await settingsDialog.getByText(L.catalog.verified, { exact: true }).waitFor();
+  await settingsDialog.getByText(L.catalog.via.oci, { exact: true }).waitFor();
+  await settingsDialog.getByText('https://api.githubcopilot.com/mcp/').waitFor();
+  await settingsDialog.getByRole('button', { name: L.catalog.back }).click();
+  await settingsDialog.getByLabel(L.catalog.search, { exact: true }).fill('example');
+  const found = settingsDialog.getByRole('button', { name: /io\.example\/notlar/ });
+  await found.waitFor();
+  assert.equal(await settingsDialog.getByRole('button', { name: /io\.example\/eski/ }).isDisabled(), true);
+  await shot(page, 'catalog-search');
+  await found.click();
+  await settingsDialog.getByText(L.catalog.communityNote).waitFor();
+  await settingsDialog.getByText('npx -y notlar-mcp@1.0.0').waitFor();
+  const installButton = settingsDialog.getByRole('button', { name: L.catalog.install });
+  assert.equal(await installButton.isDisabled(), true);
+  await settingsDialog.getByLabel('NOTLAR_TOKEN', { exact: true }).fill('n-123');
+  await settingsDialog.getByText(L.catalog.sealed.replace('{{names}}', 'NOTLAR_TOKEN')).waitFor();
+  await shot(page, 'catalog-install');
+  await settingsDialog.getByRole('button', { name: L.catalog.back }).click();
+  await settingsDialog.getByRole('button', { name: L.connectors.manual }).click();
+  await settingsDialog.getByLabel(L.connectors.name, { exact: true }).fill('Notlar');
+  await settingsDialog.getByText(L.connectors.kinds.local, { exact: true }).click();
+  await settingsDialog.getByLabel(L.connectors.command, { exact: true }).fill(process.execPath);
+  await settingsDialog.getByLabel(L.connectors.args, { exact: true }).fill(fakeMcp);
+  await settingsDialog.getByRole('button', { name: L.connectors.secretAdd }).click();
+  await settingsDialog.getByLabel(L.connectors.secretName, { exact: true }).fill('FAKE_TOKEN');
+  await settingsDialog.getByLabel(L.connectors.secretValue, { exact: true }).fill('e2e-token-1234');
+  await settingsDialog.getByRole('checkbox').first().check();
+  await shot(page, 'connector-form');
+  await settingsDialog.getByRole('button', { name: L.connectors.save }).click();
+  const connectorRow = settingsDialog.locator('.conn', { hasText: 'Notlar' });
+  await connectorRow.getByText(L.connectors.state.ok).waitFor({ timeout: 30_000 });
+  await connectorRow.getByText('FAKE_TOKEN ···1234').waitFor();
+  await connectorRow.getByRole('button', { name: L.connectors.tools_other.replace('{{count}}', '2') }).click();
+  const addPolicy = connectorRow.getByLabel('add_note');
+  assert.equal(await addPolicy.inputValue(), 'ask');
+  assert.equal(await connectorRow.getByLabel('list_notes').inputValue(), 'allow');
+  await shot(page, 'connector');
+  assert.equal(readFileSync(join(home, 'connectors.json'), 'utf8').includes('e2e-token-1234'), false);
+  await page.keyboard.press('Escape');
+  await agentBox.fill('bağlayıcıya not ekle');
+  await agentBox.press('Enter');
+  await page.getByText('Notlar: add_note').waitFor();
+  await page.getByText('{"text":"e2e notu"}').waitFor();
+  await shot(page, 'connector-approval');
+  await page.getByRole('button', { name: L.job.approval.allow }).click();
+  await page.getByText('Notlar: e2e notu (token=e2e-token-1234 leaked=no)').waitFor();
+  await page.getByText('notlar.add_note').first().waitFor();
 
   // In the agent's own channel: a slow job, steered, then stopped.
   await page.getByRole('button', { name: '@claude', exact: true }).click();
@@ -506,4 +609,5 @@ try {
 }
 
 if (process.env.E2E_KEEP !== '1') for (const d of [home, project, bin]) rmSync(d, { recursive: true, force: true });
+registry.close();
 console.log(`channel e2e ok, ${n} screenshots in ${shots}`);

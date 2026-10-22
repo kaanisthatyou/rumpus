@@ -164,7 +164,8 @@
       "instructions": "Instructions",
       "shortcuts": "Shortcuts",
       "providers": "Providers",
-      "phone": "Phone"
+      "phone": "Phone",
+      "connectors": "Connectors"
     },
     "language": "Language",
     "name": "Display name",
@@ -245,7 +246,11 @@
     "unreachable": "The inviting computer could not be reached. Tailscale and the inviter's Lonca must be running.",
     "invalid_project": "Project not saved: invalid value.",
     "no_folder": "No folder chosen for this project on this computer.",
-    "not_fabrika": "The folder has none of Fabrika's ideas, references, .claude/commands or games."
+    "not_fabrika": "The folder has none of Fabrika's ideas, references, .claude/commands or games.",
+    "invalid_connector": "The connector's details are missing or wrong.",
+    "connector_storage": "Secrets cannot be stored safely on this system.",
+    "connector_failed": "Could not connect to the connector.",
+    "registry_unreachable": "The MCP Registry could not be reached."
   },
   "channel": {
     "newSession": "New session",
@@ -287,7 +292,8 @@
       "untrusted_folder": "Folder not trusted in Claude Code",
       "compacted": "Context compacted",
       "progress": "Progress",
-      "start": "Start the job"
+      "start": "Start the job",
+      "connector": "Connector"
     },
     "denied": "Refused",
     "more_one": "{{count}} more step",
@@ -539,6 +545,121 @@
     "edit": "Edit",
     "delete": "Delete",
     "deleteConfirm": "Delete the provider and its keys?"
+  },
+  "connectors": {
+    "intro": "MCP servers that Lonca itself connects to on this computer and serves, through its own endpoint, only to the agents allowed. Their settings and secrets never leave this computer.",
+    "protection": {
+      "os": "Secrets are encrypted with the operating system's key store and sent only to their own server.",
+      "weak": "This system has no key store: secrets are encrypted with a fixed password, which is weak protection.",
+      "none": "Encryption is not available on this system: no secret can be stored, only connectors without keys can be added."
+    },
+    "empty": "No connectors.",
+    "add": "Add from catalog",
+    "new": "New connector",
+    "name": "Name",
+    "kind": "Kind",
+    "kinds": {
+      "remote": "Remote server",
+      "local": "Local program"
+    },
+    "kindHint": {
+      "remote": "An MCP server with a Streamable HTTP address.",
+      "local": "A program Lonca starts on this computer and talks to over stdio (npx, uvx, docker ...)."
+    },
+    "url": "Address",
+    "urlHint": "https is required; http only for this computer, the local network and Tailscale.",
+    "urlBad": "This address cannot be used: https is required (http only for this computer, the local network and Tailscale), and it cannot hold a user name or password.",
+    "command": "Command",
+    "commandHint": "A program name or its full path. No shell is used.",
+    "args": "Arguments",
+    "argsHint": "One argument per line.",
+    "secrets": {
+      "remote": "Headers",
+      "local": "Environment variables"
+    },
+    "secretsHint": {
+      "remote": "Sent with every request, for example Authorization = Bearer <key>. Stored values show only their last characters.",
+      "local": "The program gets these; Lonca never passes on key and token variables from its own environment."
+    },
+    "secretName": "Secret name",
+    "secretValue": "Secret value",
+    "secretAdd": "Add",
+    "secretRemove": "Remove",
+    "secretKeep": "Keep",
+    "agents": "Agents that may use it",
+    "agentsHint": "Only this computer's agents. A job started by another member's request asks the owner at every call.",
+    "noAgents": "This lonca has no agents of this computer.",
+    "save": "Save and test",
+    "edit": "Edit",
+    "test": "Test again",
+    "delete": "Delete",
+    "deleteConfirm": "Delete the connector and its secrets?",
+    "state": {
+      "untested": "Not tested",
+      "testing": "Testing",
+      "ok": "Working",
+      "failed": "Could not connect"
+    },
+    "usedBy": "Used by {{names}}",
+    "unused": "Open to no agent",
+    "tested": "last test {{time}}",
+    "tools_one": "{{count}} tool",
+    "tools_other": "{{count}} tools",
+    "toolsOf": "Tools of {{name}}",
+    "readOnly": "Reads",
+    "policy": {
+      "allow": "Runs without asking",
+      "ask": "Asks every time",
+      "once": "Asks once per job",
+      "blocked": "Blocked"
+    },
+    "policyNote": "New tools start without asking when the server says they only read, otherwise asking every time. A call that asks waits for approval on the job card; the agent never sees blocked tools.",
+    "manual": "Add by hand"
+  },
+  "catalog": {
+    "title": "Lonca catalog",
+    "intro": "Entries of the official MCP Registry that Lonca checked; their install details ship with the app as they were on the day they were checked.",
+    "search": "Search",
+    "searchHint": "A name or a job: github, docs, browser ...",
+    "none": "No catalog entry matches.",
+    "registry": "MCP Registry",
+    "communityNote": "A community entry, not checked by Lonca. Its source should be looked at before installing; local programs run on this computer as Lonca's user.",
+    "searching": "Searching",
+    "noResults": "No registry entry matches.",
+    "more": "More",
+    "verified": "Lonca catalog",
+    "community": "Community",
+    "installed": "Installed",
+    "source": "Source",
+    "website": "Website",
+    "cannot": "Lonca cannot install this entry: it has no Streamable HTTP address and no npm, PyPI or Docker package (SSE, MCPB and OAuth are not supported yet).",
+    "cannotShort": "Cannot install",
+    "how": "How it runs",
+    "via": {
+      "remote": "Remote server",
+      "npm": "npm (npx)",
+      "pypi": "PyPI (uvx)",
+      "oci": "Docker"
+    },
+    "missing": {
+      "npx": "npx is not on this computer: Node.js is needed (nodejs.org).",
+      "uvx": "uvx is not on this computer: uv is needed (docs.astral.sh/uv).",
+      "docker": "docker is not on this computer: Docker Desktop is needed."
+    },
+    "optional": "(optional)",
+    "getKey": "Get a key",
+    "runs": "Runs",
+    "sealed": "Encrypted and stored: {{names}}",
+    "install": "Install and test",
+    "back": "Back",
+    "category": {
+      "code": "Code",
+      "docs": "Docs",
+      "browser": "Browser",
+      "search": "Web search",
+      "data": "Data",
+      "ops": "Monitoring"
+    }
   },
   "advisor": {
     "role": "Advisor",

@@ -1,6 +1,8 @@
 // Opt-in end-to-end test with the real Claude Code on this computer (it spends a little quota: a handful of short
 // turns on Haiku). It adds an agent, asks about a README, has the agent move a board card with Lonca's own MCP
-// tools, then runs a small goal with a done check. Run by hand after `electron-vite build`: node e2e/real-claude.mjs
+// tools, uses a connector (a local MCP server) through Lonca with an approval, then runs a small goal with a done
+// check. Run by hand after `electron-vite build`: node e2e/real-claude.mjs. REAL_QUICK=1 stops after the connector
+// (two turns), the short probe for driver changes.
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -13,6 +15,9 @@ const here = dirname(fileURLToPath(import.meta.url));
 const appDir = join(here, '..');
 const L = JSON.parse(readFileSync(join(appDir, 'src/renderer/src/locales/tr.json'), 'utf8'));
 const shots = join(appDir, 'test-results');
+/** Thrown to end a REAL_QUICK run early, with the usual cleanup. */
+const QUICK = Symbol('quick');
+const fakeMcp = join(here, '../../../packages/core/test/fixtures/fake-mcp.mjs');
 mkdirSync(shots, { recursive: true });
 const home = mkdtempSync(join(tmpdir(), 'lonca-real-'));
 const project = mkdtempSync(join(tmpdir(), 'lonca-real-project-'));
@@ -79,6 +84,39 @@ try {
   assert.match(first, /bütçe|harcama|Kumbara/i);
   await shot('answer');
 
+  // A connector: the real CLI sees its tools through Lonca, and the one that writes waits for a person.
+  await page.keyboard.press('Control+Comma');
+  const prefs = page.getByRole('dialog', { name: L.settings.title });
+  await prefs.getByRole('button', { name: L.settings.tabs.connectors }).click();
+  await prefs.getByRole('button', { name: L.connectors.add }).click();
+  await prefs.getByLabel(L.connectors.name, { exact: true }).fill('Notlar');
+  await prefs.getByText(L.connectors.kinds.local, { exact: true }).click();
+  await prefs.getByLabel(L.connectors.command, { exact: true }).fill(process.execPath);
+  await prefs.getByLabel(L.connectors.args, { exact: true }).fill(fakeMcp);
+  await prefs.getByRole('checkbox').first().check();
+  await prefs.getByRole('button', { name: L.connectors.save }).click();
+  await prefs.locator('.conn', { hasText: 'Notlar' }).getByText(L.connectors.state.ok).waitFor({ timeout: 30_000 });
+  await page.keyboard.press('Escape');
+  await composer.fill(
+    "@claude Notlar bağlayıcısının add_note aracıyla 'gerçek not' notunu ekle, sonra list_notes ile notları listele. Kısa yanıtla.",
+  );
+  await composer.press('Enter');
+  await page.getByRole('button', { name: L.job.approval.allow }).waitFor({ timeout: 180_000 });
+  console.log('approval:', (await page.locator('.job__approval').first().innerText()).replace(/\s+/g, ' '));
+  await shot('connector-approval');
+  await page.getByRole('button', { name: L.job.approval.allow }).click();
+  await until(async () => (await page.locator('.msg--agent').count()) >= 2, 'connector answer', 180_000);
+  await page.getByText('notlar.add_note').first().waitFor();
+  const noted = await page.locator('.msg--agent').nth(1).innerText();
+  console.log('answer 2:', noted.replace(/\s+/g, ' ').slice(0, 200));
+  assert.match(noted, /gerçek not/i);
+  await shot('connector');
+  if (process.env.REAL_QUICK) {
+    assert.deepEqual(errors, []);
+    console.log('real claude quick probe ok');
+    throw QUICK;
+  }
+
   await composer.fill('/todo Kategorileri gözden geçir @claude');
   await composer.press('Enter');
   await page.getByText(L.board.added).waitFor();
@@ -86,7 +124,7 @@ try {
     '@claude Lonca araçlarından list_cards ile panodaki kartları listele, sonra o kartı update_card ile review durumuna al. Kısa yanıtla.',
   );
   await composer.press('Enter');
-  await until(async () => (await page.locator('.msg--agent').count()) >= 2, 'second answer', 180_000);
+  await until(async () => (await page.locator('.msg--agent').count()) >= 3, 'third answer', 180_000);
   await page.getByText('lonca.update_card').first().waitFor();
   await shot('mcp');
   await page.getByRole('button', { name: L.shell.tasks, exact: true }).click();
@@ -140,6 +178,8 @@ try {
   await shot('goal');
   assert.deepEqual(errors, []);
   console.log('real claude e2e ok');
+} catch (e) {
+  if (e !== QUICK) throw e;
 } finally {
   await app.close();
   rmSync(home, { recursive: true, force: true });

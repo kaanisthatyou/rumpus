@@ -164,7 +164,8 @@
       "instructions": "Talimatlar",
       "shortcuts": "Kısayollar",
       "providers": "Sağlayıcılar",
-      "phone": "Telefon"
+      "phone": "Telefon",
+      "connectors": "Bağlayıcılar"
     },
     "language": "Dil",
     "name": "Görünen ad",
@@ -245,7 +246,11 @@
     "unreachable": "Davet eden bilgisayara ulaşılamadı. Tailscale ve davet edenin Lonca'sının açık olması gerekir.",
     "invalid_project": "Proje kaydedilmedi: geçersiz değer.",
     "no_folder": "Bu bilgisayarda projenin klasörü seçilmedi.",
-    "not_fabrika": "Klasörde Fabrika'ya ait ideas, references, .claude/commands ya da games bulunamadı."
+    "not_fabrika": "Klasörde Fabrika'ya ait ideas, references, .claude/commands ya da games bulunamadı.",
+    "invalid_connector": "Bağlayıcı bilgileri eksik ya da hatalı.",
+    "connector_storage": "Gizli değer bu sistemde güvenle saklanamıyor.",
+    "connector_failed": "Bağlayıcıya bağlanılamadı.",
+    "registry_unreachable": "MCP Registry'ye ulaşılamadı."
   },
   "channel": {
     "newSession": "Yeni oturum",
@@ -287,7 +292,8 @@
       "untrusted_folder": "Klasör Claude Code'da güvenilir değil",
       "compacted": "Bağlam sıkıştırıldı",
       "progress": "İlerleme",
-      "start": "İşe başlama"
+      "start": "İşe başlama",
+      "connector": "Bağlayıcı"
     },
     "denied": "Reddedildi",
     "more_one": "{{count}} adım daha",
@@ -539,6 +545,121 @@
     "edit": "Düzenle",
     "delete": "Sil",
     "deleteConfirm": "Sağlayıcı ve anahtarları silinsin mi?"
+  },
+  "connectors": {
+    "intro": "MCP sunucuları: Lonca onlara bu bilgisayarda kendisi bağlanır ve araçlarını yalnızca izin verilen agentlara kendi uç noktasından sunar. Ayarları ve gizli değerleri bu bilgisayardan çıkmaz.",
+    "protection": {
+      "os": "Gizli değerler işletim sisteminin anahtar deposuyla şifrelenir ve yalnızca kendi sunucusuna gönderilir.",
+      "weak": "Bu sistemde anahtar deposu yok: gizli değerler sabit bir parolayla şifrelenir, bu zayıf bir korumadır.",
+      "none": "Bu sistemde şifreleme kullanılamıyor: gizli değer saklanamaz, yalnızca anahtarsız bağlayıcılar eklenebilir."
+    },
+    "empty": "Bağlayıcı yok.",
+    "add": "Katalogdan ekle",
+    "new": "Yeni bağlayıcı",
+    "name": "Ad",
+    "kind": "Tür",
+    "kinds": {
+      "remote": "Uzak sunucu",
+      "local": "Yerel program"
+    },
+    "kindHint": {
+      "remote": "Streamable HTTP adresi olan bir MCP sunucusu.",
+      "local": "Lonca'nın bu bilgisayarda başlattığı ve stdio üzerinden konuştuğu bir program (npx, uvx, docker ...)."
+    },
+    "url": "Adres",
+    "urlHint": "https gerekir; http yalnızca bu bilgisayar, yerel ağ ve Tailscale için.",
+    "urlBad": "Bu adres kullanılamaz: https gerekir (http yalnızca bu bilgisayar, yerel ağ ve Tailscale için), içinde kullanıcı adı ya da parola olamaz.",
+    "command": "Komut",
+    "commandHint": "Program adı ya da tam yolu. Kabuk kullanılmaz.",
+    "args": "Argümanlar",
+    "argsHint": "Her satıra bir argüman.",
+    "secrets": {
+      "remote": "Başlıklar",
+      "local": "Ortam değişkenleri"
+    },
+    "secretsHint": {
+      "remote": "Her istekte gönderilir, örneğin Authorization = Bearer <anahtar>. Kayıtlı değerler yalnızca son karakterleriyle görünür.",
+      "local": "Program bunları alır; Lonca kendi ortamındaki anahtar ve token değişkenlerini programa geçirmez."
+    },
+    "secretName": "Gizli değerin adı",
+    "secretValue": "Gizli değer",
+    "secretAdd": "Ekle",
+    "secretRemove": "Kaldır",
+    "secretKeep": "Geri al",
+    "agents": "Kullanabilecek agentlar",
+    "agentsHint": "Yalnızca bu bilgisayarın agentları. Başka bir üyenin isteğiyle çalışan iş her çağrıda sahibine sorar.",
+    "noAgents": "Bu loncada bu bilgisayara ait agent yok.",
+    "save": "Kaydet ve dene",
+    "edit": "Düzenle",
+    "test": "Yeniden dene",
+    "delete": "Sil",
+    "deleteConfirm": "Bağlayıcı ve gizli değerleri silinsin mi?",
+    "state": {
+      "untested": "Denenmedi",
+      "testing": "Deneniyor",
+      "ok": "Çalışıyor",
+      "failed": "Bağlanamadı"
+    },
+    "usedBy": "Kullanan: {{names}}",
+    "unused": "Hiçbir agenta açık değil",
+    "tested": "son deneme {{time}}",
+    "tools_one": "{{count}} araç",
+    "tools_other": "{{count}} araç",
+    "toolsOf": "{{name}} araçları",
+    "readOnly": "Okur",
+    "policy": {
+      "allow": "Sormadan çalışır",
+      "ask": "Her seferinde sorar",
+      "once": "İş başına bir kez sorar",
+      "blocked": "Kapalı"
+    },
+    "policyNote": "Yeni araçlar, sunucu yalnızca okuduğunu bildiriyorsa sormadan, değilse her seferinde sorarak başlar. Sorulan çağrı iş kartında onay bekler; kapalı araçları agent hiç görmez.",
+    "manual": "Elle ekle"
+  },
+  "catalog": {
+    "title": "Lonca kataloğu",
+    "intro": "Lonca'nın incelediği resmi MCP Registry girdileri; kurulum bilgileri incelendikleri günkü haliyle uygulamayla gelir.",
+    "search": "Ara",
+    "searchHint": "Ad ya da iş: github, belge, tarayıcı ...",
+    "none": "Katalogda eşleşen girdi yok.",
+    "registry": "MCP Registry",
+    "communityNote": "Topluluk girdisi, Lonca tarafından incelenmedi. Kurulmadan önce kaynağına bakılmalı; yerel programlar bu bilgisayarda Lonca'nın kullanıcısıyla çalışır.",
+    "searching": "Aranıyor",
+    "noResults": "Kayıt defterinde eşleşen girdi yok.",
+    "more": "Daha fazla",
+    "verified": "Lonca kataloğu",
+    "community": "Topluluk",
+    "installed": "Kurulu",
+    "source": "Kaynak",
+    "website": "Site",
+    "cannot": "Lonca bu girdiyi kuramıyor: ne Streamable HTTP adresi ne de npm, PyPI ya da Docker paketi var (SSE, MCPB ve OAuth henüz yok).",
+    "cannotShort": "Kurulamaz",
+    "how": "Nasıl çalışsın",
+    "via": {
+      "remote": "Uzak sunucu",
+      "npm": "npm (npx)",
+      "pypi": "PyPI (uvx)",
+      "oci": "Docker"
+    },
+    "missing": {
+      "npx": "Bu bilgisayarda npx yok: Node.js kurulmalı (nodejs.org).",
+      "uvx": "Bu bilgisayarda uvx yok: uv kurulmalı (docs.astral.sh/uv).",
+      "docker": "Bu bilgisayarda docker yok: Docker Desktop kurulmalı."
+    },
+    "optional": "(isteğe bağlı)",
+    "getKey": "Anahtar al",
+    "runs": "Çalışacak",
+    "sealed": "Şifrelenip saklanır: {{names}}",
+    "install": "Kur ve dene",
+    "back": "Geri",
+    "category": {
+      "code": "Kod",
+      "docs": "Belgeler",
+      "browser": "Tarayıcı",
+      "search": "Web araması",
+      "data": "Veri",
+      "ops": "İzleme"
+    }
   },
   "advisor": {
     "role": "Danışman",

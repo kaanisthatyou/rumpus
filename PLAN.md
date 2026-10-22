@@ -1,8 +1,9 @@
 # Lonca v2: plan
 
 Status: **Phase 4 under way** (0.8.0-alpha.0, 2026-10-19): memory, projects with status pages, hand-over, several
-CLI logins, `/durum`, `/özet`, quick entry and advisor notes are built; voice is paused (Kaan, 2026-10-19) and the
-connector store is next. The done-checks of Phases 1-3 wait for real use by Kaan and Arda; see the status blocks
+CLI logins, `/durum`, `/özet`, quick entry and advisor notes are built; voice is paused (Kaan, 2026-10-19). The
+connector store has its core and its catalog (4.10, 4.11, 2026-10-22): connectors from Lonca's catalog, the MCP
+Registry or by hand, served through Lonca's gateway with a policy per tool; OAuth and MCPB come next. The done-checks of Phases 1-3 wait for real use by Kaan and Arda; see the status blocks
 under section 8. Owners: Kaan and Arda. v0.1 (the Python chat server, tag `v0.1.0`) was the starting point for
 ideas and the security model, not for code.
 
@@ -759,6 +760,45 @@ The details behind 5.11 and 6.5, decided before building.
   folder) into records and projects of the open workspace. Nothing in the folder changes; things already here (same
   kind and title, same project name) are skipped; advisors stay quiet about imported ideas. On the real roblox-factory
   it reads 20 ideas, 40 references, 9 prompts and 7 games. Covered by unit tests and `e2e/channel.mjs`.
+- 4.10 Connectors, the core of the store (5.9), 2026-10-22: Settings → Bağlayıcılar adds an MCP server by hand, a
+  remote one (Streamable HTTP; JSON or event-stream answers, the session id, no redirects, https except loopback,
+  private networks and Tailscale) or a local program over stdio (no shell; it gets Lonca's environment without
+  variables that look like keys or tokens, and Lonca's own). Connectors belong to this computer:
+  `<app>/connectors.json`, never synced; header and variable values are sealed by the main process with safeStorage
+  (none stored where nothing can seal them) and shown as their last characters. Saving tests the server in the
+  background (`initialize`, `tools/list`, up to two minutes for a first `npx` download); a failure shows the server's
+  own words. Each connector lists the agents of this computer that may use it, and each tool has a policy: allow
+  (the default for tools the server marks read-only), ask every time (the default otherwise), ask once per job,
+  blocked (the agent does not see it). The gateway serves an agent's connector tools next to Lonca's own as
+  `<slug>__<tool>` (at most 50 characters, so `mcp__lonca__…` fits every CLI); a call that asks waits on the job card
+  like a CLI's approval (one at a time, ten minutes, then denied; Claude Code gets `MCP_TOOL_TIMEOUT` and Codex
+  `tool_timeout_sec` to wait that long), and a request from another member never runs a tool unasked. A changed tool
+  list starts the agent's CLI again with the same conversation. Lonca connects on first use and closes a server
+  after ten idle minutes. Covered by unit tests (stdio and HTTP clients, the core end to end), `e2e/channel.mjs`
+  (a local connector with a secret, an approval on the card) and `e2e/real-claude.mjs` (`REAL_QUICK=1`: the real
+  Claude Code on Haiku called a connector's tools through Lonca after an approval); the Codex contract test passes
+  with the new flag. Not yet: OAuth, MCPB bundles, the team-visible log of tool decisions, and connectors on other
+  members' computers.
+- 4.11 The catalog (5.9), 2026-10-22: Bağlayıcılar → Katalogdan ekle shows Lonca's catalog above a live search of the
+  official MCP Registry (`/v0.1/servers`, by name, latest active versions), which is marked as community and not
+  reviewed. Both install the same way: a registry `server.json` becomes install plans (a Streamable HTTP remote, or
+  an npm, PyPI or OCI package run pinned through `npx -y pkg@version`, `uvx pkg@version` or `docker run -i --rm`),
+  each with the fields it asks for (keys, tokens, folders, flags as checkboxes); the form shows what will run and
+  which values are sealed, says when npx, uvx or docker is missing, and saves through 4.10 with an install record
+  (catalog or registry, the registry name, version, how it runs) shown on the card. A bare key in `Authorization`
+  gets `Bearer`; a docker `-e NAME={secret}` becomes a sealed variable passed by name, so secrets never sit in the
+  arguments. SSE remotes, MCPB and OAuth-only entries are not offered yet. The catalog (`packages/protocol/src/
+  catalog.ts`) holds 11 entries checked on 2026-10-22 that work without OAuth: GitHub, Context7, Microsoft Learn,
+  Playwright, Chrome DevTools, Exa, Tavily, Firecrawl, Hugging Face, Supabase (starts read-only) and Sentry, each a
+  copy of its registry entry with the plans offered, safe defaults, where to get a key, and corrections found
+  against the real server (GitHub's token is required although its entry says optional). It ships with the app;
+  a signed index others can mirror waits for the public repository. Covered by unit tests (the conversion on real
+  entries, every catalog entry, the search against a stand-in), `e2e/channel.mjs` (the catalog, an entry's form, a
+  search against a stand-in registry) and two opt-in checks against the real servers: `LONCA_REAL_REMOTE=1`
+  (Context7, Microsoft Learn, Exa, Firecrawl and Hugging Face answer `initialize` and `tools/list` through Lonca's
+  client) and `LONCA_REAL_NPX=1` (Playwright, Chrome DevTools, Context7 and Firecrawl start through npx on Windows).
+  Next for the store: OAuth (Notion, Linear, Figma, Sentry's and Stripe's remotes need it), MCPB, a workspace's own
+  allowlist, and the tool-decision log.
 
 ## 9. Risks
 

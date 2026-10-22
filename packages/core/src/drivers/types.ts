@@ -78,6 +78,9 @@ const ARG_KEYS = ['file_path', 'path', 'command', 'pattern', 'url', 'query', 'de
 
 /** The one argument worth showing for a tool call: a path relative to the folder, a command's first line, ... */
 export function toolArg(name: string, input: unknown, cwd: string): string | undefined {
+  // Lonca's own tools read `lonca.add_card`; a connector's tool through Lonca reads `github.create_issue`.
+  const connector = /^mcp__lonca__([a-z0-9_]+?)__(.+)$/.exec(name);
+  if (connector) return `${connector[1]}.${connector[2]}`;
   if (name.startsWith('mcp__')) return name.slice(5).replace('__', '.');
   if (!input || typeof input !== 'object') return undefined;
   for (const key of ARG_KEYS) {

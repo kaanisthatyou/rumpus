@@ -54,6 +54,8 @@ export interface JobsDeps {
   access?(agent: Agent, message: Message): { allow: boolean; mode?: AgentMode; approveFirst?: boolean };
   /** A job's state changed (started, waiting, ended): other members' apps show it. */
   publish?(job: Job): void;
+  /** The connector tools an agent's session gets; a change starts its CLI again (same conversation). */
+  toolset?(agent: Agent): string;
   /** Lonca's MCP endpoint; each session gets its own token. */
   gateway?: {
     ready(): Promise<string>;
@@ -73,8 +75,23 @@ interface Live {
   lastText: string;
   /** The instruction layers the session was started with; a change starts a new process (same conversation). */
   layers?: string;
+  toolset?: string;
   token?: string;
 }
+
+/** A connector call waiting for a person (asked by the gateway, shown on the job card like a CLI's approval). */
+interface Ask {
+  id: string;
+  label: string;
+  arg?: string;
+  detail?: string;
+  resolve(allow: boolean): void;
+}
+
+/** Approval ids of gateway asks; the CLI's own ids never start with it. */
+const ASK = 'lonca-ask-';
+/** How long a connector call waits for a person before it counts as denied. */
+const ASK_MS = 10 * 60_000;
 
 const MENTION = /(^|[^\w@])@([a-z0-9][a-z0-9-]{0,31})\b/g;
 const EMIT_EVERY_MS = 120;
@@ -198,6 +215,7 @@ export class Jobs {
 
   private save(job: Job, immediate = false): void {
     this.deps.store.saveJob(job);
+    if (job.state !== 'running' && job.state !== 'attention') this.dropAsks(job.id);
     if (this.deps.publish && this.published.get(job.id) !== job.state) {
       this.published.set(job.id, job.state);
       this.deps.publish(job);
@@ -300,9 +318,11 @@ export class Jobs {
     let live = this.live.get(key);
     const layerSet = this.deps.layers?.(base) ?? {};
     const layers = JSON.stringify(layerSet);
+    const toolset = this.deps.toolset?.(base) ?? '';
     if (
       live &&
       (live.layers !== layers ||
+        (live.toolset ?? '') !== toolset ||
         live.agent.mode !== agent.mode ||
         live.agent.model !== agent.model ||
         live.agent.folder !== agent.folder ||
@@ -343,6 +363,7 @@ export class Jobs {
         (e) => this.onEvent(created, e),
       );
       created.layers = layers;
+      created.toolset = toolset;
       if (token) created.token = token;
       live = created;
       this.live.set(key, live);
@@ -405,6 +426,7 @@ export class Jobs {
     }
     const live = [...this.live.values()].find((l) => l.job?.id === jobId);
     const job = live?.job;
+    if (job?.approval?.id.startsWith(ASK)) return this.settleAsk(job.id, job.approval.id, allow);
     if (!live || !job || job.state !== 'attention' || !job.approval || !live.session.answer) return false;
     live.session.answer(job.approval.id, allow);
     const { approval, ...rest } = job;
@@ -427,7 +449,93 @@ export class Jobs {
       };
     }
     this.save(live.job, true);
+    this.showAsk(live);
     return true;
+  }
+
+  /**
+   * A connector call that needs a person: it waits on the job's card (one at a time, after any approval the CLI
+   * asked for) and resolves false when denied, unanswered in time, or when the job ends.
+   */
+  ask(agentId: string, slot: string, what: { label: string; arg?: string; detail?: string }): Promise<boolean> {
+    const live = this.live.get(this.key(agentId, slot));
+    const job = live?.job;
+    if (!live || !job || (job.state !== 'running' && job.state !== 'attention')) return Promise.resolve(false);
+    return new Promise((resolve) => {
+      const id = `${ASK}${newId()}`;
+      const timer = setTimeout(() => this.settleAsk(job.id, id, false), ASK_MS);
+      timer.unref?.();
+      const queue = this.asks.get(job.id) ?? [];
+      queue.push({
+        id,
+        ...what,
+        resolve: (allow) => {
+          clearTimeout(timer);
+          resolve(allow);
+        },
+      });
+      this.asks.set(job.id, queue);
+      this.showAsk(live);
+    });
+  }
+
+  private readonly asks = new Map<string, Ask[]>();
+
+  private showAsk(live: Live): void {
+    const job = live.job;
+    const first = job ? this.asks.get(job.id)?.[0] : undefined;
+    if (!job || !first || job.state !== 'running') return;
+    live.job = {
+      ...job,
+      state: 'attention',
+      approval: {
+        id: first.id,
+        label: first.label,
+        ...(first.arg ? { arg: first.arg } : {}),
+        ...(first.detail ? { detail: first.detail } : {}),
+      },
+    };
+    this.transcript(job.id, {
+      t: 'notice',
+      text: `approval: ${first.label} ${first.arg ?? ''}`.trim(),
+      at: this.now(),
+    });
+    this.save(live.job, true);
+  }
+
+  private settleAsk(jobId: string, askId: string, allow: boolean): boolean {
+    const queue = this.asks.get(jobId);
+    const at = queue?.findIndex((a) => a.id === askId) ?? -1;
+    const ask = queue?.[at];
+    if (!queue || !ask) return false;
+    queue.splice(at, 1);
+    if (queue.length === 0) this.asks.delete(jobId);
+    ask.resolve(allow);
+    const live = [...this.live.values()].find((l) => l.job?.id === jobId);
+    const job = live?.job;
+    if (live && job?.approval?.id === askId) {
+      const { approval: _a, ...rest } = job;
+      const denied = {
+        id: newId(),
+        kind: 'denied' as const,
+        label: ask.label,
+        ...(ask.arg ? { arg: ask.arg } : {}),
+        ok: false,
+        at: this.now(),
+      };
+      live.job = { ...rest, state: 'running', ...(allow ? {} : { steps: [...rest.steps, denied] }) };
+      this.transcript(jobId, { t: 'notice', text: allow ? 'approved' : 'denied', at: this.now() });
+      this.save(live.job, true);
+    }
+    if (live) this.showAsk(live);
+    return true;
+  }
+
+  private dropAsks(jobId: string): void {
+    const queue = this.asks.get(jobId);
+    if (!queue) return;
+    this.asks.delete(jobId);
+    for (const a of queue) a.resolve(false);
   }
 
   stop(jobId: string): boolean {

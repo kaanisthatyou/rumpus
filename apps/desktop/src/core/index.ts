@@ -1,5 +1,5 @@
 // Entry of the core utility process. The main process sends one MessagePort per window; each becomes a peer.
-import { Core, PortLlm, PortSigner } from '@lonca/core';
+import { Core, PortLlm, PortSealer, PortSigner } from '@lonca/core';
 import type { Frame } from '@lonca/protocol';
 import type { MessagePortMain } from 'electron';
 
@@ -11,6 +11,8 @@ const locale = (process.env.LONCA_LOCALE ?? 'en').toLowerCase();
 const llm = new PortLlm((m) => process.parentPort.postMessage(m));
 // The device key signs in the main process too.
 const signer = new PortSigner((m) => process.parentPort.postMessage(m));
+// Connectors' secrets are sealed there as well.
+const sealer = new PortSealer((m) => process.parentPort.postMessage(m));
 // Other members reach this app on its Tailscale address; tests point two apps at loopback instead.
 const peerHost = process.env.LONCA_PEER_HOST;
 const core = new Core({
@@ -18,6 +20,9 @@ const core = new Core({
   language: locale.startsWith('tr') ? 'tr' : 'en',
   llm,
   signer,
+  sealer,
+  // Tests search a stand-in registry on loopback instead of the official one.
+  ...(process.env.LONCA_REGISTRY_URL ? { registry: process.env.LONCA_REGISTRY_URL } : {}),
   ...(peerHost ? { peer: { host: peerHost, port: Number(process.env.LONCA_PEER_PORT) || 0 } } : {}),
   // Phones: the built UI; tests serve it on a loopback port without tailscale serve.
   web: {
@@ -31,7 +36,7 @@ const core = new Core({
 process.parentPort.on('message', (event: { data: unknown; ports: MessagePortMain[] }) => {
   const port = event.ports[0];
   if (!port) {
-    if (!llm.receive(event.data)) signer.receive(event.data);
+    if (!llm.receive(event.data) && !signer.receive(event.data)) sealer.receive(event.data);
     return;
   }
   let listener: (frame: unknown) => void = () => {};

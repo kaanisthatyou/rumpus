@@ -1,4 +1,5 @@
 export { detectAgents, parseClaudeAuth, parseCodexAuth, parseOpenCodeAuth, parseVersion, SPECS } from './agents.js';
+export { Connectors, exposedName, noSealer, PortSealer, type Sealer } from './connectors.js';
 export { ClaudeParser, claudeArgs, openClaude, quotaFrom } from './drivers/claude.js';
 export { CodexParser, codexArgs, openCodex } from './drivers/codex.js';
 export type { AgentSession, DriverEvent, OpenSession, SessionOptions } from './drivers/types.js';
@@ -14,6 +15,7 @@ export {
 export { Clock, newId } from './ids.js';
 export { Jobs, mentions } from './jobs.js';
 export { type Llm, LlmError, noLlm, PortLlm } from './llm.js';
+export { connectorEnv, McpClient, McpError } from './mcp.js';
 export { type Launch, openConsole, type Runner, type RunResult, resolveLaunch, run, which } from './proc.js';
 export { systemPrompt, turnPrompt } from './prompts.js';
 export { Core, type CoreOptions, type Peer } from './server.js';

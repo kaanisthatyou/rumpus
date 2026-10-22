@@ -254,7 +254,8 @@ class ClaudeSession implements AgentSession {
     const opts = { ...this.opts, ...(this.sessionId ? { resume: this.sessionId } : {}) };
     const child = spawn(opts.launch.file, [...opts.launch.args, ...claudeArgs(opts)], {
       cwd: opts.cwd,
-      env: cliEnv(opts),
+      // A connector call may wait for a person on the job card (up to ten minutes).
+      env: { ...cliEnv(opts), ...(opts.mcp ? { MCP_TOOL_TIMEOUT: '900000' } : {}) },
       windowsHide: true,
       stdio: ['pipe', 'pipe', 'pipe'],
     });

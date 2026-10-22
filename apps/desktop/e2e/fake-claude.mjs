@@ -39,6 +39,14 @@ async function callTool(name, toolArgs) {
   const body = await res.json();
   return body.result?.content?.map((c) => c.text ?? '').join(String.fromCharCode(10)) ?? `error ${res.status}`;
 }
+async function listTools() {
+  const res = await fetch(mcp.url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...mcp.headers },
+    body: JSON.stringify({ jsonrpc: '2.0', id: ++rpcId, method: 'tools/list', params: {} }),
+  });
+  return ((await res.json()).result?.tools ?? []).map((t) => t.name);
+}
 async function callAndShow(id, name, toolArgs) {
   out({
     type: 'assistant',
@@ -131,6 +139,31 @@ async function run() {
       if (first) await callAndShow(`u${n}`, 'update_card', { id: first, status: 'done' });
       await callAndShow(`p${n}`, 'post_progress', { text: 'Pano güncellendi' });
       const answer = first ? `Kart ${first} bitti olarak işaretlendi.` : 'Pano boş.';
+      out({ type: 'assistant', message: { content: [{ type: 'text', text: answer }] } });
+      out({
+        type: 'result',
+        subtype: 'success',
+        is_error: false,
+        result: answer,
+        total_cost_usd: 0,
+        usage: { input_tokens: 10, output_tokens: 5 },
+        queued_turn_count: queue.length,
+      });
+      continue;
+    }
+    if (mcp && /bağlayıcıya not ekle/i.test(text)) {
+      // A connector served through Lonca: add a note (its policy asks a person), then list the notes.
+      n += 1;
+      if (!started) {
+        out({ type: 'system', subtype: 'init', session_id: session, tools: ['mcp__lonca__list_cards'] });
+        started = true;
+      }
+      const tools = await listTools();
+      const add = tools.find((t) => t.endsWith('__add_note'));
+      const list = tools.find((t) => t.endsWith('__list_notes'));
+      if (add) await callAndShow(`c${n}`, add, { text: 'e2e notu' });
+      const notes = list ? await callAndShow(`d${n}`, list, {}) : 'bağlayıcı yok';
+      const answer = `Notlar: ${notes}`;
       out({ type: 'assistant', message: { content: [{ type: 'text', text: answer }] } });
       out({
         type: 'result',

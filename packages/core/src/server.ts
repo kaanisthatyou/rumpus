@@ -45,9 +45,10 @@ import { Accounts } from './accounts.js';
 import { Advisors } from './advisors.js';
 import { detectAgents, loginCommand, readLogin } from './agents.js';
 import { Blobs } from './blobs.js';
+import { Connectors, type ExposedTool, noSealer, type Sealer } from './connectors.js';
 import type { OpenSession } from './drivers/types.js';
 import { isFabrika, readFabrika } from './fabrika.js';
-import { Gateway, type Tool, type ToolContent } from './gateway.js';
+import { Gateway, type Tool, type ToolContent, type ToolContext, type ToolResult } from './gateway.js';
 import { Goals, gitWorktrees } from './goals.js';
 import { canonical, type SignedEvent, type Signer, verifySignature } from './identity.js';
 import { newId } from './ids.js';
@@ -89,6 +90,12 @@ export interface CoreOptions {
   llm?: Llm;
   /** The device key's signer (the main process in the app). */
   signer?: Signer;
+  /** Seals connectors' secrets (the main process's safeStorage in the app). */
+  sealer?: Sealer;
+  /** Replaced in tests: the MCP Registry and remote connectors without the network. */
+  fetch?: typeof fetch;
+  /** Another MCP Registry (tests point it at a local stand-in). */
+  registry?: string;
   /** Where to listen for other members: the Tailscale address and port 47640 unless given (tests use loopback). */
   peer?: { host?: string; port?: number };
   /** The built UI, served to paired phones; and the loopback port for them (47620 unless given). */
@@ -141,11 +148,19 @@ interface Workspace {
   goals: Goals;
   /** Jobs already handed to the advisors when they ended. */
   ended: Set<string>;
+  /** Connector tools a person allowed once for a job (`once` policy), by job. */
+  allowedOnce: Map<string, Set<string>>;
   timer: NodeJS.Timeout;
 }
 
 /** Events that are not about one workspace: they reach the window whichever workspace sent them. */
-const GLOBAL_EVENTS = new Set<EventName>(['settings.changed', 'clis.changed', 'quota.changed', 'workspaces.changed']);
+const GLOBAL_EVENTS = new Set<EventName>([
+  'settings.changed',
+  'clis.changed',
+  'quota.changed',
+  'workspaces.changed',
+  'connectors.changed',
+]);
 
 type Handler<M extends MethodName> = (params: CoreMethods[M]['params']) => Promise<CoreMethods[M]['result']>;
 
@@ -222,6 +237,7 @@ export class Core {
   private readonly projectCache = new Map<string, { at: number; text: Promise<string> }>();
   private projectGitRunner: ProjectGit | undefined;
   private readonly accounts: Accounts;
+  private readonly connectors: Connectors;
   /** What other members' computers said about their CLIs and quota (`/durum`), per workspace and device. */
   private readonly peerStatus = new Map<string, DeviceStatus>();
   private statusSent = 0;
@@ -231,7 +247,25 @@ export class Core {
     this.settings = new SettingsStore(join(opts.appDir, 'settings.json'), opts.language);
     this.deviceId = this.loadDeviceId();
     this.accounts = new Accounts(join(opts.appDir, 'accounts.json'), join(opts.appDir, 'accounts'));
+    this.connectors = new Connectors(join(opts.appDir, 'connectors.json'), opts.sealer ?? noSealer, {
+      ...(opts.env ? { env: opts.env } : {}),
+      ...(opts.fetch ? { fetch: opts.fetch } : {}),
+      ...(opts.registry ? { registry: opts.registry } : {}),
+    });
+    this.connectors.onChange((state) => this.emit('connectors.changed', state));
     this.handlers = {
+      'connectors.list': async () => this.connectors.state(),
+      'connectors.save': async (p) => this.connectors.save(p),
+      'connectors.test': async (p) => {
+        void this.connectors.test(String(p?.id ?? '')).catch(() => {});
+        return this.connectors.state();
+      },
+      'connectors.remove': async (p) => this.connectors.remove(String(p?.id ?? '')),
+      'connectors.search': async (p) =>
+        this.connectors.search(String(p?.query ?? ''), typeof p?.cursor === 'string' ? p.cursor : undefined),
+      'connectors.runtimes': async () => this.connectors.runtimes(),
+      'connectors.policy': async (p) =>
+        this.connectors.setPolicy(String(p?.id ?? ''), String(p?.tool ?? ''), p?.policy as never),
       'settings.get': async () => this.settings.get(),
       'settings.update': async (patch) => {
         const before = this.settings.get();
@@ -597,6 +631,7 @@ export class Core {
 
   shutdown(): void {
     this.closeAll();
+    this.connectors.close();
     this.phone?.close();
   }
 
@@ -1010,7 +1045,10 @@ export class Core {
     /** The approval each job last pushed to phones for. */
     const attention = new Map<string, string | undefined>();
     const inWs = <T>(fn: () => T): T => this.within(ref.ws, fn);
-    const gateway = new Gateway(this.tools().map((t) => ({ ...t, run: (a, ctx) => inWs(() => t.run(a, ctx)) })));
+    const gateway = new Gateway(
+      this.tools().map((t) => ({ ...t, run: (a, ctx) => inWs(() => t.run(a, ctx)) })),
+      (ctx) => inWs(() => this.connectorTools(ref.ws, ctx)),
+    );
     let starting: Promise<number> | undefined;
     const jobs = new Jobs({
       gateway: {
@@ -1072,6 +1110,7 @@ export class Core {
       emitMessage: (message) => inWs(() => this.emit('message.added', message)),
       emitQuota: (kind, quota) => this.emit('quota.changed', { kind, quota }),
       accountEnv: (agent) => this.accounts.env(agent.account),
+      toolset: (agent) => this.connectors.fingerprint(agent.id),
       ...(this.opts.drivers ? { drivers: this.opts.drivers } : {}),
       ...(this.opts.launch ? { launch: this.opts.launch } : {}),
     });
@@ -1150,6 +1189,7 @@ export class Core {
       advisors,
       goals,
       ended: new Set(),
+      allowedOnce: new Map(),
       timer,
       ...(membership ? { membership } : {}),
       ...(sync ? { sync } : {}),
@@ -1928,6 +1968,52 @@ export class Core {
     })();
     this.projectCache.set(folder, { at: Date.now(), text });
     return text;
+  }
+
+  /** The connectors' tools an agent's session sees (PLAN.md 5.9), each run through its tool policy. */
+  private connectorTools(ws: Workspace, ctx: ToolContext): Tool[] {
+    if (this.agentOwner(ws.store, ctx.agentId) !== this.deviceId && ws.kind === 'team') return [];
+    return this.connectors.forAgent(ctx.agentId).map((t) => ({
+      name: t.exposed,
+      description: `${t.connector.name}: ${t.tool.description || t.tool.title || t.tool.name}`.slice(0, 4000),
+      inputSchema: t.tool.inputSchema,
+      run: (args, c) => this.callConnector(ws, c, t, args),
+    }));
+  }
+
+  /**
+   * One connector call. `allow` runs at once for the agent owner's own requests; anyone else's request, `ask`, and
+   * `once` (the first time in a job) wait for the owner on the job card.
+   */
+  private async callConnector(
+    ws: Workspace,
+    ctx: ToolContext,
+    t: ExposedTool,
+    args: Record<string, unknown>,
+  ): Promise<ToolResult> {
+    const refuse = (text: string): ToolResult => ({ content: [{ type: 'text', text }], isError: true });
+    const slot = ctx.slot ?? ctx.channelId;
+    const job = ws.jobs.current(ctx.agentId, ctx.channelId, ctx.slot);
+    if (!job) return refuse('Connector tools work only during a job.');
+    const request = ws.store.message(job.requestId);
+    const origin = request?.handover ? ws.store.message(request.handover.requestId) : request;
+    const mine = ws.kind === 'personal' || (origin?.author.kind === 'person' && origin.author.id === this.deviceId);
+    const policy = t.tool.policy;
+    if (policy === 'blocked') return refuse('This tool is blocked on this computer.');
+    const once = ws.allowedOnce.get(job.id);
+    const needsPerson =
+      policy === 'ask' || (policy === 'once' && !once?.has(t.exposed)) || (policy === 'allow' && !mine);
+    if (needsPerson) {
+      const detail = JSON.stringify(args);
+      const allowed = await ws.jobs.ask(ctx.agentId, slot, {
+        label: 'connector',
+        arg: `${t.connector.name}: ${t.tool.title ?? t.tool.name}`,
+        ...(detail !== '{}' ? { detail: detail.length > 400 ? `${detail.slice(0, 400)}…` : detail } : {}),
+      });
+      if (!allowed) return refuse('A person did not allow this call in Lonca.');
+      if (policy === 'once') ws.allowedOnce.set(job.id, new Set([...(once ?? []), t.exposed]));
+    }
+    return this.connectors.call(t.connector.id, t.tool.name, args);
   }
 
   /** Lonca's tools for its agents (served by the gateway; the agent is known from its token). */
