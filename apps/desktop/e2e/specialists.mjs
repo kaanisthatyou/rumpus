@@ -133,8 +133,27 @@ try {
   await edit.locator('.specform__tabs').getByText(L.specialists.tabs.lessons, { exact: true }).click();
   assert.match(await edit.locator('#spec-lessons').inputValue(), /^- Bu projede testler `npm test` ile/);
   await shot(page, 'lessons');
+
+  // Shared as text (without its folder and lessons), and pasted into the gallery it fills a new form.
+  await edit.getByRole('button', { name: L.specialists.share.copy }).click();
+  const sharedText = await app.evaluate(({ clipboard }) => clipboard.readText());
+  assert.equal(JSON.parse(sharedText).serai, 'specialist');
+  assert.equal(sharedText.includes('npm test'), false);
   await edit.getByRole('button', { name: L.agentForm.cancel }).click();
   await edit.waitFor({ state: 'detached' });
+  await page.getByRole('button', { name: L.specialists.new, exact: true }).click();
+  const again = page.getByRole('dialog', { name: L.specialists.new });
+  await again.getByRole('button', { name: L.specialists.share.paste }).click();
+  await again.locator('#spec-paste').fill('bu bir uzman değil');
+  await again.getByText(L.specialists.share.bad).waitFor();
+  await again.locator('#spec-paste').fill(sharedText);
+  assert.equal(await again.getByLabel(L.agentForm.handle, { exact: true }).inputValue(), 'inceleme-2');
+  assert.equal(
+    await again.getByLabel(L.specialists.role, { exact: true }).inputValue(),
+    L.specialists.templates.reviewer.role,
+  );
+  await again.getByRole('button', { name: L.agentForm.cancel }).click();
+  await again.waitFor({ state: 'detached' });
 
   // A slow job runs against the budget, shown on its card; it stops like any other job.
   await composer.fill('@inceleme yavaş yavaş bak');

@@ -1098,6 +1098,13 @@
         "role": "",
         "about": "Starts without a template: the specialty and playbook are written from scratch."
       }
+    },
+    "share": {
+      "copy": "Share",
+      "copyHint": "Copies the specialist's definition as text: its name, specialty, playbook and settings. The folder, references and lessons are left out.",
+      "paste": "Paste a shared specialist",
+      "pasteHint": "The text someone copied with Share is pasted here.",
+      "bad": "This text is not a shared specialist."
     }
   },
   "join": {

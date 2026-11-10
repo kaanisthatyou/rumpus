@@ -735,6 +735,31 @@ export function ChannelView({ channel }: { channel: Channel }) {
             <p className="empty__sub">
               {own ? t('channel.agentChannelHint', { handle: own.handle }) : t('channel.channelHint')}
             </p>
+            {!own &&
+              (agents.length === 0 ? (
+                <div className="empty__acts">
+                  <Button icon="terminal" onClick={() => openAgentDialog('new')}>
+                    {t('crew.addAgent')}
+                  </Button>
+                  <Button icon="spark" onClick={() => useApp.getState().openSpecialistDialog('new')}>
+                    {t('specialists.new')}
+                  </Button>
+                </div>
+              ) : (
+                <div className="empty__acts">
+                  {agents.slice(0, 6).map((a) => (
+                    <button
+                      key={a.id}
+                      type="button"
+                      className="tile"
+                      title={a.specialty?.role ?? a.name}
+                      onClick={() => useApp.setState({ inject: { text: `@${a.handle} `, at: Date.now() } })}
+                    >
+                      @{a.handle}
+                    </button>
+                  ))}
+                </div>
+              ))}
           </div>
         ) : (
           messages.map((m, i) => {

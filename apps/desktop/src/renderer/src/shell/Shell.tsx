@@ -455,6 +455,14 @@ function Crew() {
       .filter((j) => j.state === 'attention')
       .map((j) => j.agentId),
   );
+  /** What a working agent is doing right now: its running job's latest step. */
+  const doing = (agentId: string): string => {
+    const job = Object.values(jobs).find((j) => j.agentId === agentId && j.state === 'running');
+    const step = job?.steps.at(-1);
+    if (!step) return t('crew.running');
+    const label = t(`job.tool.${step.label}`, step.label);
+    return step.arg ? `${label} · ${step.arg}` : label;
+  };
   const used = new Set(everyAgent.map((a) => a.kind));
   const suggestions = (clis ?? []).filter(
     (c) => RUNNABLE.includes(c.kind) && c.state !== 'missing' && !used.has(c.kind),
@@ -491,7 +499,7 @@ function Crew() {
             : asking.has(a.id)
               ? t('job.approval.title')
               : busy.has(a.id)
-                ? t('crew.running')
+                ? doing(a.id)
                 : t('crew.idle');
           return (
             <motion.li key={a.id} variants={popIn} className={`who ${missing ? 'is-off' : ''}`}>
@@ -501,8 +509,10 @@ function Crew() {
                   <b>
                     {a.name} <span className="l-mono">@{a.handle}</span>
                   </b>
-                  <span>
-                    {t(`agent.kind.${a.kind}`)} · {owner ? t('agent.on', { name: owner }) : state}
+                  <span className={busy.has(a.id) && !owner ? 'who__doing' : ''}>
+                    {busy.has(a.id) && !owner
+                      ? state
+                      : `${t(`agent.kind.${a.kind}`)} · ${owner ? t('agent.on', { name: owner }) : state}`}
                   </span>
                 </div>
               </button>
@@ -566,11 +576,11 @@ function Crew() {
                     <b>
                       {a.name} <span className="l-mono">@{a.handle}</span>
                     </b>
-                    <span>
+                    <span className={busy.has(a.id) ? 'who__doing' : ''}>
                       {asking.has(a.id)
                         ? t('job.approval.title')
                         : busy.has(a.id)
-                          ? t('crew.running')
+                          ? doing(a.id)
                           : owner
                             ? t('agent.on', { name: owner })
                             : a.specialty?.role}

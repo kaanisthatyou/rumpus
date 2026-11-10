@@ -281,6 +281,21 @@
   font-size: 11px;
   color: var(--meta);
 }
+.who__doing {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.empty__acts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 14px;
+}
 button.crew__empty {
   width: 100%;
   border-radius: var(--r);

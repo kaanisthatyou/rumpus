@@ -1098,6 +1098,13 @@
         "role": "",
         "about": "Şablonsuz başlar: uzmanlık ve yönerge baştan yazılır."
       }
+    },
+    "share": {
+      "copy": "Paylaş",
+      "copyHint": "Uzmanın tanımını metin olarak kopyalar: adı, uzmanlığı, yönergesi ve ayarları. Klasör, referanslar ve dersler dahil değildir.",
+      "paste": "Paylaşılan uzmanı yapıştır",
+      "pasteHint": "Başka birinin Paylaş ile kopyaladığı metin buraya yapıştırılır.",
+      "bad": "Bu metin paylaşılmış bir uzman değil."
     }
   },
   "join": {

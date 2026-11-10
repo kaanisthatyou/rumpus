@@ -24,6 +24,45 @@ import { useApp } from '../store';
 import { RUNNABLE, slug } from './AgentDialog';
 
 type Tab = 'who' | 'playbook' | 'context' | 'lessons';
+
+/** A specialist as it is shared: what it is and how it works, without its folder, references or lessons. */
+interface Shared {
+  serai: 'specialist';
+  name: string;
+  handle: string;
+  mode: AgentMode;
+  role: string;
+  playbook: string;
+  history: number;
+  budget?: { minutes: number; tokens?: number };
+  result: boolean;
+  template?: string;
+}
+
+function readShared(text: string): Shared | undefined {
+  try {
+    const d = JSON.parse(text.trim()) as Partial<Shared>;
+    if (d?.serai !== 'specialist' || typeof d.name !== 'string' || typeof d.role !== 'string') return undefined;
+    const minutes = Number(d.budget?.minutes);
+    const tokens = Number(d.budget?.tokens);
+    return {
+      serai: 'specialist',
+      name: d.name.slice(0, 40),
+      handle: slug(typeof d.handle === 'string' ? d.handle : d.name),
+      mode: (AGENT_MODES as readonly string[]).includes(String(d.mode)) ? (d.mode as AgentMode) : 'read',
+      role: d.role.slice(0, 140),
+      playbook: typeof d.playbook === 'string' ? d.playbook.slice(0, 20_000) : '',
+      history: Math.min(SPECIALIST_HISTORY_MAX, Math.max(0, Math.round(Number(d.history) || 0))),
+      ...(minutes >= 1 && minutes <= 240
+        ? { budget: { minutes: Math.round(minutes), ...(tokens >= 1000 ? { tokens: Math.round(tokens) } : {}) } }
+        : {}),
+      result: d.result === true,
+      ...(typeof d.template === 'string' ? { template: d.template.slice(0, 40) } : {}),
+    };
+  } catch {
+    return undefined;
+  }
+}
 const NO_LESSONS: LessonSuggestion[] = [];
 const NO_RECORDS: RecordItem[] = [];
 
@@ -138,6 +177,9 @@ export function SpecialistDialog() {
   const [learns, setLearns] = useState(spec?.learns ?? true);
   const [lessons, setLessons] = useState(spec?.lessons ?? '');
   const [lessonsTouched, setLessonsTouched] = useState(false);
+  const [pasting, setPasting] = useState(false);
+  const [pasted, setPasted] = useState('');
+  const [shared, setShared] = useState(false);
 
   const accounts = useMemo(() => allAccounts.filter((a) => a.kind === kind), [allAccounts, kind]);
   const references = useMemo(() => records.filter((r) => r.kind === 'reference'), [records]);
@@ -176,6 +218,42 @@ export function SpecialistDialog() {
     setTokens(tpl.budget?.tokens ? String(Math.round(tpl.budget.tokens / 1000)) : '');
     setResult(tpl.result);
     setTab('who');
+  };
+
+  /** A specialist someone shared, pasted into the gallery: the form opens filled from it. */
+  const take = (s: Shared) => {
+    const used = new Set([...(taken?.agents ?? []), ...(taken?.advisors ?? [])].map((a) => a.handle));
+    let free = s.handle || 'uzman';
+    for (let n = 2; used.has(free); n += 1) free = `${s.handle}-${n}`;
+    setTemplate(s.template && SPECIALIST_TEMPLATES.some((x) => x.id === s.template) ? s.template : 'custom');
+    setName(s.name);
+    setHandle(free);
+    setHandleTouched(true);
+    setRole(s.role);
+    setMode(s.mode);
+    setPlaybook(s.playbook);
+    setHistory(s.history);
+    setLimited(Boolean(s.budget));
+    setMinutes(s.budget?.minutes ?? 15);
+    setTokens(s.budget?.tokens ? String(Math.round(s.budget.tokens / 1000)) : '');
+    setResult(s.result);
+    setTab('who');
+  };
+  const share = async () => {
+    const out: Shared = {
+      serai: 'specialist',
+      name,
+      handle,
+      mode,
+      role: role.trim(),
+      playbook,
+      history,
+      ...(limited ? { budget: { minutes, ...(tokenCount >= 1000 ? { tokens: tokenCount } : {}) } } : {}),
+      result,
+      ...(template ? { template } : {}),
+    };
+    await window.lonca.shell.copy(JSON.stringify(out, null, 2));
+    setShared(true);
   };
 
   const chosen = SPECIALIST_TEMPLATES.find((x) => x.id === template);
@@ -256,6 +334,35 @@ export function SpecialistDialog() {
                 <TemplateCard key={tpl.id} template={tpl} onPick={() => pick(tpl)} />
               ))}
             </motion.div>
+            {pasting ? (
+              <div className="l-field">
+                <label className="l-field__label" htmlFor="spec-paste">
+                  {t('specialists.share.paste')}
+                </label>
+                <textarea
+                  id="spec-paste"
+                  className="l-input l-mono agentform__text"
+                  value={pasted}
+                  spellCheck={false}
+                  // biome-ignore lint/a11y/noAutofocus: the field opens on request to be pasted into
+                  autoFocus
+                  onChange={(e) => {
+                    setPasted(e.target.value);
+                    const s = readShared(e.target.value);
+                    if (s) take(s);
+                  }}
+                />
+                <span className={pasted.trim() ? 'l-field__error' : 'l-field__hint'}>
+                  {pasted.trim() ? t('specialists.share.bad') : t('specialists.share.pasteHint')}
+                </span>
+              </div>
+            ) : (
+              <div>
+                <Button variant="quiet" icon="download" onClick={() => setPasting(true)}>
+                  {t('specialists.share.paste')}
+                </Button>
+              </div>
+            )}
           </div>
         ) : (
           <>
@@ -602,6 +709,17 @@ export function SpecialistDialog() {
           <Button variant="quiet" onClick={close}>
             {t('agentForm.cancel')}
           </Button>
+          {template && (
+            <Button
+              variant="quiet"
+              icon={shared ? 'check' : 'copy'}
+              title={t('specialists.share.copyHint')}
+              disabled={!name.trim() || !role.trim()}
+              onClick={() => void share()}
+            >
+              {shared ? t('common.copied') : t('specialists.share.copy')}
+            </Button>
+          )}
           {template && (
             <Button type="submit" variant="primary" disabled={!ready}>
               {t('agentForm.save')}
