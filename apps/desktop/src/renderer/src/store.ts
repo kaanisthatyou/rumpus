@@ -29,6 +29,8 @@ import type {
   RecordInput,
   RecordItem,
   Result,
+  RoutineInput,
+  RoutineView,
   Settings,
   SettingsPatch,
   TailscaleInfo,
@@ -41,7 +43,17 @@ import type { AppInfo, UpdateState } from '../../shared/bridge';
 import i18n from './i18n';
 import { core, RpcError } from './rpc';
 
-export type View = 'home' | 'channel' | 'tasks' | 'goals' | 'ideas' | 'references' | 'commands' | 'memory' | 'project';
+export type View =
+  | 'home'
+  | 'channel'
+  | 'tasks'
+  | 'goals'
+  | 'routines'
+  | 'ideas'
+  | 'references'
+  | 'commands'
+  | 'memory'
+  | 'project';
 
 type Unread = Record<string, { count: number; mention?: boolean }>;
 const NO_UNREAD: Unread = {};
@@ -80,6 +92,8 @@ interface AppState {
   watching?: string;
   /** The agent dialog: an agent to edit, `new` for a new one, or closed. */
   agentDialog?: Agent | 'new' | { kind: CliKind };
+  /** The routine dialog: a routine to edit, `new`, or closed. */
+  routineDialog?: RoutineView | 'new';
   /** The specialist dialog: a specialist to edit, `new` for the template gallery, or closed. */
   specialistDialog?: Agent | 'new';
   advisorDialog?: Advisor | 'new';
@@ -148,6 +162,9 @@ interface AppState {
   watch(jobId: string | undefined): void;
   openAgentDialog(target: AppState['agentDialog']): void;
   openSpecialistDialog(target: AppState['specialistDialog']): void;
+  saveRoutine(input: RoutineInput): Promise<boolean>;
+  deleteRoutine(id: string): Promise<void>;
+  runRoutine(id: string): Promise<boolean>;
   /** A specialist's waiting lesson: kept (as edited) or dropped. */
   answerLesson(id: string, keep: boolean, text?: string): Promise<void>;
   openAdvisorDialog(target: AppState['advisorDialog']): void;
@@ -652,6 +669,18 @@ export const useApp = create<AppState>((set, get) => {
 
     openSpecialistDialog(target) {
       set({ specialistDialog: target, error: undefined });
+    },
+
+    async saveRoutine(input) {
+      return Boolean(await attempt(() => core.call('routines.save', input)));
+    },
+
+    async deleteRoutine(id) {
+      await attempt(() => core.call('routines.delete', { id }));
+    },
+
+    async runRoutine(id) {
+      return Boolean(await attempt(() => core.call('routines.run', { id })));
     },
 
     async answerLesson(id, keep, text) {

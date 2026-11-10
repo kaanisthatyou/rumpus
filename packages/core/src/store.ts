@@ -17,6 +17,7 @@ import type {
   Project,
   ProjectStatus,
   RecordItem,
+  Routine,
 } from '@lonca/protocol';
 import type { SignedEvent } from './identity.js';
 import { Clock, newId } from './ids.js';
@@ -91,6 +92,9 @@ CREATE TABLE IF NOT EXISTS projects (
 );
 CREATE TABLE IF NOT EXISTS progress (id TEXT PRIMARY KEY, data TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS project_folders (id TEXT PRIMARY KEY, folder TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS routines (
+  id TEXT PRIMARY KEY, data TEXT NOT NULL, created INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0
+);
 CREATE TABLE IF NOT EXISTS sessions (
   agent_id TEXT NOT NULL, channel_id TEXT NOT NULL, session_id TEXT NOT NULL, PRIMARY KEY (agent_id, channel_id)
 );
@@ -114,6 +118,8 @@ export type WorkspaceEvent =
   | { type: 'message.posted'; data: Message }
   | { type: 'message.edited'; data: { id: string; text: string; edited: number } }
   | { type: 'message.deleted'; data: { id: string } }
+  | { type: 'routine.saved'; data: Routine }
+  | { type: 'routine.deleted'; data: { id: string } }
   | { type: 'card.saved'; data: Card }
   | { type: 'card.deleted'; data: { id: string } }
   | { type: 'record.saved'; data: RecordItem }
@@ -130,6 +136,7 @@ const TABLES: Record<string, string> = {
   agent: 'agents',
   message: 'messages',
   card: 'cards',
+  routine: 'routines',
   record: 'records',
   advisor: 'advisors',
   goal: 'goals',
@@ -182,6 +189,7 @@ function toMessage(r: Row): Message {
     ...(r.refs ? { refs: json<string[]>(r.refs) } : {}),
     ...(r.handover ? { handover: json<{ requestId: string; agentId: string }>(r.handover) } : {}),
     ...(r.result ? { result: json<Record<string, unknown>>(r.result) } : {}),
+    ...(r.routine ? { routine: String(r.routine) } : {}),
   };
 }
 
@@ -200,6 +208,7 @@ export class WorkspaceStore {
     if (!columns.includes('refs')) this.db.exec('ALTER TABLE messages ADD COLUMN refs TEXT');
     if (!columns.includes('handover')) this.db.exec('ALTER TABLE messages ADD COLUMN handover TEXT');
     if (!columns.includes('result')) this.db.exec('ALTER TABLE messages ADD COLUMN result TEXT');
+    if (!columns.includes('routine')) this.db.exec('ALTER TABLE messages ADD COLUMN routine TEXT');
     this.migrateEvents();
     this.clock = new Clock(deviceId);
     const latest = this.db.prepare('SELECT MAX(at) AS at FROM events').get() as Row | undefined;
@@ -523,7 +532,7 @@ export class WorkspaceStore {
         const m = e.data;
         this.db
           .prepare(
-            'INSERT OR IGNORE INTO messages (id, channel_id, author, text, created, job_id, refs, handover, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            'INSERT OR IGNORE INTO messages (id, channel_id, author, text, created, job_id, refs, handover, result, routine) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
           )
           .run(
             m.id,
@@ -535,6 +544,7 @@ export class WorkspaceStore {
             m.refs?.length ? JSON.stringify(m.refs) : null,
             m.handover ? JSON.stringify({ requestId: m.handover.requestId, agentId: m.handover.agentId }) : null,
             m.result ? JSON.stringify(m.result).slice(0, 8000) : null,
+            m.routine ?? null,
           );
         return;
       }
@@ -545,6 +555,16 @@ export class WorkspaceStore {
         return;
       case 'message.deleted':
         this.db.prepare("UPDATE messages SET deleted = 1, text = '' WHERE id = ?").run(e.data.id);
+        return;
+      case 'routine.saved':
+        this.db
+          .prepare(
+            'INSERT INTO routines (id, data, created) VALUES (?, ?, ?) ON CONFLICT (id) DO UPDATE SET data = excluded.data, deleted = 0',
+          )
+          .run(e.data.id, JSON.stringify(e.data), e.data.created);
+        return;
+      case 'routine.deleted':
+        this.db.prepare('UPDATE routines SET deleted = 1 WHERE id = ?').run(e.data.id);
         return;
       case 'card.saved':
         this.db
@@ -695,6 +715,17 @@ export class WorkspaceStore {
       )
       .all(terms, limit) as Row[];
     return rows.map(toMessage);
+  }
+
+  routines(): Routine[] {
+    return (this.db.prepare('SELECT data FROM routines WHERE deleted = 0 ORDER BY created').all() as Row[]).map((r) =>
+      json<Routine>(r.data),
+    );
+  }
+
+  routine(id: string): Routine | undefined {
+    const r = this.db.prepare('SELECT data FROM routines WHERE id = ? AND deleted = 0').get(id) as Row | undefined;
+    return r ? json<Routine>(r.data) : undefined;
   }
 
   cards(): Card[] {

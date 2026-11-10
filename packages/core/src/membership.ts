@@ -45,6 +45,8 @@ function minRole(type: string, data: Record<string, unknown>): Role | undefined 
       return 'viewer';
     case 'card.saved':
     case 'card.deleted':
+    case 'routine.saved':
+    case 'routine.deleted':
     case 'record.saved':
     case 'record.deleted':
     case 'goal.saved':
@@ -166,6 +168,13 @@ export class Membership {
       case 'advisor.deleted':
       case 'message.edited':
         if (owner && owner !== e.author) return 'not_allowed';
+        break;
+      // A routine posts as its owner: nobody else changes it, and it never names another device as its owner.
+      case 'routine.saved':
+        if ((owner && owner !== e.author) || data.owner !== e.author) return 'not_allowed';
+        break;
+      case 'routine.deleted':
+        if (owner && owner !== e.author && author.role !== 'admin') return 'not_allowed';
         break;
       case 'message.deleted':
         if (owner && owner !== e.author && author.role !== 'admin') return 'not_allowed';

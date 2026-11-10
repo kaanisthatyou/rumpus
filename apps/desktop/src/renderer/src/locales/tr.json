@@ -131,7 +131,8 @@
       "references": "Referans yok.",
       "commands": "Kayıtlı komut yok.",
       "memory": "Bellek boş.",
-      "home": "Genel bakış"
+      "home": "Genel bakış",
+      "routines": "Rutin yok."
     },
     "composer": "Mesaj · #{{channel}}",
     "voice": "Bas-konuş",
@@ -157,7 +158,8 @@
     "project": "Proje",
     "specialists": "Uzmanlar",
     "noSpecialists": "Uzman yok. Tek bir işe özelleşmiş agent eklenir.",
-    "home": "Genel bakış"
+    "home": "Genel bakış",
+    "routines": "Rutinler"
   },
   "settings": {
     "title": "Ayarlar",
@@ -1175,5 +1177,31 @@
         "act": "Ayarlar"
       }
     }
+  },
+  "routines": {
+    "topic": "Belirlenen saatte, sahibinin adına kanala yazılan mesajlar.",
+    "new": "Yeni rutin",
+    "edit": "Rutini düzenle",
+    "delete": "Rutini sil",
+    "intro": "Rutin, belirlenen saatte ve günlerde bir kanala sahibinin adına yazılan mesajdır; içinde @ ile anılan agent işi alır. Örnek: her sabah testleri çalıştırmak, her akşam günün özetini istemek. Mesaj, sahibinin bilgisayarında uygulama açıkken yazılır.",
+    "text": "Mesaj",
+    "textPlaceholder": "@test testleri çalıştır ve kırılanları yaz",
+    "textHint": "Kanala aynen yazılır. Agent ya da uzman @ ile anılır.",
+    "at": "Saat",
+    "channel": "Kanal",
+    "days": "Günler",
+    "everyDay": "Gün seçilmezse her gün çalışır.",
+    "someDays": "Yalnızca seçilen günlerde çalışır.",
+    "daily": "Her gün",
+    "owner": "Sahibi: {{name}}",
+    "next": "Sıradaki: {{when}}",
+    "last": "Son: {{when}}",
+    "tomorrow": "Yarın",
+    "off": "Kapalı",
+    "enabled": "Rutin açık",
+    "run": "Şimdi çalıştır",
+    "ran": "Yazıldı",
+    "message": "Rutin",
+    "messageHint": "Bu mesaj, sahibinin bir rutini tarafından yazıldı."
   }
 }

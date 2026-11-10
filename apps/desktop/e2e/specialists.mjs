@@ -165,6 +165,32 @@ try {
   await composer.waitFor();
   assert.equal(await side.locator('.nav__unread').count(), 0);
 
+  // A routine: the person's message, posted for them at a set time; run now, it calls the specialist.
+  await side.getByRole('button', { name: L.shell.routines }).click();
+  await page.getByText(L.shell.empty.routines).waitFor();
+  await page.getByRole('button', { name: L.routines.new }).first().click();
+  const routine = page.getByRole('dialog', { name: L.routines.new });
+  await routine.getByRole('button', { name: '@inceleme' }).click();
+  await routine.locator('#routine-text').pressSequentially('son değişikliği incele');
+  await routine.locator('#routine-at').fill('09:30');
+  await routine.locator('.daypick__day').first().click();
+  await routine.getByText(L.routines.someDays).waitFor();
+  await shot(page, 'routine-form');
+  await routine.getByRole('button', { name: L.agentForm.save }).click();
+  await routine.waitFor({ state: 'detached' });
+  const card = page.locator('.routine');
+  await card.getByText('09:30', { exact: true }).waitFor();
+  await card.getByText('@inceleme son değişikliği incele').waitFor();
+  await card.getByText('#genel').waitFor();
+  await shot(page, 'routines');
+  await card.getByRole('button', { name: L.routines.run }).click();
+  await card.getByRole('button', { name: L.routines.ran }).waitFor();
+  await genel.click();
+  const posted = page.locator('.msg', { hasText: L.routines.message }).last();
+  await posted.getByText('@inceleme son değişikliği incele').waitFor();
+  await posted.getByText(L.job.state.done).waitFor({ timeout: 20_000 });
+  await shot(page, 'routine-ran');
+
   assert.deepEqual(errors, []);
   console.log('specialists e2e ok');
 } catch (err) {

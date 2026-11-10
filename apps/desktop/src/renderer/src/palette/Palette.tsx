@@ -22,6 +22,7 @@ const VIEWS: { view: View; icon: IconName }[] = [
   { view: 'home', icon: 'home' },
   { view: 'tasks', icon: 'tasks' },
   { view: 'goals', icon: 'target' },
+  { view: 'routines', icon: 'clock' },
   { view: 'ideas', icon: 'idea' },
   { view: 'references', icon: 'image' },
   { view: 'commands', icon: 'bookmark' },

@@ -29,6 +29,8 @@ import type {
   RecordInput,
   RecordItem,
   RecordKind,
+  Routine,
+  RoutineInput,
   TranscriptEntry,
   WorkspaceState,
   WorkspaceSummary,
@@ -278,6 +280,10 @@ export interface CoreMethods {
   /** The person has the channel open: what is in it now counts as read. */
   'channels.read': { params: { channelId: string }; result: { ok: true } };
   'overview.get': { params: undefined; result: Overview };
+  'routines.save': { params: RoutineInput; result: Routine };
+  'routines.delete': { params: { id: string }; result: { ok: true } };
+  /** Posts a routine's message now, whatever its time (its owner only). */
+  'routines.run': { params: { id: string }; result: { ok: true } };
   'messages.list': {
     params: { channelId: string; before?: number; limit?: number };
     result: { messages: Message[]; jobs: Job[] };

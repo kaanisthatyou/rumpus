@@ -119,6 +119,12 @@ function MessageRow({ message, agents, jobs }: { message: Message; agents: Agent
           {agent && <Chip mono>@{agent.handle}</Chip>}
           {advisor && <Chip mono>@{advisor.handle}</Chip>}
           {a.kind === 'advisor' && <span className="msg__role">{t('advisor.role')}</span>}
+          {message.routine && (
+            <span className="msg__role" title={t('routines.messageHint')}>
+              <Icon name="clock" size={11} />
+              {t('routines.message')}
+            </span>
+          )}
           {message.handover && (
             <span className="msg__role" title={t('handover.hint')}>
               {t('handover.part')}

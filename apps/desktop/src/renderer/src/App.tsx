@@ -9,6 +9,7 @@ import { actionFor } from './keys';
 import { Launcher } from './launcher/Launcher';
 import { Palette, ShortcutsDialog } from './palette/Palette';
 import { ProjectDialog } from './projects/ProjectDialog';
+import { RoutineDialog } from './routines/RoutinesView';
 import { SettingsDialog } from './settings/SettingsDialog';
 import { InviteDialog } from './shell/InviteDialog';
 import { NewWorkspaceDialog } from './shell/NewWorkspaceDialog';
@@ -30,6 +31,7 @@ export function App() {
   const settings = useApp((s) => s.settings);
   const agentDialog = useApp((s) => s.agentDialog);
   const specialistDialog = useApp((s) => s.specialistDialog);
+  const routineDialog = useApp((s) => s.routineDialog);
   const advisorDialog = useApp((s) => s.advisorDialog);
   const goalDialog = useApp((s) => s.goalDialog);
   const projectDialog = useApp((s) => s.projectDialog);
@@ -128,6 +130,7 @@ export function App() {
         <AnimatePresence>{settingsOpen && <SettingsDialog onClose={closeSettings} />}</AnimatePresence>
         <AnimatePresence>{agentDialog && <AgentDialog key="agent-dialog" />}</AnimatePresence>
         <AnimatePresence>{specialistDialog && <SpecialistDialog key="specialist-dialog" />}</AnimatePresence>
+        <AnimatePresence>{routineDialog && <RoutineDialog key="routine-dialog" />}</AnimatePresence>
         <AnimatePresence>{advisorDialog && <AdvisorDialog key="advisor-dialog" />}</AnimatePresence>
         <AnimatePresence>{goalDialog && <GoalDialog key="goal-dialog" />}</AnimatePresence>
         <AnimatePresence>

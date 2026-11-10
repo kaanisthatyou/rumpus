@@ -14,12 +14,14 @@ import { MemoryView } from '../memory/MemoryView';
 import { OverviewView } from '../overview/OverviewView';
 import { ProjectPage } from '../projects/ProjectView';
 import { RecordsView } from '../records/RecordsView';
+import { RoutinesView } from '../routines/RoutinesView';
 import { useApp, type View } from '../store';
 import { enablePush, pushState } from '../web';
 
 const BOARD: { view: View; icon: IconName }[] = [
   { view: 'tasks', icon: 'tasks' },
   { view: 'goals', icon: 'target' },
+  { view: 'routines', icon: 'clock' },
 ];
 const RECORDS: { view: View; icon: IconName }[] = [
   { view: 'ideas', icon: 'idea' },
@@ -32,6 +34,7 @@ const ICON_OF: Record<View, IconName> = {
   channel: 'hash',
   tasks: 'tasks',
   goals: 'target',
+  routines: 'clock',
   ideas: 'idea',
   references: 'image',
   commands: 'bookmark',
@@ -737,6 +740,8 @@ export function Shell({ onSettings }: { onSettings: () => void }) {
         <Board />
       ) : view === 'goals' ? (
         <GoalsView />
+      ) : view === 'routines' ? (
+        <RoutinesView />
       ) : view === 'memory' ? (
         <MemoryView />
       ) : view === 'project' ? (

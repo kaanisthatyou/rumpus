@@ -131,7 +131,8 @@
       "references": "No references.",
       "commands": "No saved commands.",
       "memory": "Memory is empty.",
-      "home": "Overview"
+      "home": "Overview",
+      "routines": "No routines."
     },
     "composer": "Message · #{{channel}}",
     "voice": "Push to talk",
@@ -157,7 +158,8 @@
     "project": "Project",
     "specialists": "Specialists",
     "noSpecialists": "No specialists. An agent for one kind of work is added here.",
-    "home": "Overview"
+    "home": "Overview",
+    "routines": "Routines"
   },
   "settings": {
     "title": "Settings",
@@ -1175,5 +1177,31 @@
         "act": "Settings"
       }
     }
+  },
+  "routines": {
+    "topic": "Messages posted at a set time, in their owner's name.",
+    "new": "New routine",
+    "edit": "Edit the routine",
+    "delete": "Delete the routine",
+    "intro": "A routine is a message posted to a channel at a set time on set days, in its owner's name; an agent mentioned in it with @ takes the work. Examples: running the tests every morning, asking for the day's summary every evening. The message is posted on its owner's computer while the app runs there.",
+    "text": "Message",
+    "textPlaceholder": "@test run the tests and list what broke",
+    "textHint": "Posted to the channel as written. An agent or specialist is mentioned with @.",
+    "at": "Time",
+    "channel": "Channel",
+    "days": "Days",
+    "everyDay": "With no day chosen it runs every day.",
+    "someDays": "It runs only on the chosen days.",
+    "daily": "Every day",
+    "owner": "Owner: {{name}}",
+    "next": "Next: {{when}}",
+    "last": "Last: {{when}}",
+    "tomorrow": "Tomorrow",
+    "off": "Off",
+    "enabled": "Routine on",
+    "run": "Run now",
+    "ran": "Posted",
+    "message": "Routine",
+    "messageHint": "This message was posted by one of its owner's routines."
   }
 }

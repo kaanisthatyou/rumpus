@@ -202,6 +202,8 @@ export interface Message {
   handover?: { requestId: string; agentId: string };
   /** A specialist's `RESULT {json}` line, taken out of the text: what whoever asked needs from the job. */
   result?: Record<string, unknown>;
+  /** Posted for its author by one of their routines (its id). */
+  routine?: string;
 }
 
 /** idle is never stored: a job is running, waiting on a person, or over. */
@@ -309,6 +311,8 @@ export interface WorkspaceState {
   joins?: JoinRequest[];
   /** Lessons of this computer's specialists that wait for their owner. */
   lessons?: LessonSuggestion[];
+  /** Routines of the workspace; `last` and `next` only on the ones this computer runs. */
+  routines?: RoutineView[];
   /**
    * Per channel: messages that arrived since this person last had it open, and whether one of them mentions
    * them (`@name`). Kept on this computer; channels with nothing new are left out.
@@ -555,6 +559,41 @@ export interface ProjectView extends Project {
   status: ProjectStatus;
   folder?: string;
 }
+
+/**
+ * A routine (PLAN.md 5.16): a message posted for a person at a set time on set days, as that person's standing
+ * request. Its owner's computer posts it while the app runs there.
+ */
+export interface Routine {
+  id: string;
+  channelId: string;
+  /** What is posted, as its owner would write it (`@test run the suite`). */
+  text: string;
+  /** Local time, `HH:MM`. */
+  at: string;
+  /** Days of the week it runs on (0 Sunday … 6 Saturday); empty means every day. */
+  days: number[];
+  enabled: boolean;
+  /** The device that made it; only that computer posts it. */
+  owner: string;
+  created: number;
+}
+
+/** A routine as one computer shows it: with when it last ran here and when it is due next. */
+export interface RoutineView extends Routine {
+  last?: number;
+  next?: number;
+}
+
+export const RoutineInputSchema = z.object({
+  id: z.string().optional(),
+  channelId: z.string().min(1).max(64),
+  text: z.string().trim().min(1).max(4000),
+  at: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+  days: z.array(z.number().int().min(0).max(6)).max(7).default([]),
+  enabled: z.boolean().default(true),
+});
+export type RoutineInput = z.input<typeof RoutineInputSchema>;
 
 /** The workspace at a glance (the Overview page): today's numbers, the last days, the latest finished jobs. */
 export interface Overview {

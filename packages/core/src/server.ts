@@ -48,6 +48,9 @@ import {
   type ProjectView,
   RECORD_KINDS,
   type RecordItem,
+  type Routine,
+  RoutineInputSchema,
+  type RoutineView,
   type WorkspaceState,
   type WorkspaceSummary,
 } from '@lonca/protocol';
@@ -82,6 +85,7 @@ import { killTree, type Launch, openConsole, type Runner, run } from './proc.js'
 import { EMPTY_STATUS, ProjectGit, progressMarkdown, projectOf, projectPrompt, readProgressFile } from './projects.js';
 import { CORE_RULES, rosterPrompt, systemPrompt } from './prompts.js';
 import { runReadTool } from './readTools.js';
+import { nextRun, Routines } from './routines.js';
 import { SettingsStore } from './settings.js';
 import { WorkspaceStore } from './store.js';
 import { Sync } from './sync.js';
@@ -165,6 +169,7 @@ interface Workspace {
   gateway: Gateway;
   advisors: Advisors;
   goals: Goals;
+  routines: Routines;
   /** Jobs already handed to the advisors when they ended. */
   ended: Set<string>;
   /** Connector tools a person allowed once for a job (`once` policy), by job. */
@@ -395,6 +400,25 @@ export class Core {
         return { ok: true as const };
       },
       'overview.get': async () => this.overview(),
+      'routines.save': async (p) => this.saveRoutine(p),
+      'routines.delete': async (p) => {
+        const { store } = this.workspace();
+        const routine = typeof p?.id === 'string' ? store.routine(p.id) : undefined;
+        if (!routine) throw new CoreError('not_found');
+        this.requireRole(routine.owner === this.deviceId ? 'editor' : 'admin');
+        store.commit({ type: 'routine.deleted', data: { id: routine.id } });
+        this.changed();
+        return { ok: true as const };
+      },
+      'routines.run': async (p) => {
+        const ws = this.workspace();
+        const routine = typeof p?.id === 'string' ? ws.store.routine(p.id) : undefined;
+        if (!routine) throw new CoreError('not_found');
+        if (routine.owner !== this.deviceId) throw new CoreError('not_allowed');
+        if (!ws.routines.run(routine)) throw new CoreError('not_allowed');
+        this.changed();
+        return { ok: true as const };
+      },
       'channels.typing': async (p) => {
         const ws = this.workspace();
         const channel = typeof p?.channelId === 'string' ? ws.store.channel(p.channelId) : undefined;
@@ -1196,7 +1220,15 @@ export class Core {
       onStep: (goal, step, report) => advisors.onGoalStep(goal, step, report),
     });
     goals.recover();
-    const timer = setInterval(() => advisors.tick(), 60_000);
+    const routines = new Routines({
+      store,
+      deviceId: this.deviceId,
+      post: (routine) => inWs(() => this.postRoutine(ref.ws, routine)),
+    });
+    const timer = setInterval(() => {
+      advisors.tick();
+      if (routines.tick().length > 0) inWs(() => this.changed());
+    }, 60_000);
     timer.unref?.();
     let membership: Membership | undefined;
     let sync: Sync | undefined;
@@ -1235,6 +1267,7 @@ export class Core {
       gateway,
       advisors,
       goals,
+      routines,
       ended: new Set(),
       allowedOnce: new Map(),
       timer,
@@ -1750,6 +1783,10 @@ export class Core {
           if (channelId) this.emit('message.deleted', { id, channelId });
           break;
         }
+        case 'routine.saved':
+        case 'routine.deleted':
+          structure = true;
+          break;
         case 'card.saved': {
           const c = store.card(id);
           if (c) this.emit('card.changed', c);
@@ -1804,12 +1841,78 @@ export class Core {
       active: jobs.active(),
       lessons: this.pendingLessons(store),
       unread: this.unread(store),
+      routines: this.routineViews(),
       ...this.teamState(this.workspace()),
     };
   }
 
   private changed(): void {
     this.emit('workspace.changed', this.state());
+  }
+
+  // ---------------------------------------------------------------- routines (PLAN.md 5.16)
+
+  private routineViews(): RoutineView[] {
+    const { store, routines } = this.workspace();
+    const now = Date.now();
+    return store.routines().map((r) => {
+      if (r.owner !== this.deviceId) return r;
+      const last = routines.last(r);
+      return { ...r, ...(last > r.created ? { last } : {}), ...(r.enabled ? { next: nextRun(r, now) } : {}) };
+    });
+  }
+
+  private saveRoutine(input: unknown): Routine {
+    this.requireRole('editor');
+    const { store } = this.workspace();
+    const parsed = RoutineInputSchema.safeParse(input);
+    if (!parsed.success) throw new CoreError('bad_request', parsed.error.message);
+    const p = parsed.data;
+    const existing = p.id ? store.routine(p.id) : undefined;
+    if (p.id && !existing) throw new CoreError('not_found');
+    if (existing && existing.owner !== this.deviceId) throw new CoreError('not_allowed');
+    if (!store.channel(p.channelId)) throw new CoreError('not_found');
+    if (!existing && store.routines().filter((r) => r.owner === this.deviceId).length >= 40) {
+      throw new CoreError('bad_request', 'too_many');
+    }
+    const routine: Routine = {
+      id: existing?.id ?? newId(),
+      channelId: p.channelId,
+      text: p.text,
+      at: p.at,
+      days: [...new Set(p.days)].sort((a, b) => a - b),
+      enabled: p.enabled,
+      owner: this.deviceId,
+      created: existing?.created ?? Date.now(),
+    };
+    store.commit({ type: 'routine.saved', data: routine });
+    // A changed time counts from now: an edit at 10:00 to "09:30" does not run at once.
+    if (existing && (existing.at !== routine.at || existing.days.join() !== routine.days.join())) {
+      store.setMeta(`routine.last.${routine.id}`, String(Date.now()));
+    }
+    this.changed();
+    return routine;
+  }
+
+  /** Posts a routine's message as this person. Refused when they may no longer write here or the channel is gone. */
+  private postRoutine(ws: Workspace, routine: Routine): boolean {
+    const channel = ws.store.channel(routine.channelId);
+    if (!channel) return false;
+    if (ws.kind === 'team' && !ws.membership?.can(this.deviceId, 'editor')) return false;
+    const me = this.me();
+    const message: Message = {
+      id: newId(),
+      channelId: channel.id,
+      author: { kind: 'person', id: me.id, name: me.name },
+      text: routine.text,
+      created: Date.now(),
+      routine: routine.id,
+    };
+    ws.store.commit({ type: 'message.posted', data: message });
+    this.emit('message.added', message);
+    void ws.jobs.onMessage(message, channel);
+    ws.advisors.onMessage(message, channel);
+    return true;
   }
 
   /** Per channel, what arrived since this person last had it open (or since they last wrote there). */
