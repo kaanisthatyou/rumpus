@@ -154,7 +154,10 @@ try {
   await shot(page, 'agent-form');
   await page.getByRole('button', { name: L.agentForm.save }).click();
   await page.getByRole('dialog').waitFor({ state: 'detached' });
-  await page.getByRole('button', { name: '@claude', exact: true }).waitFor();
+  await page
+    .getByRole('complementary', { name: L.shell.channels })
+    .getByRole('button', { name: '@claude', exact: true })
+    .waitFor();
 
   // Call it in #genel.
   await page.getByRole('button', { name: 'genel', exact: true }).click();

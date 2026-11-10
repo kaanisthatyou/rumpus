@@ -1,7 +1,10 @@
-# Serai v2: plan
+# Serai: plan
 
-Status: **Phase 4 under way** (0.8.0-alpha.0, 2026-10-19): memory, projects with status pages, hand-over, several
-CLI logins, `/durum`, `/özet`, quick entry and advisor notes are built; voice is paused (Kaan, 2026-10-19). The
+Status: **Phase 4 under way** (0.9.0-alpha.0, 2026-11-11). The product is called **Serai** since 2026-11-10 (it
+was Lonca; the code name `lonca` stays in package names and environment variables, see section 2). Built on
+2026-11-10/11: specialists (5.15), routines (5.16), the Overview page and unread counts (5.17), invite links with
+a check of the way to the inviter (5.11). Before that (0.8.0-alpha.0, 2026-10-19): memory, projects with status pages, hand-over, several
+CLI logins, `/durum`, `/özet`, quick entry and advisor notes; voice is paused (Kaan, 2026-10-19). The
 connector store has its core and its catalog (4.10, 4.11, 2026-10-22): connectors from Serai's catalog, the MCP
 Registry or by hand, served through Serai's gateway with a policy per tool; OAuth and MCPB come next. The done-checks of Phases 1-3 wait for real use by Kaan and Arda; see the status blocks
 under section 8. Owners: Kaan and Arda. v0.1 (the Python chat server, tag `v0.1.0`) was the starting point for
@@ -36,7 +39,8 @@ From the Q&A on 2026-10-16.
 
 | Topic | Decision |
 |---|---|
-| Name | Serai |
+| Name | **Serai** since 2026-11-10 (a caravanserai: where people arriving with their own caravans meet). It was Lonca; Kaan asked for a name the product can be published and sold under. The name lives in `packages/protocol/src/brand.ts`; the code name `lonca` stays in package names (`@lonca/*`), environment variables (`LONCA_*`), wire headers and file names. Invite codes and the data folder of the former name are still accepted. Not yet checked: trademark and domain |
+| Workspace word | Independent of the product's name: "alan" in Turkish, "workspace" in English (2026-11-10) |
 | Distribution | Open source, **Apache-2.0** |
 | Platforms, first release | Windows, Linux, phone companion (PWA). No macOS yet |
 | Stack | Electron + TypeScript |
@@ -66,7 +70,9 @@ From the Q&A on 2026-10-16.
    jobs of their own; an advisor may propose one as a card a person approves with one click. The agent working on a
    person's request may hand parts of it to other agents (Fabrika's hand-over, 2026-10-17): a part continues that
    person's request under the other agent's owner's limits, and a part is never handed on, so work fans out one step
-   from a person and agents can never keep each other going.
+   from a person and agents can never keep each other going. A routine (5.16, 2026-11-11) is a person's standing
+   request: a message they wrote once, posted for them at the times they set, on their own computer, as themselves;
+   it starts work exactly as that message would if they typed it.
 4. **Safe defaults.** New agents: read-only, callable only by their owner. Others' requests are capped at read
    unless the owner raises it. Channel text reaches agents marked as untrusted.
 5. **No credential handling.** Serai never reads, copies or moves a CLI's login files. It spawns the unmodified
@@ -317,6 +323,48 @@ bot and Blender agent prompts in `app/fabrika.py` and `app/backend/team_claude.p
   only from the owner's settings (principle 2).
 - Delivery per driver: Claude Code `--append-system-prompt` (or `--system-prompt` to replace, as Fabrika can);
   other CLIs through their equivalent, else the first message of the session.
+
+### 5.15 Specialists
+
+Fabrika's Blender agent made general (2026-11-10): an agent for one kind of work, done the same way every time.
+A specialist is an agent with a `specialty`:
+
+- **Role**: one line, shown next to its name and told to the other agents, so a worker knows whom to hand a part to.
+- **Playbook**: how it works, step by step; its owner's Markdown, given with every job instead of the worker
+  template.
+- **Channel history**: it reads the channel's latest messages (0-200, whoever wrote them) before each job, so it
+  knows what the people there are doing; search tools reach further back.
+- **Fixed references**: reference records it gets with every job, next to the ones attached to the request.
+- **Budget per job**: minutes and optionally tokens. At three quarters it is told to wrap up; past it the job is
+  stopped (`over_budget`). Time spent waiting on a person's approval does not stop it.
+- **A fresh session per job**: nothing carries over but the playbook and the lessons.
+- **Lessons**: with `learn_lesson` it keeps one-line lessons for later jobs. A lesson from a job its owner asked
+  for is kept at once; one from someone else's request, or one that looks like steering, waits for the owner.
+  Lessons are part of the agent (shared with the workspace, bounded, the oldest lines go first) and its owner edits
+  them.
+- **RESULT line**: it can end with `RESULT {json}`, which is taken out of the chat, shown as a small table, and
+  handed to whoever asked (`part_status` gives it to the agent that handed the part over).
+- It never hands work on. Its mode, folder, access rules and connectors are an ordinary agent's (principle 2).
+
+Templates (a start, copied into the agent): code reviewer, test writer, researcher, 3D modeler, interface
+designer, documentation writer, security auditor, blank. A specialist's definition can be copied as text and
+pasted into another person's gallery (without its folder, references and lessons).
+
+### 5.16 Routines
+
+A message a person asked to have posted for them at a set time on set days ("@test run the suite" every morning).
+Shared with the workspace; only its owner changes or runs it, and only its owner's computer posts it, while the app
+runs there (a missed time is caught up within an hour, an older one is let go). The message is the person's own, so
+agents' access rules treat it as theirs. "Run now" posts it at once.
+
+### 5.17 Overview and unread
+
+- **Overview**: what runs now (with the current step and budget), people and the agents on their computers,
+  projects with their milestones, the latest finished jobs, today's numbers (jobs, tokens, cost, messages) with the
+  last seven days, and the setup steps until they are done or hidden.
+- **Unread**: each channel shows how many messages arrived since it was last open (kept on this computer) and
+  whether one names the person (`@name`); members complete after `@`; a line marks where the new ones start.
+- A person's messages in quick succession read as one run.
 
 ## 6. Architecture
 
@@ -799,6 +847,30 @@ The details behind 5.11 and 6.5, decided before building.
   client) and `LONCA_REAL_NPX=1` (Playwright, Chrome DevTools, Context7 and Firecrawl start through npx on Windows).
   Next for the store: OAuth (Notion, Linear, Figma, Sentry's and Stripe's remotes need it), MCPB, a workspace's own
   allowlist, and the tool-decision log.
+- 4.12 The rename (2026-11-10): Serai. One constant (`BRAND`) for the name everywhere a person or a model reads it
+  (the UI through `{{app}}` in the locale files), the MCP server agents see (`mcp__serai__*`), git branch prefixes
+  (`serai/goal-…`), a new mark (a caravanserai's gate). Invite codes start with `SERAI1.`; `LONCA1.` codes are
+  still read. On first start the former name's data folder is moved to the new one (not yet tried on a real
+  installation). Workspaces are "alan" / "workspace" in the UI.
+- 4.13 Specialists (5.15), 2026-11-10: the `specialty` of an agent, the specialist prompt, the roster given to
+  workers, a session per job, the budget (timers, a token check after every usage report), the RESULT line (kept
+  on the message, given through `part_status`), lessons (`learn_lesson`, waiting ones in `lessons.pending` on the
+  owner's computer, `lessons.accept` / `lessons.reject`), eight templates. In the app: a gallery, a form in four
+  parts, a group of their own in the members panel with what they learned, the budget on the job card, the RESULT
+  table. Covered by unit tests and `e2e/specialists.mjs`. Not yet run with a real CLI.
+- 4.14 Joining (5.11), 2026-11-11: `serai://join/<code>` opens the app (a second copy hands the link to the running
+  one) with the join dialog filled in; `invites.check` reads an invite without using it and says which workspace
+  it is for, whether Tailscale runs here, whether the inviter's device is in sight and whether its app answers.
+  The invite dialog copies the code, the link, or a message with the steps for the person joining. Tailscale's
+  status now lists the tailnet and the devices in sight. Covered by unit tests and `e2e/team.mjs` (the link through
+  a second copy of the app). The protocol handler is registered only by the installed app; not yet tried there.
+- 4.15 Overview and unread (5.17), 2026-11-11: `overview.get`, `channels.read`, unread counts and mentions in the
+  workspace state, the Overview page, the channel list's marks, the line above new messages, runs of messages.
+- 4.16 Routines (5.16), 2026-11-11: `routine.saved` / `routine.deleted` events (owner-only, like agents), a tick
+  every minute on the owner's computer, `routines.save` / `delete` / `run`, the Routines page. Covered by unit
+  tests (due times, catch-up, ownership) and `e2e/specialists.mjs`.
+- 4.17 Small things, 2026-11-11: the members panel shows what a working agent is doing; an empty channel offers
+  the agents that can be called; a specialist is shared as text.
 
 ## 9. Risks
 
@@ -817,4 +889,14 @@ The details behind 5.11 and 6.5, decided before building.
 
 ## 10. Open questions
 
-None at the end of planning (2026-10-16). Next step: Phase 0.
+From 2026-11-11, for the owners:
+
+- **The name.** Serai was chosen without a trademark or domain check (a DNS check from the dev machine gave no
+  usable answer). Changing it again is a change to `brand.ts`, the icon and `electron-builder.yml`.
+- **Earning money.** Kaan (2026-11-10): the product could be published and earn money. The plan so far says
+  Apache-2.0 with no hosted service. Ways that fit it: paid signed builds with updates and support while the source
+  stays open; a paid team tier (more than a few members, an always-on peer, audit log) on an open core; paid packs
+  (specialist sets, connector bundles). Not decided; nothing in the code assumes any of them.
+- **Routines and principle 3.** Routines were added as a person's standing request. If the owners read "only a
+  person starts work" more strictly, routines are one switch to remove.
+- **The repository** is still `kaanisthatyou/lonca` and private; renaming it and making it public are the owners'.

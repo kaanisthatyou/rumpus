@@ -6,6 +6,9 @@ purpose; never change roblox-factory for it.
 
 - Reply to the user in **Turkish**. Everything in the repo is **English**. The UI has both languages
   (`apps/desktop/src/renderer/src/locales/tr.json` and `en.json`, always both).
+- The product's name is **Serai** (`packages/protocol/src/brand.ts`, and `{{app}}` in the locale files); `lonca` is
+  the code name and stays in package names (`@lonca/*`), environment variables (`LONCA_*`), `window.lonca`, wire
+  headers and file names. Never write the product's name into UI strings or prompts by hand.
 - **Read `PLAN.md` first**: decisions, principles, phases, and what the current phase contains. Research behind it
   is in `docs/research/`.
 - Serai has **no agent of its own**. It drives the user's own CLIs (Claude Code, Codex, OpenCode...). Model calls
@@ -48,7 +51,8 @@ purpose; never change roblox-factory for it.
 1. `pnpm check` (Biome, TypeScript, Vitest, copy rules).
 2. `pnpm e2e`: the real app with a temporary `LONCA_HOME`: `e2e/smoke.mjs` (launcher, shell, settings, restart)
    and `e2e/channel.mjs` (agents, jobs, live view, steer and stop, board, palette, projects, restart) against
-   `e2e/fake-claude.mjs`, a stand-in for Claude Code that costs no quota; `e2e/advisors.mjs` (providers, advisors)
+   `e2e/fake-claude.mjs`, a stand-in for Claude Code that costs no quota; `e2e/specialists.mjs` (a specialist from a template, its lesson and RESULT, the overview, unread marks, a
+   routine); `e2e/advisors.mjs` (providers, advisors)
    against `e2e/fake-provider.mjs`, a stand-in OpenAI-compatible server; `e2e/team.mjs` (two apps, invite, join,
    sync) with `LONCA_PEER_HOST=127.0.0.1` instead of Tailscale; `e2e/phone.mjs` (pairing a narrow window as a
    phone) with `LONCA_PHONE_PORT=0` instead of `tailscale serve`. Look at the screenshots in
@@ -59,6 +63,12 @@ purpose; never change roblox-factory for it.
    `apps/desktop`. Updater changes: `e2e/update.mjs` (see its header).
 
 ## Gotchas
+
+- Scripted edits: write the script to a file (the Write tool) and run it; a shell heredoc loses backslashes and
+  breaks on apostrophes, and `String.replace` with a string replacement expands `$\`` and `$'`. After a broken
+  edit never run `biome check --write` on the file: its fixes rewrite what the parser misread.
+- A command line that ends in `| tail` or `| grep` hides a failing `pnpm check`; send the output to a file and
+  chain the commit with `&&`.
 
 - A Zustand selector must return a stable value: no `.filter`, `.map`, `?? []` or object literals inside
   `useApp((s) => …)`. A new array on every call makes React re-render forever and the window stays blank (it
