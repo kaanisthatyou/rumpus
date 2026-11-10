@@ -56,6 +56,55 @@
   border-radius: var(--r-lg);
   transition: background var(--t-fast);
 }
+.msg {
+  position: relative;
+}
+.msg--compact {
+  margin-top: -6px;
+  padding-top: 1px;
+  padding-bottom: 1px;
+}
+.msg--compact .msg__meta {
+  position: absolute;
+  top: -12px;
+  right: 8px;
+  min-height: 0;
+}
+.msg--compact .msg__meta > :not(.msg__actions) {
+  display: none;
+}
+.msg--compact .msg__actions,
+.msg--compact:hover .msg__actions {
+  padding: 2px;
+  border-radius: 8px;
+  border: 1px solid var(--line-2);
+  background: var(--card);
+}
+.msg__gutter {
+  flex: none;
+  width: 32px;
+  padding-top: 3px;
+  text-align: right;
+  font-size: 10px;
+  color: var(--meta);
+  opacity: 0;
+  transition: opacity var(--t-fast);
+}
+.msg:hover .msg__gutter {
+  opacity: 1;
+}
+.day--new {
+  color: var(--accent-ink);
+}
+.day--new::before {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.day--new::after {
+  background: color-mix(in srgb, var(--accent) 40%, transparent);
+}
 .msg:hover {
   background: color-mix(in srgb, var(--ink) 2.5%, transparent);
 }

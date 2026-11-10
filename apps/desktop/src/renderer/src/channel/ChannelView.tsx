@@ -64,7 +64,21 @@ function ResultBlock({ result }: { result: Record<string, unknown> }) {
   );
 }
 
-function MessageRow({ message, agents, jobs }: { message: Message; agents: Agent[]; jobs: Job[] }) {
+/** How close two messages of one person must be to read as one run (the second without its header). */
+const RUN_MS = 5 * 60 * 1000;
+
+function MessageRow({
+  message,
+  agents,
+  jobs,
+  compact,
+}: {
+  message: Message;
+  agents: Agent[];
+  jobs: Job[];
+  /** Follows a message of the same person closely: no avatar or name, the time shows on hover. */
+  compact?: boolean;
+}) {
   const { t } = useTranslation();
   const me = useApp((s) => s.workspace?.me.id);
   const myHandle = useApp((s) => handleOf(s.workspace?.me.name ?? ''));
@@ -104,15 +118,19 @@ function MessageRow({ message, agents, jobs }: { message: Message; agents: Agent
 
   return (
     <motion.article
-      className={`msg msg--${a.kind} ${mentioned ? 'is-mention' : ''}`}
+      className={`msg msg--${a.kind} ${mentioned ? 'is-mention' : ''} ${compact ? 'msg--compact' : ''}`}
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0, transition: { type: 'spring', stiffness: 420, damping: 32 } }}
     >
-      <Avatar
-        name={name}
-        size={32}
-        {...(a.kind === 'agent' ? { icon: agent?.specialty ? specialistIcon(agent) : ('terminal' as const) } : {})}
-      />
+      {compact ? (
+        <time className="msg__gutter l-mono">{clock(message.created)}</time>
+      ) : (
+        <Avatar
+          name={name}
+          size={32}
+          {...(a.kind === 'agent' ? { icon: agent?.specialty ? specialistIcon(agent) : ('terminal' as const) } : {})}
+        />
+      )}
       <div className="msg__body">
         <div className="msg__meta">
           <b>{name}</b>
@@ -666,6 +684,15 @@ export function ChannelView({ channel }: { channel: Channel }) {
   const openAgentDialog = useApp((s) => s.openAgentDialog);
   const list = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
+  // How many of the latest messages arrived while the channel was closed (as it was when it was opened).
+  const fresh = useApp((s) => s.fresh[channel.id]);
+  const goals = useApp((s) => s.goals);
+  const goalRequests = useMemo(() => new Set(goals.map((g) => g.requestId)), [goals]);
+  // The line sits above the first of them and stays there while newer messages arrive.
+  const firstNewAt = useMemo(() => {
+    if (!fresh?.count) return -1;
+    return messages.filter((m) => m.created <= fresh.at).length - fresh.count;
+  }, [fresh, messages]);
   const own = channel.kind === 'agent' ? agents.find((a) => a.id === channel.agentId) : undefined;
 
   const jobsByRequest = useMemo(() => {
@@ -765,6 +792,22 @@ export function ChannelView({ channel }: { channel: Channel }) {
           messages.map((m, i) => {
             const prev = messages[i - 1];
             const newDay = !prev || dayKey(prev.created) !== dayKey(m.created);
+            // What arrived while the channel was closed starts under a line.
+            const firstNew = i === firstNewAt;
+            // A person's (or advisor's) messages in quick succession read as one run, unless something hangs
+            // under the earlier one (a job, a goal) or either carries a mark of its own.
+            const run =
+              prev !== undefined &&
+              !newDay &&
+              !firstNew &&
+              (m.author.kind === 'person' || m.author.kind === 'advisor') &&
+              prev.author.kind === m.author.kind &&
+              prev.author.id === m.author.id &&
+              m.created - prev.created < RUN_MS &&
+              !m.routine &&
+              !prev.routine &&
+              !(jobsByRequest.get(prev.id)?.length ?? 0) &&
+              !goalRequests.has(prev.id);
             return (
               <Fragment key={m.id}>
                 {newDay && (
@@ -772,7 +815,12 @@ export function ChannelView({ channel }: { channel: Channel }) {
                     {dayLabel(m.created, i18n.language, t('channel.today'), t('channel.yesterday'))}
                   </div>
                 )}
-                <MessageRow message={m} agents={agents} jobs={jobsByRequest.get(m.id) ?? []} />
+                {firstNew && (
+                  <div className="day day--new" role="separator">
+                    {t('channel.newMessages')}
+                  </div>
+                )}
+                <MessageRow message={m} agents={agents} jobs={jobsByRequest.get(m.id) ?? []} compact={run} />
               </Fragment>
             );
           })

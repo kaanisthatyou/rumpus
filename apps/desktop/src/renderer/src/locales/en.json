@@ -280,7 +280,8 @@
     "unread_one": "{{count}} unread message",
     "unread_other": "{{count}} unread messages",
     "unreadMention_one": "{{count}} unread message, with a mention",
-    "unreadMention_other": "{{count}} unread messages, with a mention"
+    "unreadMention_other": "{{count}} unread messages, with a mention",
+    "newMessages": "New"
   },
   "job": {
     "state": {

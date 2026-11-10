@@ -78,6 +78,11 @@ try {
   await composer.fill('Girişe e-posta doğrulaması eklendi, testleri yarın yazılacak.');
   await composer.press('Enter');
   await page.getByText('e-posta doğrulaması').first().waitFor();
+  // A second message right after it reads as one run with the first: no second avatar or name.
+  await composer.fill('Sürüm notu da eksik.');
+  await composer.press('Enter');
+  await page.locator('.msg--compact', { hasText: 'Sürüm notu da eksik.' }).waitFor();
+  assert.equal(await page.locator('.msg--compact').count(), 1);
 
   // The gallery, then the form filled from the template.
   await page.getByRole('button', { name: L.specialists.new, exact: true }).click();
@@ -183,6 +188,9 @@ try {
   await genel.click();
   await composer.waitFor();
   assert.equal(await side.locator('.nav__unread').count(), 0);
+  // What arrived meanwhile starts under a line.
+  await page.locator('.day--new').waitFor();
+  await shot(page, 'new-line');
 
   // A routine: the person's message, posted for them at a set time; run now, it calls the specialist.
   await side.getByRole('button', { name: L.shell.routines }).click();

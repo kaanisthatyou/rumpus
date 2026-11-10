@@ -78,6 +78,8 @@ interface AppState {
   messages: Record<string, Message[]>;
   /** Per channel: what arrived since it was last open, and whether it mentions this person. */
   unread: Unread;
+  /** Per channel: how many of its latest messages were unread when it was last opened (the "new" line). */
+  fresh: Record<string, { count: number; at: number }>;
   /** The Overview page's numbers, loaded when it opens. */
   overview?: Overview;
   jobs: Record<string, Job>;
@@ -268,6 +270,7 @@ export const useApp = create<AppState>((set, get) => {
     view: 'channel',
     messages: {},
     unread: NO_UNREAD,
+    fresh: {},
     jobs: {},
     quota: {},
     accounts: [],
@@ -326,6 +329,8 @@ export const useApp = create<AppState>((set, get) => {
           const seen = s.view === 'channel' && s.channelId === m.channelId;
           const handle = handleOf(me?.name ?? '');
           const before = s.unread[m.channelId];
+          const fresh =
+            mine && s.fresh[m.channelId]?.count ? { ...s.fresh, [m.channelId]: { count: 0, at: 0 } } : s.fresh;
           const unread =
             mine || seen
               ? s.unread
@@ -342,6 +347,7 @@ export const useApp = create<AppState>((set, get) => {
             messages: { ...s.messages, [m.channelId]: upsert(s.messages[m.channelId] ?? [], m) },
             peopleTyping: { ...s.peopleTyping, [m.channelId]: typing },
             unread,
+            fresh,
           };
         });
         // What arrives in the channel on screen is read as it comes.
@@ -582,8 +588,13 @@ export const useApp = create<AppState>((set, get) => {
 
     async openChannel(id) {
       set((s) => {
-        const { [id]: _read, ...unread } = s.unread;
-        return { channelId: id, view: 'channel', panel: undefined, unread };
+        const { [id]: read, ...unread } = s.unread;
+        // Returning to the channel on screen keeps the line where it was; a channel with nothing new has none.
+        const fresh =
+          s.channelId === id && s.view === 'channel'
+            ? s.fresh
+            : { ...s.fresh, [id]: { count: read?.count ?? 0, at: Date.now() } };
+        return { channelId: id, view: 'channel', panel: undefined, unread, fresh };
       });
       void core.call('channels.read', { channelId: id }).catch(() => {});
       lastChannel.set(id, get().workspace?.id);

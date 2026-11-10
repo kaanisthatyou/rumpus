@@ -280,7 +280,8 @@
     "unread_one": "{{count}} okunmamış mesaj",
     "unread_other": "{{count}} okunmamış mesaj",
     "unreadMention_one": "{{count}} okunmamış mesaj, bahsetme var",
-    "unreadMention_other": "{{count}} okunmamış mesaj, bahsetme var"
+    "unreadMention_other": "{{count}} okunmamış mesaj, bahsetme var",
+    "newMessages": "Yeni"
   },
   "job": {
     "state": {
