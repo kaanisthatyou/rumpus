@@ -815,11 +815,7 @@ export function ChannelView({ channel }: { channel: Channel }) {
                     {dayLabel(m.created, i18n.language, t('channel.today'), t('channel.yesterday'))}
                   </div>
                 )}
-                {firstNew && (
-                  <div className="day day--new" role="separator">
-                    {t('channel.newMessages')}
-                  </div>
-                )}
+                {firstNew && <div className="day day--new">{t('channel.newMessages')}</div>}
                 <MessageRow message={m} agents={agents} jobs={jobsByRequest.get(m.id) ?? []} compact={run} />
               </Fragment>
             );
