@@ -101,7 +101,10 @@
       "missing": "Ekip kullanımı için Tailscale kurulur.",
       "unknown": "Tailscale durumu okunamadı."
     },
-    "download": "İndirme sayfası"
+    "download": "İndirme sayfası",
+    "peers_one": "{{count}} cihaz görünüyor, {{online}} çevrimiçi",
+    "peers_other": "{{count}} cihaz görünüyor, {{online}} çevrimiçi",
+    "winget": "winget komutunu kopyala"
   },
   "shell": {
     "workspaces": "Alanlar",
@@ -787,7 +790,7 @@
     "name": "Alan adı",
     "create": "Oluştur",
     "join": "Koda katıl",
-    "joinIntro": "Bir yöneticinin verdiği davet koduyla katılma isteği gönderilir; yönetici onaylayınca alan bu bilgisayara iner. İki bilgisayar aynı Tailscale ağında olmalı ya da davet eden cihazını paylaşmış olmalı.",
+    "joinIntro": "Davet kodu ya da bağlantısı yapıştırılır; hangi alana ait olduğu ve davet eden bilgisayara ulaşılıp ulaşılamadığı hemen görünür. İstek, bir yönetici onaylayınca alanı bu bilgisayara indirir.",
     "code": "Davet kodu",
     "codeHint": "SERAI1. ile başlar; davet bağlantısı da yapıştırılabilir.",
     "askToJoin": "Katılma isteği gönder",
@@ -814,14 +817,24 @@
     "make": "Kod oluştur",
     "again": "Yeni kod",
     "code": "Davet kodu",
-    "next": "Kod, katılacak kişiye güvenli bir yoldan iletilir. Kişi uygulamada ＋ → Koda katıl ile isteğini gönderir; istek burada onay bekler.",
+    "next": "İstek burada, Buradakiler panelinde onay bekler; onaylanana kadar kimse katılmaz.",
     "tailscale": "Katılacak kişinin bilgisayarı bu bilgisayara Tailscale üzerinden ulaşabilmeli: aynı tailnet, ya da Tailscale'de bu cihazın onunla paylaşılması.",
     "requests": "Katılma istekleri",
     "asks": "{{role}} olarak katılmak istiyor",
     "approve": "Onayla",
     "deny": "Reddet",
     "notifyTitle": "Katılma isteği",
-    "wants": "{{name}}, {{role}} olarak katılmak istiyor."
+    "wants": "{{name}}, {{role}} olarak katılmak istiyor.",
+    "copyMessage": "Davet metnini kopyala",
+    "copyCode": "Kod",
+    "copyLink": "Bağlantı",
+    "message_one": "{{name}} alanına davet ({{app}}).\n\n1. Tailscale kurulur ve açılır: https://tailscale.com/download\n2. {{app}} kurulur.\n3. {{app}} içinde ＋ → Koda katıl seçilir ve aşağıdaki kod yapıştırılır. {{app}} kuruluysa bağlantı da aynı işi görür.\n\nKod:\n{{code}}\n\nBağlantı:\n{{link}}\n\nKod {{count}} saat geçerlidir ve bir kez kullanılır; istek onaylanınca alan açılır.",
+    "message_other": "{{name}} alanına davet ({{app}}).\n\n1. Tailscale kurulur ve açılır: https://tailscale.com/download\n2. {{app}} kurulur.\n3. {{app}} içinde ＋ → Koda katıl seçilir ve aşağıdaki kod yapıştırılır. {{app}} kuruluysa bağlantı da aynı işi görür.\n\nKod:\n{{code}}\n\nBağlantı:\n{{link}}\n\nKod {{count}} saat geçerlidir ve bir kez kullanılır; istek onaylanınca alan açılır.",
+    "steps": {
+      "tailscale": "Katılacak kişi Tailscale'i kurar; aynı tailnet'e girer ya da bu cihaz onunla paylaşılır.",
+      "app": "Uygulamayı kurar ve açar.",
+      "code": "＋ → Koda katıl ile kodu yapıştırır ya da bağlantıyı açar."
+    }
   },
   "members": {
     "me": "bu cihaz",
@@ -1077,6 +1090,28 @@
         "role": "",
         "about": "Şablonsuz başlar: uzmanlık ve yönerge baştan yazılır."
       }
+    }
+  },
+  "join": {
+    "checking": "Davet okunuyor, bağlantı deneniyor.",
+    "bad": "Bu metin bir davet kodu ya da bağlantısı değil.",
+    "retry": "Yeniden dene",
+    "tailscale": {
+      "ok": "Tailscale bu bilgisayarda bağlı.",
+      "stopped": "Tailscale kapalı. Tailscale uygulamasından bağlanılır.",
+      "needs-login": "Tailscale'de oturum açılmamış. Tailscale uygulamasından giriş yapılır.",
+      "missing": "Tailscale kurulu değil.",
+      "unknown": "Tailscale durumu okunamadı."
+    },
+    "peer": {
+      "online": "Davet eden bilgisayar ağda görünüyor: {{name}}.",
+      "offline": "Davet eden bilgisayar ({{name}}) şu an çevrimdışı görünüyor.",
+      "unseen": "Davet eden bilgisayar bu ağda görünmüyor. Aynı tailnet'e girilir ya da davet eden cihazını Tailscale'den paylaşır.",
+      "sharing": "Cihaz paylaşımı"
+    },
+    "reach": {
+      "ok": "Davet eden bilgisayardaki uygulama yanıt veriyor.",
+      "off": "Davet eden bilgisayardaki uygulamaya ulaşılamadı. Uygulamanın açık olması gerekir."
     }
   }
 }

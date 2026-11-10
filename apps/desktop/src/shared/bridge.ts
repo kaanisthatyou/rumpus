@@ -29,6 +29,12 @@ export interface LoncaBridge {
     /** An OS notification; clicking it brings Serai forward. */
     notify(title: string, body: string): Promise<void>;
   };
+  /** Invite links (`serai://join/<code>`) the app was opened with. */
+  links: {
+    /** A link that arrived before the page was ready; it is handed out once. */
+    pending(): Promise<string | null>;
+    onJoin(listener: (link: string) => void): () => void;
+  };
   /** The quick-entry window (Ctrl Alt Space from anywhere). */
   quick: {
     open(): Promise<void>;

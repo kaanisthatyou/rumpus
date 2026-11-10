@@ -101,7 +101,10 @@
       "missing": "Team use requires Tailscale.",
       "unknown": "The Tailscale state could not be read."
     },
-    "download": "Download page"
+    "download": "Download page",
+    "peers_one": "{{count}} device in sight, {{online}} online",
+    "peers_other": "{{count}} devices in sight, {{online}} online",
+    "winget": "Copy the winget command"
   },
   "shell": {
     "workspaces": "Workspaces",
@@ -787,7 +790,7 @@
     "name": "Workspace name",
     "create": "Create",
     "join": "Join with a code",
-    "joinIntro": "A join request is sent with an invite code from an admin; once the admin approves, the workspace comes down to this computer. The two computers must be on the same Tailscale network, or the inviter must have shared their device.",
+    "joinIntro": "An invite code or link is pasted; which workspace it is for and whether the inviter's computer can be reached show at once. Once an admin approves the request, the workspace comes down to this computer.",
     "code": "Invite code",
     "codeHint": "Starts with SERAI1.; an invite link can be pasted too.",
     "askToJoin": "Send join request",
@@ -814,14 +817,24 @@
     "make": "Make code",
     "again": "New code",
     "code": "Invite code",
-    "next": "The code goes to the person over a safe channel. They send their request with + → Join with a code in {{app}}; it waits here for approval.",
+    "next": "The request waits for approval here, in the members panel; nobody joins before it is approved.",
     "tailscale": "The person's computer must reach this one over Tailscale: the same tailnet, or this device shared with them in Tailscale.",
     "requests": "Join requests",
     "asks": "wants to join as {{role}}",
     "approve": "Approve",
     "deny": "Turn down",
     "notifyTitle": "Join request",
-    "wants": "{{name}} wants to join as {{role}}."
+    "wants": "{{name}} wants to join as {{role}}.",
+    "copyMessage": "Copy the invite message",
+    "copyCode": "Code",
+    "copyLink": "Link",
+    "message_one": "Invite to the {{name}} workspace ({{app}}).\n\n1. Install and start Tailscale: https://tailscale.com/download\n2. Install {{app}}.\n3. In {{app}}, choose + → Join with a code and paste the code below. With {{app}} installed, the link does the same.\n\nCode:\n{{code}}\n\nLink:\n{{link}}\n\nThe code is valid for {{count}} hour and works once; the workspace opens when the request is approved.",
+    "message_other": "Invite to the {{name}} workspace ({{app}}).\n\n1. Install and start Tailscale: https://tailscale.com/download\n2. Install {{app}}.\n3. In {{app}}, choose + → Join with a code and paste the code below. With {{app}} installed, the link does the same.\n\nCode:\n{{code}}\n\nLink:\n{{link}}\n\nThe code is valid for {{count}} hours and works once; the workspace opens when the request is approved.",
+    "steps": {
+      "tailscale": "The person joining installs Tailscale and enters the same tailnet, or this device is shared with them.",
+      "app": "They install and open the app.",
+      "code": "They paste the code under + → Join with a code, or open the link."
+    }
   },
   "members": {
     "me": "this device",
@@ -1077,6 +1090,28 @@
         "role": "",
         "about": "Starts without a template: the specialty and playbook are written from scratch."
       }
+    }
+  },
+  "join": {
+    "checking": "Reading the invite and trying the connection.",
+    "bad": "This text is not an invite code or link.",
+    "retry": "Try again",
+    "tailscale": {
+      "ok": "Tailscale is connected on this computer.",
+      "stopped": "Tailscale is off. It is connected from the Tailscale app.",
+      "needs-login": "Tailscale is signed out. Sign-in happens in the Tailscale app.",
+      "missing": "Tailscale is not installed.",
+      "unknown": "Tailscale's state could not be read."
+    },
+    "peer": {
+      "online": "The inviter's computer is in sight: {{name}}.",
+      "offline": "The inviter's computer ({{name}}) looks offline right now.",
+      "unseen": "The inviter's computer is not in sight on this network. Either both are in the same tailnet, or the inviter shares the device from Tailscale.",
+      "sharing": "Device sharing"
+    },
+    "reach": {
+      "ok": "The app on the inviter's computer answers.",
+      "off": "The app on the inviter's computer could not be reached. It has to be running."
     }
   }
 }

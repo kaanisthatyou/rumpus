@@ -77,6 +77,21 @@ function setQuickKey(combo: string): boolean {
   quickKey = next;
   return true;
 }
+/**
+ * An invite link (`serai://join/<code>`) this app was opened with: from the command line on Windows and Linux
+ * (also a second copy's, which hands it over and quits), from `open-url` on macOS. Only the link's own shape gets
+ * through; the page reads it as a pasted invite code and nothing is joined without the person.
+ */
+const JOIN_LINK = new RegExp(`^${BRAND.slug}://join/[\\w.-]{10,4000}/?$`, 'i');
+let pendingLink: string | undefined;
+
+function takeLink(args: readonly string[]): void {
+  const link = args.find((a) => JOIN_LINK.test(a));
+  if (!link) return;
+  pendingLink = link;
+  if (win && !win.isDestroyed()) win.webContents.send('link:join', link);
+}
+
 let core: UtilityProcess | undefined;
 let quitting = false;
 let coreRestarts = 0;
@@ -87,7 +102,8 @@ let identity: Identity | undefined;
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on('second-instance', () => {
+  app.on('second-instance', (_event, argv) => {
+    takeLink(argv);
     if (!win) return;
     if (win.isMinimized()) win.restore();
     win.focus();
@@ -206,6 +222,11 @@ function registerIpc(): void {
     'providers:models',
     guarded((id: unknown) => providers?.models(id)),
   );
+  handle('link:pending', () => {
+    const link = pendingLink ?? null;
+    pendingLink = undefined;
+    return link;
+  });
   handle('quick:hide', () => quick?.hide());
   handle('quick:open', () => toggleQuick());
   handle('quick:setKey', (_e, combo) => (typeof combo === 'string' && combo.length < 40 ? setQuickKey(combo) : false));
@@ -315,6 +336,13 @@ function toggleQuick(): void {
 }
 
 function start(): void {
+  // Invite links open the installed app; a development or test run leaves the system's handlers alone.
+  if (app.isPackaged) app.setAsDefaultProtocolClient(BRAND.slug);
+  takeLink(process.argv);
+  app.on('open-url', (event, url) => {
+    event.preventDefault();
+    takeLink([url]);
+  });
   providers = new Providers(appDir);
   identity = new Identity(appDir);
   providers.onChange((state) => {

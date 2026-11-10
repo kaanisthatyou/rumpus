@@ -10,16 +10,28 @@ export function parseTailscaleStatus(r: RunResult): TailscaleInfo {
       BackendState?: string;
       Self?: { HostName?: string; DNSName?: string; TailscaleIPs?: string[] };
       CertDomains?: string[] | null;
+      CurrentTailnet?: { Name?: string } | null;
+      Peer?: Record<string, { HostName?: string; DNSName?: string; TailscaleIPs?: string[]; Online?: boolean }> | null;
     };
     switch (data.BackendState) {
       case 'Running': {
         const ip = data.Self?.TailscaleIPs?.find((a) => a.includes('.'));
+        const peers = Object.values(data.Peer ?? {})
+          .map((p) => ({
+            name: String(p.HostName || p.DNSName?.split('.')[0] || '').slice(0, 60),
+            ip: p.TailscaleIPs?.find((a) => a.includes('.')) ?? '',
+            online: p.Online === true,
+          }))
+          .filter((p) => p.ip)
+          .slice(0, 200);
         return {
           state: 'running',
           ...(ip ? { ip } : {}),
           ...(data.Self?.HostName ? { host: data.Self.HostName } : {}),
           ...(data.Self?.DNSName ? { dns: data.Self.DNSName.replace(/\.$/, '') } : {}),
           ...(data.CertDomains?.length ? { https: true } : {}),
+          ...(data.CurrentTailnet?.Name ? { tailnet: String(data.CurrentTailnet.Name).slice(0, 80) } : {}),
+          peers,
         };
       }
       case 'NeedsLogin':

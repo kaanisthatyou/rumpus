@@ -406,6 +406,8 @@ export function TailscaleRow() {
   const info = useApp((s) => s.tailscale);
   const refresh = useApp((s) => s.refreshTailscale);
   const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const windows = useApp((s) => s.system?.platform === 'win32');
   const state = info?.state ?? 'unknown';
   return (
     <div className="ts l-card">
@@ -414,6 +416,19 @@ export function TailscaleRow() {
         <div className="agent__text">
           <b>{t('tailscale.name')}</b>
           <span className="l-mono">{[info?.host, info?.ip].filter(Boolean).join(' · ') || '—'}</span>
+          {state === 'running' && info?.peers && (
+            <span className="ts__net">
+              {[
+                info.tailnet,
+                t('tailscale.peers', {
+                  count: info.peers.length,
+                  online: info.peers.filter((p) => p.online).length,
+                }),
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </span>
+          )}
         </div>
         <Chip {...(state === 'running' ? { tone: 'ok' as const } : {})}>{t(`tailscale.state.${state}`)}</Chip>
         <Button
@@ -431,13 +446,28 @@ export function TailscaleRow() {
       </div>
       <p className="agent__note">{t(`tailscale.hint.${state}`)}</p>
       {state === 'missing' && (
-        <Button
-          size="sm"
-          icon="download"
-          onClick={() => void window.lonca.shell.openExternal('https://tailscale.com/download')}
-        >
-          {t('tailscale.download')}
-        </Button>
+        <div className="ts__install">
+          <Button
+            size="sm"
+            icon="download"
+            onClick={() => void window.lonca.shell.openExternal('https://tailscale.com/download')}
+          >
+            {t('tailscale.download')}
+          </Button>
+          {windows && (
+            <Button
+              size="sm"
+              variant="quiet"
+              icon={copied ? 'check' : 'copy'}
+              onClick={async () => {
+                await window.lonca.shell.copy('winget install tailscale.tailscale');
+                setCopied(true);
+              }}
+            >
+              {copied ? t('common.copied') : t('tailscale.winget')}
+            </Button>
+          )}
+        </div>
       )}
     </div>
   );

@@ -3,6 +3,7 @@
 import { spawn } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { connect } from 'node:net';
 import { join } from 'node:path';
 import {
   type Advisor,
@@ -27,7 +28,9 @@ import {
   type EventName,
   type Frame,
   IDEA_STATUSES,
+  type InviteCheck,
   inviteCode,
+  inviteLink,
   invitePayload,
   isRequest,
   type Job,
@@ -376,6 +379,7 @@ export class Core {
       'workspaces.open': async (p) => this.openWorkspace(p?.id),
       'invites.create': async (p) => this.createInvite(p?.role, p?.hours),
       'invites.join': async (p) => this.join(p?.code),
+      'invites.check': async (p) => this.checkInvite(p?.code),
       'invites.answer': async (p) => this.answerJoin(p?.id, p?.approve === true),
       'members.setRole': async (p) => this.setRole(p?.device, p?.role),
       'members.remove': async (p) => this.removeMember(p?.device),
@@ -1453,7 +1457,7 @@ export class Core {
     return { request: request.id };
   }
 
-  private createInvite(role: unknown, hours: unknown): { code: string; expires: number } {
+  private createInvite(role: unknown, hours: unknown): { code: string; link: string; expires: number } {
     const ws = this.workspace();
     if (ws.kind !== 'team') throw new CoreError('bad_request', 'personal');
     this.requireRole('admin');
@@ -1468,7 +1472,47 @@ export class Core {
     ws.store.addInvite(sha256(token), String(role), expires);
     const name = ws.store.meta('name') ?? '';
     const payload = JSON.stringify({ w: ws.id, n: name, a: [this.peerAddress], t: token });
-    return { code: inviteCode(Buffer.from(payload).toString('base64url')), expires };
+    const code = inviteCode(Buffer.from(payload).toString('base64url'));
+    return { code, link: inviteLink(code), expires };
+  }
+
+  /**
+   * Reads an invite without using it: the workspace it is for, whether Tailscale shows the inviter's device here,
+   * and whether a connection to the inviter's app opens. Nothing is sent to the inviter but the connection itself.
+   */
+  private async checkInvite(code: unknown): Promise<InviteCheck> {
+    const invite = readInvite(code);
+    const address = Array.isArray(invite.a) ? String(invite.a[0] ?? '') : '';
+    const wsId = String(invite.w ?? '');
+    if (!/^[\w-]{1,40}$/.test(wsId) || !/^[\w.:[\]-]{3,80}$/.test(address)) throw new CoreError('bad_code');
+    const at = address.lastIndexOf(':');
+    const host = address.slice(0, at).replace(/^\[|\]$/g, '');
+    const port = Number(address.slice(at + 1));
+    const tailscale = await tailscaleStatus({
+      ...(this.opts.runner ? { runner: this.opts.runner } : {}),
+      ...(this.opts.env ? { env: this.opts.env } : {}),
+      ...(this.opts.platform ? { platform: this.opts.platform } : {}),
+    });
+    const peer = tailscale.peers?.find((p) => p.ip === host);
+    const reachable = await new Promise<boolean>((resolve) => {
+      if (!host || !Number.isInteger(port) || port < 1 || port > 65535) return resolve(false);
+      const socket = connect({ host, port });
+      const done = (ok: boolean) => {
+        socket.destroy();
+        resolve(ok);
+      };
+      socket.setTimeout(3000, () => done(false));
+      socket.once('connect', () => done(true));
+      socket.once('error', () => done(false));
+    });
+    return {
+      name: String(invite.n ?? '').slice(0, 40) || wsId,
+      address,
+      tailscale: tailscale.state,
+      ...(peer ? { peer: { name: peer.name, online: peer.online } } : {}),
+      reachable,
+      joined: this.teams().some((t) => t.id === wsId && !t.denied),
+    };
   }
 
   /** Asks the inviter's app to join; the workspace waits as "joining" until an admin answers. */

@@ -1514,6 +1514,166 @@
   word-break: break-all;
   resize: none;
 }
+.invite__copy {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.invite__steps {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 10px 12px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  border-radius: var(--r);
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink-2);
+  font-size: 12.5px;
+}
+.invite__steps li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.invite__n {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 10.5px;
+  color: var(--accent-ink);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, transparent);
+  transform: translateY(2px);
+}
+.invite__after {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--meta);
+}
+.ts__net {
+  font-family: var(--font-ui);
+}
+.ts__install {
+  display: flex;
+  gap: 6px;
+  margin-left: 44px;
+}
+.ts__install .l-btn {
+  margin-left: 0;
+}
+
+/* Joining: the invite read, the way to the inviter tried */
+.preflight {
+  padding: 12px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line);
+  background: var(--card);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color var(--t);
+}
+.preflight.is-ready {
+  border-color: color-mix(in srgb, var(--ok) 34%, transparent);
+}
+.preflight.is-bad {
+  border-color: color-mix(in srgb, var(--bad) 30%, transparent);
+  color: var(--bad);
+}
+.preflight__wait {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
+  font-size: 12.5px;
+  color: var(--mute);
+}
+.preflight.is-bad .preflight__wait {
+  color: var(--bad);
+}
+.preflight__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.preflight__ws {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 13px;
+  background: var(--card-2);
+  border: 1px solid var(--line-2);
+}
+.preflight__name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.preflight__name b {
+  font-weight: 600;
+}
+.preflight__name span {
+  font-size: 11.5px;
+  color: var(--meta);
+}
+.preflight__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.check__mark {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 12%, transparent);
+}
+.check.is-off .check__mark {
+  color: var(--bad);
+  background: color-mix(in srgb, var(--bad) 12%, transparent);
+}
+.check__text {
+  flex: 1;
+  line-height: 1.45;
+}
+.check__link {
+  margin-left: 8px;
+  padding: 0;
+  color: var(--accent-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.wsform {
+  width: min(560px, calc(100vw - 32px));
+}
+
 .join {
   display: flex;
   align-items: center;

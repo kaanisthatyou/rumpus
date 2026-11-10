@@ -196,6 +196,28 @@ export interface TailscaleInfo {
   dns?: string;
   /** The tailnet hands out HTTPS certificates (needed for `tailscale serve` and an installable phone app). */
   https?: boolean;
+  /** The tailnet's name, as Tailscale shows it. */
+  tailnet?: string;
+  /** The other devices this one can see: its own tailnet's and ones shared with it. */
+  peers?: { name: string; ip: string; online: boolean }[];
+}
+
+/**
+ * What an invite says before anything is sent (PLAN.md 5.11): which workspace, and whether the inviter's computer
+ * can be reached from here, so a join that cannot work is explained instead of failing.
+ */
+export interface InviteCheck {
+  /** The workspace's name, as the invite carries it. */
+  name: string;
+  /** The inviter's address (`100.x.y.z:47640`). */
+  address: string;
+  tailscale: TailscaleInfo['state'];
+  /** The inviter's device among the ones Tailscale shows here; none when it is not in sight. */
+  peer?: { name: string; online: boolean };
+  /** A connection to the inviter's app opened. */
+  reachable: boolean;
+  /** This computer already has the workspace (or a request waiting). */
+  joined: boolean;
 }
 
 // ---------------------------------------------------------------- RPC
@@ -236,9 +258,14 @@ export interface CoreMethods {
   'phones.pair': { params: undefined; result: { url: string; expires: number } };
   'phones.revoke': { params: { id: string }; result: PhoneState };
   /** An invite code for the open team workspace (admins). */
-  'invites.create': { params: { role: MemberRole; hours?: number }; result: { code: string; expires: number } };
+  'invites.create': {
+    params: { role: MemberRole; hours?: number };
+    result: { code: string; link: string; expires: number };
+  };
   /** Asks to join a team workspace with a code; an admin of it approves. */
   'invites.join': { params: { code: string }; result: WorkspaceSummary };
+  /** Reads an invite without using it and tries the way to the inviter. */
+  'invites.check': { params: { code: string }; result: InviteCheck };
   'invites.answer': { params: { id: string; approve: boolean }; result: { ok: true } };
   'members.setRole': { params: { device: string; role: MemberRole }; result: { ok: true } };
   'members.remove': { params: { device: string }; result: { ok: true } };

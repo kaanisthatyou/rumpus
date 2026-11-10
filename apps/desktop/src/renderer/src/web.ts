@@ -118,6 +118,8 @@ function webBridge(): LoncaBridge {
           new Notification(title, { body });
       },
     },
+    // Invite links open the PC's app, never a phone's page.
+    links: { pending: async () => null, onJoin: () => () => {} },
     // The quick-entry window is the PC's own.
     quick: { open: async () => {}, hide: async () => {}, setKey: async () => true },
     providers: {

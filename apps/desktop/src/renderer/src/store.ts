@@ -78,6 +78,8 @@ interface AppState {
   goals: Goal[];
   workspaces: WorkspaceSummary[];
   newWorkspaceOpen?: boolean;
+  /** An invite the app was opened with (a `serai://join/…` link): the join dialog starts with it. */
+  joinCode?: string;
   inviteOpen?: boolean;
   memory?: MemoryState;
   /** On a narrow screen: the channel list or the crew over the chat. */
@@ -144,7 +146,7 @@ interface AppState {
   openGoalDialog(target: AppState['goalDialog']): void;
   openWorkspace(id: string): Promise<void>;
   createWorkspace(name: string): Promise<boolean>;
-  createInvite(role: MemberRole, hours: number): Promise<string | undefined>;
+  createInvite(role: MemberRole, hours: number): Promise<{ code: string; link: string } | undefined>;
   saveMemory(section: MemorySection, text: string): Promise<void>;
   remember(text: string): Promise<boolean>;
   acceptMemory(id: string, text?: string): Promise<void>;
@@ -258,6 +260,10 @@ export const useApp = create<AppState>((set, get) => {
     shortcutsOpen: false,
 
     async init() {
+      // An invite link the app was opened with (or handed by a second copy of it): the join dialog, filled in.
+      const join = (link: string | null) => link && set({ newWorkspaceOpen: true, joinCode: link, error: undefined });
+      window.lonca.links.onJoin(join);
+      void window.lonca.links.pending().then(join);
       core.on('settings.changed', (settings) => {
         set({ settings });
         void i18n.changeLanguage(settings.language);
@@ -648,7 +654,7 @@ export const useApp = create<AppState>((set, get) => {
 
     async createInvite(role, hours) {
       const made = await attempt(() => core.call('invites.create', { role, hours }));
-      return made?.code;
+      return made ? { code: made.code, link: made.link } : undefined;
     },
 
     async joinWithCode(code) {

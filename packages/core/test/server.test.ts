@@ -113,7 +113,31 @@ describe('parseTailscaleStatus', () => {
           JSON.stringify({ BackendState: 'Running', Self: { HostName: 'pc', TailscaleIPs: ['100.1.2.3', 'fd7a::1'] } }),
         ),
       ),
-    ).toEqual({ state: 'running', ip: '100.1.2.3', host: 'pc' });
+    ).toEqual({ state: 'running', ip: '100.1.2.3', host: 'pc', peers: [] });
+  });
+  it('lists the tailnet and the devices in sight', () => {
+    expect(
+      parseTailscaleStatus(
+        r(
+          JSON.stringify({
+            BackendState: 'Running',
+            Self: { HostName: 'pc', TailscaleIPs: ['100.1.2.3'] },
+            CurrentTailnet: { Name: 'kaan@example.com' },
+            Peer: {
+              a: { HostName: 'arda-pc', TailscaleIPs: ['100.9.9.9', 'fd7a::9'], Online: true },
+              b: { DNSName: 'verim.tail.ts.net.', TailscaleIPs: ['100.8.8.8'] },
+              c: { HostName: 'no-address' },
+            },
+          }),
+        ),
+      ),
+    ).toMatchObject({
+      tailnet: 'kaan@example.com',
+      peers: [
+        { name: 'arda-pc', ip: '100.9.9.9', online: true },
+        { name: 'verim', ip: '100.8.8.8', online: false },
+      ],
+    });
   });
   it('maps login and stopped states', () => {
     expect(parseTailscaleStatus(r(JSON.stringify({ BackendState: 'NeedsLogin' }))).state).toBe('needs-login');

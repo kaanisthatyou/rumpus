@@ -3,6 +3,7 @@
 // fake Claude Code on Kaan's PATH only) is opened to editors, and Arda's mention runs it on Kaan's computer.
 // Usage: node e2e/team.mjs   (after electron-vite build; E2E_EXE=release/win-unpacked/Serai.exe for packaged)
 import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
@@ -101,15 +102,31 @@ try {
   await codeBox.waitFor();
   const code = await codeBox.inputValue();
   assert.ok(code.startsWith('SERAI1.'), code);
+  await dialog.getByRole('button', { name: L.invite.copyMessage }).waitFor();
+  await dialog.getByText(L.invite.steps.code).waitFor();
   await kaan.shot('invite');
   await p.keyboard.press('Escape');
 
-  // Arda: join with the code; the lonca waits for approval.
+  // Arda opens the invite link: a second copy of the app hands it to the running one and quits, and the join
+  // dialog opens with the invite read (which workspace) and the way to Kaan's app tried.
   p = arda.page;
-  await p.getByRole('button', { name: L.shell.newWorkspace }).click();
-  dialog = p.getByRole('dialog', { name: L.shell.newWorkspace });
-  await dialog.getByRole('button', { name: L.workspaces.join }).click();
+  const packaged = process.env.E2E_EXE ? join(appDir, process.env.E2E_EXE) : undefined;
+  spawn(packaged ?? electronPath, [...(packaged ? [] : [appDir]), `serai://join/${code}`], {
+    env: { ...process.env, LONCA_HOME: arda.dir, LONCA_LANG: 'tr', LONCA_PEER_HOST: '127.0.0.1', LONCA_PEER_PORT: '0' },
+    stdio: 'ignore',
+  });
+  dialog = p.getByRole('dialog', { name: L.workspaces.join });
+  await dialog.waitFor({ timeout: 30_000 });
+  assert.equal(await dialog.getByLabel(L.workspaces.code, { exact: true }).inputValue(), `serai://join/${code}`);
+  await dialog.getByText(L.join.reach.ok).waitFor();
+  await dialog.getByText('Ekip', { exact: true }).waitFor();
+  await arda.shot('join-check');
+  // Something that is not an invite is said to be none, and the request cannot be sent.
+  await dialog.getByLabel(L.workspaces.code, { exact: true }).fill('merhaba');
+  await dialog.getByText(L.join.bad).waitFor();
+  assert.equal(await dialog.getByRole('button', { name: L.workspaces.askToJoin }).isDisabled(), true);
   await dialog.getByLabel(L.workspaces.code, { exact: true }).fill(code);
+  await dialog.getByText(L.join.reach.ok).waitFor();
   await dialog.getByRole('button', { name: L.workspaces.askToJoin }).click();
   await p.getByRole('button', { name: `Ekip · ${L.workspaces.state.joining}` }).waitFor();
 

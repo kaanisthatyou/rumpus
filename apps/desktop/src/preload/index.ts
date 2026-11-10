@@ -17,6 +17,14 @@ const bridge: LoncaBridge = {
     setTitleBar: (colors) => ipcRenderer.invoke('shell:setTitleBar', colors),
     notify: (title, body) => ipcRenderer.invoke('shell:notify', title, body),
   },
+  links: {
+    pending: () => ipcRenderer.invoke('link:pending'),
+    onJoin: (listener) => {
+      const h = (_e: unknown, link: string) => listener(link);
+      ipcRenderer.on('link:join', h);
+      return () => ipcRenderer.off('link:join', h);
+    },
+  },
   quick: {
     open: () => ipcRenderer.invoke('quick:open'),
     hide: () => ipcRenderer.invoke('quick:hide'),

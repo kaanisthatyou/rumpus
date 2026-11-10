@@ -13,6 +13,12 @@ asar: true
 extraMetadata:
   name: serai
 
+# Invite links: serai://join/<code> opens the app with the join dialog.
+protocols:
+  - name: Serai invite
+    schemes:
+      - serai
+
 win:
   icon: build/icon.ico
   target:

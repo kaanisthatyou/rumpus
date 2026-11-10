@@ -5,6 +5,7 @@ import type {
   Agent,
   Channel,
   Frame,
+  InviteCheck,
   Job,
   Message,
   ProjectView,
@@ -121,7 +122,20 @@ describe('team workspaces between two apps', () => {
     const { code } = await kaan.call<{ code: string }>('invites.create', { role: 'editor' });
     expect(code.startsWith('SERAI1.')).toBe(true);
     await expect(arda.call('invites.join', { code: 'LONCA1.bozuk' })).rejects.toThrow('bad_code');
+    // Before asking: the invite says which workspace it is for and whether the inviter's app answers. The same
+    // code is read from an invite link and with the product's former prefix.
+    const { link } = await kaan.call<{ link: string }>('invites.create', { role: 'viewer' });
+    expect(link).toMatch(/^serai:\/\/join\/SERAI1\./);
+    for (const pasted of [code, `serai://join/${code}`, ` ${code.replace('SERAI1.', 'LONCA1.')}\n`]) {
+      expect(await arda.call<InviteCheck>('invites.check', { code: pasted })).toMatchObject({
+        name: 'Ekip',
+        reachable: true,
+        joined: false,
+      });
+    }
+    await expect(arda.call('invites.check', { code: 'serai://join/bozuk' })).rejects.toThrow('bad_code');
     const joining = await arda.call<WorkspaceSummary>('invites.join', { code });
+    expect((await arda.call<InviteCheck>('invites.check', { code })).joined).toBe(true);
     expect(joining).toMatchObject({ id: team.id, name: 'Ekip', state: 'joining' });
     await expect(arda.call('invites.join', { code })).rejects.toThrow('already_member');
 
