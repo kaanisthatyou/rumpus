@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { RUNNABLE } from '../agents/AgentDialog';
 import { remoteOwner } from '../agents/owner';
+import { specialistIcon } from '../agents/SpecialistDialog';
 import { Board } from '../board/Board';
 import { ChannelView } from '../channel/ChannelView';
 import { LiveView } from '../channel/LiveView';
@@ -211,7 +212,11 @@ function Sidebar({ onSettings }: { onSettings: () => void }) {
             <NavButton
               key={c.id}
               on={view === 'channel' && channelId === c.id}
-              icon="terminal"
+              icon={
+                workspace?.agents.find((a) => a.id === c.agentId)?.specialty
+                  ? specialistIcon(workspace.agents.find((a) => a.id === c.agentId))
+                  : 'terminal'
+              }
               label={`@${c.name}`}
               badge={running.has(c.id)}
               onClick={() => void openChannel(c.id)}
@@ -410,7 +415,11 @@ function Crew() {
   const setMemberRole = useApp((s) => s.setMemberRole);
   const removeMember = useApp((s) => s.removeMember);
   const typing = useApp((s) => s.typing);
-  const agents = workspace?.agents ?? [];
+  const openSpecialistDialog = useApp((s) => s.openSpecialistDialog);
+  const everyAgent = workspace?.agents ?? [];
+  const agents = everyAgent.filter((a) => !a.specialty);
+  const specialists = everyAgent.filter((a) => a.specialty);
+  const lessonsWaiting = workspace?.lessons ?? [];
   const advisors = workspace?.advisors ?? [];
   const busy = new Set(
     Object.values(jobs)
@@ -422,7 +431,7 @@ function Crew() {
       .filter((j) => j.state === 'attention')
       .map((j) => j.agentId),
   );
-  const used = new Set(agents.map((a) => a.kind));
+  const used = new Set(everyAgent.map((a) => a.kind));
   const suggestions = (clis ?? []).filter(
     (c) => RUNNABLE.includes(c.kind) && c.state !== 'missing' && !used.has(c.kind),
   );
@@ -497,6 +506,76 @@ function Crew() {
             </div>
           ))}
         </div>
+      )}
+      <h3>
+        <span className="grow">{t('shell.specialists')}</span>
+        <IconButton size="sm" icon="plus" label={t('specialists.new')} onClick={() => openSpecialistDialog('new')} />
+      </h3>
+      {specialists.length === 0 ? (
+        <button type="button" className="crew__empty" onClick={() => openSpecialistDialog('new')}>
+          {t('shell.noSpecialists')}
+        </button>
+      ) : (
+        <motion.ul variants={stagger} initial="hidden" animate="shown" className="crew__list">
+          {specialists.map((a) => {
+            const cli = clis?.find((c) => c.kind === a.kind);
+            const owner = remoteOwner(a, workspace);
+            const missing = !owner && (!cli || cli.state === 'missing');
+            const channel = workspace?.channels.find((c) => c.kind === 'agent' && c.agentId === a.id);
+            const learned = (a.specialty?.lessons ?? '').split('\n').filter((l) => l.trim()).length;
+            const waiting = lessonsWaiting.filter((l) => l.agentId === a.id).length;
+            return (
+              <motion.li key={a.id} variants={popIn} className={`who who--spec ${missing ? 'is-off' : ''}`}>
+                <button
+                  type="button"
+                  className="who__open"
+                  title={a.specialty?.role}
+                  onClick={() => channel && void openChannel(channel.id)}
+                >
+                  <Avatar
+                    name=""
+                    icon={specialistIcon(a)}
+                    size={28}
+                    presence={missing ? 'off' : busy.has(a.id) ? 'busy' : 'on'}
+                  />
+                  <div className="who__text">
+                    <b>
+                      {a.name} <span className="l-mono">@{a.handle}</span>
+                    </b>
+                    <span>
+                      {asking.has(a.id)
+                        ? t('job.approval.title')
+                        : busy.has(a.id)
+                          ? t('crew.running')
+                          : owner
+                            ? t('agent.on', { name: owner })
+                            : a.specialty?.role}
+                    </span>
+                  </div>
+                </button>
+                {learned > 0 && (
+                  <span className="who__learned l-mono" title={t('specialists.learned', { count: learned })}>
+                    <Icon name="cap" size={12} />
+                    {learned}
+                  </span>
+                )}
+                {waiting > 0 && (
+                  <span className="badge-count" title={t('specialists.lessons.pending')}>
+                    {waiting}
+                  </span>
+                )}
+                {!owner && (
+                  <IconButton
+                    size="sm"
+                    icon="settings"
+                    label={t('specialists.edit')}
+                    onClick={() => openAgentDialog(a)}
+                  />
+                )}
+              </motion.li>
+            );
+          })}
+        </motion.ul>
       )}
       <h3>
         <span className="grow">{t('shell.advisors')}</span>

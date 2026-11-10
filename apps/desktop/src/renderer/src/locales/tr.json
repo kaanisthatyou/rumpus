@@ -150,7 +150,9 @@
     "waiting": "Bekleyenler",
     "teamStorage": "Ekip alanı",
     "projects": "Projeler",
-    "project": "Proje"
+    "project": "Proje",
+    "specialists": "Uzmanlar",
+    "noSpecialists": "Uzman yok. Tek bir işe özelleşmiş agent eklenir."
   },
   "settings": {
     "title": "Ayarlar",
@@ -293,7 +295,8 @@
       "compacted": "Bağlam sıkıştırıldı",
       "progress": "İlerleme",
       "start": "İşe başlama",
-      "connector": "Bağlayıcı"
+      "connector": "Bağlayıcı",
+      "budget": "Bütçe dolmak üzere"
     },
     "denied": "Reddedildi",
     "more_one": "{{count}} adım daha",
@@ -315,7 +318,8 @@
       "driver_missing": "Bu CLI henüz iş çalıştıramıyor.",
       "stopped": "Durduruldu.",
       "failed": "İş hatayla bitti.",
-      "denied_by_owner": "Agent'ın sahibi işi onaylamadı."
+      "denied_by_owner": "Agent'ın sahibi işi onaylamadı.",
+      "over_budget": "İş bütçesi doldu; iş durduruldu."
     },
     "approval": {
       "title": "Onay bekliyor",
@@ -979,5 +983,100 @@
   "fabrika": {
     "import": "Fabrika'dan içe aktar (roblox-factory klasörü)",
     "done": "İçe aktarıldı: {{ideas}} fikir, {{references}} referans, {{commands}} komut, {{projects}} proje; {{skipped}} zaten vardı."
+  },
+  "specialists": {
+    "one": "Uzman",
+    "new": "Yeni uzman",
+    "edit": "Uzman ayarları",
+    "intro": "Uzman, tek bir işi her seferinde aynı yöntemle yapan agenttır: yönergesini izler, işe başlamadan kanalı okur, sabit referanslarını alır, bütçesi içinde çalışır ve öğrendiklerini sonraki işe taşır. Şablon yalnızca başlangıçtır; her alanı düzenlenir.",
+    "templatesBack": "Şablonlar",
+    "minutes_one": "{{count}} dk",
+    "minutes_other": "{{count}} dk",
+    "role": "Uzmanlık",
+    "roleHint": "Tek satır: ne iş yaptığı. Üyeler ve diğer agentlar bunu görür.",
+    "playbook": "Yönerge",
+    "playbookPlaceholder": "Adım adım nasıl çalıştığı.",
+    "playbookHint": "Her işte verilir. İngilizce yazılması önerilir; agent yine de kişinin dilinde yanıtlar.",
+    "history": "Kanal geçmişi",
+    "historyNone": "yalnızca istek",
+    "messages_one": "son {{count}} mesaj",
+    "messages_other": "son {{count}} mesaj",
+    "historyHint": "İşe başlamadan önce kanaldan okunan mesaj sayısı. Daha eskisi için arama araçları vardır.",
+    "refs": "Sabit referanslar",
+    "refsNone": "Kayıtlı referans yok. Kayıtlar → Referanslar bölümünden eklenir.",
+    "refsHint": "Seçilen referanslar notları ve görselleriyle her işe eklenir.",
+    "budget": "İş başına bütçe",
+    "budgetMinutes": "Dakika",
+    "budgetTokens": "Token (bin)",
+    "budgetTokensHint": "Boş bırakılırsa yalnızca süre sayılır.",
+    "budgetHint": "Bütçenin dörtte üçünde agenta toparlaması söylenir; bütçe dolunca iş durdurulur.",
+    "result": "RESULT satırı",
+    "resultHint": "Yanıtın son satırı tek satırlık JSON olur; sohbetten ayıklanır ve işi isteyene (kişi ya da agent) verilir.",
+    "connectors": "Bu şablona uygun bağlayıcılar: {{names}}. Ayarlar → Bağlayıcılar bölümünden kurulur.",
+    "learned_one": "{{count}} ders öğrendi",
+    "learned_other": "{{count}} ders öğrendi",
+    "resultOk": "Sonuç",
+    "resultFailed": "Sonuç · başarısız",
+    "tabs": {
+      "who": "Kimlik",
+      "playbook": "Yönerge",
+      "context": "Bağlam",
+      "lessons": "Öğrendikleri"
+    },
+    "lessons": {
+      "learns": "İşlerden ders çıkarır",
+      "learnsHint": "Sahibinin verdiği işten çıkan ders hemen tutulur. Başka bir üyenin isteğinden gelen ya da yönlendirme gibi görünen ders burada onay bekler.",
+      "pending": "Onay bekleyen dersler",
+      "pendingOne": "Onay bekleyen ders",
+      "from": "{{name}} adlı üyenin işinden",
+      "fromJob": "Bir işten",
+      "keep": "Tut",
+      "drop": "At",
+      "kept": "Tutulan dersler",
+      "keptHint": "Her satır bir ders. Her işte agenta verilir; sınır dolunca en eski satırlar düşer.",
+      "none": "Henüz ders yok."
+    },
+    "templates": {
+      "reviewer": {
+        "name": "Kod inceleyici",
+        "role": "Değişiklikleri birleştirilmeden önce inceler, bulguları önem sırasıyla verir",
+        "about": "Diff'i ve çağıran kodu okur; hata, risk ve eksik testleri bulur. Kod değiştirmez."
+      },
+      "tester": {
+        "name": "Test yazarı",
+        "role": "Projenin kendi düzenine uyan testler yazar ve bozuk testleri onarır",
+        "about": "Davranışı sabitleyen testler yazar, çalıştırır, kapsamı raporlar."
+      },
+      "researcher": {
+        "name": "Araştırmacı",
+        "role": "Soruları kaynaklarıyla araştırır; karar vermez, bir şey değiştirmez",
+        "about": "Önce buradaki kayıtlara ve koda, sonra dışarıya bakar; her iddianın kaynağını verir."
+      },
+      "modeler": {
+        "name": "3D modelci",
+        "role": "Blender ile referans görsele uygun 3D model yapar",
+        "about": "Referansa bakar, modeli kurar, denetler, küçük resmini çıkarır ve dışa aktarır. Blender bağlayıcısı gerekir."
+      },
+      "designer": {
+        "name": "Arayüz tasarımcısı",
+        "role": "Arayüzü referans görsellere ve projenin tasarım diline göre kurar ve düzeltir",
+        "about": "Projenin kendi renk, yazı ve bileşenlerini kullanır; boş, hata ve dar ekran durumlarını da yapar."
+      },
+      "writer": {
+        "name": "Doküman yazarı",
+        "role": "README, kılavuz ve sürüm notlarını kodun güncel haline göre yazar",
+        "about": "Kodu okur, olduğu gibi anlatır; yalnızca yanlış ya da eksik olanı değiştirir."
+      },
+      "security": {
+        "name": "Güvenlik denetçisi",
+        "role": "Projenin kendi kodunda ve ayarlarında güvenlik açıklarını arar",
+        "about": "Dışarıya açık noktaları çıkarır, güvenilmeyen girdiyi izler, bulguları önem sırasıyla verir."
+      },
+      "custom": {
+        "name": "Boş uzman",
+        "role": "",
+        "about": "Şablonsuz başlar: uzmanlık ve yönerge baştan yazılır."
+      }
+    }
   }
 }

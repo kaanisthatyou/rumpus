@@ -3,6 +3,7 @@ import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import { useCallback, useEffect, useState } from 'react';
 import { AdvisorDialog } from './agents/AdvisorDialog';
 import { AgentDialog } from './agents/AgentDialog';
+import { SpecialistDialog } from './agents/SpecialistDialog';
 import { GoalDialog } from './goals/GoalDialog';
 import { actionFor } from './keys';
 import { Launcher } from './launcher/Launcher';
@@ -28,6 +29,7 @@ function Boot() {
 export function App() {
   const settings = useApp((s) => s.settings);
   const agentDialog = useApp((s) => s.agentDialog);
+  const specialistDialog = useApp((s) => s.specialistDialog);
   const advisorDialog = useApp((s) => s.advisorDialog);
   const goalDialog = useApp((s) => s.goalDialog);
   const projectDialog = useApp((s) => s.projectDialog);
@@ -125,6 +127,7 @@ export function App() {
         </div>
         <AnimatePresence>{settingsOpen && <SettingsDialog onClose={closeSettings} />}</AnimatePresence>
         <AnimatePresence>{agentDialog && <AgentDialog key="agent-dialog" />}</AnimatePresence>
+        <AnimatePresence>{specialistDialog && <SpecialistDialog key="specialist-dialog" />}</AnimatePresence>
         <AnimatePresence>{advisorDialog && <AdvisorDialog key="advisor-dialog" />}</AnimatePresence>
         <AnimatePresence>{goalDialog && <GoalDialog key="goal-dialog" />}</AnimatePresence>
         <AnimatePresence>

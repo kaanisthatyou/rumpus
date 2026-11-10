@@ -150,7 +150,9 @@
     "waiting": "Waiting",
     "teamStorage": "Team workspace",
     "projects": "Projects",
-    "project": "Project"
+    "project": "Project",
+    "specialists": "Specialists",
+    "noSpecialists": "No specialists. An agent for one kind of work is added here."
   },
   "settings": {
     "title": "Settings",
@@ -293,7 +295,8 @@
       "compacted": "Context compacted",
       "progress": "Progress",
       "start": "Start the job",
-      "connector": "Connector"
+      "connector": "Connector",
+      "budget": "Budget nearly used"
     },
     "denied": "Refused",
     "more_one": "{{count}} more step",
@@ -315,7 +318,8 @@
       "driver_missing": "This CLI cannot run jobs yet.",
       "stopped": "Stopped.",
       "failed": "The job ended with an error.",
-      "denied_by_owner": "The agent's owner did not approve the job."
+      "denied_by_owner": "The agent's owner did not approve the job.",
+      "over_budget": "The job's budget ran out; the job was stopped."
     },
     "approval": {
       "title": "Waiting for approval",
@@ -979,5 +983,100 @@
   "fabrika": {
     "import": "Import from Fabrika (a roblox-factory folder)",
     "done": "Imported: {{ideas}} ideas, {{references}} references, {{commands}} commands, {{projects}} projects; {{skipped}} were already here."
+  },
+  "specialists": {
+    "one": "Specialist",
+    "new": "New specialist",
+    "edit": "Specialist settings",
+    "intro": "A specialist is an agent that does one kind of work the same way every time: it follows its playbook, reads the channel before it starts, gets its fixed references, works within its budget and carries what it learned to the next job. A template is only a start; every field can be changed.",
+    "templatesBack": "Templates",
+    "minutes_one": "{{count}} min",
+    "minutes_other": "{{count}} min",
+    "role": "Specialty",
+    "roleHint": "One line: what it does. Members and other agents see it.",
+    "playbook": "Playbook",
+    "playbookPlaceholder": "How it works, step by step.",
+    "playbookHint": "Given with every job. English is recommended; the agent still answers in the person's language.",
+    "history": "Channel history",
+    "historyNone": "the request only",
+    "messages_one": "last {{count}} message",
+    "messages_other": "last {{count}} messages",
+    "historyHint": "How many of the channel's messages are read before a job. Search tools reach further back.",
+    "refs": "Fixed references",
+    "refsNone": "No saved references. They are added under Records → References.",
+    "refsHint": "The chosen references go into every job with their notes and images.",
+    "budget": "Budget per job",
+    "budgetMinutes": "Minutes",
+    "budgetTokens": "Tokens (thousands)",
+    "budgetTokensHint": "Left empty, only time counts.",
+    "budgetHint": "At three quarters of the budget the agent is told to wrap up; past it the job is stopped.",
+    "result": "RESULT line",
+    "resultHint": "The last line of the answer is one line of JSON; it is taken out of the chat and handed to whoever asked (a person or an agent).",
+    "connectors": "Connectors that suit this template: {{names}}. They are installed under Settings → Connectors.",
+    "learned_one": "{{count}} lesson learned",
+    "learned_other": "{{count}} lessons learned",
+    "resultOk": "Result",
+    "resultFailed": "Result · failed",
+    "tabs": {
+      "who": "Identity",
+      "playbook": "Playbook",
+      "context": "Context",
+      "lessons": "Lessons"
+    },
+    "lessons": {
+      "learns": "Keeps lessons from its jobs",
+      "learnsHint": "A lesson from a job its owner asked for is kept at once. One from another member's request, or one that looks like steering, waits here for approval.",
+      "pending": "Lessons waiting for approval",
+      "pendingOne": "Lesson waiting for approval",
+      "from": "From a job {{name}} asked for",
+      "fromJob": "From a job",
+      "keep": "Keep",
+      "drop": "Drop",
+      "kept": "Kept lessons",
+      "keptHint": "One lesson per line. Given to the agent with every job; when the limit is reached the oldest lines go.",
+      "none": "No lessons yet."
+    },
+    "templates": {
+      "reviewer": {
+        "name": "Code reviewer",
+        "role": "Reviews changes before they are merged and lists findings by severity",
+        "about": "Reads the diff and the calling code; finds bugs, risks and missing tests. Changes nothing."
+      },
+      "tester": {
+        "name": "Test writer",
+        "role": "Writes tests that follow the project's own style and repairs broken ones",
+        "about": "Writes tests that pin behavior, runs them and reports what is covered."
+      },
+      "researcher": {
+        "name": "Researcher",
+        "role": "Finds things out with their sources; decides nothing and changes nothing",
+        "about": "Looks in the records and code here first, then outside; gives a source for every claim."
+      },
+      "modeler": {
+        "name": "3D modeler",
+        "role": "Makes 3D models in Blender that match the reference images",
+        "about": "Studies the reference, builds, checks, renders a thumbnail and exports. Needs a Blender connector."
+      },
+      "designer": {
+        "name": "Interface designer",
+        "role": "Builds and polishes interface to match reference images and the project's design language",
+        "about": "Uses the project's own colors, type and components; also builds empty, error and narrow states."
+      },
+      "writer": {
+        "name": "Documentation writer",
+        "role": "Writes README, guides and release notes from the code as it is",
+        "about": "Reads the code and describes it as it is; changes only what is wrong or missing."
+      },
+      "security": {
+        "name": "Security auditor",
+        "role": "Looks for security problems in the project's own code and settings",
+        "about": "Maps what is exposed, follows untrusted input, lists findings by severity."
+      },
+      "custom": {
+        "name": "Blank specialist",
+        "role": "",
+        "about": "Starts without a template: the specialty and playbook are written from scratch."
+      }
+    }
   }
 }

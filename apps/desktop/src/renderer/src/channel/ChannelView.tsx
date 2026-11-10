@@ -3,6 +3,7 @@ import { Avatar, Button, Chip, Icon, IconButton, Kbd } from '@lonca/ui';
 import { AnimatePresence, motion } from 'motion/react';
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { specialistIcon } from '../agents/SpecialistDialog';
 import { GoalCard } from '../goals/GoalCard';
 import { fillCommand, RefImage, readImage } from '../records/RecordsView';
 import { core } from '../rpc';
@@ -34,6 +35,32 @@ function RefChip({ id, onRemove }: { id: string; onRemove?: () => void }) {
         </button>
       )}
     </span>
+  );
+}
+
+/** What a specialist handed to whoever asked: the fields of its RESULT line. */
+function ResultBlock({ result }: { result: Record<string, unknown> }) {
+  const { t } = useTranslation();
+  const { ok, ...rest } = result;
+  const show = (v: unknown) => (typeof v === 'string' ? v : JSON.stringify(v));
+  const fields = Object.entries(rest).filter(([, v]) => v !== null && v !== undefined && v !== '');
+  return (
+    <div className={`result ${ok === false ? 'is-failed' : ''}`}>
+      <span className="result__head">
+        <Icon name={ok === false ? 'close' : 'check'} size={12} />
+        {t(ok === false ? 'specialists.resultFailed' : 'specialists.resultOk')}
+      </span>
+      {fields.length > 0 && (
+        <dl>
+          {fields.slice(0, 12).map(([k, v]) => (
+            <Fragment key={k}>
+              <dt>{k}</dt>
+              <dd>{show(v)}</dd>
+            </Fragment>
+          ))}
+        </dl>
+      )}
+    </div>
   );
 }
 
@@ -79,7 +106,11 @@ function MessageRow({ message, agents, jobs }: { message: Message; agents: Agent
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0, transition: { type: 'spring', stiffness: 420, damping: 32 } }}
     >
-      <Avatar name={name} size={32} {...(a.kind === 'agent' ? { icon: 'terminal' as const } : {})} />
+      <Avatar
+        name={name}
+        size={32}
+        {...(a.kind === 'agent' ? { icon: agent?.specialty ? specialistIcon(agent) : ('terminal' as const) } : {})}
+      />
       <div className="msg__body">
         <div className="msg__meta">
           <b>{name}</b>
@@ -144,7 +175,8 @@ function MessageRow({ message, agents, jobs }: { message: Message; agents: Agent
           </form>
         ) : (
           <>
-            <Markdown text={body} />
+            {body && <Markdown text={body} />}
+            {message.result && <ResultBlock result={message.result} />}
             {todos.map((task) => (
               <div key={task} className="msg__todo">
                 <Icon name="tasks" size={13} />
@@ -285,7 +317,12 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
   ];
   const options: Suggestion[] = mention
     ? [
-        ...agents.map((a) => ({ key: a.id, handle: a.handle, detail: a.name, icon: 'terminal' as const })),
+        ...agents.map((a) => ({
+          key: a.id,
+          handle: a.handle,
+          detail: a.specialty ? `${a.name} · ${a.specialty.role}` : a.name,
+          icon: 'terminal' as const,
+        })),
         ...(channel.kind === 'channel' ? advisors : []).map((a) => ({
           key: a.id,
           handle: a.handle,

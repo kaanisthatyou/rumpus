@@ -176,6 +176,39 @@ async function run() {
       });
       continue;
     }
+    // The request is the last line; what comes before it is the channel's history.
+    const request = text.split(String.fromCharCode(10)).pop() ?? '';
+    if (mcp && /değişikliği incele/i.test(request)) {
+      // A specialist's job: keep a lesson when it may, say what it saw of the channel, end with a RESULT line.
+      n += 1;
+      if (!started) {
+        out({ type: 'system', subtype: 'init', session_id: session, tools: ['Read'] });
+        started = true;
+      }
+      const tools = await listTools();
+      if (tools.includes('learn_lesson')) {
+        await callAndShow(`k${n}`, 'learn_lesson', { lesson: 'Bu projede testler `npm test` ile çalışır.' });
+      }
+      const saw = /e-posta doğrulaması/.test(text) ? 'Kanalda e-posta doğrulamasından söz edilmiş.' : 'Kanal boş.';
+      const answer = [
+        'Bir bulgu var: `README.md` güncel değil.',
+        '',
+        saw,
+        '',
+        'RESULT {"ok": false, "blockers": 0, "findings": 1}',
+      ].join(String.fromCharCode(10));
+      out({ type: 'assistant', message: { content: [{ type: 'text', text: answer }] } });
+      out({
+        type: 'result',
+        subtype: 'success',
+        is_error: false,
+        result: answer,
+        total_cost_usd: 0,
+        usage: { input_tokens: 900, output_tokens: 80 },
+        queued_turn_count: queue.length,
+      });
+      continue;
+    }
     if (mcp && /durumu güncelle/i.test(text)) {
       // The project's status page through Serai's tools: read it, tick every milestone, rewrite where it stands.
       n += 1;

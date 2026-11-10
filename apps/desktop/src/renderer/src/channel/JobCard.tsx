@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { remoteOwner } from '../agents/owner';
+import { specialistIcon } from '../agents/SpecialistDialog';
 import { useApp } from '../store';
 import { elapsed, tokens } from './format';
 
@@ -74,9 +75,15 @@ export function JobCard({ job, agent }: { job: Job; agent: Agent | undefined }) 
       layout="position"
     >
       <div className="job__head">
-        <Avatar name="" icon="terminal" size={26} presence={running ? 'busy' : job.state === 'done' ? 'on' : 'off'} />
+        <Avatar
+          name=""
+          icon={agent?.specialty ? specialistIcon(agent) : 'terminal'}
+          size={26}
+          presence={running ? 'busy' : job.state === 'done' ? 'on' : 'off'}
+        />
         <div className="job__who">
           <b>{agent?.name ?? '—'}</b>
+          {agent?.specialty && <Chip tone="accent">{t('specialists.one')}</Chip>}
           {agent && <Chip mono>{agent.kind}</Chip>}
           {agent && <Chip mono>{t(`agentForm.modes.${agent.mode}`)}</Chip>}
           {owner && <Chip>{t('agent.on', { name: owner })}</Chip>}
@@ -87,7 +94,16 @@ export function JobCard({ job, agent }: { job: Job; agent: Agent | undefined }) 
           {t(`job.state.${job.state}`)} · <span className="l-mono">{elapsed(job.started, job.ended ?? now)}</span>
         </span>
       </div>
-      {running && <Track busy />}
+      {running && !job.budget && <Track busy />}
+      {running && job.budget && (
+        <div className={`job__budget ${job.budget.warned ? 'is-warned' : ''}`}>
+          <Icon name="clock" size={12} />
+          <Track value={Math.min(1, (now - job.started) / (job.budget.minutes * 60_000))} />
+          <span className="l-mono">
+            {elapsed(job.started, now)} / {job.budget.minutes}:00
+          </span>
+        </div>
+      )}
       {job.steps.length > 0 && (
         <motion.ol
           className="job__steps"

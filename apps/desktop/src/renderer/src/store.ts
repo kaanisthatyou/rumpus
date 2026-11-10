@@ -72,6 +72,8 @@ interface AppState {
   watching?: string;
   /** The agent dialog: an agent to edit, `new` for a new one, or closed. */
   agentDialog?: Agent | 'new' | { kind: CliKind };
+  /** The specialist dialog: a specialist to edit, `new` for the template gallery, or closed. */
+  specialistDialog?: Agent | 'new';
   advisorDialog?: Advisor | 'new';
   goals: Goal[];
   workspaces: WorkspaceSummary[];
@@ -135,6 +137,9 @@ interface AppState {
   answerJob(id: string, allow: boolean): Promise<void>;
   watch(jobId: string | undefined): void;
   openAgentDialog(target: AppState['agentDialog']): void;
+  openSpecialistDialog(target: AppState['specialistDialog']): void;
+  /** A specialist's waiting lesson: kept (as edited) or dropped. */
+  answerLesson(id: string, keep: boolean, text?: string): Promise<void>;
   openAdvisorDialog(target: AppState['advisorDialog']): void;
   openGoalDialog(target: AppState['goalDialog']): void;
   openWorkspace(id: string): Promise<void>;
@@ -552,14 +557,14 @@ export const useApp = create<AppState>((set, get) => {
     async saveAgent(input) {
       const agent = await attempt(() => core.call('agents.save', input));
       if (!agent) return false;
-      set({ agentDialog: undefined });
+      set({ agentDialog: undefined, specialistDialog: undefined });
       await get().loadWorkspace();
       return true;
     },
 
     async deleteAgent(id) {
       if (await attempt(() => core.call('agents.delete', { id }))) {
-        set({ agentDialog: undefined });
+        set({ agentDialog: undefined, specialistDialog: undefined });
         await get().loadWorkspace();
       }
     },
@@ -585,7 +590,23 @@ export const useApp = create<AppState>((set, get) => {
     },
 
     openAgentDialog(target) {
+      // A specialist has a form of its own.
+      if (target && target !== 'new' && 'id' in target && target.specialty) {
+        set({ specialistDialog: target, error: undefined });
+        return;
+      }
       set({ agentDialog: target, error: undefined });
+    },
+
+    openSpecialistDialog(target) {
+      set({ specialistDialog: target, error: undefined });
+    },
+
+    async answerLesson(id, keep, text) {
+      const done = await attempt(() =>
+        keep ? core.call('lessons.accept', { id, ...(text ? { text } : {}) }) : core.call('lessons.reject', { id }),
+      );
+      if (done) await get().loadWorkspace();
     },
 
     async openWorkspace(id) {
