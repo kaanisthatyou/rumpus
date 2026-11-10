@@ -6,6 +6,59 @@ import { CLI_KINDS } from './kinds.js';
 export const AGENT_MODES = ['read', 'edit', 'full'] as const;
 export type AgentMode = (typeof AGENT_MODES)[number];
 
+/** Most of a channel's latest messages a specialist reads before a job. */
+export const SPECIALIST_HISTORY_MAX = 200;
+/** Characters of lessons a specialist keeps; the oldest lines go first. */
+export const LESSONS_LIMIT = 6000;
+
+/**
+ * What makes an agent a specialist (Fabrika's Blender agent made general): one kind of work, done the same way
+ * every time. It follows a playbook, reads the channel before it starts, gets the same reference records with
+ * every job, works within a budget, starts every job in a fresh session, keeps lessons for the next one, and can
+ * end with a RESULT line for whoever asked. It never hands work on.
+ */
+export const SpecialtySchema = z.object({
+  /** One line: what it is for. Shown next to its name and told to the other agents. */
+  role: z.string().trim().min(1).max(140),
+  /** How it works, step by step: Markdown, written by its owner. */
+  playbook: z.string().max(20_000).default(''),
+  /** How many of the channel's latest messages it reads before a job; 0 means only the request. */
+  history: z.number().int().min(0).max(SPECIALIST_HISTORY_MAX).default(30),
+  /** Reference records (images with notes) it gets with every job. */
+  refs: z.array(z.string().max(64)).max(12).default([]),
+  /** Per job: minutes, and optionally tokens (new input and output). Past it the job is stopped. */
+  budget: z
+    .object({
+      minutes: z.number().int().min(1).max(240),
+      tokens: z.number().int().min(1000).max(50_000_000).optional(),
+    })
+    .optional(),
+  /** Ends its answer with a `RESULT {json}` line that is taken out of the chat and handed to whoever asked. */
+  result: z.boolean().default(false),
+  /** Keeps lessons from its jobs (the `learn_lesson` tool). */
+  learns: z.boolean().default(true),
+  /** What it kept so far: one lesson per line, dated; its owner edits them. */
+  lessons: z.string().max(LESSONS_LIMIT).default(''),
+  /** The template it was made from. */
+  template: z.string().max(40).optional(),
+});
+export type Specialty = z.infer<typeof SpecialtySchema>;
+
+/**
+ * A lesson a specialist wants to keep that waits for its owner: it came from a job someone else asked for, or
+ * something in it looks like steering. Kept on the owner's computer only.
+ */
+export interface LessonSuggestion {
+  id: string;
+  agentId: string;
+  text: string;
+  /** Who asked for the job it came from. */
+  from: string;
+  jobId?: string;
+  at: number;
+  flags?: string[];
+}
+
 export const AgentInputSchema = z.object({
   id: z.string().optional(),
   kind: z.enum(CLI_KINDS),
@@ -30,6 +83,8 @@ export const AgentInputSchema = z.object({
       approveOthers: z.boolean(),
     })
     .optional(),
+  /** Present on a specialist. */
+  specialty: SpecialtySchema.optional(),
 });
 
 export type AgentAccess = NonNullable<z.infer<typeof AgentInputSchema>['access']>;
@@ -51,6 +106,7 @@ export interface Agent {
   /** The owner's extra login of the CLI it runs on, when not the default one. */
   account?: string;
   access?: AgentAccess;
+  specialty?: Specialty;
   created: number;
 }
 
@@ -144,6 +200,8 @@ export interface Message {
    * person's message it continues and the agent that handed it over. A handed part never hands over again.
    */
   handover?: { requestId: string; agentId: string };
+  /** A specialist's `RESULT {json}` line, taken out of the text: what whoever asked needs from the job. */
+  result?: Record<string, unknown>;
 }
 
 /** idle is never stored: a job is running, waiting on a person, or over. */
@@ -182,6 +240,8 @@ export interface Job {
   error?: string;
   /** How many memory sections went into the agent's prompt for this job. */
   recalled?: number;
+  /** A specialist's budget for this job; `warned` once the agent was told it is nearly used. */
+  budget?: { minutes: number; tokens?: number; warned?: boolean };
   /** While the job waits on a person: the tool call that needs approval. */
   approval?: { id: string; label: string; arg?: string; detail?: string };
   started: number;
@@ -247,6 +307,8 @@ export interface WorkspaceState {
   members?: MemberInfo[];
   role?: MemberRole;
   joins?: JoinRequest[];
+  /** Lessons of this computer's specialists that wait for their owner. */
+  lessons?: LessonSuggestion[];
   /** This app's address for other members, once it listens. */
   address?: string;
 }
@@ -268,7 +330,7 @@ export interface GoalStep {
   text: string;
   state: 'pending' | 'running' | 'done' | 'failed';
   jobId?: string;
-  /** Extra steps Lonca adds when the plan is done but the done check still fails. */
+  /** Extra steps Serai adds when the plan is done but the done check still fails. */
   fix?: boolean;
 }
 
@@ -479,7 +541,7 @@ export interface GitState {
   changes?: number;
   untracked?: number;
   commits?: { hash: string; date: string; author: string; subject: string }[];
-  /** When the remote was last fetched by Lonca (ms). */
+  /** When the remote was last fetched by Serai (ms). */
   fetched?: number;
 }
 

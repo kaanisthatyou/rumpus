@@ -49,7 +49,7 @@
       "isDefault": "Varsayılan konum"
     },
     "agents": {
-      "body": "Lonca bu bilgisayarda kurulu CLI agentlarını çalıştırır. Girişler her CLI'ın kendi ekranında yapılır; Lonca giriş bilgilerine erişmez.",
+      "body": "{{app}} bu bilgisayarda kurulu CLI agentlarını çalıştırır. Girişler her CLI'ın kendi ekranında yapılır; {{app}} giriş bilgilerine erişmez.",
       "readyCount_one": "{{count}} agent hazır",
       "readyCount_other": "{{count}} agent hazır",
       "none": "Hazır agent yok. Kurulum sonradan Ayarlar'dan tamamlanabilir."
@@ -81,7 +81,7 @@
     },
     "login": "Giriş yap",
     "installCommand": "Kurulum komutu",
-    "loginOpened": "Giriş ayrı bir pencerede açıldı. Lonca'ya dönülünce liste yeniden taranır.",
+    "loginOpened": "Giriş ayrı bir pencerede açıldı. Uygulamaya dönülünce liste yeniden taranır.",
     "googleNote": "Google, Gemini hesap girişinin üçüncü taraf uygulamalarda kullanılmasına izin vermiyor. Bu CLI yalnızca GEMINI_API_KEY ya da Vertex ile çalıştırılır.",
     "on": "Sahibi: {{name}}"
   },
@@ -104,9 +104,9 @@
     "download": "İndirme sayfası"
   },
   "shell": {
-    "workspaces": "Loncalar",
+    "workspaces": "Alanlar",
     "workspace": "Kişisel",
-    "newWorkspace": "Yeni lonca",
+    "newWorkspace": "Yeni alan",
     "storage": "Yerel depo",
     "search": "Ara ya da komut",
     "channels": "Kanallar",
@@ -133,7 +133,7 @@
     "voice": "Bas-konuş",
     "attach": "Dosya ya da referans ekle",
     "send": "Gönder",
-    "crew": "Loncadakiler",
+    "crew": "Buradakiler",
     "invite": "Davet",
     "workers": "İşçiler",
     "advisors": "Danışmanlar",
@@ -148,7 +148,7 @@
     "settings": "Ayarlar",
     "shortcuts": "Kısayollar",
     "waiting": "Bekleyenler",
-    "teamStorage": "Ekip loncası",
+    "teamStorage": "Ekip alanı",
     "projects": "Projeler",
     "project": "Proje"
   },
@@ -241,9 +241,9 @@
     "no_identity": "Cihaz anahtarı henüz hazır değil; biraz sonra yeniden denenebilir.",
     "no_address": "Diğer üyeler bu bilgisayara ulaşamıyor: Tailscale çalışmıyor ya da adres alınamadı.",
     "bad_code": "Davet kodu okunamadı.",
-    "already_member": "Bu loncaya zaten katılınmış ya da istek bekliyor.",
+    "already_member": "Bu alana zaten katılınmış ya da istek bekliyor.",
     "invite_refused": "Davet kabul edilmedi: kod kullanılmış ya da süresi dolmuş olabilir.",
-    "unreachable": "Davet eden bilgisayara ulaşılamadı. Tailscale ve davet edenin Lonca'sının açık olması gerekir.",
+    "unreachable": "Davet eden bilgisayara ulaşılamadı. Tailscale ve davet eden bilgisayarda uygulamanın açık olması gerekir.",
     "invalid_project": "Proje kaydedilmedi: geçersiz değer.",
     "no_folder": "Bu bilgisayarda projenin klasörü seçilmedi.",
     "not_fabrika": "Klasörde Fabrika'ya ait ideas, references, .claude/commands ya da games bulunamadı.",
@@ -493,8 +493,8 @@
     "pin": "Mesaj kutusunun üstüne sabitle"
   },
   "instructions": {
-    "core": "Lonca çekirdek kuralları",
-    "coreHint": "Lonca bu kuralları kodda uygular; metin yalnızca agenta açıklar. Düzenlenemez.",
+    "core": "{{app}} çekirdek kuralları",
+    "coreHint": "{{app}} bu kuralları kodda uygular; metin yalnızca agenta açıklar. Düzenlenemez.",
     "worker": "İşçi şablonu",
     "workerHint": "Her işçi agentın sistem istemine eklenir.",
     "workspace": "Çalışma alanı talimatları",
@@ -504,7 +504,7 @@
     "reset": "Varsayılana dön",
     "isDefault": "Varsayılan",
     "edited": "Düzenlendi",
-    "defaultChanged": "Lonca'nın varsayılan şablonu bu metin düzenlendikten sonra değişti.",
+    "defaultChanged": "Varsayılan şablon bu metin düzenlendikten sonra değişti.",
     "takeDefault": "Yeni varsayılanı al",
     "preview": "Önizleme",
     "previewHint": "Seçilen agenta giden tam sistem istemi.",
@@ -547,7 +547,7 @@
     "deleteConfirm": "Sağlayıcı ve anahtarları silinsin mi?"
   },
   "connectors": {
-    "intro": "MCP sunucuları: Lonca onlara bu bilgisayarda kendisi bağlanır ve araçlarını yalnızca izin verilen agentlara kendi uç noktasından sunar. Ayarları ve gizli değerleri bu bilgisayardan çıkmaz.",
+    "intro": "MCP sunucuları: {{app}} onlara bu bilgisayarda kendisi bağlanır ve araçlarını yalnızca izin verilen agentlara kendi uç noktasından sunar. Ayarları ve gizli değerleri bu bilgisayardan çıkmaz.",
     "protection": {
       "os": "Gizli değerler işletim sisteminin anahtar deposuyla şifrelenir ve yalnızca kendi sunucusuna gönderilir.",
       "weak": "Bu sistemde anahtar deposu yok: gizli değerler sabit bir parolayla şifrelenir, bu zayıf bir korumadır.",
@@ -564,7 +564,7 @@
     },
     "kindHint": {
       "remote": "Streamable HTTP adresi olan bir MCP sunucusu.",
-      "local": "Lonca'nın bu bilgisayarda başlattığı ve stdio üzerinden konuştuğu bir program (npx, uvx, docker ...)."
+      "local": "Bu bilgisayarda başlatılan ve stdio üzerinden konuşulan bir program (npx, uvx, docker ...)."
     },
     "url": "Adres",
     "urlHint": "https gerekir; http yalnızca bu bilgisayar, yerel ağ ve Tailscale için.",
@@ -579,7 +579,7 @@
     },
     "secretsHint": {
       "remote": "Her istekte gönderilir, örneğin Authorization = Bearer <anahtar>. Kayıtlı değerler yalnızca son karakterleriyle görünür.",
-      "local": "Program bunları alır; Lonca kendi ortamındaki anahtar ve token değişkenlerini programa geçirmez."
+      "local": "Program bunları alır; {{app}} kendi ortamındaki anahtar ve token değişkenlerini programa geçirmez."
     },
     "secretName": "Gizli değerin adı",
     "secretValue": "Gizli değer",
@@ -588,7 +588,7 @@
     "secretKeep": "Geri al",
     "agents": "Kullanabilecek agentlar",
     "agentsHint": "Yalnızca bu bilgisayarın agentları. Başka bir üyenin isteğiyle çalışan iş her çağrıda sahibine sorar.",
-    "noAgents": "Bu loncada bu bilgisayara ait agent yok.",
+    "noAgents": "Bu alanda bu bilgisayara ait agent yok.",
     "save": "Kaydet ve dene",
     "edit": "Düzenle",
     "test": "Yeniden dene",
@@ -617,22 +617,22 @@
     "manual": "Elle ekle"
   },
   "catalog": {
-    "title": "Lonca kataloğu",
-    "intro": "Lonca'nın incelediği resmi MCP Registry girdileri; kurulum bilgileri incelendikleri günkü haliyle uygulamayla gelir.",
+    "title": "{{app}} kataloğu",
+    "intro": "İncelenmiş resmi MCP Registry girdileri; kurulum bilgileri incelendikleri günkü haliyle uygulamayla gelir.",
     "search": "Ara",
     "searchHint": "Ad ya da iş: github, belge, tarayıcı ...",
     "none": "Katalogda eşleşen girdi yok.",
     "registry": "MCP Registry",
-    "communityNote": "Topluluk girdisi, Lonca tarafından incelenmedi. Kurulmadan önce kaynağına bakılmalı; yerel programlar bu bilgisayarda Lonca'nın kullanıcısıyla çalışır.",
+    "communityNote": "Topluluk girdisi, incelenmedi. Kurulmadan önce kaynağına bakılmalı; yerel programlar bu bilgisayarda uygulamanın kullanıcısıyla çalışır.",
     "searching": "Aranıyor",
     "noResults": "Kayıt defterinde eşleşen girdi yok.",
     "more": "Daha fazla",
-    "verified": "Lonca kataloğu",
+    "verified": "{{app}} kataloğu",
     "community": "Topluluk",
     "installed": "Kurulu",
     "source": "Kaynak",
     "website": "Site",
-    "cannot": "Lonca bu girdiyi kuramıyor: ne Streamable HTTP adresi ne de npm, PyPI ya da Docker paketi var (SSE, MCPB ve OAuth henüz yok).",
+    "cannot": "{{app}} bu girdiyi kuramıyor: ne Streamable HTTP adresi ne de npm, PyPI ya da Docker paketi var (SSE, MCPB ve OAuth henüz yok).",
     "cannotShort": "Kurulamaz",
     "how": "Nasıl çalışsın",
     "via": {
@@ -779,15 +779,15 @@
     "worktreeRemoved": "Çalışma ağacı kaldırıldı; dal duruyor."
   },
   "workspaces": {
-    "intro": "Ekip için ayrı bir lonca: kendi kanalları, agent'ları, danışmanları, panosu ve kayıtları olur. Kişisel lonca olduğu gibi kalır; arka plandaki loncaların işleri sürer.",
-    "name": "Lonca adı",
+    "intro": "Ekip için ayrı bir alan: kendi kanalları, agent'ları, danışmanları, panosu ve kayıtları olur. Kişisel alan olduğu gibi kalır; arka plandaki alanların işleri sürer.",
+    "name": "Alan adı",
     "create": "Oluştur",
     "join": "Koda katıl",
-    "joinIntro": "Bir yöneticinin verdiği davet koduyla katılma isteği gönderilir; yönetici onaylayınca lonca bu bilgisayara iner. İki bilgisayar aynı Tailscale ağında olmalı ya da davet eden cihazını paylaşmış olmalı.",
+    "joinIntro": "Bir yöneticinin verdiği davet koduyla katılma isteği gönderilir; yönetici onaylayınca alan bu bilgisayara iner. İki bilgisayar aynı Tailscale ağında olmalı ya da davet eden cihazını paylaşmış olmalı.",
     "code": "Davet kodu",
-    "codeHint": "LONCA1. ile başlar.",
+    "codeHint": "SERAI1. ile başlar; davet bağlantısı da yapıştırılabilir.",
     "askToJoin": "Katılma isteği gönder",
-    "makeInstead": "Yeni lonca kur",
+    "makeInstead": "Yeni alan kur",
     "state": {
       "joining": "onay bekliyor",
       "denied": "istek reddedildi"
@@ -796,8 +796,8 @@
   },
   "invite": {
     "title": "Davet",
-    "personal": "Kişisel lonca paylaşılmaz. Ekip için yeni bir lonca kurulur ve ona davet edilir.",
-    "intro": "{{name}} loncasına bir kişiyi davet eden tek kullanımlık kod. Kodla gelen istek onaylanana kadar kimse katılmaz.",
+    "personal": "Kişisel alan paylaşılmaz. Ekip için yeni bir alan kurulur ve ona davet edilir.",
+    "intro": "{{name}} alanına bir kişiyi davet eden tek kullanımlık kod. Kodla gelen istek onaylanana kadar kimse katılmaz.",
     "role": "Rol",
     "roleHint": {
       "viewer": "Okur ve mesaj yazar; iş veremez, pano ve kayıtları değiştiremez.",
@@ -810,7 +810,7 @@
     "make": "Kod oluştur",
     "again": "Yeni kod",
     "code": "Davet kodu",
-    "next": "Kod, katılacak kişiye güvenli bir yoldan iletilir. Kişi Lonca'da ＋ → Koda katıl ile isteğini gönderir; istek burada onay bekler.",
+    "next": "Kod, katılacak kişiye güvenli bir yoldan iletilir. Kişi uygulamada ＋ → Koda katıl ile isteğini gönderir; istek burada onay bekler.",
     "tailscale": "Katılacak kişinin bilgisayarı bu bilgisayara Tailscale üzerinden ulaşabilmeli: aynı tailnet, ya da Tailscale'de bu cihazın onunla paylaşılması.",
     "requests": "Katılma istekleri",
     "asks": "{{role}} olarak katılmak istiyor",
@@ -822,10 +822,10 @@
   "members": {
     "me": "bu cihaz",
     "role": "{{name}} için rol",
-    "remove": "{{name}} loncadan çıkarılsın"
+    "remove": "{{name}} alandan çıkarılsın"
   },
   "phone": {
-    "intro": "Bu bilgisayardaki Lonca, eşleştirilmiş telefonlarda da açılır. Her şey bu bilgisayarda çalışır; telefon yalnızca ekrandır. Bağlantı Tailscale üzerinden gider.",
+    "intro": "Bu bilgisayardaki {{app}}, eşleştirilmiş telefonlarda da açılır. Her şey bu bilgisayarda çalışır; telefon yalnızca ekrandır. Bağlantı Tailscale üzerinden gider.",
     "on": "Telefonlara aç",
     "ready": "Telefonlar bu adresten bağlanır: {{url}}",
     "problem": {
@@ -846,7 +846,7 @@
     "bar": "Gezinme",
     "unpaired": {
       "title": "Bu telefon eşleşmedi",
-      "how": "Bilgisayardaki Lonca'da Ayarlar → Telefon → Telefon ekle ile çıkan QR kod okutulur."
+      "how": "Bilgisayardaki uygulamada Ayarlar → Telefon → Telefon ekle ile çıkan QR kod okutulur."
     },
     "pushOff": "Bildirimler kapalı: onay bekleyen işler ve mesajlar telefona gelmez.",
     "pushOn": "Bildirimleri aç",
@@ -865,9 +865,9 @@
     "remembered": "Kişisel notlara eklendi.",
     "personal": "Kişisel",
     "personalHint": "Yalnızca bu bilgisayarda durur ve yalnızca bu bilgisayardaki agent'lara gider.",
-    "shared": "Lonca",
-    "sharedTeam": "Loncanın bütün üyeleriyle paylaşılır; düzenleyiciler değiştirir.",
-    "sharedPersonal": "Bu loncanın belleği.",
+    "shared": "Alan",
+    "sharedTeam": "Alanın bütün üyeleriyle paylaşılır; düzenleyiciler değiştirir.",
+    "sharedPersonal": "Bu alanın belleği.",
     "recalled_one": "Bellek: {{count}} bölüm",
     "recalled_other": "Bellek: {{count}} bölüm",
     "sections": {
@@ -953,7 +953,7 @@
   },
   "accounts": {
     "title": "Hesaplar",
-    "hint": "Aynı CLI'nin bu bilgisayardaki ek girişleri; örneğin bir aboneliğin kotası bitince ikinci bir hesap. Her hesap CLI'nin kendi ayar klasöründe tutulur ve CLI'nin kendi girişiyle açılır; Lonca giriş dosyalarını okumaz.",
+    "hint": "Aynı CLI'nin bu bilgisayardaki ek girişleri; örneğin bir aboneliğin kotası bitince ikinci bir hesap. Her hesap CLI'nin kendi ayar klasöründe tutulur ve CLI'nin kendi girişiyle açılır; {{app}} giriş dosyalarını okumaz.",
     "kind": "CLI",
     "name": "Hesap adı",
     "namePlaceholder": "Örneğin İkinci hesap",

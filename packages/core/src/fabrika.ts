@@ -1,6 +1,6 @@
-// Moving from Fabrika (roblox-factory's cockpit app) to Lonca: reads a Fabrika repository's ideas (`ideas/*.md`),
+// Moving from Fabrika (roblox-factory's cockpit app) to Serai: reads a Fabrika repository's ideas (`ideas/*.md`),
 // references (`references/*.json` with their images), saved prompts (`.claude/commands/*.md`) and games with a
-// status page (`games/*/progress.md`), and returns them in Lonca's shapes. Nothing in the folder is changed.
+// status page (`games/*/progress.md`), and returns them in Serai's shapes. Nothing in the folder is changed.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import type { IdeaStatus } from '@lonca/protocol';
@@ -94,7 +94,7 @@ const read = (file: string) => {
   }
 };
 
-/** Whether a folder looks like a Fabrika repository (any of the parts Lonca can take over). */
+/** Whether a folder looks like a Fabrika repository (any of the parts Serai can take over). */
 export function isFabrika(folder: string): boolean {
   return ['ideas', 'references', join('.claude', 'commands'), 'games'].some((p) => existsSync(join(folder, p)));
 }

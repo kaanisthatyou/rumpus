@@ -1,5 +1,5 @@
 // Renders apps/desktop/build/icon.svg to icon.png (1024 px, Linux) and icon.ico (16-256 px, Windows).
-// Lonca builds its own .ico because electron-builder's converter can fail to get memory. Run: pnpm icon
+// Serai builds its own .ico because electron-builder's converter can fail to get memory. Run: pnpm icon
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';

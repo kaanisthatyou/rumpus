@@ -49,7 +49,7 @@
       "isDefault": "Default location"
     },
     "agents": {
-      "body": "Lonca runs the CLI agents installed on this computer. Sign-in happens in each CLI's own screen; Lonca has no access to credentials.",
+      "body": "{{app}} runs the CLI agents installed on this computer. Sign-in happens in each CLI's own screen; {{app}} has no access to credentials.",
       "readyCount_one": "{{count}} agent ready",
       "readyCount_other": "{{count}} agents ready",
       "none": "No agent is ready. Setup can be completed later in Settings."
@@ -81,7 +81,7 @@
     },
     "login": "Sign in",
     "installCommand": "Install command",
-    "loginOpened": "Sign-in opened in a separate window. The list is scanned again on return to Lonca.",
+    "loginOpened": "Sign-in opened in a separate window. The list is scanned again on return to {{app}}.",
     "googleNote": "Google does not allow Gemini account sign-in to be used by third-party apps. This CLI runs only with GEMINI_API_KEY or Vertex.",
     "on": "Owner: {{name}}"
   },
@@ -148,7 +148,7 @@
     "settings": "Settings",
     "shortcuts": "Shortcuts",
     "waiting": "Waiting",
-    "teamStorage": "Team lonca",
+    "teamStorage": "Team workspace",
     "projects": "Projects",
     "project": "Project"
   },
@@ -241,9 +241,9 @@
     "no_identity": "The device key is not ready yet; it can be tried again shortly.",
     "no_address": "Other members cannot reach this computer: Tailscale is not running or no address was found.",
     "bad_code": "The invite code could not be read.",
-    "already_member": "This lonca is already joined, or a request is waiting.",
+    "already_member": "This workspace is already joined, or a request is waiting.",
     "invite_refused": "The invite was not accepted: the code may be used or expired.",
-    "unreachable": "The inviting computer could not be reached. Tailscale and the inviter's Lonca must be running.",
+    "unreachable": "The inviting computer could not be reached. Tailscale and the inviter's {{app}} must be running.",
     "invalid_project": "Project not saved: invalid value.",
     "no_folder": "No folder chosen for this project on this computer.",
     "not_fabrika": "The folder has none of Fabrika's ideas, references, .claude/commands or games.",
@@ -493,8 +493,8 @@
     "pin": "Pin above the message box"
   },
   "instructions": {
-    "core": "Lonca's core rules",
-    "coreHint": "Lonca enforces these rules in code; the text only explains them to the agent. Not editable.",
+    "core": "{{app}}'s core rules",
+    "coreHint": "{{app}} enforces these rules in code; the text only explains them to the agent. Not editable.",
     "worker": "Worker template",
     "workerHint": "Added to every worker agent's system prompt.",
     "workspace": "Workspace instructions",
@@ -504,7 +504,7 @@
     "reset": "Back to default",
     "isDefault": "Default",
     "edited": "Edited",
-    "defaultChanged": "Lonca's default template changed after this text was edited.",
+    "defaultChanged": "{{app}}'s default template changed after this text was edited.",
     "takeDefault": "Take the new default",
     "preview": "Preview",
     "previewHint": "The whole system prompt the chosen agent receives.",
@@ -547,7 +547,7 @@
     "deleteConfirm": "Delete the provider and its keys?"
   },
   "connectors": {
-    "intro": "MCP servers that Lonca itself connects to on this computer and serves, through its own endpoint, only to the agents allowed. Their settings and secrets never leave this computer.",
+    "intro": "MCP servers that {{app}} itself connects to on this computer and serves, through its own endpoint, only to the agents allowed. Their settings and secrets never leave this computer.",
     "protection": {
       "os": "Secrets are encrypted with the operating system's key store and sent only to their own server.",
       "weak": "This system has no key store: secrets are encrypted with a fixed password, which is weak protection.",
@@ -564,7 +564,7 @@
     },
     "kindHint": {
       "remote": "An MCP server with a Streamable HTTP address.",
-      "local": "A program Lonca starts on this computer and talks to over stdio (npx, uvx, docker ...)."
+      "local": "A program {{app}} starts on this computer and talks to over stdio (npx, uvx, docker ...)."
     },
     "url": "Address",
     "urlHint": "https is required; http only for this computer, the local network and Tailscale.",
@@ -579,7 +579,7 @@
     },
     "secretsHint": {
       "remote": "Sent with every request, for example Authorization = Bearer <key>. Stored values show only their last characters.",
-      "local": "The program gets these; Lonca never passes on key and token variables from its own environment."
+      "local": "The program gets these; {{app}} never passes on key and token variables from its own environment."
     },
     "secretName": "Secret name",
     "secretValue": "Secret value",
@@ -588,7 +588,7 @@
     "secretKeep": "Keep",
     "agents": "Agents that may use it",
     "agentsHint": "Only this computer's agents. A job started by another member's request asks the owner at every call.",
-    "noAgents": "This lonca has no agents of this computer.",
+    "noAgents": "This workspace has no agents of this computer.",
     "save": "Save and test",
     "edit": "Edit",
     "test": "Test again",
@@ -617,22 +617,22 @@
     "manual": "Add by hand"
   },
   "catalog": {
-    "title": "Lonca catalog",
-    "intro": "Entries of the official MCP Registry that Lonca checked; their install details ship with the app as they were on the day they were checked.",
+    "title": "{{app}} catalog",
+    "intro": "Entries of the official MCP Registry that {{app}} checked; their install details ship with the app as they were on the day they were checked.",
     "search": "Search",
     "searchHint": "A name or a job: github, docs, browser ...",
     "none": "No catalog entry matches.",
     "registry": "MCP Registry",
-    "communityNote": "A community entry, not checked by Lonca. Its source should be looked at before installing; local programs run on this computer as Lonca's user.",
+    "communityNote": "A community entry, not checked by {{app}}. Its source should be looked at before installing; local programs run on this computer as the app's user.",
     "searching": "Searching",
     "noResults": "No registry entry matches.",
     "more": "More",
-    "verified": "Lonca catalog",
+    "verified": "{{app}} catalog",
     "community": "Community",
     "installed": "Installed",
     "source": "Source",
     "website": "Website",
-    "cannot": "Lonca cannot install this entry: it has no Streamable HTTP address and no npm, PyPI or Docker package (SSE, MCPB and OAuth are not supported yet).",
+    "cannot": "{{app}} cannot install this entry: it has no Streamable HTTP address and no npm, PyPI or Docker package (SSE, MCPB and OAuth are not supported yet).",
     "cannotShort": "Cannot install",
     "how": "How it runs",
     "via": {
@@ -779,15 +779,15 @@
     "worktreeRemoved": "Worktree removed; the branch stays."
   },
   "workspaces": {
-    "intro": "A separate lonca for a team: its own channels, agents, advisors, board and records. The personal lonca stays as it is; work in loncas in the background goes on.",
-    "name": "Lonca name",
+    "intro": "A separate workspace for a team: its own channels, agents, advisors, board and records. The personal workspace stays as it is; work in workspaces in the background goes on.",
+    "name": "Workspace name",
     "create": "Create",
     "join": "Join with a code",
-    "joinIntro": "A join request is sent with an invite code from an admin; once the admin approves, the lonca comes down to this computer. The two computers must be on the same Tailscale network, or the inviter must have shared their device.",
+    "joinIntro": "A join request is sent with an invite code from an admin; once the admin approves, the workspace comes down to this computer. The two computers must be on the same Tailscale network, or the inviter must have shared their device.",
     "code": "Invite code",
-    "codeHint": "Starts with LONCA1.",
+    "codeHint": "Starts with SERAI1.; an invite link can be pasted too.",
     "askToJoin": "Send join request",
-    "makeInstead": "Create a new lonca",
+    "makeInstead": "Create a new workspace",
     "state": {
       "joining": "waiting for approval",
       "denied": "request turned down"
@@ -796,7 +796,7 @@
   },
   "invite": {
     "title": "Invite",
-    "personal": "The personal lonca is not shared. A new lonca is created for a team, and people are invited to it.",
+    "personal": "The personal workspace is not shared. A new workspace is created for a team, and people are invited to it.",
     "intro": "A one-time code that invites one person to {{name}}. Nobody joins until the request that comes with the code is approved.",
     "role": "Role",
     "roleHint": {
@@ -810,7 +810,7 @@
     "make": "Make code",
     "again": "New code",
     "code": "Invite code",
-    "next": "The code goes to the person over a safe channel. They send their request with + → Join with a code in Lonca; it waits here for approval.",
+    "next": "The code goes to the person over a safe channel. They send their request with + → Join with a code in {{app}}; it waits here for approval.",
     "tailscale": "The person's computer must reach this one over Tailscale: the same tailnet, or this device shared with them in Tailscale.",
     "requests": "Join requests",
     "asks": "wants to join as {{role}}",
@@ -822,10 +822,10 @@
   "members": {
     "me": "this device",
     "role": "Role for {{name}}",
-    "remove": "Remove {{name}} from the lonca"
+    "remove": "Remove {{name}} from the workspace"
   },
   "phone": {
-    "intro": "Lonca on this computer opens on paired phones too. Everything runs on this computer; the phone is only a screen. The connection goes over Tailscale.",
+    "intro": "{{app}} on this computer opens on paired phones too. Everything runs on this computer; the phone is only a screen. The connection goes over Tailscale.",
     "on": "Open to phones",
     "ready": "Phones connect at this address: {{url}}",
     "problem": {
@@ -846,7 +846,7 @@
     "bar": "Navigation",
     "unpaired": {
       "title": "This phone is not paired",
-      "how": "In Lonca on the computer, Settings → Phone → Add a phone shows the QR code to scan."
+      "how": "In {{app}} on the computer, Settings → Phone → Add a phone shows the QR code to scan."
     },
     "pushOff": "Notifications are off: jobs waiting for approval and messages do not reach the phone.",
     "pushOn": "Turn on notifications",
@@ -865,9 +865,9 @@
     "remembered": "Added to the personal notes.",
     "personal": "Personal",
     "personalHint": "Stays on this computer and goes only to the agents on this computer.",
-    "shared": "Lonca",
-    "sharedTeam": "Shared with every member of the lonca; editors change it.",
-    "sharedPersonal": "This lonca's memory.",
+    "shared": "Workspace",
+    "sharedTeam": "Shared with every member of the workspace; editors change it.",
+    "sharedPersonal": "This workspace's memory.",
     "recalled_one": "Memory: {{count}} section",
     "recalled_other": "Memory: {{count}} sections",
     "sections": {
@@ -953,7 +953,7 @@
   },
   "accounts": {
     "title": "Accounts",
-    "hint": "Extra logins of the same CLI on this computer, for example a second account for when a subscription's quota runs out. Each account is the CLI's own config folder and is signed in with the CLI's own login; Lonca does not read the login files.",
+    "hint": "Extra logins of the same CLI on this computer, for example a second account for when a subscription's quota runs out. Each account is the CLI's own config folder and is signed in with the CLI's own login; {{app}} does not read the login files.",
     "kind": "CLI",
     "name": "Account name",
     "namePlaceholder": "For example Second account",

@@ -122,7 +122,7 @@ export function Launcher() {
         <div className="launch__brand">
           <Mark size={36} />
           <div>
-            <h1>Lonca</h1>
+            <h1>Serai</h1>
             <p>{t('launcher.tagline')}</p>
           </div>
         </div>

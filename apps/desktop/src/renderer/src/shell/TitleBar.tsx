@@ -1,3 +1,4 @@
+import { BRAND } from '@lonca/protocol';
 import { Button, Mark } from '@lonca/ui';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../store';
@@ -9,7 +10,7 @@ export function TitleBar() {
   return (
     <header className="titlebar">
       <Mark size={16} />
-      <span className="titlebar__name">Lonca</span>
+      <span className="titlebar__name">{BRAND.name}</span>
       <span className="grow" />
       {update.status === 'downloading' && (
         <span className="titlebar__note l-mono">{t('update.downloading', { percent: update.percent ?? 0 })}</span>

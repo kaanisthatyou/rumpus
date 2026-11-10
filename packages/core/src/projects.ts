@@ -1,6 +1,6 @@
 // Projects (PLAN.md 5.13): a git repository each member points at their own clone of, with a status page and areas.
 // This is Fabrika's per-game folder made general: `progress.md` became the status page ("where we left off",
-// milestones, next) that agents keep current through Lonca's tools, and `split.md` became areas, a record of who
+// milestones, next) that agents keep current through Serai's tools, and `split.md` became areas, a record of who
 // mostly works on what that every job is told about. Like Fabrika since 2026-10-16, areas never block anyone.
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
@@ -159,9 +159,9 @@ export function parseProgress(markdown: string): Pick<ProjectStatus, 'leftOff' |
   return { leftOff: (kept.length ? kept : paragraphs.slice(-1)).join('\n\n').slice(-4000), milestones, next };
 }
 
-/** A status page file in a clone that can seed a new project's page: Fabrika's `progress.md`, or a `.lonca` copy. */
+/** A status page file in a clone that can seed a new project's page: Fabrika's `progress.md`, or a `.serai` copy. */
 export function readProgressFile(folder: string): Pick<ProjectStatus, 'leftOff' | 'milestones' | 'next'> | undefined {
-  for (const name of ['progress.md', 'PROGRESS.md', join('.lonca', 'status.md')]) {
+  for (const name of ['progress.md', 'PROGRESS.md', join('.serai', 'status.md'), join('.lonca', 'status.md')]) {
     const file = join(folder, name);
     if (!existsSync(file)) continue;
     try {

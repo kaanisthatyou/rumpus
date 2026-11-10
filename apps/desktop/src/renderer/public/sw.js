@@ -1,12 +1,12 @@
-// Lonca on a phone: shows the pushes the PC sends (job approvals, join requests, messages) and opens the app on a tap.
+// Serai on a phone: shows the pushes the PC sends (job approvals, join requests, messages) and opens the app on a tap.
 self.addEventListener('push', (event) => {
-  let data = { title: 'Lonca', body: '' };
+  let data = { title: 'Serai', body: '' };
   try {
     data = event.data ? event.data.json() : data;
   } catch {
-    // a push without readable JSON still shows as Lonca
+    // a push without readable JSON still shows as Serai
   }
-  event.waitUntil(self.registration.showNotification(data.title || 'Lonca', { body: data.body || '', tag: data.tag }));
+  event.waitUntil(self.registration.showNotification(data.title || 'Serai', { body: data.body || '', tag: data.tag }));
 });
 
 self.addEventListener('notificationclick', (event) => {

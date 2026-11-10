@@ -1,6 +1,6 @@
 // Several logins per CLI on one computer (Fabrika's second worker on another Claude login, made general): an account
-// is a config folder of the CLI's own that Lonca points it at (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`). The CLI signs in
-// there with its own login command and keeps its own files; Lonca never reads, copies or moves them (principle 5).
+// is a config folder of the CLI's own that Serai points it at (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`). The CLI signs in
+// there with its own login command and keeps its own files; Serai never reads, copies or moves them (principle 5).
 // Accounts belong to this computer: they are kept in `<app>/accounts.json`, never in a workspace.
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -55,7 +55,7 @@ export class Accounts {
     return entry;
   }
 
-  /** Forgets the account. Its folder stays: the CLI's own files are not Lonca's to delete. */
+  /** Forgets the account. Its folder stays: the CLI's own files are not Serai's to delete. */
   remove(id: string): void {
     this.write(this.list().filter((a) => a.id !== id));
   }

@@ -98,7 +98,7 @@ describe('memory through the core', () => {
     const page = await call<{ jobs: Job[] }>('messages.list', { channelId: genel });
     expect(page.jobs[0]?.recalled).toBe(3);
 
-    // The agent suggests through Lonca's MCP tool; the suggestion waits, flagged, for a person.
+    // The agent suggests through Serai's MCP tool; the suggestion waits, flagged, for a person.
     const mcp = session?.opts.mcp;
     expect(mcp).toBeTruthy();
     const tool = (name: string, args: Record<string, unknown>) =>

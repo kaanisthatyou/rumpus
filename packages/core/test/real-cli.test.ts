@@ -25,7 +25,7 @@ describe.skipIf(!bin)('real Codex CLI', () => {
     expect(codex?.state).toBe('signed-out');
   }, 60_000);
 
-  it('accepts the exec flags, reaches the Lonca MCP endpoint, and ends a turn it cannot run with a login failure', async () => {
+  it('accepts the exec flags, reaches the Serai MCP endpoint, and ends a turn it cannot run with a login failure', async () => {
     const path = which('codex', [bin ?? ''], env);
     expect(path).toBeTruthy();
     const gateway = new Gateway([]);

@@ -2,7 +2,7 @@
 // user messages as JSON lines on stdin (a message sent mid-turn is the steer), events as JSON lines on stdout.
 // Stopping kills the process; the next message resumes the same session with --resume.
 import { type ChildProcess, spawn } from 'node:child_process';
-import type { AgentMode, Quota, Usage } from '@lonca/protocol';
+import { type AgentMode, MCP_NAME, type Quota, type Usage } from '@lonca/protocol';
 import { killTree } from '../proc.js';
 import {
   type AgentSession,
@@ -22,7 +22,7 @@ const EDIT_TOOLS = [...READ_TOOLS, 'Edit', 'Write', 'NotebookEdit', 'Bash'];
 const IDLE_MS = 20 * 60 * 1000;
 
 /**
- * The autonomy ladder in Claude Code's terms. At read and edit, what would prompt is asked of Lonca over stdio
+ * The autonomy ladder in Claude Code's terms. At read and edit, what would prompt is asked of Serai over stdio
  * (`control_request` / `can_use_tool`) and shown on the job card for a person to allow or deny.
  */
 export function claudeModeArgs(mode: AgentMode): string[] {
@@ -52,17 +52,17 @@ export function claudeArgs(opts: SessionOptions): string[] {
     '--append-system-prompt',
     opts.systemPrompt,
     ...claudeModeArgs(opts.mode),
-    // Lonca's own tools touch Lonca's data, not files: they run without asking at every level.
+    // Serai's own tools touch Serai's data, not files: they run without asking at every level.
     ...(opts.mcp
       ? [
           '--mcp-config',
           JSON.stringify({
             mcpServers: {
-              lonca: { type: 'http', url: opts.mcp.url, headers: { Authorization: `Bearer ${opts.mcp.token}` } },
+              [MCP_NAME]: { type: 'http', url: opts.mcp.url, headers: { Authorization: `Bearer ${opts.mcp.token}` } },
             },
           }),
           '--allowedTools',
-          'mcp__lonca',
+          `mcp__${MCP_NAME}`,
         ]
       : []),
     ...(opts.resume ? ['--resume', opts.resume] : []),
@@ -102,7 +102,7 @@ export class ClaudeParser {
   constructor(
     private readonly cwd: string,
     private readonly emit: (e: DriverEvent) => void,
-    /** Control requests Lonca does not handle get an error answer, so the CLI never waits on them. */
+    /** Control requests Serai does not handle get an error answer, so the CLI never waits on them. */
     private readonly unsupported: (requestId: string) => void = () => {},
   ) {}
 
@@ -325,7 +325,7 @@ class ClaudeSession implements AgentSession {
     this.parser?.pending.delete(id);
     const response = allow
       ? { behavior: 'allow', updatedInput: input ?? {} }
-      : { behavior: 'deny', message: 'A person denied this in Lonca.' };
+      : { behavior: 'deny', message: 'A person denied this in Serai.' };
     this.proc?.stdin?.write(
       `${JSON.stringify({ type: 'control_response', response: { subtype: 'success', request_id: id, response } })}\n`,
     );

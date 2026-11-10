@@ -1,10 +1,11 @@
-// Lonca's own MCP server for the agents it runs (PLAN.md 5.3, 5.9): a small Streamable HTTP endpoint on
+// Serai's own MCP server for the agents it runs (PLAN.md 5.3, 5.9): a small Streamable HTTP endpoint on
 // 127.0.0.1 that answers JSON-RPC with plain JSON (no SSE stream). Each agent session gets its own bearer token,
 // which says who is calling; tools act only within that agent's workspace. The connectors an agent may use are
-// served through the same endpoint, next to Lonca's own tools.
+// served through the same endpoint, next to Serai's own tools.
 import { randomBytes } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { MCP_NAME } from '@lonca/protocol';
 
 export interface ToolContext {
   agentId: string;
@@ -32,7 +33,7 @@ export interface Tool {
   ): Promise<ToolContent[] | ToolResult> | ToolContent[] | ToolResult;
 }
 
-const SERVER_INFO = { name: 'lonca', version: '0.2.0' };
+const SERVER_INFO = { name: MCP_NAME, version: '0.2.0' };
 const MAX_BODY = 1024 * 1024;
 
 export class Gateway {
@@ -90,7 +91,7 @@ export class Gateway {
   }
 
   private async handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    // Only this computer, only the expected host (no DNS rebinding), only with a token Lonca handed out.
+    // Only this computer, only the expected host (no DNS rebinding), only with a token Serai handed out.
     if (req.headers.host !== `127.0.0.1:${this.port}` || req.headers.origin) return this.send(res, 403);
     if ((req.url ?? '').split('?')[0] !== '/mcp') return this.send(res, 404);
     if (req.method !== 'POST') return this.send(res, 405);
@@ -122,7 +123,7 @@ export class Gateway {
           capabilities: { tools: {} },
           serverInfo: SERVER_INFO,
           instructions:
-            'Lonca workspace tools: channel history, records, the task board, progress notes; and the connectors this agent may use.',
+            'Serai workspace tools: channel history, records, the task board, progress notes; and the connectors this agent may use.',
         });
       case 'ping':
         return reply({});

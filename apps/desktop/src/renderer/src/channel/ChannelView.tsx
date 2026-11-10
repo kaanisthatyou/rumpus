@@ -60,7 +60,7 @@ function MessageRow({ message, agents, jobs }: { message: Message; agents: Agent
   const own = a.kind === 'person' && a.id === me;
   // An advisor's suggested task (`/todo …`) is already a board card: shown as a line of its own.
   const { body, todos } = useMemo(() => {
-    // The agent's end-of-goal mark is for Lonca, not for people.
+    // The agent's end-of-goal mark is for Serai, not for people.
     if (a.kind === 'agent')
       return { body: message.text.replace(/^\s*GOAL_DONE\s*$/m, '').trim(), todos: [] as string[] };
     if (a.kind !== 'advisor') return { body: message.text, todos: [] as string[] };
@@ -68,7 +68,7 @@ function MessageRow({ message, agents, jobs }: { message: Message; agents: Agent
     const tasks = lines.flatMap((l) => /^\/todo\s+(.+)$/.exec(l.trim())?.[1] ?? []);
     return { body: lines.filter((l) => !/^\/todo\s+/.test(l.trim())).join('\n'), todos: tasks };
   }, [a.kind, message.text]);
-  const name = a.kind === 'system' ? 'Lonca' : a.name;
+  const name = a.kind === 'system' ? 'Serai' : a.name;
   const agent = a.kind === 'agent' ? agents.find((x) => x.id === a.id) : undefined;
   const advisor = useApp((s) => (a.kind === 'advisor' ? s.workspace?.advisors.find((x) => x.id === a.id) : undefined));
   const goal = useApp((s) => (a.kind === 'person' ? s.goals.find((g) => g.requestId === message.id) : undefined));

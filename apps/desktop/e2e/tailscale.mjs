@@ -3,7 +3,7 @@
 // Two real apps on one computer, talking over loopback instead of Tailscale: Kaan makes a team lonca and invites
 // Arda as an editor, Arda joins with the code, Kaan approves, and messages travel both ways. Then Kaan's agent (a
 // fake Claude Code on Kaan's PATH only) is opened to editors, and Arda's mention runs it on Kaan's computer.
-// Usage: node e2e/team.mjs   (after electron-vite build; E2E_EXE=release/win-unpacked/Lonca.exe for packaged)
+// Usage: node e2e/team.mjs   (after electron-vite build; E2E_EXE=release/win-unpacked/Serai.exe for packaged)
 import assert from 'node:assert/strict';
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -101,7 +101,7 @@ try {
   const codeBox = dialog.getByRole('textbox', { name: L.invite.code });
   await codeBox.waitFor();
   const code = await codeBox.inputValue();
-  assert.ok(code.startsWith('LONCA1.'), code);
+  assert.ok(code.startsWith('SERAI1.'), code);
   const invite = JSON.parse(Buffer.from(code.slice(7), 'base64url').toString('utf8'));
   console.log('invite address:', invite.a);
   assert.match(invite.a[0], /^100\.\d+\.\d+\.\d+:47640$/);

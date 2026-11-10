@@ -1,4 +1,4 @@
-// The contract between Lonca's core process and its clients (the renderer today; the phone and other
+// The contract between Serai's core process and its clients (the renderer today; the phone and other
 // members' apps later). Everything that crosses a process boundary is defined here.
 import { z } from 'zod';
 import type { ConnectorInput, ConnectorsState, ToolPolicy } from './connectors.js';
@@ -33,10 +33,12 @@ import type {
   WorkspaceSummary,
 } from './workspace.js';
 
+export * from './brand.js';
 export * from './catalog.js';
 export * from './connectors.js';
 export * from './providers.js';
 export * from './registry.js';
+export * from './specialists.js';
 export * from './workspace.js';
 
 // ---------------------------------------------------------------- settings
@@ -133,7 +135,7 @@ export { CLI_KINDS, type CliKind } from './kinds.js';
 /**
  * - `ready`: installed and signed in (or an API key is set).
  * - `signed-out`: installed, its own login reports no account.
- * - `needs-key`: installed, but Lonca only runs it with an API key (Google's terms) and none is set.
+ * - `needs-key`: installed, but Serai only runs it with an API key (Google's terms) and none is set.
  * - `unknown`: installed, the login state cannot be read without spending tokens.
  * - `missing`: not found on this computer.
  */
@@ -149,7 +151,7 @@ export interface CliInfo {
   auth?: string;
   /** Plan name the CLI reports, e.g. `pro`. Never an email or account id. */
   plan?: string;
-  /** Lonca can open the CLI's own login in a console. */
+  /** Serai can open the CLI's own login in a console. */
   canLogin: boolean;
   install: { windows: string; linux: string; docs: string };
 }
@@ -255,6 +257,9 @@ export interface CoreMethods {
   'messages.search': { params: { query: string; limit?: number }; result: Message[] };
   'agents.save': { params: AgentInput; result: Agent };
   'agents.delete': { params: { id: string }; result: { ok: true } };
+  /** A specialist's waiting lesson: kept (with the owner's edit) or dropped. */
+  'lessons.accept': { params: { id: string; text?: string }; result: { ok: true } };
+  'lessons.reject': { params: { id: string }; result: { ok: true } };
   'agents.newSession': { params: { agentId: string; channelId: string }; result: { ok: true } };
   'advisors.save': { params: AdvisorInput; result: Advisor };
   'advisors.delete': { params: { id: string }; result: { ok: true } };
@@ -325,7 +330,7 @@ export interface CoreMethods {
   'connectors.test': { params: { id: string }; result: ConnectorsState };
   'connectors.remove': { params: { id: string }; result: ConnectorsState };
   'connectors.policy': { params: { id: string; tool: string; policy: ToolPolicy }; result: ConnectorsState };
-  /** The official MCP Registry, searched by name (community entries, not reviewed by Lonca). */
+  /** The official MCP Registry, searched by name (community entries, not reviewed by Serai). */
   'connectors.search': {
     params: { query: string; cursor?: string };
     result: { servers: RegistryServer[]; next?: string };

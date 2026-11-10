@@ -1,4 +1,4 @@
-// The official MCP Registry's server.json (schema 2025-09-29 and later), the parts Lonca reads, and how an entry
+// The official MCP Registry's server.json (schema 2025-09-29 and later), the parts Serai reads, and how an entry
 // becomes a connector (PLAN.md 5.9). The curated catalog keeps copies of registry entries in this same shape, so
 // a verified entry and a live search result install the same way.
 import type { ConnectorInput } from './connectors.js';
@@ -150,7 +150,7 @@ function argumentsOf(list: RegistryArgument[] | undefined, fields: Map<string, I
   return out;
 }
 
-/** Every way an entry can be installed by Lonca, remote first (nothing to run on this computer). */
+/** Every way an entry can be installed by Serai, remote first (nothing to run on this computer). */
 export function installPlans(server: RegistryServer): InstallPlan[] {
   const plans: InstallPlan[] = [];
   for (const [i, r] of (server.remotes ?? []).entries()) {

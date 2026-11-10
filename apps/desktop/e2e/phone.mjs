@@ -1,7 +1,7 @@
 // The phone companion in the real app, over loopback instead of tailscale serve: the desktop turns phones on and
 // shows a pairing link; a narrow window with its own cookie jar plays the phone, pairs, and writes a message that the
 // desktop shows. A second "phone" without pairing sees how to pair; revoking cuts the first one off.
-// Usage: node e2e/phone.mjs   (after electron-vite build; E2E_EXE=release/win-unpacked/Lonca.exe for packaged)
+// Usage: node e2e/phone.mjs   (after electron-vite build; E2E_EXE=release/win-unpacked/Serai.exe for packaged)
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';

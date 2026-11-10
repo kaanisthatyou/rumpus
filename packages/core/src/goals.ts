@@ -17,7 +17,7 @@ import type {
   Language,
   Message,
 } from '@lonca/protocol';
-import { CoreError } from '@lonca/protocol';
+import { BRAND, CoreError } from '@lonca/protocol';
 import { newId } from './ids.js';
 import type { Jobs } from './jobs.js';
 import type { Runner } from './proc.js';
@@ -162,7 +162,7 @@ export class Goals {
       const { git, worktreesDir } = this.deps;
       if (!git || !worktreesDir) throw new CoreError('invalid_goal', 'worktree');
       if (!(await git.isRepo(agent.folder))) throw new CoreError('not_git');
-      const branch = `lonca/goal-${id.slice(-6).toLowerCase()}`;
+      const branch = `serai/goal-${id.slice(-6).toLowerCase()}`;
       const path = join(worktreesDir, id);
       const made = await git.add(agent.folder, path, branch);
       if (!made.ok) throw new CoreError('worktree_failed', made.output.slice(-400));
@@ -441,7 +441,7 @@ export class Goals {
       `${me.name || 'A person'} set a goal for you:`,
       `<goal>\n${goal.text}\n</goal>`,
       goal.check
-        ? `Done check: Lonca itself runs \`${goal.check}\` in your folder after each step (exit code 0 means the goal is done) and tells you when it fails. Do not plan a step for running it.`
+        ? `Done check: ${BRAND.name} itself runs \`${goal.check}\` in your folder after each step (exit code 0 means the goal is done) and tells you when it fails. Do not plan a step for running it.`
         : '',
       `Budget: ${this.budgetLine(goal)}.`,
       goal.worktree
@@ -473,7 +473,7 @@ export class Goals {
         ? `The done check (${goal.check}) failed after the last step:\n\`\`\`\n${goal.lastCheck?.output.slice(-2000) ?? ''}\n\`\`\``
         : '',
       step.fix ? 'Do this step: make the done check pass.' : `Do only this step: ${step.text}`,
-      goal.check ? 'Lonca runs the done check after this step; there is no need to run it yourself.' : '',
+      goal.check ? `${BRAND.name} runs the done check after this step; there is no need to run it yourself.` : '',
       goal.worktree
         ? `You work in a git worktree made for this goal (${goal.worktree.path}, branch ${goal.worktree.branch}), not in the main folder. Commit your changes there at the end of the step with a short message.`
         : '',

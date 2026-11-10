@@ -47,7 +47,7 @@ describe('the MCP client', () => {
     await expect(client.call('nope', {}, 5000)).rejects.toThrow(/unknown tool nope/);
   });
 
-  it('keeps other tools’ secrets and Lonca’s own variables from a connector’s program', () => {
+  it('keeps other tools’ secrets and Serai’s own variables from a connector’s program', () => {
     const env = connectorEnv(
       { PATH: '/bin', GITHUB_TOKEN: 'x', OPENAI_API_KEY: 'y', LONCA_APP_DIR: 'z', HOME: '/h', MY_PASSWORD: 'p' },
       { FAKE_TOKEN: 'own' },
@@ -132,8 +132,8 @@ describe('the MCP client', () => {
     const long = exposedName('github', 'a.very.long.tool.name.that.goes.on.and.on.for.ever');
     expect(long).toMatch(/^github__a_very_long[\w-]*_[0-9a-f]{4}$/);
     expect(long.length).toBeLessThanOrEqual(50);
-    expect(toolArg('mcp__lonca__notlar__add_note', {}, '/')).toBe('notlar.add_note');
-    expect(toolArg('mcp__lonca__add_card', {}, '/')).toBe('lonca.add_card');
+    expect(toolArg('mcp__serai__notlar__add_note', {}, '/')).toBe('notlar.add_note');
+    expect(toolArg('mcp__serai__add_card', {}, '/')).toBe('serai.add_card');
   });
 });
 

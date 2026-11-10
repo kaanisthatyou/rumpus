@@ -1,8 +1,8 @@
 // Editable instruction layers (PLAN.md 5.14), kept as Markdown files people can open:
 //   <data>/instructions/worker.md            the worker template (layer 2), with the default it started from
 //   <workspace>/instructions.md               the workspace's instructions (layer 3)
-// Every save keeps the previous text under history/. Lonca's core rules (layer 1) stay in code: they describe
-// what Lonca enforces, so a text edit could not change them anyway.
+// Every save keeps the previous text under history/. Serai's core rules (layer 1) stay in code: they describe
+// what Serai enforces, so a text edit could not change them anyway.
 import { createHash } from 'node:crypto';
 import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';

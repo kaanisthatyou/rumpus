@@ -175,7 +175,7 @@ function About() {
   return (
     <div className="stack">
       <p>
-        <b>Lonca</b> · <span className="l-mono">{app?.version}</span>
+        <b>Serai</b> · <span className="l-mono">{app?.version}</span>
       </p>
       <p className="muted">{t('launcher.tagline')}</p>
       <p className="muted">{t('settings.license')}</p>

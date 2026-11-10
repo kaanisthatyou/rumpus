@@ -1,19 +1,19 @@
-# Lonca v2: plan
+# Serai v2: plan
 
 Status: **Phase 4 under way** (0.8.0-alpha.0, 2026-10-19): memory, projects with status pages, hand-over, several
 CLI logins, `/durum`, `/özet`, quick entry and advisor notes are built; voice is paused (Kaan, 2026-10-19). The
-connector store has its core and its catalog (4.10, 4.11, 2026-10-22): connectors from Lonca's catalog, the MCP
-Registry or by hand, served through Lonca's gateway with a policy per tool; OAuth and MCPB come next. The done-checks of Phases 1-3 wait for real use by Kaan and Arda; see the status blocks
+connector store has its core and its catalog (4.10, 4.11, 2026-10-22): connectors from Serai's catalog, the MCP
+Registry or by hand, served through Serai's gateway with a policy per tool; OAuth and MCPB come next. The done-checks of Phases 1-3 wait for real use by Kaan and Arda; see the status blocks
 under section 8. Owners: Kaan and Arda. v0.1 (the Python chat server, tag `v0.1.0`) was the starting point for
 ideas and the security model, not for code.
 
 Research behind this plan: `docs/research/` (Claude Desktop, Antigravity, Hermes Agent + Jan, CLI agents, platform:
-connectors, voice, networking). Theme: Grafit & tek vurgu, artboard 2 of the "Lonca theme directions" canvas
+connectors, voice, networking). Theme: Grafit & tek vurgu, artboard 2 of the "Serai theme directions" canvas
 (claude.ai artifact, private).
 
 ---
 
-## 1. What Lonca is
+## 1. What Serai is
 
 An open-source desktop hub where people and the CLI coding agents they already have work together.
 
@@ -24,8 +24,8 @@ An open-source desktop hub where people and the CLI coding agents they already h
   the right like a Discord server; anyone allowed can give a task to any agent; each agent still runs on its owner's
   computer, under the owner's own login.
 
-Lonca **does not have its own coding agent**. It drives the CLIs people install and log in to themselves. The only
-model calls Lonca makes itself are for advisors, memory upkeep and voice, on API keys the person enters.
+Serai **does not have its own coding agent**. It drives the CLIs people install and log in to themselves. The only
+model calls Serai makes itself are for advisors, memory upkeep and voice, on API keys the person enters.
 
 It is the general version of Fabrika (roblox-factory's cockpit app), without Roblox and without the two-person
 assumption. Roblox can come back later as a pack (connectors, commands, advisor profiles).
@@ -36,7 +36,7 @@ From the Q&A on 2026-10-16.
 
 | Topic | Decision |
 |---|---|
-| Name | Lonca |
+| Name | Serai |
 | Distribution | Open source, **Apache-2.0** |
 | Platforms, first release | Windows, Linux, phone companion (PWA). No macOS yet |
 | Stack | Electron + TypeScript |
@@ -44,7 +44,7 @@ From the Q&A on 2026-10-16.
 | Provider sign-in | API keys and local endpoints for advisors (Groq, Anthropic, Gemini, NVIDIA NIM, DeepSeek, OpenAI-compatible, Ollama / LM Studio). Subscriptions only through the official CLIs the user logged in to |
 | Workspace storage | Local only: every member keeps the whole workspace on their own PC. **No relay and no hosted server**, now or later |
 | Networking | Solo needs nothing. Teams connect over Tailscale, as Kaan and Arda do with Fabrika |
-| Code sharing | Git. Lonca shows status and offers pull/push; chat, records and boards live in Lonca's own store |
+| Code sharing | Git. Serai shows status and offers pull/push; chat, records and boards live in Serai's own store |
 | Advisors | Continuous chatter (like Fabrika's #genel bots), on the advisor owner's keys |
 | Cross-member jobs | Run on the agent owner's PC with the owner's login; the owner decides who may call it and how much it may do |
 | `/todo`, `/goal` | `/todo` adds a card to the board; `/goal` starts goal mode (step by step until done, stoppable) |
@@ -52,10 +52,10 @@ From the Q&A on 2026-10-16.
 | Phase order | Team (Phase 3) before memory, voice and the connector store (Phase 4) |
 | Viewer role | Reads and posts messages; cannot task agents or edit the board and records |
 | Repo | `github.com/kaanisthatyou/lonca`, private until Phase 1 is done, set up as open source from the first commit |
-| Telemetry | None. Lonca sends nothing |
+| Telemetry | None. Serai sends nothing |
 | v0.1 code | Removed from `main` when the v2 skeleton lands; tag `v0.1.0` kept |
 | Theme | **Grafit & tek vurgu** (direction 2 on the canvas) |
-| UI copy | **Impersonal**: Lonca's own text states facts and actions, with no author presence (7.1) |
+| UI copy | **Impersonal**: Serai's own text states facts and actions, with no author presence (7.1) |
 
 ## 3. Principles
 
@@ -69,16 +69,16 @@ From the Q&A on 2026-10-16.
    from a person and agents can never keep each other going.
 4. **Safe defaults.** New agents: read-only, callable only by their owner. Others' requests are capped at read
    unless the owner raises it. Channel text reaches agents marked as untrusted.
-5. **No credential handling.** Lonca never reads, copies or moves a CLI's login files. It spawns the unmodified
-   official binary, which uses its own login. No "Sign in with Claude/Gemini" inside Lonca. "Claude" is never part
+5. **No credential handling.** Serai never reads, copies or moves a CLI's login files. It spawns the unmodified
+   official binary, which uses its own login. No "Sign in with Claude/Gemini" inside Serai. "Claude" is never part
    of an agent's product name in the UI beyond describing what it runs.
 6. **Clean room.** Nothing from closed apps (code, strings, assets). Open-source code only with its license notice.
 7. **Everything bilingual.** Turkish and English UI from the first build.
 8. **One small core with plugin points**, not Hermes-style breadth.
 
-## 4. From Fabrika to Lonca
+## 4. From Fabrika to Serai
 
-| Fabrika | Lonca |
+| Fabrika | Serai |
 |---|---|
 | Cockpit: one Claude chat per person | A direct channel with each of your agents, plus channels |
 | Team chat with channels, mirrored at both PCs | Channels in a workspace, replicated at every member |
@@ -140,7 +140,7 @@ Discord-like, three columns plus a rail:
 - **Worktrees:** a job can run in its own git worktree, with a merge-back check before it closes.
 - **Context given to every job:** who asked, the channel's recent messages (marked untrusted), referenced records,
   the workspace memory snapshot, area rules, the goal state. Shown on the card as "what was given".
-- **Lonca's own MCP server** for the agents it runs: search history and records, read references (images), read
+- **Serai's own MCP server** for the agents it runs: search history and records, read references (images), read
   and update board cards and goal steps, post progress. This is how agents keep `/todo` and `/goal` current.
 
 ### 5.4 Advisors
@@ -201,7 +201,7 @@ Learned from Hermes: small, bounded, human-editable memory beats a big opaque st
 
 - **Dictation** into the composer, **read aloud** of job summaries and advisor messages, and a **voice mode** for
   talking to an agent (speech → message → job → spoken summary).
-- Push to talk: `Ctrl Space` inside Lonca, toggle by default (Electron only sees key presses), plus the mic
+- Push to talk: `Ctrl Space` inside Serai, toggle by default (Electron only sees key presses), plus the mic
   button. From anywhere: the quick-entry window (`Ctrl Alt Space`) with the same mic. `Ctrl Space` is never
   registered globally, because editors use it for completion.
 - Local by default, downloaded on first use: whisper.cpp sidecar with the multilingual `small` model; Piper with a
@@ -212,7 +212,7 @@ Learned from Hermes: small, bounded, human-editable memory beats a big opaque st
 
 ### 5.9 Connector store
 
-- **Catalog:** a curated list (~30 entries, "Verified by Lonca") published as an open, signed static index that
+- **Catalog:** a curated list (~30 entries, "Verified by Serai") published as an open, signed static index that
   anyone can mirror or self-host; each entry points at an official MCP Registry entry. Live registry search below
   it, marked "community, unreviewed". A workspace can keep its own allowlist and recommended set.
 - **One click per kind:** remote without auth (add); remote with OAuth (system browser, a one-shot loopback callback
@@ -225,11 +225,11 @@ Learned from Hermes: small, bounded, human-editable memory beats a big opaque st
   version, hash) re-checked at startup; settings kept across updates; an env deny list when spawning servers.
 - **Tool policy per tool**, four values: allow, ask every time, ask once per job, blocked. A team-visible log of
   tool decisions.
-- **Lonca MCP gateway.** Headless CLIs cannot ask the person anything, so connectors do not go to the CLIs
-  directly: Lonca runs or connects every connector itself and gives each job one local HTTP MCP endpoint with a
+- **Serai MCP gateway.** Headless CLIs cannot ask the person anything, so connectors do not go to the CLIs
+  directly: Serai runs or connects every connector itself and gives each job one local HTTP MCP endpoint with a
   per-job token that exposes only that agent's connectors. "Ask" becomes a needs-attention approval on the job
-  card; secrets never leave Lonca; one audit point. The same endpoint serves Lonca's own tools (5.3). For a CLI
-  without HTTP MCP support, Lonca writes a per-run config instead (Claude Code `--mcp-config --strict-mcp-config`,
+  card; secrets never leave Serai; one audit point. The same endpoint serves Serai's own tools (5.3). For a CLI
+  without HTTP MCP support, Serai writes a per-run config instead (Claude Code `--mcp-config --strict-mcp-config`,
   Codex a temporary `CODEX_HOME`, Gemini a per-run settings dir).
 - **Secrets** in Electron `safeStorage` (DPAPI, libsecret, KWallet), in the main process only; the UI sees masked
   values. Never a plaintext fallback: without an OS secret store, an encrypted file behind an app passphrase.
@@ -245,7 +245,7 @@ portal on Wayland, and one searchable panel (`Ctrl /`). Defaults:
 |---|---|
 | `Ctrl Alt Space` (global) | Quick entry: a small always-on-top window to message or task an agent from anywhere; remembers its monitor, hides on blur |
 | `Ctrl K` | Search and command palette |
-| `Ctrl Space` | Push to talk (inside Lonca, toggle) |
+| `Ctrl Space` | Push to talk (inside Serai, toggle) |
 | `Alt ↑ / ↓` | Previous / next channel |
 | `Ctrl Shift ↑ / ↓` | Previous / next item that needs attention |
 | `Ctrl .` | Stop the focused job |
@@ -282,12 +282,12 @@ the PC. Needs-attention pushes from day one.
 
 ### 5.13 Projects and git
 
-A project = a git repo; each member points it at their own clone. Lonca shows branch, changes, ahead/behind, and
+A project = a git repo; each member points it at their own clone. Serai shows branch, changes, ahead/behind, and
 offers pull/push; jobs can end with a commit (owner's choice). Advisors read commits and diffs. Areas (folders
 a member mostly works on) generalize Fabrika's `split.md`: every job gets them as a record, never a lock (Fabrika
 dropped its claim rule on 2026-10-16 because it only slowed two people down); an agent that changes someone else's
 area says so in its summary. The project's status page generalizes Fabrika's `progress.md` (where it stands,
-milestones, next) and agents keep it current through Lonca's tools.
+milestones, next) and agents keep it current through Serai's tools.
 
 ### 5.14 Agent instructions (system prompts)
 
@@ -300,8 +300,8 @@ bot and Blender agent prompts in `app/fabrika.py` and `app/backend/team_claude.p
   length, when to stay silent, never offer to do work), goal step (plan, step, report format), `/meclis`
   moderator, memory upkeep, quick entry.
 - **Layers,** assembled in this order for every job:
-  1. Lonca's core rules (untrusted context, only people start work, the owner's limits). Shown read-only, because
-     Lonca enforces them in code; the text only explains them to the model.
+  1. Serai's core rules (untrusted context, only people start work, the owner's limits). Shown read-only, because
+     Serai enforces them in code; the text only explains them to the model.
   2. The role's default template: editable, with "reset to default" and a diff against the default.
   3. Workspace instructions (Admins): team conventions, language, areas.
   4. The agent's or advisor's own instructions (its owner).
@@ -309,7 +309,7 @@ bot and Blender agent prompts in `app/fabrika.py` and `app/backend/team_claude.p
 - **Variables:** `{user}`, `{agent}`, `{workspace}`, `{channel}`, `{project}`, `{mode}`, `{language}`,
   `{members}`, `{areas}`, `{goal}`, `{date}`. A preview shows the exact text a sample job would receive.
 - **Files, not database rows:** Markdown with frontmatter, with history and revert; export and import, and share
-  as a workspace preset. When a release changes a default the person edited, Lonca offers the new default as a
+  as a workspace preset. When a release changes a default the person edited, Serai offers the new default as a
   merge instead of overwriting.
 - **Personalities are presets:** Eleştirel, Doğrucu Davut and Olumlu are editable templates; duplicate one to make
   a new advisor.
@@ -353,7 +353,7 @@ packages/core       store, sync, roles and certificates, jobs, scheduler
 packages/agents     AgentDriver interface; claude-code, codex, opencode, acp, gemini/agy drivers
 packages/providers  LLM clients (OpenAI-compatible, Anthropic, Gemini) and presets
 packages/voice      STT/TTS engines, sidecar manager
-packages/connectors store, registry, OAuth, MCPB, MCP gateway (with Lonca's own tools), per-CLI config writers
+packages/connectors store, registry, OAuth, MCPB, MCP gateway (with Serai's own tools), per-CLI config writers
 packages/ui         design tokens, components, motion presets
 docs/               PLAN.md stays at the root; research, ADRs
 ```
@@ -377,8 +377,8 @@ become TypeScript test cases for the same security rules.
 - **Peers only, no server.** Every member keeps the whole workspace. Online peers sync directly over Tailscale
   (each app listens on its Tailscale address); whenever any two members are online they catch up, and a third
   member passes on what the other two missed. Nobody is "the server", so a closed PC only means its own agents are
-  offline. Lonca never runs or depends on a relay or hosted service.
-- A member who wants the workspace always reachable can leave Lonca running in the tray on an always-on machine;
+  offline. Serai never runs or depends on a relay or hosted service.
+- A member who wants the workspace always reachable can leave Serai running in the tray on an always-on machine;
   it is just another peer.
 - Tailscale is detected and guided as in Fabrika: not installed (winget / download), signed out, wrong tailnet.
   Joining a workspace means being in the same tailnet, or the inviter sharing their device with the joiner
@@ -445,14 +445,14 @@ indicators; everything respects `prefers-reduced-motion`, and every state stays 
 
 ### 7.1 UI copy: impersonal
 
-Lonca's own text (buttons, labels, menus, placeholders, empty states, notifications, errors, tooltips, the
+Serai's own text (buttons, labels, menus, placeholders, empty states, notifications, errors, tooltips, the
 launcher) is impersonal and objective: it names what a control does or states what happened. The author is not
 present in it.
 
 - No feelings, opinions, praise, jokes, greetings, encouragement or apologies; no exclamation marks; no emoji.
 - No addressing the reader: no `sen` / `siz`, no second-person possessives (`kotan`, `ayarların`), no
   "Hoş geldin". In English no "you" / "your".
-- The app never speaks as "I" or "we" and is never personified ("Lonca düşünüyor" → "İşleniyor").
+- The app never speaks as "I" or "we" and is never personified ("Serai düşünüyor" → "İşleniyor").
 - Buttons are plain verbs or nouns: Kaydet, Durdur, Davet oluştur, Ayarlar.
 - Errors: what happened, the cause when known, the action: "İş başlatılamadı: `claude` bulunamadı. Kurulum
   komutu kopyalandı."
@@ -476,10 +476,10 @@ Each phase ends with something installable that the two of you use for real.
 
 | Phase | Contents | Done when |
 |---|---|---|
-| **0. Foundation** | Theme choice, tokens and component kit, repo scaffold, CI, Electron shell, first-run launcher, i18n, signed installer, auto-update | An installable empty Lonca updates itself |
-| **1. Solo core** | Channels, messages, records (ideas, references, commands), Claude Code and Codex drivers with job cards, live view, steering, stop, quota, login state, autonomy ladder, needs-attention inbox, `Ctrl K`, shortcuts, `/todo` board, MCP gateway with Lonca's own tools, worker instruction templates and their editor | Kaan runs a real non-Roblox project from Lonca for a week |
+| **0. Foundation** | Theme choice, tokens and component kit, repo scaffold, CI, Electron shell, first-run launcher, i18n, signed installer, auto-update | An installable empty Serai updates itself |
+| **1. Solo core** | Channels, messages, records (ideas, references, commands), Claude Code and Codex drivers with job cards, live view, steering, stop, quota, login state, autonomy ladder, needs-attention inbox, `Ctrl K`, shortcuts, `/todo` board, MCP gateway with Serai's own tools, worker instruction templates and their editor | Kaan runs a real non-Roblox project from Serai for a week |
 | **2. Advisors and goals** | Provider presets and keys, advisor profiles with editable personality presets and chatter with budgets, `/meclis`, `/goal` with plan approval and comments, worktrees | A goal finishes on its own while the advisors comment |
-| **3. Team** | Peer sync over Tailscale, invites, approval, role certificates, members panel, cross-member jobs, notifications, phone companion | Kaan and Arda run a project together on Lonca instead of Fabrika's team tab |
+| **3. Team** | Peer sync over Tailscale, invites, approval, role certificates, members panel, cross-member jobs, notifications, phone companion | Kaan and Arda run a project together on Serai instead of Fabrika's team tab |
 | **4. Memory, voice, connectors** | Memory layers and recall line, voice (local and cloud, custom servers), connector store with OAuth and MCPB | A connector installs in one click and a job is started by voice |
 | **5. Public 1.0** | OpenCode and the generic ACP driver, Linux packages, docs site, contribution guide, security review | Strangers install and use it without help |
 
@@ -526,7 +526,7 @@ Built and verified (unit tests, and the real app driven against a fake Claude Co
 - Codex driver over `codex exec --json`: checked against codex-cli 0.162.1 installed in a temporary folder and not
   logged in (`packages/core/test/real-cli.test.ts`, run with `LONCA_REAL_CODEX`): detection, "Not logged in" (which
   exits 0), the exec flags, `--image`, `resume`, retries (`error` events) before `turn.failed`, a 401 shown as a login
-  problem, and Lonca's MCP endpoint reached through `-c mcp_servers.lonca.*` with the token in an environment
+  problem, and Serai's MCP endpoint reached through `-c mcp_servers.serai.*` with the token in an environment
   variable. A logged-in run (tool calls, answers) is still untested.
 - Job cards (live steps, streaming answer, usage, cost, steer, stop), the live view with the whole transcript,
   the quota panel.
@@ -538,27 +538,27 @@ Built and verified (unit tests, and the real app driven against a fake Claude Co
   `{channel}`, `{date}`; any message saved as an idea; records attached to a message reach the job as notes,
   references as images (inline for Claude Code, `--image` for Codex).
 
-- Instructions (5.14): Lonca's core rules shown read-only; the worker template and the workspace's instructions as
+- Instructions (5.14): Serai's core rules shown read-only; the worker template and the workspace's instructions as
   Markdown files (`<data>/instructions/worker.md`, `<workspace>/instructions.md`), with earlier versions kept under
   `history/`, "back to default", a notice when the shipped default changed under an edited copy, and a preview of
   the whole prompt per agent. A session restarts its CLI process (same conversation) when a layer changes.
 
 - The MCP gateway: a small Streamable HTTP endpoint on 127.0.0.1 with one bearer token per agent session (Host
-  and Origin checked), serving Lonca's tools: `search_messages`, `list_records`, `read_record` (with the image),
+  and Origin checked), serving Serai's tools: `search_messages`, `list_records`, `read_record` (with the image),
   `list_cards`, `add_card`, `update_card`, `post_progress`. Claude Code gets it with `--mcp-config` and
-  `--allowedTools mcp__lonca`; checked with a real Claude Code call (connected, tool called without a prompt).
+  `--allowedTools mcp__serai`; checked with a real Claude Code call (connected, tool called without a prompt).
   Codex gets the same endpoint through per-run config overrides.
 
-- Approvals: at read and edit, Claude Code asks Lonca over stdio (`--permission-prompt-tool stdio`,
+- Approvals: at read and edit, Claude Code asks Serai over stdio (`--permission-prompt-tool stdio`,
   `control_request` / `can_use_tool`, checked with a real call); the job waits as "Onay bekliyor" with Allow and
-  Deny on its card, a "Bekleyenler" count in the sidebar, an OS notification when Lonca is in the background, and
-  `Ctrl Shift ↑ / ↓` to go through waiting jobs. Control requests Lonca does not handle get an error answer.
+  Deny on its card, a "Bekleyenler" count in the sidebar, an OS notification when Serai is in the background, and
+  `Ctrl Shift ↑ / ↓` to go through waiting jobs. Control requests Serai does not handle get an error answer.
 
 - Pinned commands as buttons above the message box; shortcuts rebindable in Settings (recorded by pressing them,
   conflicts refused, back to default), the shortcut list showing the current keys.
 
 - `e2e/real-claude.mjs` (by hand, two short Haiku turns): the real Claude Code answers from a project's files
-  and moves a board card through Lonca's MCP tools; the packaged 0.3.0-alpha.0 passes `smoke.mjs` and
+  and moves a board card through Serai's MCP tools; the packaged 0.3.0-alpha.0 passes `smoke.mjs` and
   `channel.mjs`.
 
 Left open from Phase 1: a logged-in Codex run (no Codex login on the dev machine), and making the repository
@@ -583,7 +583,7 @@ public, which waits for the owners' go.
   person speaks, one unasked turn per channel per hour, one turn at a time per channel. They never write code or
   start jobs; a `/todo` line in their answer becomes a board card. `/meclis [topic]`: two rounds in turn, then a
   summary. Each advisor runs on the device that added it. Tested with unit tests and `e2e/advisors.mjs`; not yet
-  run against a real provider with a real key. Lonca gathers the channel, the board and git history for them;
+  run against a real provider with a real key. Serai gathers the channel, the board and git history for them;
   with a project folder they also get read-only tools (`list_files`, `read_file`, `search`, `git_log`,
   `git_show`), kept inside the folder (symlinks included) with git on fixed arguments: up to three rounds of
   calls, then they answer with what they have; every round counts against the budget. The provider client speaks
@@ -598,7 +598,7 @@ public, which waits for the owners' go.
   steering and approvals; finished ones open from their step. Advisors of the channel take turns commenting on
   each step. A Goals view lists them. Tested with unit tests and `e2e/channel.mjs` against the fake CLI, and once
   with the real Claude Code on Haiku (`e2e/real-claude.mjs`: a four-step plan, an approval, the check passed).
-- Worktrees: a goal can run in its own git worktree (`<data>/worktrees/<goal id>`, branch `lonca/goal-<id>`), in a
+- Worktrees: a goal can run in its own git worktree (`<data>/worktrees/<goal id>`, branch `serai/goal-<id>`), in a
   CLI session of its own, so the main folder stays as it is and the agent can take other work meanwhile; each step
   ends with a commit, the done check runs in the worktree, and the session closes when the goal ends. The card
   shows the branch, opens the folder, and removes the worktree when the goal is over (never forced: a worktree
@@ -676,7 +676,7 @@ The details behind 5.11 and 6.5, decided before building.
   3.6. A live path between members (`/v1/live`, signed like the rest, never stored): "Arda yazıyor" under the
   messages (at most every three seconds, at once again after a send), and another member's running job moving on
   everyone's card about once a second (only the agent's owner may report it). The members list shows who answered
-  the last sync. A message from another member in a background lonca marks it in the rail; while Lonca is in the
+  the last sync. A message from another member in a background lonca marks it in the rail; while Serai is in the
   background a message from another member gives an OS notification.
   0.5.0-alpha.0 (2026-10-18): the packaged app passes all e2e tests; `e2e/tailscale.mjs` (by hand, on a computer
   with Tailscale) has one app listen on its real Tailscale address: the invite carried `100.76.173.48:47640` and the
@@ -743,7 +743,7 @@ The details behind 5.11 and 6.5, decided before building.
 - 4.6 `/özet [hours | hafta] [@advisor]`: an advisor of the channel (the one named, else the first) sums up the
   channel's last hours (24 by default): decisions, done work, what is open or blocked, who waits on whom. It reads up
   to 300 messages of the period instead of a normal turn's 30, on its own budget and provider; the summary is the
-  advisor's message, so Lonca never speaks as itself. Covered by a unit test.
+  advisor's message, so Serai never speaks as itself. Covered by a unit test.
 - 4.7 Quick entry (5.10): `Ctrl Alt Space` from anywhere (registered globally by the main process; when another app
   holds it, the palette's "Hızlı giriş" opens the same window) shows a small always-on-top window on the screen the
   pointer is on: a channel or agent to write to (the last one used is remembered) and a message box; Enter sends and
@@ -762,24 +762,24 @@ The details behind 5.11 and 6.5, decided before building.
   it reads 20 ideas, 40 references, 9 prompts and 7 games. Covered by unit tests and `e2e/channel.mjs`.
 - 4.10 Connectors, the core of the store (5.9), 2026-10-22: Settings → Bağlayıcılar adds an MCP server by hand, a
   remote one (Streamable HTTP; JSON or event-stream answers, the session id, no redirects, https except loopback,
-  private networks and Tailscale) or a local program over stdio (no shell; it gets Lonca's environment without
-  variables that look like keys or tokens, and Lonca's own). Connectors belong to this computer:
+  private networks and Tailscale) or a local program over stdio (no shell; it gets Serai's environment without
+  variables that look like keys or tokens, and Serai's own). Connectors belong to this computer:
   `<app>/connectors.json`, never synced; header and variable values are sealed by the main process with safeStorage
   (none stored where nothing can seal them) and shown as their last characters. Saving tests the server in the
   background (`initialize`, `tools/list`, up to two minutes for a first `npx` download); a failure shows the server's
   own words. Each connector lists the agents of this computer that may use it, and each tool has a policy: allow
   (the default for tools the server marks read-only), ask every time (the default otherwise), ask once per job,
-  blocked (the agent does not see it). The gateway serves an agent's connector tools next to Lonca's own as
-  `<slug>__<tool>` (at most 50 characters, so `mcp__lonca__…` fits every CLI); a call that asks waits on the job card
+  blocked (the agent does not see it). The gateway serves an agent's connector tools next to Serai's own as
+  `<slug>__<tool>` (at most 50 characters, so `mcp__serai__…` fits every CLI); a call that asks waits on the job card
   like a CLI's approval (one at a time, ten minutes, then denied; Claude Code gets `MCP_TOOL_TIMEOUT` and Codex
   `tool_timeout_sec` to wait that long), and a request from another member never runs a tool unasked. A changed tool
-  list starts the agent's CLI again with the same conversation. Lonca connects on first use and closes a server
+  list starts the agent's CLI again with the same conversation. Serai connects on first use and closes a server
   after ten idle minutes. Covered by unit tests (stdio and HTTP clients, the core end to end), `e2e/channel.mjs`
   (a local connector with a secret, an approval on the card) and `e2e/real-claude.mjs` (`REAL_QUICK=1`: the real
-  Claude Code on Haiku called a connector's tools through Lonca after an approval); the Codex contract test passes
+  Claude Code on Haiku called a connector's tools through Serai after an approval); the Codex contract test passes
   with the new flag. Not yet: OAuth, MCPB bundles, the team-visible log of tool decisions, and connectors on other
   members' computers.
-- 4.11 The catalog (5.9), 2026-10-22: Bağlayıcılar → Katalogdan ekle shows Lonca's catalog above a live search of the
+- 4.11 The catalog (5.9), 2026-10-22: Bağlayıcılar → Katalogdan ekle shows Serai's catalog above a live search of the
   official MCP Registry (`/v0.1/servers`, by name, latest active versions), which is marked as community and not
   reviewed. Both install the same way: a registry `server.json` becomes install plans (a Streamable HTTP remote, or
   an npm, PyPI or OCI package run pinned through `npx -y pkg@version`, `uvx pkg@version` or `docker run -i --rm`),
@@ -795,7 +795,7 @@ The details behind 5.11 and 6.5, decided before building.
   a signed index others can mirror waits for the public repository. Covered by unit tests (the conversion on real
   entries, every catalog entry, the search against a stand-in), `e2e/channel.mjs` (the catalog, an entry's form, a
   search against a stand-in registry) and two opt-in checks against the real servers: `LONCA_REAL_REMOTE=1`
-  (Context7, Microsoft Learn, Exa, Firecrawl and Hugging Face answer `initialize` and `tools/list` through Lonca's
+  (Context7, Microsoft Learn, Exa, Firecrawl and Hugging Face answer `initialize` and `tools/list` through Serai's
   client) and `LONCA_REAL_NPX=1` (Playwright, Chrome DevTools, Context7 and Firecrawl start through npx on Windows).
   Next for the store: OAuth (Notion, Linear, Figma, Sentry's and Stripe's remotes need it), MCPB, a workspace's own
   allowlist, and the tool-decision log.

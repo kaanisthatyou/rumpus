@@ -50,7 +50,7 @@ writeFileSync(
 );
 
 const app = await electron.launch({
-  executablePath: join(appDir, 'release/win-unpacked/Lonca.exe'),
+  executablePath: join(appDir, 'release/win-unpacked/Serai.exe'),
   env: { ...process.env, LONCA_HOME: home, LONCA_LANG: 'en', LONCA_UPDATE_URL: `http://127.0.0.1:${port}/` },
 });
 try {

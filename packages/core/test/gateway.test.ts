@@ -52,7 +52,7 @@ describe('Gateway', () => {
     );
     expect(init.json?.result).toMatchObject({
       protocolVersion: '2025-11-25',
-      serverInfo: { name: 'lonca' },
+      serverInfo: { name: 'serai' },
       capabilities: { tools: {} },
     });
     expect((await post(port, { jsonrpc: '2.0', method: 'notifications/initialized' }, auth)).status).toBe(202);

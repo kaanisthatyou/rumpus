@@ -158,7 +158,7 @@ export function Palette({ onSettings }: { onSettings: () => void }) {
         group: 'messages',
         icon: 'search',
         label: m.text.length > 90 ? `${m.text.slice(0, 90)}…` : m.text,
-        detail: `${m.author.kind === 'system' ? 'Lonca' : m.author.name} · #${channel?.name ?? ''}`,
+        detail: `${m.author.kind === 'system' ? 'Serai' : m.author.name} · #${channel?.name ?? ''}`,
         run: () => void s.openChannel(m.channelId),
       });
     }

@@ -27,7 +27,7 @@ export interface SessionOptions {
   resume?: string;
   systemPrompt: string;
   env?: NodeJS.ProcessEnv;
-  /** Lonca's MCP endpoint for this session, with its bearer token. */
+  /** Serai's MCP endpoint for this session, with its bearer token. */
   mcp?: { url: string; token: string };
 }
 
@@ -78,8 +78,8 @@ const ARG_KEYS = ['file_path', 'path', 'command', 'pattern', 'url', 'query', 'de
 
 /** The one argument worth showing for a tool call: a path relative to the folder, a command's first line, ... */
 export function toolArg(name: string, input: unknown, cwd: string): string | undefined {
-  // Lonca's own tools read `lonca.add_card`; a connector's tool through Lonca reads `github.create_issue`.
-  const connector = /^mcp__lonca__([a-z0-9_]+?)__(.+)$/.exec(name);
+  // Serai's own tools read `serai.add_card`; a connector's tool through Serai reads `github.create_issue`.
+  const connector = /^mcp__serai__([a-z0-9_]+?)__(.+)$/.exec(name);
   if (connector) return `${connector[1]}.${connector[2]}`;
   if (name.startsWith('mcp__')) return name.slice(5).replace('__', '.');
   if (!input || typeof input !== 'object') return undefined;

@@ -1,5 +1,6 @@
-import { statSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, renameSync, rmdirSync, statSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { BRAND } from '@lonca/protocol';
 import {
   app,
   BrowserWindow,
@@ -25,7 +26,25 @@ import { loadWindowState, trackWindowState } from './window-state.js';
 
 // LONCA_HOME gives a separate app folder (tests, a second instance next to the normal one).
 if (process.env.LONCA_HOME) app.setPath('userData', process.env.LONCA_HOME);
-app.setAppUserModelId('io.github.kaanisthatyou.lonca');
+else adoptFormerData();
+
+/**
+ * The app's folder is named after the product. After a rename, the folder of the former name is moved to the new
+ * one, once and before anything opens it: settings, workspaces, sealed keys (their key travels in `Local State`).
+ * A folder that cannot be moved (another copy of the app holds it) is used where it is.
+ */
+function adoptFormerData(): void {
+  const now = app.getPath('userData');
+  const former = join(dirname(now), BRAND.former.name);
+  if (existsSync(join(now, 'settings.json')) || !existsSync(join(former, 'settings.json'))) return;
+  try {
+    if (existsSync(now)) rmdirSync(now); // only an empty folder goes; anything else throws and the old one is used
+    renameSync(former, now);
+  } catch {
+    app.setPath('userData', former);
+  }
+}
+app.setAppUserModelId(BRAND.appId);
 
 const here = import.meta.dirname;
 const appDir = app.getPath('userData');
@@ -37,7 +56,7 @@ let quick: BrowserWindow | undefined;
 /** The global key that opens it, as an Electron accelerator; the person can change it in Settings. */
 let quickKey: string | undefined;
 
-/** Lonca's combo (`Ctrl+Alt+Space`, `Ctrl+Shift+ArrowUp`) as an Electron accelerator. */
+/** Serai's combo (`Ctrl+Alt+Space`, `Ctrl+Shift+ArrowUp`) as an Electron accelerator. */
 function accelerator(combo: string): string {
   return combo
     .split('+')
@@ -78,7 +97,7 @@ if (!app.requestSingleInstanceLock()) {
 
 function startCore(): void {
   core = utilityProcess.fork(join(here, 'core.js'), [], {
-    serviceName: 'Lonca core',
+    serviceName: `${BRAND.name} core`,
     env: {
       ...process.env,
       LONCA_APP_DIR: appDir,
@@ -199,7 +218,7 @@ function registerIpc(): void {
 }
 
 function hardenSessions(): void {
-  // Nothing in Lonca needs camera, location or notifications from the page yet; the microphone comes with voice.
+  // Nothing in Serai needs camera, location or notifications from the page yet; the microphone comes with voice.
   session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) =>
     callback(permission === 'clipboard-sanitized-write'),
   );
@@ -221,7 +240,7 @@ function createWindow(): BrowserWindow {
     minWidth: 960,
     minHeight: 640,
     show: false,
-    title: 'Lonca',
+    title: BRAND.name,
     backgroundColor: '#0a0b0d',
     titleBarStyle: 'hidden',
     ...(process.platform !== 'darwin'
@@ -256,7 +275,7 @@ function createQuickWindow(): BrowserWindow {
     fullscreenable: false,
     alwaysOnTop: true,
     skipTaskbar: true,
-    title: 'Lonca',
+    title: BRAND.name,
     backgroundColor: '#0a0b0d',
     webPreferences: {
       preload: join(here, '../preload/index.cjs'),

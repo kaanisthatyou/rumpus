@@ -1,5 +1,5 @@
 // A project (PLAN.md 5.13): this computer's clone and its git state, the status page (Fabrika's progress.md) and the
-// areas (Fabrika's split.md). People edit the page here; agents keep it current through Lonca's tools.
+// areas (Fabrika's split.md). People edit the page here; agents keep it current through Serai's tools.
 import type { GitState, ProjectView as Project } from '@lonca/protocol';
 import { Button, Icon, IconButton } from '@lonca/ui';
 import { AnimatePresence, motion } from 'motion/react';

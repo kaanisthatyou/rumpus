@@ -2,18 +2,20 @@
 // One CLI session per (agent, channel), kept across jobs so the agent remembers the conversation.
 import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import type {
-  Agent,
-  AgentMode,
-  Channel,
-  CliInfo,
-  CliKind,
-  Job,
-  JobStep,
-  Language,
-  Message,
-  Quota,
-  TranscriptEntry,
+import {
+  type Agent,
+  type AgentMode,
+  BRAND,
+  type Channel,
+  type CliInfo,
+  type CliKind,
+  type Job,
+  type JobStep,
+  type Language,
+  type Message,
+  type Quota,
+  splitResult,
+  type TranscriptEntry,
 } from '@lonca/protocol';
 import { openClaude } from './drivers/claude.js';
 import { openCodex } from './drivers/codex.js';
@@ -56,7 +58,7 @@ export interface JobsDeps {
   publish?(job: Job): void;
   /** The connector tools an agent's session gets; a change starts its CLI again (same conversation). */
   toolset?(agent: Agent): string;
-  /** Lonca's MCP endpoint; each session gets its own token. */
+  /** Serai's MCP endpoint; each session gets its own token. */
   gateway?: {
     ready(): Promise<string>;
     issue(ctx: { agentId: string; channelId: string; slot?: string }): string;
@@ -99,6 +101,10 @@ const EMIT_EVERY_MS = 120;
 const slotOf = (channelId: string, scope?: string) => (scope ? `${channelId}#${scope}` : channelId);
 /** The scope a handed-over part runs in: a session of its own, closed when the part ends. */
 const PART = 'part-';
+/** The scope a specialist's job runs in: every job a fresh session, so only its playbook and lessons carry over. */
+const SPEC = 'spec-';
+/** How much of a specialist's budget may pass before it is told to wrap up. */
+const BUDGET_SOFT = 0.75;
 /** Parts one person's request may be split into. */
 export const MAX_PARTS = 6;
 /** How long after the handing job started a part may still start. */
@@ -169,22 +175,36 @@ export class Jobs {
       if (!rule.allow) return;
       const agent = rule.mode ? { ...target, mode: rule.mode } : target;
       if (rule.approveFirst) this.hold(agent, channel, message);
-      else await this.start(agent, channel, message, undefined, { scope: `${PART}${message.id}` });
+      else await this.start(agent, channel, message, undefined, this.scopeFor(agent, message));
       return;
     }
     for (const target of this.targets(message, channel, this.deps.store.agents())) {
       const rule = this.deps.access?.(target, message) ?? { allow: true };
       if (!rule.allow) continue;
       const agent = rule.mode ? { ...target, mode: rule.mode } : target;
-      const live = this.live.get(this.key(agent.id, channel.id));
+      // A specialist's jobs each run in a session of their own; a message to one that is working steers that job.
+      const live = agent.specialty
+        ? [...this.live.values()].find(
+            (l) =>
+              l.agent.id === agent.id &&
+              l.slot.startsWith(`${channel.id}#${SPEC}`) &&
+              (l.job?.state === 'running' || l.job?.state === 'attention'),
+          )
+        : this.live.get(this.key(agent.id, channel.id));
       if (live?.job && (live.job.state === 'running' || live.job.state === 'attention')) {
         this.steerLive(live, message.text);
       } else if (rule.approveFirst) {
         this.hold(agent, channel, message);
       } else {
-        await this.start(agent, channel, message);
+        await this.start(agent, channel, message, undefined, this.scopeFor(agent, message));
       }
     }
+  }
+
+  /** Where a job runs: a handed-over part and a specialist's job each get a session of their own. */
+  private scopeFor(agent: Agent, message: Message): { scope?: string } {
+    if (message.handover) return { scope: `${PART}${message.id}` };
+    return agent.specialty ? { scope: `${SPEC}${message.id}` } : {};
   }
 
   private now(): number {
@@ -215,7 +235,10 @@ export class Jobs {
 
   private save(job: Job, immediate = false): void {
     this.deps.store.saveJob(job);
-    if (job.state !== 'running' && job.state !== 'attention') this.dropAsks(job.id);
+    if (job.state !== 'running' && job.state !== 'attention') {
+      this.dropAsks(job.id);
+      this.clearBudget(job.id);
+    }
     if (this.deps.publish && this.published.get(job.id) !== job.state) {
       this.published.set(job.id, job.state);
       this.deps.publish(job);
@@ -257,7 +280,7 @@ export class Jobs {
   }
 
   /**
-   * Starts a job with Lonca's own prompt (goal mode); `request` is the message its card hangs under. With a
+   * Starts a job with Serai's own prompt (goal mode); `request` is the message its card hangs under. With a
    * `scope`, the job runs in a session of its own (and `folder`, when given, instead of the agent's folder).
    */
   startWith(
@@ -305,6 +328,7 @@ export class Jobs {
           usage: { in: 0, cached: 0, out: 0 },
           started: this.now(),
           ...((this.deps.recalled?.() ?? 0) > 0 ? { recalled: this.deps.recalled?.() } : {}),
+          ...(agent.specialty?.budget ? { budget: agent.specialty.budget } : {}),
         };
     this.save(job, true);
 
@@ -327,7 +351,8 @@ export class Jobs {
         live.agent.model !== agent.model ||
         live.agent.folder !== agent.folder ||
         live.agent.account !== agent.account ||
-        live.agent.instructions !== agent.instructions)
+        live.agent.instructions !== agent.instructions ||
+        JSON.stringify(live.agent.specialty) !== JSON.stringify(agent.specialty))
     ) {
       this.close(live); // settings changed: start again, keeping the conversation
       live = undefined;
@@ -372,15 +397,88 @@ export class Jobs {
     live.job = job;
     live.lastText = '';
     live.queue = [];
+    this.watchBudget(job);
     if (prompt !== undefined) {
       live.session.send(prompt);
       return job;
     }
-    const context = this.contextFor(agent, channel, request);
-    const refs = request.refs?.length && this.deps.refs ? this.deps.refs(request.refs) : { notes: [], images: [] };
+    // A specialist reads the channel's latest messages, whoever wrote them, and always gets its own references.
+    const history = agent.specialty?.history;
+    const context =
+      history === undefined
+        ? this.contextFor(agent, channel, request)
+        : history === 0
+          ? []
+          : this.deps.store
+              .messages(channel.id, { before: request.created + 1, limit: history })
+              .filter((m) => m.id !== request.id);
+    const refIds = [...new Set([...(agent.specialty?.refs ?? []), ...(request.refs ?? [])])];
+    const refs = refIds.length && this.deps.refs ? this.deps.refs(refIds) : { notes: [], images: [] };
     const notes = refs.notes.length ? `\n\n<references>\n${refs.notes.join('\n')}\n</references>` : '';
-    live.session.send(turnPrompt(request, context, channel.name) + notes, refs.images);
+    live.session.send(turnPrompt(request, context, channel.name, history || 20) + notes, refs.images);
     return job;
+  }
+
+  // ---------------------------------------------------------------- a specialist's budget
+
+  private readonly budgets = new Map<string, NodeJS.Timeout[]>();
+
+  private watchBudget(job: Job): void {
+    if (!job.budget) return;
+    const ms = job.budget.minutes * 60_000;
+    const timers = [
+      setTimeout(() => this.warnBudget(job.id), ms * BUDGET_SOFT),
+      setTimeout(() => this.overBudget(job.id), ms),
+    ];
+    for (const t of timers) t.unref?.();
+    this.clearBudget(job.id);
+    this.budgets.set(job.id, timers);
+  }
+
+  private clearBudget(jobId: string): void {
+    for (const t of this.budgets.get(jobId) ?? []) clearTimeout(t);
+    this.budgets.delete(jobId);
+  }
+
+  /** Tells the agent, once, that its budget is nearly used: it should deliver what it has. */
+  private warnBudget(jobId: string): void {
+    const live = [...this.live.values()].find((l) => l.job?.id === jobId);
+    const job = live?.job;
+    if (!live || !job?.budget || job.budget.warned || (job.state !== 'running' && job.state !== 'attention')) return;
+    const at = this.now();
+    live.job = {
+      ...job,
+      budget: { ...job.budget, warned: true },
+      steps: [...job.steps, { id: newId(), kind: 'notice', label: 'budget', at }],
+    };
+    this.transcript(job.id, { t: 'notice', text: 'budget nearly used', at });
+    const text = `[${BRAND.name}] The budget for this job is nearly used up. Stop improving: deliver what you have now and end your turn${live.agent.specialty?.result ? ' with the RESULT line' : ''}.`;
+    if (live.session.steering === 'live') live.session.send(text);
+    else live.queue.push(text);
+    this.save(live.job, true);
+  }
+
+  /** Past the budget the job is stopped; while it waits on a person the clock does not run out. */
+  private overBudget(jobId: string): void {
+    const live = [...this.live.values()].find((l) => l.job?.id === jobId);
+    const job = live?.job;
+    if (!job) return;
+    if (job.state === 'attention') {
+      const again = setTimeout(() => this.overBudget(jobId), 60_000);
+      again.unref?.();
+      this.budgets.set(jobId, [again]);
+      return;
+    }
+    if (job.state === 'running') this.stop(jobId, 'over_budget');
+  }
+
+  /** Tokens (new input and output) against the budget, after every usage report. */
+  private checkTokens(job: Job): void {
+    const limit = job.budget?.tokens;
+    if (!limit) return;
+    const spent = job.usage.in + job.usage.out;
+    if (spent >= limit) this.overBudget(job.id);
+    else if (spent >= limit * BUDGET_SOFT) this.warnBudget(job.id);
   }
 
   /** Messages since the agent last answered in this channel (others' words, marked as context). */
@@ -416,7 +514,7 @@ export class Jobs {
       const job = this.deps.store.job(jobId);
       if (!job) return false;
       if (allow) {
-        const opts = held.message.handover ? { scope: `${PART}${held.message.id}` } : {};
+        const opts = this.scopeFor(held.agent, held.message);
         void this.start(held.agent, held.channel, held.message, undefined, opts, job);
       } else {
         const { approval: _a, ...rest } = job;
@@ -538,14 +636,14 @@ export class Jobs {
     for (const a of queue) a.resolve(false);
   }
 
-  stop(jobId: string): boolean {
+  stop(jobId: string, error?: string): boolean {
     const live = [...this.live.values()].find((l) => l.job?.id === jobId);
     if (!live?.job || (live.job.state !== 'running' && live.job.state !== 'attention')) return false;
-    const job: Job = { ...live.job, state: 'stopped', ended: this.now() };
+    const job: Job = { ...live.job, state: 'stopped', ...(error ? { error } : {}), ended: this.now() };
     live.job = job;
     live.queue = [];
     live.session.stop();
-    this.transcript(job.id, { t: 'end', ok: false, error: 'stopped', at: this.now() });
+    this.transcript(job.id, { t: 'end', ok: false, error: error ?? 'stopped', at: this.now() });
     this.save(job, true);
     this.endPart(live);
     return true;
@@ -596,7 +694,7 @@ export class Jobs {
     if (live.token) this.deps.gateway?.revoke(live.token);
   }
 
-  /** A progress note from the agent (Lonca's post_progress tool) on its current job. */
+  /** A progress note from the agent (Serai's post_progress tool) on its current job. */
   note(agentId: string, channelId: string, text: string): boolean {
     const live = [...this.live.values()].find(
       (l) =>
@@ -744,11 +842,12 @@ export class Jobs {
     }
     live.job = next;
     this.save(next);
+    if (e.type === 'usage') this.checkTokens(next);
   }
 
   /** A handed-over part's session ends with its job: the next part starts fresh. */
   private endPart(live: Live): void {
-    if (!live.slot.includes(`#${PART}`)) return;
+    if (!live.slot.includes(`#${PART}`) && !live.slot.includes(`#${SPEC}`)) return;
     setTimeout(() => {
       const key = this.key(live.agent.id, live.slot);
       if (this.live.get(key) !== live) return;
@@ -758,7 +857,9 @@ export class Jobs {
     }, 0);
   }
 
-  private postAnswer(live: Live, job: Job, text: string): void {
+  private postAnswer(live: Live, job: Job, answer: string): void {
+    // A specialist's RESULT line is for whoever asked, not for the chat.
+    const { text, result } = live.agent.specialty?.result ? splitResult(answer) : { text: answer, result: undefined };
     const message: Message = {
       id: newId(),
       channelId: live.channelId,
@@ -766,6 +867,7 @@ export class Jobs {
       text,
       created: this.now(),
       jobId: job.id,
+      ...(result ? { result } : {}),
     };
     this.deps.store.commit({ type: 'message.posted', data: message });
     this.deps.emitMessage(message);

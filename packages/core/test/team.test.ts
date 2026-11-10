@@ -119,7 +119,7 @@ describe('team workspaces between two apps', () => {
 
     // Only admins invite; a code carries the address and a one-time token.
     const { code } = await kaan.call<{ code: string }>('invites.create', { role: 'editor' });
-    expect(code.startsWith('LONCA1.')).toBe(true);
+    expect(code.startsWith('SERAI1.')).toBe(true);
     await expect(arda.call('invites.join', { code: 'LONCA1.bozuk' })).rejects.toThrow('bad_code');
     const joining = await arda.call<WorkspaceSummary>('invites.join', { code });
     expect(joining).toMatchObject({ id: team.id, name: 'Ekip', state: 'joining' });

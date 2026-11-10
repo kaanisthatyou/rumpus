@@ -26,7 +26,7 @@ export interface LoncaBridge {
     copy(text: string): Promise<void>;
     appInfo(): Promise<AppInfo>;
     setTitleBar(colors: { background: string; symbols: string }): Promise<void>;
-    /** An OS notification; clicking it brings Lonca forward. */
+    /** An OS notification; clicking it brings Serai forward. */
     notify(title: string, body: string): Promise<void>;
   };
   /** The quick-entry window (Ctrl Alt Space from anywhere). */

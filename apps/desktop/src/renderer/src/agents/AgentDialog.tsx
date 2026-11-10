@@ -13,7 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { ErrorLine } from '../parts';
 import { useApp } from '../store';
 
-/** CLIs Lonca can run jobs with today. */
+/** CLIs Serai can run jobs with today. */
 export const RUNNABLE: CliKind[] = ['claude-code', 'codex'];
 
 export const slug = (name: string) =>

@@ -1,6 +1,6 @@
-appId: io.github.kaanisthatyou.lonca
-productName: Lonca
-copyright: Copyright 2026 Lonca contributors
+appId: io.github.kaanisthatyou.serai
+productName: Serai
+copyright: Copyright 2026 Serai contributors
 directories:
   output: release
   buildResources: build
@@ -8,23 +8,23 @@ files:
   - out/**/*
   - package.json
 asar: true
-# The workspace package is "@lonca/desktop"; inside the app it is plain "lonca", which names the install folder
+# The workspace package is "@lonca/desktop"; inside the app it is plain "serai", which names the install folder
 # (%LOCALAPPDATA%\Programs\lonca) and the updater cache.
 extraMetadata:
-  name: lonca
+  name: serai
 
 win:
   icon: build/icon.ico
   target:
     - target: nsis
       arch: [x64]
-  artifactName: Lonca-Setup-${version}.${ext}
+  artifactName: Serai-Setup-${version}.${ext}
 
 nsis:
   # Per-user install without admin rights, like Discord or VS Code's user installer.
   oneClick: true
   perMachine: false
-  shortcutName: Lonca
+  shortcutName: Serai
   deleteAppDataOnUninstall: false
 
 linux:
@@ -33,8 +33,8 @@ linux:
     - AppImage
     - deb
   category: Development
-  maintainer: Lonca contributors <kaanisthatyou@users.noreply.github.com>
-  artifactName: Lonca-${version}-${arch}.${ext}
+  maintainer: Serai contributors <kaanisthatyou@users.noreply.github.com>
+  artifactName: Serai-${version}-${arch}.${ext}
 
 publish:
   provider: github

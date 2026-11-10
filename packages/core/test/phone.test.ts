@@ -23,7 +23,7 @@ afterAll(() => {
 
 function setup() {
   const web = tmp('lonca-web-');
-  writeFileSync(join(web, 'index.html'), '<!doctype html><title>Lonca</title>');
+  writeFileSync(join(web, 'index.html'), '<!doctype html><title>Serai</title>');
   writeFileSync(join(web, 'app.js'), 'console.log(1)');
   const appDir = tmp('lonca-phone-');
   writeFileSync(join(appDir, 'secret.txt'), 'gizli');
@@ -66,8 +66,8 @@ describe('phone companion', () => {
     const base = state.url as string;
 
     // The page itself is served to anyone in the tailnet; data needs a key.
-    expect(await (await get(`${base}/`)).text()).toContain('<title>Lonca</title>');
-    expect(await (await get(`${base}/kanal/genel`)).text()).toContain('<title>Lonca</title>');
+    expect(await (await get(`${base}/`)).text()).toContain('<title>Serai</title>');
+    expect(await (await get(`${base}/kanal/genel`)).text()).toContain('<title>Serai</title>');
     expect(await (await get(`${base}/..%2Fsecret.txt`)).text()).not.toContain('gizli');
     const frame = { id: 1, method: 'settings.get' };
     expect(

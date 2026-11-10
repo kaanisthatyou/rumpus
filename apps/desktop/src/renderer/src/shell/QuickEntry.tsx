@@ -1,5 +1,5 @@
 // Quick entry (PLAN.md 5.10): a small always-on-top window, opened from anywhere with Ctrl Alt Space, to write to a
-// channel or straight to an agent without bringing Lonca forward. It hides when it loses focus or after sending.
+// channel or straight to an agent without bringing Serai forward. It hides when it loses focus or after sending.
 import type { Channel, Settings, WorkspaceState } from '@lonca/protocol';
 import { Icon, Mark } from '@lonca/ui';
 import { useEffect, useRef, useState } from 'react';

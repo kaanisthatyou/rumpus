@@ -1,4 +1,4 @@
-// Lonca's catalog of connectors (PLAN.md 5.9): entries of the official MCP Registry that Lonca checked, copied as
+// Serai's catalog of connectors (PLAN.md 5.9): entries of the official MCP Registry that Serai checked, copied as
 // they were on the day they were checked, with the ways to install them that work without OAuth, and corrections where a server needs more than its entry says. Everything here
 // installs through the same steps as a registry search result (`registry.ts`). Checked: 2026-10-22.
 import { type InstallPlan, installPlans, type RegistryServer } from './registry.js';
@@ -22,7 +22,7 @@ export interface CatalogEntry {
   server: RegistryServer;
 }
 
-/** The plans Lonca offers for a catalog entry, with its corrections applied. */
+/** The plans Serai offers for a catalog entry, with its corrections applied. */
 export function catalogPlans(entry: CatalogEntry): InstallPlan[] {
   const all = installPlans(entry.server);
   return entry.plans

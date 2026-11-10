@@ -6,6 +6,7 @@ coverage/
 .vite/
 *.log
 .lonca/
+.serai/
 tmp/
 test-results/
 __pycache__/

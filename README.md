@@ -1,8 +1,8 @@
-# Lonca
+# Serai
 
 An open-source desktop hub where people and the CLI coding agents they already have work together.
 
-Lonca does not ship an agent of its own. It drives the CLIs installed and signed in on each computer (Claude Code,
+Serai does not ship an agent of its own. It drives the CLIs installed and signed in on each computer (Claude Code,
 Codex, OpenCode, ...), shows their work live, and puts channels, a task board, goals, projects, saved ideas and
 references, memory and advisor bots around them. Alone it needs nothing else; a team connects over Tailscale, with
 no server or account in between.

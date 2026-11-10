@@ -17,6 +17,7 @@ import type {
   Message,
   RecordItem,
 } from '@lonca/protocol';
+import { BRAND } from '@lonca/protocol';
 import { newId } from './ids.js';
 import { mentions } from './jobs.js';
 import { type Llm, LlmError } from './llm.js';
@@ -59,7 +60,7 @@ export interface AdvisorsDeps {
   addCard(title: string, channelId: string): void;
   /** What the project folder looks like now (git history and status), for the prompt. */
   project?(folder: string): Promise<string>;
-  /** What Lonca remembers, put into words (PLAN.md 5.7). */
+  /** What Serai remembers, put into words (PLAN.md 5.7). */
   memory?(): string;
   /** Runs one of the read-only tools in the advisor's folder. */
   readTool?(folder: string, call: LlmCall): Promise<string>;
@@ -419,7 +420,7 @@ export class Advisors {
       .filter((x) => x.id !== a.id)
       .map((x) => `@${x.handle} (${x.name})`);
     const system = [
-      `You are ${a.name} (@${a.handle}), an advisor in Lonca, a workspace where people and their coding agents work together. ${me.name || 'A person'} added you.`,
+      `You are ${a.name} (@${a.handle}), an advisor in ${BRAND.name}, a workspace where people and their coding agents work together. ${me.name || 'A person'} added you.`,
       `You read the conversation and the project and give honest, specific views. You never write code, never edit files and never start jobs: workers${workers.length ? ` (${workers.join(', ')})` : ''} do the work when a person asks them.${others.length ? ` Other advisors here: ${others.join(', ')}.` : ''}`,
       a.prompt.trim() ? `Your personality:\n${a.prompt.trim()}` : '',
       this.deps.memory?.() ?? '',
@@ -461,7 +462,7 @@ export class Advisors {
     for (const m of history.reverse()) {
       const who =
         m.author.kind === 'system'
-          ? 'Lonca'
+          ? BRAND.name
           : m.author.kind === 'advisor'
             ? `${m.author.name} (advisor)`
             : m.author.kind === 'agent'
