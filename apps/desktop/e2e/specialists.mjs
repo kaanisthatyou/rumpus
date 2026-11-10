@@ -85,9 +85,15 @@ try {
   await dialog.getByText(L.specialists.templates.modeler.name).waitFor();
   await shot(page, 'gallery');
   await dialog.getByText(L.specialists.templates.reviewer.name, { exact: true }).click();
-  assert.equal(await dialog.getByLabel(L.agentForm.name, { exact: true }).inputValue(), L.specialists.templates.reviewer.name);
+  assert.equal(
+    await dialog.getByLabel(L.agentForm.name, { exact: true }).inputValue(),
+    L.specialists.templates.reviewer.name,
+  );
   assert.equal(await dialog.getByLabel(L.agentForm.handle, { exact: true }).inputValue(), 'inceleme');
-  assert.equal(await dialog.getByLabel(L.specialists.role, { exact: true }).inputValue(), L.specialists.templates.reviewer.role);
+  assert.equal(
+    await dialog.getByLabel(L.specialists.role, { exact: true }).inputValue(),
+    L.specialists.templates.reviewer.role,
+  );
   await dialog.getByRole('button', { name: L.agentForm.pick, exact: true }).click();
   await dialog.getByText(project).waitFor();
   await shot(page, 'form-who');
