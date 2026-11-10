@@ -130,7 +130,8 @@
       "ideas": "Fikir yok.",
       "references": "Referans yok.",
       "commands": "Kayıtlı komut yok.",
-      "memory": "Bellek boş."
+      "memory": "Bellek boş.",
+      "home": "Genel bakış"
     },
     "composer": "Mesaj · #{{channel}}",
     "voice": "Bas-konuş",
@@ -155,7 +156,8 @@
     "projects": "Projeler",
     "project": "Proje",
     "specialists": "Uzmanlar",
-    "noSpecialists": "Uzman yok. Tek bir işe özelleşmiş agent eklenir."
+    "noSpecialists": "Uzman yok. Tek bir işe özelleşmiş agent eklenir.",
+    "home": "Genel bakış"
   },
   "settings": {
     "title": "Ayarlar",
@@ -272,7 +274,11 @@
     "edited": "düzenlendi",
     "agents": "Agentlar",
     "today": "Bugün",
-    "yesterday": "Dün"
+    "yesterday": "Dün",
+    "unread_one": "{{count}} okunmamış mesaj",
+    "unread_other": "{{count}} okunmamış mesaj",
+    "unreadMention_one": "{{count}} okunmamış mesaj, bahsetme var",
+    "unreadMention_other": "{{count}} okunmamış mesaj, bahsetme var"
   },
   "job": {
     "state": {
@@ -1112,6 +1118,62 @@
     "reach": {
       "ok": "Davet eden bilgisayardaki uygulama yanıt veriyor.",
       "off": "Davet eden bilgisayardaki uygulamaya ulaşılamadı. Uygulamanın açık olması gerekir."
+    }
+  },
+  "overview": {
+    "today": "Bugün",
+    "week": "Son 7 gün",
+    "jobs_one": "{{count}} iş",
+    "jobs_other": "{{count}} iş",
+    "stat": {
+      "jobs": "İş",
+      "failed_one": "{{count}} başarısız",
+      "failed_other": "{{count}} başarısız",
+      "tokens": "Token",
+      "cached": "{{count}} önbellek",
+      "cost": "Maliyet",
+      "messages": "Mesaj"
+    },
+    "now": "Şu an çalışanlar",
+    "nowNone": "Çalışan iş yok.",
+    "recent": "Son işler",
+    "recentNone": "Biten iş yok.",
+    "people": "Kişiler ve agentları",
+    "noAgents": "Agent eklememiş.",
+    "projectsNone": "Proje yok. Bir git deposu proje olarak bağlanır.",
+    "setup": {
+      "title": "Kurulum",
+      "hide": "Kurulum adımlarını gizle",
+      "agent": {
+        "title": "CLI agent eklenir",
+        "hint": "Bu bilgisayarda kurulu Claude Code ya da Codex, bir klasörde çalışan agent olur.",
+        "act": "Agent ekle"
+      },
+      "specialist": {
+        "title": "Uzman eklenir",
+        "hint": "Tek bir işe özelleşmiş agent: inceleme, test, araştırma, 3D model.",
+        "act": "Uzman ekle"
+      },
+      "project": {
+        "title": "Proje bağlanır",
+        "hint": "Bir git deposu: durum sayfası, alanlar, çek ve gönder.",
+        "act": "Proje ekle"
+      },
+      "advisor": {
+        "title": "Danışman eklenir",
+        "hint": "API anahtarıyla çalışan, sohbeti ve projeyi okuyup görüş bildiren bot.",
+        "act": "Danışman ekle"
+      },
+      "team": {
+        "title": "Ekip alanı kurulur",
+        "hint": "Başkaları davet koduyla katılır; bağlantı Tailscale üzerinden gider.",
+        "act": "Alan kur"
+      },
+      "phone": {
+        "title": "Telefon eşleştirilir",
+        "hint": "Aynı ekran telefonda açılır, onay bekleyen işler bildirim olarak gelir.",
+        "act": "Ayarlar"
+      }
     }
   }
 }

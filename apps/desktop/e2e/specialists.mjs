@@ -3,17 +3,18 @@
 // settings, and watch a slow job against its budget.
 // Usage: node e2e/specialists.mjs   (after electron-vite build; E2E_EXE=release/win-unpacked/Serai.exe for packaged)
 import assert from 'node:assert/strict';
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { delimiter, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { _electron as electron } from 'playwright-core';
+import { locale } from './locale.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appDir = join(here, '..');
 const electronPath = createRequire(import.meta.url)('electron');
-const L = JSON.parse(readFileSync(join(appDir, 'src/renderer/src/locales/tr.json'), 'utf8'));
+const L = locale('tr');
 const shots = join(appDir, 'test-results');
 mkdirSync(shots, { recursive: true });
 
@@ -141,8 +142,28 @@ try {
   await page.locator('.job__budget').waitFor({ timeout: 20_000 });
   await page.getByText('/ 15:00').waitFor();
   await shot(page, 'budget');
-  await page.getByRole('button', { name: L.job.stop }).click();
-  await page.getByText(L.job.state.stopped).first().waitFor();
+
+  // The overview while it runs: the job under "running now", the setup steps with the specialist's one done,
+  // today's numbers, the earlier job among the latest ones.
+  const side = page.getByRole('complementary', { name: L.shell.channels });
+  await side.getByRole('button', { name: L.shell.home }).click();
+  const home = page.locator('.home');
+  await home.locator('.run').getByText(L.specialists.templates.reviewer.name).waitFor();
+  await home.getByText(L.overview.setup.specialist.title).waitFor();
+  assert.equal(await home.locator('.setup__step.is-done').count(), 1);
+  await home.locator('.past').getByText('@inceleme son değişikliği incele').waitFor();
+  await home.getByText(L.overview.week).waitFor();
+  await shot(page, 'overview');
+
+  // Its answer arrives while another page is open: the channel shows one unread message until it is opened.
+  const genel = side.getByRole('button', { name: /^genel/ });
+  await genel.locator('.nav__unread').waitFor({ timeout: 20_000 });
+  assert.equal((await genel.locator('.nav__unread').innerText()).trim(), '1');
+  await home.getByText(L.overview.nowNone).waitFor();
+  await shot(page, 'overview-idle');
+  await genel.click();
+  await composer.waitFor();
+  assert.equal(await side.locator('.nav__unread').count(), 0);
 
   assert.deepEqual(errors, []);
   console.log('specialists e2e ok');

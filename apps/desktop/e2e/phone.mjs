@@ -3,17 +3,18 @@
 // desktop shows. A second "phone" without pairing sees how to pair; revoking cuts the first one off.
 // Usage: node e2e/phone.mjs   (after electron-vite build; E2E_EXE=release/win-unpacked/Serai.exe for packaged)
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { _electron as electron } from 'playwright-core';
+import { locale } from './locale.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appDir = join(here, '..');
 const electronPath = createRequire(import.meta.url)('electron');
-const L = JSON.parse(readFileSync(join(appDir, 'src/renderer/src/locales/tr.json'), 'utf8'));
+const L = locale('tr');
 const shots = join(appDir, 'test-results');
 mkdirSync(shots, { recursive: true });
 const home = mkdtempSync(join(tmpdir(), 'lonca-e2e-phone-'));

@@ -309,6 +309,11 @@ export interface WorkspaceState {
   joins?: JoinRequest[];
   /** Lessons of this computer's specialists that wait for their owner. */
   lessons?: LessonSuggestion[];
+  /**
+   * Per channel: messages that arrived since this person last had it open, and whether one of them mentions
+   * them (`@name`). Kept on this computer; channels with nothing new are left out.
+   */
+  unread?: Record<string, { count: number; mention?: boolean }>;
   /** This app's address for other members, once it listens. */
   address?: string;
 }
@@ -549,6 +554,15 @@ export interface GitState {
 export interface ProjectView extends Project {
   status: ProjectStatus;
   folder?: string;
+}
+
+/** The workspace at a glance (the Overview page): today's numbers, the last days, the latest finished jobs. */
+export interface Overview {
+  today: { messages: number; jobs: number; failed: number; usage: Usage; cost: number };
+  /** The last seven days, oldest first; `day` is the local date (`2026-11-10`). */
+  days: { day: string; jobs: number; tokens: number }[];
+  /** Jobs that ended, newest first, with the request's first line and the channel's name. */
+  recent: { job: Job; request: string; channel: string }[];
 }
 
 export const CARD_STATUSES = ['todo', 'doing', 'review', 'done'] as const;

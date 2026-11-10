@@ -130,7 +130,8 @@
       "ideas": "No ideas.",
       "references": "No references.",
       "commands": "No saved commands.",
-      "memory": "Memory is empty."
+      "memory": "Memory is empty.",
+      "home": "Overview"
     },
     "composer": "Message · #{{channel}}",
     "voice": "Push to talk",
@@ -155,7 +156,8 @@
     "projects": "Projects",
     "project": "Project",
     "specialists": "Specialists",
-    "noSpecialists": "No specialists. An agent for one kind of work is added here."
+    "noSpecialists": "No specialists. An agent for one kind of work is added here.",
+    "home": "Overview"
   },
   "settings": {
     "title": "Settings",
@@ -272,7 +274,11 @@
     "edited": "edited",
     "agents": "Agents",
     "today": "Today",
-    "yesterday": "Yesterday"
+    "yesterday": "Yesterday",
+    "unread_one": "{{count}} unread message",
+    "unread_other": "{{count}} unread messages",
+    "unreadMention_one": "{{count}} unread message, with a mention",
+    "unreadMention_other": "{{count}} unread messages, with a mention"
   },
   "job": {
     "state": {
@@ -1112,6 +1118,62 @@
     "reach": {
       "ok": "The app on the inviter's computer answers.",
       "off": "The app on the inviter's computer could not be reached. It has to be running."
+    }
+  },
+  "overview": {
+    "today": "Today",
+    "week": "Last 7 days",
+    "jobs_one": "{{count}} job",
+    "jobs_other": "{{count}} jobs",
+    "stat": {
+      "jobs": "Jobs",
+      "failed_one": "{{count}} failed",
+      "failed_other": "{{count}} failed",
+      "tokens": "Tokens",
+      "cached": "{{count}} cached",
+      "cost": "Cost",
+      "messages": "Messages"
+    },
+    "now": "Running now",
+    "nowNone": "No job is running.",
+    "recent": "Latest jobs",
+    "recentNone": "No finished jobs.",
+    "people": "People and their agents",
+    "noAgents": "Has added no agents.",
+    "projectsNone": "No projects. A git repository is added as a project.",
+    "setup": {
+      "title": "Setup",
+      "hide": "Hide the setup steps",
+      "agent": {
+        "title": "A CLI agent is added",
+        "hint": "Claude Code or Codex installed on this computer becomes an agent working in a folder.",
+        "act": "Add an agent"
+      },
+      "specialist": {
+        "title": "A specialist is added",
+        "hint": "An agent for one kind of work: review, tests, research, 3D models.",
+        "act": "Add a specialist"
+      },
+      "project": {
+        "title": "A project is added",
+        "hint": "A git repository: a status page, areas, pull and push.",
+        "act": "Add a project"
+      },
+      "advisor": {
+        "title": "An advisor is added",
+        "hint": "A bot on an API key that reads the conversation and the project and gives its view.",
+        "act": "Add an advisor"
+      },
+      "team": {
+        "title": "A team workspace is created",
+        "hint": "Others join with an invite code; the connection goes over Tailscale.",
+        "act": "Create a workspace"
+      },
+      "phone": {
+        "title": "A phone is paired",
+        "hint": "The same screen opens on the phone, and jobs waiting for approval arrive as notifications.",
+        "act": "Settings"
+      }
     }
   }
 }

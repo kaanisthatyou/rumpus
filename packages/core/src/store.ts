@@ -766,6 +766,36 @@ export class WorkspaceStore {
       .run(job.id, job.channelId, job.requestId, JSON.stringify(job), job.started);
   }
 
+  /** Jobs started since a moment, newest first (the Overview page). */
+  jobsSince(since: number, limit = 3000): Job[] {
+    return (
+      this.db
+        .prepare('SELECT data FROM jobs WHERE started >= ? ORDER BY started DESC LIMIT ?')
+        .all(since, limit) as Row[]
+    ).map((r) => json<Job>(r.data));
+  }
+
+  messagesSince(since: number): number {
+    const r = this.db
+      .prepare('SELECT COUNT(*) AS n FROM messages WHERE created >= ? AND deleted = 0')
+      .get(since) as Row;
+    return Number(r.n);
+  }
+
+  /** Messages in a channel after a moment, and whether one of them mentions `@handle`. */
+  unreadIn(channelId: string, after: number, handle?: string): { count: number; mention: boolean } {
+    const r = this.db
+      .prepare('SELECT COUNT(*) AS n FROM messages WHERE channel_id = ? AND deleted = 0 AND created > ?')
+      .get(channelId, after) as Row;
+    const count = Number(r.n);
+    if (!count || !handle) return { count, mention: false };
+    // The handle holds only letters, digits and dashes, so it is safe inside the pattern.
+    const hit = this.db
+      .prepare('SELECT 1 FROM messages WHERE channel_id = ? AND deleted = 0 AND created > ? AND text LIKE ? LIMIT 1')
+      .get(channelId, after, `%@${handle}%`);
+    return { count, mention: Boolean(hit) };
+  }
+
   job(id: string): Job | undefined {
     const r = this.db.prepare('SELECT data FROM jobs WHERE id = ?').get(id) as Row | undefined;
     return r ? json<Job>(r.data) : undefined;

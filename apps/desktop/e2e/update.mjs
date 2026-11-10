@@ -12,12 +12,13 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { _electron as electron } from 'playwright-core';
+import { locale } from './locale.mjs';
 
 const appDir = join(dirname(fileURLToPath(import.meta.url)), '..');
 const feedDir = join(appDir, 'release-next');
 const next = /version: (\S+)/.exec(readFileSync(join(feedDir, 'latest.yml'), 'utf8'))?.[1];
 assert.ok(next, 'release-next/latest.yml has no version');
-const L = JSON.parse(readFileSync(join(appDir, 'src/renderer/src/locales/en.json'), 'utf8'));
+const L = locale('en');
 
 const requests = [];
 const server = createServer((req, res) => {

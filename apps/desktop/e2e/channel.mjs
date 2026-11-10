@@ -11,13 +11,14 @@ import { tmpdir } from 'node:os';
 import { delimiter, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { _electron as electron } from 'playwright-core';
+import { locale } from './locale.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fakeMcp = join(here, '../../../packages/core/test/fixtures/fake-mcp.mjs');
 const PNG_1X1 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 const appDir = join(here, '..');
 const electronPath = createRequire(import.meta.url)('electron');
-const L = JSON.parse(readFileSync(join(appDir, 'src/renderer/src/locales/tr.json'), 'utf8'));
+const L = locale('tr');
 const shots = join(appDir, 'test-results');
 mkdirSync(shots, { recursive: true });
 

@@ -11,6 +11,7 @@ import { ChannelView } from '../channel/ChannelView';
 import { LiveView } from '../channel/LiveView';
 import { GoalsView } from '../goals/GoalsView';
 import { MemoryView } from '../memory/MemoryView';
+import { OverviewView } from '../overview/OverviewView';
 import { ProjectPage } from '../projects/ProjectView';
 import { RecordsView } from '../records/RecordsView';
 import { useApp, type View } from '../store';
@@ -27,6 +28,7 @@ const RECORDS: { view: View; icon: IconName }[] = [
   { view: 'memory', icon: 'layers' },
 ];
 const ICON_OF: Record<View, IconName> = {
+  home: 'home',
   channel: 'hash',
   tasks: 'tasks',
   goals: 'target',
@@ -43,17 +45,21 @@ function NavButton({
   label,
   onClick,
   badge,
+  unread,
 }: {
   on: boolean;
   icon: IconName;
   label: string;
   onClick: () => void;
   badge?: boolean;
+  /** Messages that arrived since the channel was last open; `mention` when one of them names this person. */
+  unread?: { count: number; mention?: boolean };
 }) {
+  const { t } = useTranslation();
   return (
     <button
       type="button"
-      className={`nav ${on ? 'is-on' : ''}`}
+      className={`nav ${on ? 'is-on' : ''} ${unread ? 'is-unread' : ''}`}
       aria-current={on ? 'page' : undefined}
       onClick={onClick}
     >
@@ -67,6 +73,15 @@ function NavButton({
       <Icon name={icon} size={14} />
       <span className="grow">{label}</span>
       {badge && <span className="nav__live" aria-hidden="true" />}
+      {unread && (
+        <span
+          className={`nav__unread ${unread.mention ? 'is-mention' : ''}`}
+          title={t(unread.mention ? 'channel.unreadMention' : 'channel.unread', { count: unread.count })}
+        >
+          {unread.mention ? '@' : ''}
+          {unread.count > 99 ? '99+' : unread.count}
+        </span>
+      )}
     </button>
   );
 }
@@ -138,6 +153,7 @@ function Sidebar({ onSettings }: { onSettings: () => void }) {
   const openProjectDialog = useApp((s) => s.openProjectDialog);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
+  const unread = useApp((s) => s.unread);
   const channels = workspace?.channels.filter((c) => c.kind === 'channel') ?? [];
   const agentChannels = workspace?.channels.filter((c) => c.kind === 'agent') ?? [];
   const waiting = Object.values(jobs)
@@ -166,6 +182,9 @@ function Sidebar({ onSettings }: { onSettings: () => void }) {
         <Kbd>Ctrl K</Kbd>
       </button>
 
+      <div className="grp">
+        <NavButton on={view === 'home'} icon="home" label={t('shell.home')} onClick={() => setView('home')} />
+      </div>
       <div className="grp">
         <h2>
           <span className="grow">{t('shell.channels')}</span>
@@ -201,6 +220,7 @@ function Sidebar({ onSettings }: { onSettings: () => void }) {
             icon="hash"
             label={c.name}
             badge={running.has(c.id)}
+            {...(unread[c.id] ? { unread: unread[c.id] } : {})}
             onClick={() => void openChannel(c.id)}
           />
         ))}
@@ -219,6 +239,7 @@ function Sidebar({ onSettings }: { onSettings: () => void }) {
               }
               label={`@${c.name}`}
               badge={running.has(c.id)}
+              {...(unread[c.id] ? { unread: unread[c.id] } : {})}
               onClick={() => void openChannel(c.id)}
             />
           ))}
@@ -710,6 +731,8 @@ export function Shell({ onSettings }: { onSettings: () => void }) {
       <Sidebar onSettings={onSettings} />
       {view === 'channel' && channel ? (
         <ChannelView key={channel.id} channel={channel} />
+      ) : view === 'home' ? (
+        <OverviewView onSettings={onSettings} />
       ) : view === 'tasks' ? (
         <Board />
       ) : view === 'goals' ? (

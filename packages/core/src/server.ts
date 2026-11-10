@@ -27,6 +27,7 @@ import {
   type DeviceStatus,
   type EventName,
   type Frame,
+  handleOf,
   IDEA_STATUSES,
   type InviteCheck,
   inviteCode,
@@ -39,6 +40,7 @@ import {
   type LessonSuggestion,
   type Message,
   type MethodName,
+  type Overview,
   type PhoneState,
   type Project,
   ProjectInputSchema,
@@ -386,6 +388,13 @@ export class Core {
       'channels.create': async (p) => this.createChannel(p?.name),
       'channels.rename': async (p) => this.renameChannel(p?.id, p?.name),
       'channels.delete': async (p) => this.deleteChannel(p?.id),
+      'channels.read': async (p) => {
+        const { store } = this.workspace();
+        if (typeof p?.channelId !== 'string' || !store.channel(p.channelId)) throw new CoreError('not_found');
+        store.setMeta(`read.${p.channelId}`, String(Date.now()));
+        return { ok: true as const };
+      },
+      'overview.get': async () => this.overview(),
       'channels.typing': async (p) => {
         const ws = this.workspace();
         const channel = typeof p?.channelId === 'string' ? ws.store.channel(p.channelId) : undefined;
@@ -1054,6 +1063,8 @@ export class Core {
       Date.now(),
       (job) => kind !== 'team' || this.agentOwner(store, job.agentId) === this.deviceId,
     );
+    // What was already here when this computer first opened the workspace counts as read.
+    if (!store.meta('opened')) store.setMeta('opened', String(Date.now()));
     if (!store.meta('created')) {
       store.setMeta('created', String(Date.now()));
       store.setMeta('name', kind === 'personal' ? 'personal' : (summary?.name ?? id));
@@ -1792,12 +1803,76 @@ export class Core {
       spend: advisors.spendToday(),
       active: jobs.active(),
       lessons: this.pendingLessons(store),
+      unread: this.unread(store),
       ...this.teamState(this.workspace()),
     };
   }
 
   private changed(): void {
     this.emit('workspace.changed', this.state());
+  }
+
+  /** Per channel, what arrived since this person last had it open (or since they last wrote there). */
+  private unread(store: WorkspaceStore): Record<string, { count: number; mention?: boolean }> {
+    const opened = Number(store.meta('opened') ?? 0);
+    const handle = handleOf(this.me().name);
+    const out: Record<string, { count: number; mention?: boolean }> = {};
+    for (const c of store.channels()) {
+      const after = Number(store.meta(`read.${c.id}`) ?? opened);
+      const { count, mention } = store.unreadIn(c.id, after, handle || undefined);
+      if (count > 0) out[c.id] = { count, ...(mention ? { mention: true } : {}) };
+    }
+    return out;
+  }
+
+  /** The workspace at a glance: today's numbers, the last seven days, the latest finished jobs. */
+  private overview(): Overview {
+    const { store } = this.workspace();
+    const midnight = new Date();
+    midnight.setHours(0, 0, 0, 0);
+    const today = midnight.getTime();
+    const dayOf = (ms: number) => {
+      const d = new Date(ms);
+      const two = (n: number) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}`;
+    };
+    const jobs = store.jobsSince(today - 6 * DAY);
+    const over = (j: Job) => j.state !== 'running' && j.state !== 'attention';
+    const todays = jobs.filter((j) => j.started >= today);
+    const usage = { in: 0, cached: 0, out: 0 };
+    let cost = 0;
+    for (const j of todays) {
+      usage.in += j.usage.in;
+      usage.cached += j.usage.cached;
+      usage.out += j.usage.out;
+      cost += j.cost ?? 0;
+    }
+    const days = Array.from({ length: 7 }, (_, i) => ({ day: dayOf(today - (6 - i) * DAY), jobs: 0, tokens: 0 }));
+    for (const j of jobs) {
+      const slot = days.find((d) => d.day === dayOf(j.started));
+      if (!slot) continue;
+      slot.jobs += 1;
+      slot.tokens += j.usage.in + j.usage.out;
+    }
+    const firstLine = (t: string | undefined) => (t ?? '').trim().split('\n')[0]?.slice(0, 160) ?? '';
+    return {
+      today: {
+        messages: store.messagesSince(today),
+        jobs: todays.length,
+        failed: todays.filter((j) => j.state === 'failed').length,
+        usage,
+        cost,
+      },
+      days,
+      recent: jobs
+        .filter(over)
+        .slice(0, 12)
+        .map((job) => ({
+          job: { ...job, steps: job.steps.slice(-2) },
+          request: firstLine(store.message(job.requestId)?.text),
+          channel: store.channel(job.channelId)?.name ?? '',
+        })),
+    };
   }
 
   private createChannel(name: unknown): Channel {
@@ -1852,6 +1927,8 @@ export class Core {
       ...(refIds.length ? { refs: refIds } : {}),
     };
     store.commit({ type: 'message.posted', data: message });
+    // Writing in a channel is having read it.
+    store.setMeta(`read.${channel.id}`, String(message.created));
     this.emit('message.added', message);
     void jobs.onMessage(message, channel);
     this.workspace().advisors.onMessage(message, channel);

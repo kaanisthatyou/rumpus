@@ -18,6 +18,7 @@ import type {
   MemorySection,
   MemoryState,
   Message,
+  Overview,
   ProjectInput,
   ProjectStatusInput,
   ProjectView,
@@ -34,13 +35,16 @@ import type {
   WorkspaceState,
   WorkspaceSummary,
 } from '@lonca/protocol';
-import { ERROR_CODES } from '@lonca/protocol';
+import { ERROR_CODES, handleOf } from '@lonca/protocol';
 import { create } from 'zustand';
 import type { AppInfo, UpdateState } from '../../shared/bridge';
 import i18n from './i18n';
 import { core, RpcError } from './rpc';
 
-export type View = 'channel' | 'tasks' | 'goals' | 'ideas' | 'references' | 'commands' | 'memory' | 'project';
+export type View = 'home' | 'channel' | 'tasks' | 'goals' | 'ideas' | 'references' | 'commands' | 'memory' | 'project';
+
+type Unread = Record<string, { count: number; mention?: boolean }>;
+const NO_UNREAD: Unread = {};
 
 interface AppState {
   settings?: Settings;
@@ -60,6 +64,10 @@ interface AppState {
   view: View;
   channelId?: string;
   messages: Record<string, Message[]>;
+  /** Per channel: what arrived since it was last open, and whether it mentions this person. */
+  unread: Unread;
+  /** The Overview page's numbers, loaded when it opens. */
+  overview?: Overview;
   jobs: Record<string, Job>;
   /** Per CLI (`claude-code`) and per extra account (`claude-code:<id>`). */
   quota: Record<string, Quota>;
@@ -242,6 +250,7 @@ export const useApp = create<AppState>((set, get) => {
     loginPending: false,
     view: 'channel',
     messages: {},
+    unread: NO_UNREAD,
     jobs: {},
     quota: {},
     accounts: [],
@@ -294,11 +303,34 @@ export const useApp = create<AppState>((set, get) => {
           // A message from someone ends their typing line.
           const typing = { ...(s.peopleTyping[m.channelId] ?? {}) };
           if (m.author.kind === 'person') delete typing[m.author.id];
+          // In a channel that is not on screen it counts as unread; a mention of this person is marked.
+          const me = s.workspace?.me;
+          const mine = m.author.kind === 'person' && m.author.id === me?.id;
+          const seen = s.view === 'channel' && s.channelId === m.channelId;
+          const handle = handleOf(me?.name ?? '');
+          const before = s.unread[m.channelId];
+          const unread =
+            mine || seen
+              ? s.unread
+              : {
+                  ...s.unread,
+                  [m.channelId]: {
+                    count: (before?.count ?? 0) + 1,
+                    ...(before?.mention || (handle && m.text.toLowerCase().includes(`@${handle}`))
+                      ? { mention: true }
+                      : {}),
+                  },
+                };
           return {
             messages: { ...s.messages, [m.channelId]: upsert(s.messages[m.channelId] ?? [], m) },
             peopleTyping: { ...s.peopleTyping, [m.channelId]: typing },
+            unread,
           };
         });
+        // What arrives in the channel on screen is read as it comes.
+        if (get().view === 'channel' && get().channelId === m.channelId && m.author.kind !== 'person') {
+          void core.call('channels.read', { channelId: m.channelId }).catch(() => {});
+        }
         // Another member writes while Serai is in the background: an OS notification.
         const ws = get().workspace;
         if (ws?.kind === 'team' && m.author.kind === 'person' && m.author.id !== ws.me.id && !document.hasFocus()) {
@@ -511,7 +543,17 @@ export const useApp = create<AppState>((set, get) => {
       const goals = (await attempt(() => core.call('goals.list'))) ?? [];
       const memory = await attempt(() => core.call('memory.get'));
       const projects = (await attempt(() => core.call('projects.list'))) ?? [];
-      set({ workspace, jobs, quota, cards, records, goals, projects, ...(memory ? { memory } : {}) });
+      set({
+        workspace,
+        jobs,
+        quota,
+        cards,
+        records,
+        goals,
+        projects,
+        unread: workspace.unread ?? NO_UNREAD,
+        ...(memory ? { memory } : {}),
+      });
       const current = get().channelId ?? lastChannel.get(workspace.id);
       const target = workspace.channels.find((c) => c.id === current) ?? workspace.channels[0];
       if (target) await get().openChannel(target.id);
@@ -522,7 +564,11 @@ export const useApp = create<AppState>((set, get) => {
     },
 
     async openChannel(id) {
-      set({ channelId: id, view: 'channel', panel: undefined });
+      set((s) => {
+        const { [id]: _read, ...unread } = s.unread;
+        return { channelId: id, view: 'channel', panel: undefined, unread };
+      });
+      void core.call('channels.read', { channelId: id }).catch(() => {});
       lastChannel.set(id, get().workspace?.id);
       const page = await attempt(() => core.call('messages.list', { channelId: id, limit: 150 }));
       if (!page) return;

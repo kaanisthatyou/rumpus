@@ -1,4 +1,4 @@
-import type { Advisor, Agent, Channel, Job, Message } from '@lonca/protocol';
+import { type Advisor, type Agent, type Channel, handleOf, type Job, type Message } from '@lonca/protocol';
 import { Avatar, Button, Chip, Icon, IconButton, Kbd } from '@lonca/ui';
 import { AnimatePresence, motion } from 'motion/react';
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -67,6 +67,7 @@ function ResultBlock({ result }: { result: Record<string, unknown> }) {
 function MessageRow({ message, agents, jobs }: { message: Message; agents: Agent[]; jobs: Job[] }) {
   const { t } = useTranslation();
   const me = useApp((s) => s.workspace?.me.id);
+  const myHandle = useApp((s) => handleOf(s.workspace?.me.name ?? ''));
   const editMessage = useApp((s) => s.editMessage);
   const deleteMessage = useApp((s) => s.deleteMessage);
   const saveRecord = useApp((s) => s.saveRecord);
@@ -85,6 +86,7 @@ function MessageRow({ message, agents, jobs }: { message: Message; agents: Agent
   const [draft, setDraft] = useState(message.text);
   const a = message.author;
   const own = a.kind === 'person' && a.id === me;
+  const mentioned = !own && Boolean(myHandle) && message.text.toLowerCase().includes(`@${myHandle}`);
   // An advisor's suggested task (`/todo …`) is already a board card: shown as a line of its own.
   const { body, todos } = useMemo(() => {
     // The agent's end-of-goal mark is for Serai, not for people.
@@ -102,7 +104,7 @@ function MessageRow({ message, agents, jobs }: { message: Message; agents: Agent
 
   return (
     <motion.article
-      className={`msg msg--${a.kind}`}
+      className={`msg msg--${a.kind} ${mentioned ? 'is-mention' : ''}`}
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0, transition: { type: 'spring', stiffness: 420, damping: 32 } }}
     >
@@ -253,7 +255,7 @@ interface Suggestion {
   insert: string;
   label: string;
   detail: string;
-  icon: 'terminal' | 'chevronRight' | 'chat' | 'target';
+  icon: 'terminal' | 'chevronRight' | 'chat' | 'target' | 'users';
 }
 
 function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
@@ -273,6 +275,7 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
   const inject = useApp((s) => s.inject);
   const [picking, setPicking] = useState(false);
   const team = useApp((s) => s.workspace?.kind === 'team');
+  const members = useApp((s) => s.workspace?.members);
   const typedAt = useRef(0);
   const me = useApp((s) => s.workspace?.me);
   const tiles = records.filter((r) => r.kind === 'command' && r.pinned);
@@ -329,6 +332,10 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
           detail: a.name,
           icon: 'chat' as const,
         })),
+        // Other members: a mention marks the message for them and shows on their channel list.
+        ...(channel.kind === 'channel' ? (members ?? []) : [])
+          .filter((m) => !m.me && handleOf(m.name))
+          .map((m) => ({ key: m.device, handle: handleOf(m.name), detail: m.name, icon: 'users' as const })),
       ]
         .filter((x) => x.handle.startsWith(mention[2] ?? ''))
         .slice(0, 8)

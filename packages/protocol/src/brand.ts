@@ -11,6 +11,21 @@ export const BRAND = {
   former: { name: 'Lonca', slug: 'lonca' },
 } as const;
 
+/**
+ * What people type after `@` for a name: lowercase ASCII letters, digits and dashes ("Doğrucu Davut" →
+ * `dogrucu-davut`). Agents' and advisors' handles are made with it, and a member is mentioned by it.
+ */
+export function handleOf(name: string): string {
+  return name
+    .toLocaleLowerCase('tr')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/ı/g, 'i')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 32);
+}
+
 /** The MCP server name agents see the workspace's tools under (`mcp__serai__add_card`). */
 export const MCP_NAME = BRAND.slug;
 

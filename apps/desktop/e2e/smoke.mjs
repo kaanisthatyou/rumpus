@@ -9,12 +9,13 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { _electron as electron } from 'playwright-core';
+import { locale } from './locale.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appDir = join(here, '..');
 const electronPath = createRequire(import.meta.url)('electron');
 const lang = process.env.E2E_LANG === 'en' ? 'en' : 'tr';
-const L = JSON.parse(readFileSync(join(appDir, 'src/renderer/src/locales', `${lang}.json`), 'utf8'));
+const L = locale(lang);
 const home = mkdtempSync(join(tmpdir(), 'lonca-e2e-'));
 const shots = join(appDir, 'test-results');
 mkdirSync(shots, { recursive: true });

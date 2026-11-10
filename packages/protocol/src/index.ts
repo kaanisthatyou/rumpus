@@ -21,6 +21,7 @@ import type {
   MemorySection,
   MemoryState,
   Message,
+  Overview,
   ProjectInput,
   ProjectStatusInput,
   ProjectView,
@@ -274,6 +275,9 @@ export interface CoreMethods {
   'channels.delete': { params: { id: string }; result: { ok: true } };
   /** A person is typing in a channel (team workspaces tell the others; nothing is stored). */
   'channels.typing': { params: { channelId: string }; result: { ok: true } };
+  /** The person has the channel open: what is in it now counts as read. */
+  'channels.read': { params: { channelId: string }; result: { ok: true } };
+  'overview.get': { params: undefined; result: Overview };
   'messages.list': {
     params: { channelId: string; before?: number; limit?: number };
     result: { messages: Message[]; jobs: Job[] };

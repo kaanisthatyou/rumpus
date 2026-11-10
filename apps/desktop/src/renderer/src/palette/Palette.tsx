@@ -19,6 +19,7 @@ interface Item {
 }
 
 const VIEWS: { view: View; icon: IconName }[] = [
+  { view: 'home', icon: 'home' },
   { view: 'tasks', icon: 'tasks' },
   { view: 'goals', icon: 'target' },
   { view: 'ideas', icon: 'idea' },

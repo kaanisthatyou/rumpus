@@ -7,6 +7,7 @@ import './goals/goals.css';
 import './memory/memory.css';
 import './projects/projects.css';
 import './agents/specialists.css';
+import './overview/overview.css';
 import './i18n';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
