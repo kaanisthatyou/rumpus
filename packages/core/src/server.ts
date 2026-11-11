@@ -790,6 +790,7 @@ export class Core {
       }
       this.phone ??= new PhoneServer(join(this.opts.appDir, 'phones.json'), this, this.opts.web?.dir, {
         ...(this.opts.web?.allowHttpPush ? { allowHttpPush: true } : {}),
+        onPaired: () => this.changedPhones(),
       });
       let local: number;
       try {

@@ -64,8 +64,8 @@ export class PhoneServer {
     private readonly file: string,
     private readonly host: PhoneHost,
     private readonly webDir: string | undefined,
-    /** Tests point subscriptions at a plain-http stand-in. */
-    private readonly opts: { allowHttpPush?: boolean } = {},
+    /** `allowHttpPush`: tests point subscriptions at a plain-http stand-in. `onPaired`: a phone was added. */
+    private readonly opts: { allowHttpPush?: boolean; onPaired?: () => void } = {},
   ) {}
 
   private vapid(): Vapid {
@@ -207,6 +207,8 @@ export class PhoneServer {
           hash: sha256(token),
         };
         this.save([...this.load(), phone]);
+        // The desktop's list of phones shows it at once.
+        this.opts.onPaired?.();
         const secure = req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : '';
         return this.json(
           res,

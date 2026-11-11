@@ -52,12 +52,12 @@ function setup() {
     }
     throw new Error(`no answer: ${method}`);
   };
-  return { core, call };
+  return { core, call, sent };
 }
 
 describe('phone companion', () => {
   it('pairs a phone with a one-time code, answers its requests and streams events, and cuts it off on revoke', async () => {
-    const { call } = setup();
+    const { call, sent } = setup();
     expect((await call<PhoneState>('phones.state')).on).toBe(false);
     await expect(call('phones.pair')).rejects.toThrow('no_address');
     await call('settings.update', { phone: true });
@@ -86,6 +86,12 @@ describe('phone companion', () => {
     expect(paired.headers.get('set-cookie')).toMatch(/^lonca_phone=[\w-]+; HttpOnly; SameSite=Strict/);
     const { token } = (await paired.json()) as { token: string };
     expect((await pair(code)).status).toBe(403);
+    // The window hears of the new phone without asking.
+    expect(
+      sent.some(
+        (f) => 'event' in f && f.event === 'phones.changed' && (f.data as PhoneState).phones[0]?.name === 'Pixel',
+      ),
+    ).toBe(true);
 
     // Requests with the key (header or cookie); writes need the header that cross-site pages cannot send.
     const ask = (body: unknown, headers: Record<string, string>) =>

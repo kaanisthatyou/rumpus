@@ -940,8 +940,18 @@ The details behind 5.11 and 6.5, decided before building.
   The shell arrives slightly enlarged, which for a moment made the page 2 px wider than the screen: the app's
   body now clips it, so a phone does not lay the page out wider. `e2e/phone.mjs` now makes its window a phone
   for the browser too (a mobile viewport and touch through the debugging protocol) and checks the page's width
-  at once and settled, the manifest and every icon. Not yet: an install on a real phone seen by a person, iOS,
-  and the newer pages (a race, a job's changes) looked at on a phone.
+  at once and settled, the manifest and every icon. **Tried on Kaan's computer the same day** (the first real
+  installation since the renames): `Rumpus-Setup-0.9.0-alpha.0.exe` installed for the user; on its first start
+  the data folder of the former name was moved (`%APPDATA%\Serai` to `Rumpus`, a copy kept beside it as
+  `Serai-yedek-2026-11-11`) and the workspace was there; the phone companion turned on and `tailscale serve`
+  answered at the computer's tailnet name over HTTPS with a certificate that verifies; a browser window made a
+  phone (mobile viewport, touch) paired through that address, was 390 px wide, in a secure context with its
+  service worker, stayed paired after a reload, and Chromium listed no installability errors. The app was
+  driven for this over its debugging port and started again without it afterwards. A phone that pairs now
+  shows in an open Settings → Phone at once (`phones.changed` on pairing; it used to wait for the panel to be
+  opened again). Not yet: an install on a real phone seen by a person (Kaan's phones were off the tailnet that
+  night), iOS, the newer pages (a race, a job's changes) looked at on a phone, and the old Serai installation
+  is still on the computer (its data moved, so it would start empty).
 - 4.24 Races (5.18), 2026-11-11, the third of the three. `Races` (`packages/core/src/races.ts`, kept in
   `<workspace>/races.json` on the computer that started them; `races.start` / `stop` / `pick` / `close`,
   `race.changed`): worktrees under `<data>/worktrees/race-<id>-<n>` on branches `rumpus/race-<id>-<handle>`;
@@ -1012,8 +1022,8 @@ The details behind 5.11 and 6.5, decided before building.
   join dialog's hint); the installer config, `productName`, the page title, the phone's service worker, the web
   app manifest and `e2e/locale.mjs` still hold it as text. The mark stays (a gate; it was drawn as a caravanserai's). Not done:
   the repository's name, and an installed Serai 0.9.0 is another app to Windows (another app id), so it is
-  removed by hand and does not update into Rumpus; the move of the data folder is still untried on a real
-  installation. Checked: `pnpm check`, all seven e2e scripts against the built app, and `Rumpus-Setup-0.9.0-alpha.0.exe`
+  removed by hand and does not update into Rumpus; the move of the data folder was tried on a real
+  installation on 2026-11-11 (4.25) and worked. Checked: `pnpm check`, all seven e2e scripts against the built app, and `Rumpus-Setup-0.9.0-alpha.0.exe`
   built with its unpacked app passing `smoke` and `team` (a `rumpus://` link through a second copy).
 - 4.20 Sign-in for remote connectors (5.9), 2026-11-11: a remote server that answers 401 (and has no
   `Authorization` header of the person's own) shows "sign-in needed" with a Sign in button. `connectors.signIn`
