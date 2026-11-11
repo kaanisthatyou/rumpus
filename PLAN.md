@@ -997,7 +997,20 @@ From 2026-11-11, for the owners:
     - Neighbours found by the searches: Guild.ai (a platform for running agents), Guildless, Guild House and
       AgentsRoom (a desktop app for coding agents) stand next to Guildroom; aide.dev (agentic coding tools),
       Aide.app and AICamp next to the Aide- names. CrewAI is why no Crew- name ends in "ai".
-  - Others in this field already use Conductor, Squad, All Hands, Stagehand, Motley Crew and Cowork.
+  - Third round, 2026-11-11: Kaan asked for a name in Discord's manner (one everyday English word about talk or
+    noise, two syllables, a little mischievous, saying nothing about the product). Every such word tried is
+    registered under .com, .dev, .app, .ai and .io (Confab, Refrain, Hubbub, Rumpus, Cahoots, Parley, Banter,
+    Ruckus, Fracas, Fray, Uproar, Bedlam, Shindig, Chinwag, Palaver, Kerfuffle, Squabble, Dissent, Concord, Accord,
+    Unison, Troupe, Tidings, Mischief, Gaggle, Clamor, Holler, Hail, Rapport, Jamboree), so such a name means a
+    domain with a word added, as Discord began at discordapp.com. Unregistered that day: rumpushq (.com .dev
+    .app), cahootsapp and cahootshq (.com .dev .app), confabhq (.com .dev .app), troupehq (.com .dev .app),
+    bedlamapp (.com .dev .app), refrainhq (.dev .app), hubbubapp (.dev .app); and under .team: rumpus, cahoots,
+    hubbub, fray, ruckus, uproar, bedlam, squabble, troupe; under .chat: refrain, bedlam, squabble. A web search
+    found no chat or agent product called Rumpus, Cahoots or Hubbub; a tool for managers of small teams is called
+    Confab; Chord (the pun on Discord) is a group chat with AI models. Cahoots sounds like Kahoot.
+  - Others in this field already use Conductor, Squad, All Hands, Stagehand, Motley Crew and Cowork. Chat
+    apps for people and agents found by the same searches: Buzz (Block), Chord, Cumora, Shapes, Zenzap, Kollab,
+    Vokal, Persemble, CoChat, Glue, Hilo Team.
   A new name is a change to `brand.ts`, the icon, `electron-builder.yml`, `productName` in
   `apps/desktop/package.json` and `e2e/locale.mjs`; the former names' invite codes and data folders should stay
   accepted.
