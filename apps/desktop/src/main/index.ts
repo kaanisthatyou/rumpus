@@ -11,6 +11,7 @@ import {
   ipcMain,
   MessageChannelMain,
   Notification,
+  nativeImage,
   screen,
   session,
   shell,
@@ -217,9 +218,34 @@ function registerIpc(): void {
     zoom = factor;
     applyZoom();
   });
-  handle('shell:notify', (_e, title, body) => {
+  // The taskbar says what this computer's agents are doing while the window is elsewhere: a moving bar while
+  // jobs run; while jobs wait for approval a held bar, a badge with their number, and a flash when one is added.
+  let waitingBefore = 0;
+  handle('shell:setActivity', (event, activity) => {
+    if (!win || win.isDestroyed() || event.sender !== win.webContents) return;
+    const a = activity as { running?: unknown; waiting?: unknown; badge?: unknown } | undefined;
+    const running = Number.isInteger(a?.running) ? Math.max(0, a?.running as number) : 0;
+    const waiting = Number.isInteger(a?.waiting) ? Math.max(0, a?.waiting as number) : 0;
+    if (waiting > 0) win.setProgressBar(1, { mode: 'paused' });
+    else if (running > 0) win.setProgressBar(2, { mode: 'indeterminate' });
+    else win.setProgressBar(-1);
+    if (process.platform === 'win32') {
+      const badge =
+        waiting > 0 && typeof a?.badge === 'string' && /^data:image\/png;base64,[A-Za-z0-9+/=]{1,60000}$/.test(a.badge)
+          ? nativeImage.createFromDataURL(a.badge)
+          : null;
+      win.setOverlayIcon(badge && !badge.isEmpty() ? badge : null, waiting > 0 ? String(waiting) : '');
+    } else app.setBadgeCount(waiting);
+    if (waiting > waitingBefore && !win.isFocused()) {
+      const w = win;
+      w.flashFrame(true);
+      w.once('focus', () => w.flashFrame(false));
+    }
+    waitingBefore = waiting;
+  });
+  handle('shell:notify', (_e, title, body, silent) => {
     if (typeof title !== 'string' || typeof body !== 'string' || !Notification.isSupported()) return;
-    const n = new Notification({ title: title.slice(0, 120), body: body.slice(0, 300), silent: false });
+    const n = new Notification({ title: title.slice(0, 120), body: body.slice(0, 300), silent: silent === true });
     n.on('click', () => {
       if (!win) return;
       if (win.isMinimized()) win.restore();

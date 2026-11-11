@@ -103,6 +103,17 @@
   border: 1px solid var(--line-2);
   cursor: grab;
 }
+.card {
+  transition:
+    border-color 0.5s,
+    box-shadow 0.5s;
+}
+/* Moved by an agent, a job or another member a moment ago. */
+.card.is-moved {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+  transition-duration: 0.12s;
+}
 .card:active {
   cursor: grabbing;
 }

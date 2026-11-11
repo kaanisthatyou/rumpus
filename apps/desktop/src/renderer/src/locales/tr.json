@@ -229,7 +229,9 @@
     "notificationsHint": "Uygulama arka plandayken onay bekleyen iş, katılma isteği ve başka üyelerin mesajı için bildirim gösterilir.",
     "agentFolder": "Agentların varsayılan klasörü",
     "agentFolderHint": "Klasör seçilmeden eklenen agent burada çalışır. Ayarlanmadıysa masaüstü kullanılır.",
-    "agentFolderDesktop": "Masaüstü"
+    "agentFolderDesktop": "Masaüstü",
+    "soundsLabel": "Uygulama sesleri",
+    "soundsHint": "Bir iş bittiğinde ya da onay beklediğinde, katılma isteğinde ve başka üyelerin mesajında kısa bir ses çalınır."
   },
   "theme": {
     "dark": "Koyu",

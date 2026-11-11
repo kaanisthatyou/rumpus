@@ -232,6 +232,11 @@
 .job--running {
   border-color: color-mix(in srgb, var(--accent) 35%, var(--line-2));
 }
+/* The card whose live view is open. */
+.job.is-watched {
+  border-color: color-mix(in srgb, var(--accent) 60%, var(--line-2));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
+}
 .job__head {
   display: flex;
   align-items: center;

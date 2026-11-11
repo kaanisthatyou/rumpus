@@ -229,7 +229,9 @@
     "notificationsHint": "Shown while the app is in the background: a job waiting for approval, a request to join, another member's message.",
     "agentFolder": "Default folder for agents",
     "agentFolderHint": "An agent added without a folder works here. When this is not set, the desktop is used.",
-    "agentFolderDesktop": "Desktop"
+    "agentFolderDesktop": "Desktop",
+    "soundsLabel": "App sounds",
+    "soundsHint": "A short sound when a job ends or waits for approval, on a request to join, and on another member's message."
   },
   "theme": {
     "dark": "Dark",

@@ -42,6 +42,7 @@ import { create } from 'zustand';
 import type { AppInfo, UpdateState } from '../../shared/bridge';
 import i18n from './i18n';
 import { core, RpcError } from './rpc';
+import { play, type Sound } from './sounds';
 
 export type View =
   | 'home'
@@ -58,7 +59,7 @@ export type View =
 type Unread = Record<string, { count: number; mention?: boolean }>;
 const NO_UNREAD: Unread = {};
 
-interface AppState {
+export interface AppState {
   settings?: Settings;
   clis?: CliInfo[];
   scanning: boolean;
@@ -274,10 +275,15 @@ export const useApp = create<AppState>((set, get) => {
     }
   }
 
-  /** An OS notification, unless they are turned off in Settings. */
+  /** An OS notification, unless they are turned off in Settings; silent when the app plays its own sound. */
   function notify(title: string, body: string): void {
     if (get().settings?.notifications === false) return;
-    void window.lonca.shell.notify(title, body);
+    void window.lonca.shell.notify(title, body, get().settings?.sounds !== false);
+  }
+
+  /** One of the app's sounds, unless they are turned off in Settings. */
+  function sound(which: Sound): void {
+    if (get().settings?.sounds !== false) play(which);
   }
 
   return {
@@ -320,6 +326,7 @@ export const useApp = create<AppState>((set, get) => {
         set({ workspace });
         // Someone asks to join while Rumpus is in the background: an OS notification for the admin.
         const fresh = (workspace.joins ?? []).filter((j) => !(before?.joins ?? []).some((b) => b.id === j.id));
+        if (fresh.length && before?.id === workspace.id) sound('join');
         if (fresh.length && before?.id === workspace.id && !document.hasFocus()) {
           notify(
             i18n.t('invite.notifyTitle'),
@@ -374,6 +381,7 @@ export const useApp = create<AppState>((set, get) => {
         // Another member writes while Rumpus is in the background: an OS notification.
         const ws = get().workspace;
         if (ws?.kind === 'team' && m.author.kind === 'person' && m.author.id !== ws.me.id && !document.hasFocus()) {
+          sound('message');
           const channel = ws.channels.find((c) => c.id === m.channelId);
           notify(`#${channel?.name ?? ''} · ${ws.name}`, `${m.author.name}: ${m.text.slice(0, 200)}`);
         }
@@ -406,6 +414,11 @@ export const useApp = create<AppState>((set, get) => {
       core.on('job.updated', (job) => {
         const before = get().jobs[job.id];
         set((s) => ({ jobs: { ...s.jobs, [job.id]: job } }));
+        // What can be heard: a job that starts waiting on a person, and the end of one that was seen working.
+        const worked = before?.state === 'running' || before?.state === 'attention';
+        if (job.state === 'attention' && before?.state !== 'attention') sound('attention');
+        else if (worked && job.state === 'done') sound('done');
+        else if (worked && job.state === 'failed') sound('failed');
         // A job that starts waiting on a person while Rumpus is in the background: an OS notification.
         if (job.state === 'attention' && before?.state !== 'attention' && !document.hasFocus()) {
           const agent = get().workspace?.agents.find((a) => a.id === job.agentId);

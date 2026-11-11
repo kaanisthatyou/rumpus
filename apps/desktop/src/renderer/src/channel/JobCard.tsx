@@ -62,6 +62,7 @@ export function JobCard({ job, agent }: { job: Job; agent: Agent | undefined }) 
   const running = job.state === 'running' || job.state === 'attention';
   // Another member's agent: the job runs on their computer; only they steer, stop, approve or watch it live.
   const owner = useApp((s) => remoteOwner(agent, s.workspace));
+  const watched = useApp((s) => s.watching === job.id);
   const now = useNow(running);
   const hidden = Math.max(0, job.steps.length - SHOWN);
   const steps = job.steps.slice(-SHOWN);
@@ -70,7 +71,8 @@ export function JobCard({ job, agent }: { job: Job; agent: Agent | undefined }) 
 
   return (
     <motion.div
-      className={`job job--${job.state}`}
+      className={`job job--${job.state} ${watched ? 'is-watched' : ''}`}
+      data-job={job.id}
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       layout="position"

@@ -342,8 +342,9 @@ export class Jobs {
     if (!open) return this.fail(job, 'driver_missing');
     if (!cli?.path) return this.fail(job, 'cli_missing');
     if (!isDir(agent.folder)) return this.fail(job, 'folder_missing');
-    // The folder as it is before the agent's first step; nothing may run in it until this is taken.
-    await this.deps.snapshots?.before(job.id, agent.folder).catch(() => {});
+    // The folder as it is before the agent's first step. It is taken while the CLI starts; the agent gets its
+    // request only once it is there.
+    const taken = this.deps.snapshots?.before(job.id, agent.folder).catch(() => {});
 
     const key = this.key(agent.id, slot);
     let live = this.live.get(key);
@@ -406,6 +407,9 @@ export class Jobs {
     live.lastText = '';
     live.queue = [];
     this.watchBudget(job);
+    await taken;
+    // Stopped while the snapshot was taken: there is nothing to send.
+    if (live.job?.id !== job.id || live.job.state !== 'running') return live.job ?? job;
     if (prompt !== undefined) {
       live.session.send(prompt);
       return job;

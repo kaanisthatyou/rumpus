@@ -1,7 +1,8 @@
 # Rumpus: plan
 
 Status: **Phase 4 under way** (0.9.0-alpha.0, 2026-11-11; since then connectors sign in with OAuth, 4.20, the
-name is Rumpus, 4.21, and a job's changes are listed and can be undone, 4.22). The product is called **Rumpus** since 2026-11-11 (it
+name is Rumpus, 4.21, a job's changes are listed and can be undone, 4.22, and the live view, the board, the
+taskbar and sounds show what happens, 4.23). The product is called **Rumpus** since 2026-11-11 (it
 was Lonca until 2026-11-10 and Serai for a day; the code name `lonca` stays in package names and environment
 variables, see section 2). Built on
 2026-11-10/11: specialists (5.15), routines (5.16), the Overview page and unread counts (5.17), invite links with
@@ -515,6 +516,9 @@ Chosen direction: **Grafit & tek vurgu** (artboard 2 on the canvas; the other tw
 - **Type:** Geist for UI, Geist Mono for code, tokens, timers, counts and job steps (both OFL, bundled, no font
   requests at runtime). Dense sizes (13.5 px body), slight negative tracking.
 - **Shape:** 6-10 px radii, 1 px hairlines instead of shadows, square-ish avatars.
+- **Sound** (2026-11-11): a few short tones for what a person may want to hear without looking (a job ended, a
+  job waits, someone asks to join, another member wrote); one switch turns them off. No voices, no music, nothing
+  on idle screens.
 - **Motion:** short springs (`cubic-bezier(.34,1.56,.64,1)`) for things that arrive or are pressed, a plain
   ease-out (`cubic-bezier(.2,.8,.2,1)`) for things that move; 150-450 ms. Job steps appear in order, a live log
   line types, the running agent has a moving ring, buttons press in.
@@ -913,6 +917,25 @@ The details behind 5.11 and 6.5, decided before building.
   installation: the `rumpus://` handler (registered only by an installed app without `LONCA_HOME`) and the move of
   the former name's data folder.
 
+- 4.23 Effects that show what happens (7), 2026-11-11, the second of the three: each one stands for a change of
+  state, none decorates. **The live view grows out of its job's card** and goes back into it (`LiveView`: the
+  panel is laid over the card with a transform and springs to its place, its contents come once it has its
+  shape; a plain slide when the card is not in sight, a fade with reduced motion), and the card whose live view
+  is open is outlined in the accent. **A board card that changes column without this window doing it** (an agent
+  through its tools, a job starting or ending, another member) is outlined for a moment while it travels; cards
+  already moved between columns by layout animation. **The taskbar** (`shell:setActivity`, from the shell's page
+  only): a moving bar while this computer's agents run jobs, a held one and a round badge with their number
+  (drawn by the page, checked and set as the overlay icon by the main process on Windows; the badge count
+  elsewhere) while jobs wait for approval, and the window's button flashes when one is added while the window
+  is elsewhere. **Sounds** (`sounds.ts`, Settings → General → App sounds, on by default): short tones made with
+  Web Audio, no files: a job that ended well (up a fifth), one that failed (down, lower), one that starts to
+  wait for approval (a note twice), a request to join (three notes up), another member's message while the app
+  is in the background (one note); the same sound at most once in 400 ms; with sounds on, the system's
+  notification for the same thing is silent. Covered by `e2e/channel.mjs` (the marked card and the panel
+  leaving the page, the sounds through a mark the page keeps of the last one, what the main process asked of
+  the taskbar, the moved card). Frames taken during the panel's flight were looked at once by hand. Not there:
+  the line between two avatars when work is handed over, the counters that roll, hold-to-allow for risky
+  approvals, a look at the taskbar badge itself (the test sees the calls, not the taskbar).
 - 4.22 What a job changed, and undo (5.3), 2026-11-11: the first of three things Kaan agreed on that day (then an
   effects pass: the card that grows into the live view, the board card that moves by itself, the taskbar, sounds;
   then the race: one task to several agents in worktrees of their own, compared side by side). `Snapshots`
@@ -921,7 +944,8 @@ The details behind 5.11 and 6.5, decided before building.
   touched, and git takes no optional locks), written as a tree and kept as a commit under
   `refs/rumpus/jobs/<job>/before|after`, refs that git neither shows nor pushes by itself; the latest 40 jobs of a
   repository are kept, a job that changed nothing keeps none, and a folder with more than 5000 files git does
-  not know is not snapshotted. The difference of the two trees inside the agent's folder becomes `job.changes`
+  not know is not snapshotted. The first snapshot is taken while the CLI starts and the agent gets its request
+  only once it is there (six git calls, under a second on Windows). The difference of the two trees inside the agent's folder becomes `job.changes`
   (path, added / changed / deleted, lines, binary; at most 300 files), a moment after the job ended, also for a
   stopped or failed one, and goes to the other members with the job. `jobs.diff` gives one file's hunks;
   `jobs.undo` writes the `before` content of the files named (or all) back, removes files the job added, and skips

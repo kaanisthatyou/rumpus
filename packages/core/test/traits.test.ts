@@ -158,6 +158,7 @@ describe('settings from before the look options', () => {
       crew: 'panel',
       sidebar: true,
       notifications: true,
+      sounds: true,
       agentFolder: '',
     });
   });

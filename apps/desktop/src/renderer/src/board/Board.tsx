@@ -3,11 +3,38 @@
 import { CARD_STATUSES, type Card, type CardStatus } from '@lonca/protocol';
 import { Button, Chip, Icon, IconButton } from '@lonca/ui';
 import { AnimatePresence, motion } from 'motion/react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../store';
 
-function CardView({ card }: { card: Card }) {
+/** Cards this window has just moved by hand (id → when); a move that follows within a moment is the person's own. */
+const byHand = new Map<string, number>();
+const BY_HAND_MS = 3000;
+const MARK_MS = 1800;
+
+/**
+ * The cards whose column changed without this window doing it (an agent through its tools, a job that started or
+ * ended, another member): marked for a moment, so the move is seen as someone's.
+ */
+function useMoved(cards: Card[]): ReadonlySet<string> {
+  const before = useRef<Map<string, CardStatus> | undefined>(undefined);
+  const [moved, setMoved] = useState<ReadonlySet<string>>(() => new Set());
+  useEffect(() => {
+    const prev = before.current;
+    before.current = new Map(cards.map((c) => [c.id, c.status]));
+    if (!prev) return;
+    const ids = cards
+      .filter((c) => prev.has(c.id) && prev.get(c.id) !== c.status)
+      .filter((c) => Date.now() - (byHand.get(c.id) ?? 0) > BY_HAND_MS)
+      .map((c) => c.id);
+    if (ids.length === 0) return;
+    setMoved((s) => new Set([...s, ...ids]));
+    setTimeout(() => setMoved((s) => new Set([...s].filter((id) => !ids.includes(id)))), MARK_MS);
+  }, [cards]);
+  return moved;
+}
+
+function CardView({ card, moved }: { card: Card; moved: boolean }) {
   const { t } = useTranslation();
   const agents = useApp((s) => s.workspace?.agents ?? []);
   const job = useApp((s) => (card.jobId ? s.jobs[card.jobId] : undefined));
@@ -24,7 +51,7 @@ function CardView({ card }: { card: Card }) {
     <motion.li
       layout
       layoutId={`card-${card.id}`}
-      className={`card ${running ? 'is-running' : ''}`}
+      className={`card ${running ? 'is-running' : ''} ${moved ? 'is-moved' : ''}`}
       draggable={!editing}
       onDragStart={(e) => {
         const ev = e as unknown as React.DragEvent;
@@ -89,7 +116,7 @@ function CardView({ card }: { card: Card }) {
   );
 }
 
-function Column({ status, cards }: { status: CardStatus; cards: Card[] }) {
+function Column({ status, cards, moved }: { status: CardStatus; cards: Card[]; moved: ReadonlySet<string> }) {
   const { t } = useTranslation();
   const updateCard = useApp((s) => s.updateCard);
   const createCard = useApp((s) => s.createCard);
@@ -111,7 +138,10 @@ function Column({ status, cards }: { status: CardStatus; cards: Card[] }) {
         e.preventDefault();
         setOver(false);
         const id = e.dataTransfer.getData('text/lonca-card');
-        if (id) void updateCard(id, { status });
+        if (id) {
+          byHand.set(id, Date.now());
+          void updateCard(id, { status });
+        }
       }}
     >
       <header className="col__head">
@@ -143,7 +173,7 @@ function Column({ status, cards }: { status: CardStatus; cards: Card[] }) {
       <ul className="col__list">
         <AnimatePresence initial={false}>
           {cards.map((c) => (
-            <CardView key={c.id} card={c} />
+            <CardView key={c.id} card={c} moved={moved.has(c.id)} />
           ))}
         </AnimatePresence>
         {cards.length === 0 && status !== 'todo' && <li className="col__empty">{t('board.empty')}</li>}
@@ -155,6 +185,7 @@ function Column({ status, cards }: { status: CardStatus; cards: Card[] }) {
 export function Board() {
   const { t } = useTranslation();
   const cards = useApp((s) => s.cards);
+  const moved = useMoved(cards);
   return (
     <main className="chat board">
       <header className="chat__head">
@@ -169,6 +200,7 @@ export function Board() {
           <Column
             key={status}
             status={status}
+            moved={moved}
             cards={cards.filter((c) => c.status === status).sort((a, b) => b.updated - a.updated)}
           />
         ))}

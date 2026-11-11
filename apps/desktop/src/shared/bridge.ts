@@ -28,8 +28,13 @@ export interface LoncaBridge {
     setTitleBar(colors: { background: string; symbols: string }): Promise<void>;
     /** The text size: everything in the window drawn at this factor (0.8 to 1.3). */
     setZoom(factor: number): Promise<void>;
-    /** An OS notification; clicking it brings Rumpus forward. */
-    notify(title: string, body: string): Promise<void>;
+    /** An OS notification; clicking it brings Rumpus forward. `silent`: the app plays its own sound for it. */
+    notify(title: string, body: string, silent?: boolean): Promise<void>;
+    /**
+     * What this computer's agents are doing, for the taskbar: a moving bar while jobs run, a held one and a badge
+     * (a small picture drawn by the page, as a PNG data URL) while jobs wait for approval.
+     */
+    setActivity(activity: { running: number; waiting: number; badge?: string }): Promise<void>;
   };
   /** Invite links (`rumpus://join/<code>`) the app was opened with. */
   links: {

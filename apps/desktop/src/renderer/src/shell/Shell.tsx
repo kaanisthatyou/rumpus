@@ -19,6 +19,7 @@ import { RecordsView } from '../records/RecordsView';
 import { RoutinesView } from '../routines/RoutinesView';
 import { PHONE, useApp, type View, WIDE } from '../store';
 import { enablePush, pushState } from '../web';
+import { useTaskbar } from './taskbar';
 
 const BOARD: { view: View; icon: IconName }[] = [
   { view: 'tasks', icon: 'tasks' },
@@ -913,6 +914,7 @@ export function Shell({ onSettings }: { onSettings: () => void }) {
   const beside = phone || wide;
   const strip = !phone && (!wide || crew === 'strip');
   const over = beside ? undefined : watching ? 'live' : peek ? 'crew' : undefined;
+  useTaskbar();
 
   useEffect(() => {
     if (beside && peek) useApp.setState({ crewPeek: false });

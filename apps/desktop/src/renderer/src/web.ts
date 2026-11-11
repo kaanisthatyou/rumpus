@@ -119,6 +119,8 @@ function webBridge(): LoncaBridge {
         if (typeof Notification !== 'undefined' && Notification.permission === 'granted')
           new Notification(title, { body });
       },
+      // The taskbar is the PC's.
+      setActivity: async () => {},
     },
     // Invite links open the PC's app, never a phone's page.
     links: { pending: async () => null, onJoin: () => () => {} },

@@ -94,6 +94,8 @@ const SETTINGS_FIELDS = {
   sidebar: z.boolean(),
   /** OS notifications while the app is in the background. */
   notifications: z.boolean(),
+  /** Short sounds for a job that ended or waits, a request to join, another member's message. */
+  sounds: z.boolean(),
   /** The folder a new agent works in when none is picked. Empty means the desktop. */
   agentFolder: z.string().max(1024),
 };
@@ -111,6 +113,7 @@ export const SettingsSchema = z.object({
   crew: SETTINGS_FIELDS.crew.default('panel'),
   sidebar: SETTINGS_FIELDS.sidebar.default(true),
   notifications: SETTINGS_FIELDS.notifications.default(true),
+  sounds: SETTINGS_FIELDS.sounds.default(true),
   agentFolder: SETTINGS_FIELDS.agentFolder.default(''),
 });
 export type Settings = z.infer<typeof SettingsSchema>;
@@ -170,6 +173,7 @@ export function defaultSettings(language: Language = 'en'): Settings {
     crew: 'panel',
     sidebar: true,
     notifications: true,
+    sounds: true,
     agentFolder: '',
   };
 }

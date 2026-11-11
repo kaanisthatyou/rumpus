@@ -144,6 +144,19 @@ const until = async (fn, what, ms = 20_000) => {
 
 const first = await launch();
 let { page } = first;
+/** The sound the page played last, as `<name>:<when>` (a script cannot hear). */
+const sound = () => page.evaluate(() => document.documentElement.dataset.sound ?? '');
+// What the main process asks of the taskbar is kept, to be looked at below.
+await first.app.evaluate(({ BrowserWindow }) => {
+  const w = BrowserWindow.getAllWindows()[0];
+  const real = w.setProgressBar.bind(w);
+  globalThis.taskbarCalls = [];
+  w.setProgressBar = (value, options) => {
+    globalThis.taskbarCalls.push([value, options?.mode]);
+    real(value, options);
+  };
+});
+const taskbar = () => first.app.evaluate(() => globalThis.taskbarCalls);
 try {
   await page.getByRole('heading', { name: L.shell.crew }).waitFor();
 
@@ -176,7 +189,13 @@ try {
   await page.getByRole('complementary', { name: L.job.live }).waitFor();
   await page.getByText('14 passed').first().waitFor();
   await shot(page, 'live-view');
+  // The card whose live view is open is marked; closing sends the panel back into it and takes it away.
+  assert.equal(await page.locator('.job.is-watched').count(), 1);
   await page.getByRole('button', { name: L.common.close }).click();
+  await page.getByRole('complementary', { name: L.job.live }).waitFor({ state: 'detached' });
+  assert.equal(await page.locator('.job.is-watched').count(), 0);
+  // The finished job was heard.
+  assert.match(await sound(), /^done:/);
 
   // The quota from the CLI's rate-limit events.
   await page.getByText(L.quota.window.five_hour).waitFor();
@@ -193,6 +212,8 @@ try {
   await todo.getByText('README dosyasını güncelle').waitFor();
   await shot(page, 'board');
   await todo.getByRole('button', { name: L.board.run }).click();
+  // The card changes column by itself, with the job: it is marked for a moment.
+  await page.locator('.card.is-moved').first().waitFor({ timeout: 20_000 });
   const review = page.getByRole('region', { name: L.board.status.review });
   await review.getByText('README dosyasını güncelle').waitFor({ timeout: 20_000 });
   await shot(page, 'board-review');
@@ -329,6 +350,10 @@ try {
   await page.getByText(L.job.approval.title).first().waitFor();
   await page.getByRole('button', { name: L.shell.waiting }).waitFor();
   await shot(page, 'approval');
+  // A job that waits on a person is heard, and the taskbar holds its bar (a moving one while it ran).
+  assert.match(await sound(), /^attention:/);
+  await until(async () => (await taskbar()).some(([value, mode]) => value === 1 && mode === 'paused'), 'the held bar');
+  assert.ok((await taskbar()).some(([value, mode]) => value === 2 && mode === 'indeterminate'));
   await page.getByRole('button', { name: L.job.approval.allow }).click();
   await page.getByText('Derleme tamam.').waitFor();
   await agentBox.fill('onay iste');

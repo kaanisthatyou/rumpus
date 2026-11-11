@@ -89,8 +89,8 @@ export class Snapshots {
   }
 
   /** The folder as a commit, without touching the person's index: undefined when it cannot be taken. */
-  private async take(root: string, prefix: string, jobId: string, which: 'before' | 'after') {
-    const real = await this.out(root, ['rev-parse', '--git-path', 'index']);
+  private async take(root: string, prefix: string, jobId: string, which: 'before' | 'after', gitIndex?: string) {
+    const real = gitIndex ?? (await this.out(root, ['rev-parse', '--git-path', 'index']));
     if (real === undefined) return undefined;
     const index = join(this.dir, `${jobId}.${which}.index`);
     try {
@@ -121,11 +121,20 @@ export class Snapshots {
   /** Before the job's first step: remembers the folder as it is. Quietly does nothing outside a repository. */
   async before(jobId: string, folder: string): Promise<void> {
     if (!JOB_ID.test(jobId)) return;
-    const top = (await this.out(folder, ['rev-parse', '--show-toplevel']))?.trim();
-    if (!top || !isDir(top)) return;
+    // One call for the three things: the top folder, this folder inside it, and where the index is (as seen
+    // from this folder).
+    const where = await this.out(folder, ['rev-parse', '--show-toplevel', '--show-prefix', '--git-path', 'index']);
+    const [top, inside, gitIndex] = (where ?? '').split('\n').map((l) => l.trim());
+    if (!top || !gitIndex || !isDir(top)) return;
     const root = resolve(top);
-    const prefix = (await this.out(folder, ['rev-parse', '--show-prefix']))?.trim() ?? '';
-    const before = await this.take(root, prefix, jobId, 'before');
+    const prefix = inside ?? '';
+    const before = await this.take(
+      root,
+      prefix,
+      jobId,
+      'before',
+      isAbsolute(gitIndex) ? gitIndex : resolve(folder, gitIndex),
+    );
     if (!before) return;
     const record: Kept = { root, prefix, before };
     writeFileSync(this.file(jobId), JSON.stringify(record));

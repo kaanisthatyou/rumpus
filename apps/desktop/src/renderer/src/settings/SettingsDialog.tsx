@@ -14,6 +14,7 @@ import {
   TailscaleRow,
   ThemePicker,
 } from '../parts';
+import { play } from '../sounds';
 import { useApp } from '../store';
 import { ConnectorsPanel } from './ConnectorsPanel';
 import { InstructionsPanel } from './InstructionsPanel';
@@ -118,6 +119,18 @@ function General() {
             <span>{t('settings.notificationsLabel')}</span>
           </div>
           <p className="muted">{t('settings.notificationsHint')}</p>
+          <div className="row-field">
+            <Switch
+              checked={settings?.sounds !== false}
+              onChange={(sounds) => {
+                void patch({ sounds });
+                if (sounds) play('done');
+              }}
+              label={t('settings.soundsLabel')}
+            />
+            <span>{t('settings.soundsLabel')}</span>
+          </div>
+          <p className="muted">{t('settings.soundsHint')}</p>
         </section>
       )}
       {!onPhone && (
