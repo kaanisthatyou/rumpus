@@ -502,7 +502,7 @@
   box-shadow: inset 2px 0 0 var(--accent);
 }
 
-@media (max-width: 980px) {
+@media (max-width: 760px) {
   .home__stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

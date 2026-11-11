@@ -17,6 +17,7 @@ const sealer = new PortSealer((m) => process.parentPort.postMessage(m));
 const peerHost = process.env.LONCA_PEER_HOST;
 const core = new Core({
   appDir,
+  ...(process.env.LONCA_DESKTOP_DIR ? { desktopDir: process.env.LONCA_DESKTOP_DIR } : {}),
   language: locale.startsWith('tr') ? 'tr' : 'en',
   llm,
   signer,

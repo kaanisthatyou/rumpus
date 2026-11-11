@@ -22,6 +22,7 @@ import { ErrorLine } from '../parts';
 import { RefImage } from '../records/RecordsView';
 import { useApp } from '../store';
 import { RUNNABLE, slug } from './AgentDialog';
+import { FolderField, TraitPicker } from './fields';
 
 type Tab = 'who' | 'playbook' | 'context' | 'lessons';
 
@@ -168,6 +169,7 @@ export function SpecialistDialog() {
   const [account, setAccount] = useState(existing?.account ?? '');
   const [access, setAccess] = useState<AgentAccess>(existing?.access ?? DEFAULT_ACCESS);
   const [playbook, setPlaybook] = useState(spec?.playbook ?? '');
+  const [traits, setTraits] = useState<string[]>(existing?.traits ?? []);
   const [history, setHistory] = useState(spec?.history ?? 30);
   const [refs, setRefs] = useState<string[]>(spec?.refs ?? []);
   const [limited, setLimited] = useState(Boolean(spec?.budget));
@@ -259,7 +261,7 @@ export function SpecialistDialog() {
   const chosen = SPECIALIST_TEMPLATES.find((x) => x.id === template);
   const kinds = existing ? [existing.kind] : available;
   const title = existing ? t('specialists.edit') : t('specialists.new');
-  const ready = kinds.length > 0 && Boolean(folder) && Boolean(name.trim()) && Boolean(handle) && Boolean(role.trim());
+  const ready = kinds.length > 0 && Boolean(name.trim()) && Boolean(handle) && Boolean(role.trim());
   const tokenCount = Number(tokens.replace(/\D/g, '')) * 1000;
 
   return (
@@ -294,6 +296,7 @@ export function SpecialistDialog() {
             ...(model.trim() ? { model: model.trim() } : {}),
             ...(account && accounts.some((a) => a.id === account) ? { account } : {}),
             instructions: existing?.instructions ?? '',
+            traits,
             ...(team ? { access } : {}),
             specialty: {
               role: role.trim(),
@@ -431,23 +434,7 @@ export function SpecialistDialog() {
                       />
                     </div>
                   )}
-                  <div className="l-field">
-                    <span className="l-field__label">{t('agentForm.folder')}</span>
-                    <div className="folder__path l-card">
-                      <Icon name="folder" />
-                      <span className="l-mono">{folder || '—'}</span>
-                      <Button
-                        size="sm"
-                        onClick={async () => {
-                          const dir = await window.lonca.shell.pickFolder();
-                          if (dir) setFolder(dir);
-                        }}
-                      >
-                        {t('agentForm.pick')}
-                      </Button>
-                    </div>
-                    <span className="l-field__hint">{t('agentForm.folderHint')}</span>
-                  </div>
+                  <FolderField value={folder} onChange={setFolder} />
                   <div className="l-field">
                     <span className="l-field__label">{t('agentForm.mode')}</span>
                     <Segmented
@@ -528,21 +515,24 @@ export function SpecialistDialog() {
                   </div>
                 </>
               ) : tab === 'playbook' ? (
-                <div className="l-field specform__grow">
-                  <label className="l-field__label" htmlFor="spec-playbook">
-                    {t('specialists.playbook')}
-                  </label>
-                  <textarea
-                    id="spec-playbook"
-                    className="l-input l-mono specform__playbook"
-                    value={playbook}
-                    maxLength={20000}
-                    spellCheck={false}
-                    placeholder={t('specialists.playbookPlaceholder')}
-                    onChange={(e) => setPlaybook(e.target.value)}
-                  />
-                  <span className="l-field__hint">{t('specialists.playbookHint')}</span>
-                </div>
+                <>
+                  <div className="l-field specform__grow">
+                    <label className="l-field__label" htmlFor="spec-playbook">
+                      {t('specialists.playbook')}
+                    </label>
+                    <textarea
+                      id="spec-playbook"
+                      className="l-input l-mono specform__playbook"
+                      value={playbook}
+                      maxLength={20000}
+                      spellCheck={false}
+                      placeholder={t('specialists.playbookPlaceholder')}
+                      onChange={(e) => setPlaybook(e.target.value)}
+                    />
+                    <span className="l-field__hint">{t('specialists.playbookHint')}</span>
+                  </div>
+                  <TraitPicker value={traits} onChange={setTraits} />
+                </>
               ) : tab === 'context' ? (
                 <>
                   <div className="l-field">

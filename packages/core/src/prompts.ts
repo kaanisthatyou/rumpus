@@ -1,7 +1,15 @@
 // What an agent is told. Layers (PLAN.md 5.14): Serai's core rules, the role template, the workspace's
 // instructions (Phase 3), the agent's own instructions; then each turn's context. Templates become editable
 // files in a later step of Phase 1; these are the defaults.
-import { type Agent, type AgentMode, BRAND, type Language, MCP_NAME, type Message } from '@lonca/protocol';
+import {
+  type Agent,
+  type AgentMode,
+  BRAND,
+  type Language,
+  MCP_NAME,
+  type Message,
+  traitsPrompt,
+} from '@lonca/protocol';
 
 const LANGUAGE_NAMES: Record<Language, string> = { tr: 'Turkish', en: 'English' };
 
@@ -126,6 +134,9 @@ export function systemPrompt(
     : fill(layers.worker ?? WORKER_TEMPLATE, vars);
   const parts = [fill(CORE_RULES, vars), role];
   if (layers.workspace?.trim()) parts.push(`Instructions of this workspace:\n${fill(layers.workspace.trim(), vars)}`);
+  // The owner's layer: the character presets they picked, then their own words.
+  const character = traitsPrompt(agent.traits);
+  if (character) parts.push(character);
   if (agent.instructions.trim()) parts.push(`Instructions from your owner:\n${fill(agent.instructions.trim(), vars)}`);
   if (layers.roster?.trim()) parts.push(layers.roster.trim());
   if (layers.project?.trim()) parts.push(layers.project.trim());

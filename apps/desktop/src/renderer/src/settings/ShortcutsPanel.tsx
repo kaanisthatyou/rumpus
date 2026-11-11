@@ -17,6 +17,8 @@ export const ACTION_LABEL: Record<ShortcutAction, string> = {
   prevWaiting: 'prevWaiting',
   nextWaiting: 'nextWaiting',
   quickEntry: 'quickEntry',
+  sidebar: 'sidebar',
+  crew: 'crew',
 };
 
 export function ShortcutsPanel() {

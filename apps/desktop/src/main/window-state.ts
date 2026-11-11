@@ -7,7 +7,17 @@ interface Saved {
   maximized: boolean;
 }
 
-const DEFAULT = { width: 1280, height: 820 };
+/**
+ * The first window: wide enough for the channel list, the page and the crew panel side by side (1440 × 900), or
+ * what the screen has room for.
+ */
+function firstSize(): { width: number; height: number } {
+  const area = screen.getPrimaryDisplay().workAreaSize;
+  return {
+    width: Math.max(960, Math.min(1440, area.width - 80)),
+    height: Math.max(640, Math.min(900, area.height - 60)),
+  };
+}
 
 /** Remembers size, position and maximized state; ignores a position that is no longer on any screen. */
 export function loadWindowState(appDir: string): Partial<Rectangle> & { maximized: boolean } {
@@ -22,7 +32,7 @@ export function loadWindowState(appDir: string): Partial<Rectangle> & { maximize
       ? { ...b, maximized: saved.maximized }
       : { width: b.width, height: b.height, maximized: saved.maximized };
   } catch {
-    return { ...DEFAULT, maximized: false };
+    return { ...firstSize(), maximized: false };
   }
 }
 

@@ -113,6 +113,8 @@ function webBridge(): LoncaBridge {
       },
       appInfo: async () => ({ version: '', platform: 'web', packaged: true }),
       setTitleBar: async () => {},
+      // A phone has its own text size (the browser's and the system's).
+      setZoom: async () => {},
       notify: async (title, body) => {
         if (typeof Notification !== 'undefined' && Notification.permission === 'granted')
           new Notification(title, { body });

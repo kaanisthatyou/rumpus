@@ -108,6 +108,8 @@ interface AppState {
   memory?: MemoryState;
   /** On a narrow screen: the channel list or the crew over the chat. */
   panel?: 'side' | 'crew';
+  /** The crew panel opened over the page from its strip (a window too narrow for the panel beside the page). */
+  crewPeek?: boolean;
   /** Other members typing, per channel: device → name and when it was last heard. */
   peopleTyping: Record<string, Record<string, { name: string; at: number }>>;
   /** Workspaces in the background with something new from another member. */
@@ -150,6 +152,10 @@ interface AppState {
 
   loadWorkspace(): Promise<void>;
   setView(view: View): void;
+  /** Hides or shows the channel list. */
+  toggleSidebar(): void;
+  /** Narrows the crew panel to its strip or opens it: beside the page in a wide window, over it in a narrow one. */
+  toggleCrew(): void;
   openChannel(id: string): Promise<void>;
   send(text: string): Promise<boolean>;
   editMessage(id: string, text: string): Promise<boolean>;
@@ -244,6 +250,11 @@ const lastChannel = {
   },
 };
 
+/** From this width on the crew panel fits beside the page; below it the strip stands there. */
+export const WIDE = '(min-width: 1180px)';
+/** The narrow layout: a phone, or a window as narrow as one. */
+export const PHONE = '(max-width: 760px)';
+
 function upsert(list: Message[], m: Message): Message[] {
   const i = list.findIndex((x) => x.id === m.id);
   if (i >= 0) return list.map((x) => (x.id === m.id ? m : x));
@@ -261,6 +272,12 @@ export const useApp = create<AppState>((set, get) => {
       set({ error: codeOf(err) });
       return undefined;
     }
+  }
+
+  /** An OS notification, unless they are turned off in Settings. */
+  function notify(title: string, body: string): void {
+    if (get().settings?.notifications === false) return;
+    void window.lonca.shell.notify(title, body);
   }
 
   return {
@@ -304,7 +321,7 @@ export const useApp = create<AppState>((set, get) => {
         // Someone asks to join while Serai is in the background: an OS notification for the admin.
         const fresh = (workspace.joins ?? []).filter((j) => !(before?.joins ?? []).some((b) => b.id === j.id));
         if (fresh.length && before?.id === workspace.id && !document.hasFocus()) {
-          void window.lonca.shell.notify(
+          notify(
             i18n.t('invite.notifyTitle'),
             i18n.t('invite.wants', {
               name: fresh[0]?.name ?? '',
@@ -358,10 +375,7 @@ export const useApp = create<AppState>((set, get) => {
         const ws = get().workspace;
         if (ws?.kind === 'team' && m.author.kind === 'person' && m.author.id !== ws.me.id && !document.hasFocus()) {
           const channel = ws.channels.find((c) => c.id === m.channelId);
-          void window.lonca.shell.notify(
-            `#${channel?.name ?? ''} · ${ws.name}`,
-            `${m.author.name}: ${m.text.slice(0, 200)}`,
-          );
+          notify(`#${channel?.name ?? ''} · ${ws.name}`, `${m.author.name}: ${m.text.slice(0, 200)}`);
         }
       });
       core.on('memory.changed', (memory) => set({ memory }));
@@ -398,7 +412,7 @@ export const useApp = create<AppState>((set, get) => {
           const what = [job.approval?.label ? i18n.t(`job.tool.${job.approval.label}`) : '', job.approval?.arg ?? '']
             .filter(Boolean)
             .join(' · ');
-          void window.lonca.shell.notify(i18n.t('job.approval.notifyTitle'), `${agent?.name ?? ''}: ${what}`);
+          notify(i18n.t('job.approval.notifyTitle'), `${agent?.name ?? ''}: ${what}`);
         }
       });
       core.on('quota.changed', ({ kind, quota }) => set((s) => ({ quota: { ...s.quota, [kind]: quota } })));
@@ -461,7 +475,8 @@ export const useApp = create<AppState>((set, get) => {
         window.lonca.updates.state(),
       ]);
       await i18n.changeLanguage(settings.language);
-      set({ settings, app, update });
+      // The start page: the overview, or (the default) the channel that was open last.
+      set({ settings, app, update, ...(settings.startView === 'home' ? { view: 'home' as const } : {}) });
       // The quick-entry key lives in settings; the main process registers it for the whole system.
       const quickKey = settings.shortcuts.quickEntry;
       if (quickKey) void window.lonca.quick.setKey(quickKey);
@@ -493,6 +508,7 @@ export const useApp = create<AppState>((set, get) => {
           if (settings.onboarded) void get().loadWorkspace();
         }
         if (patch.onboarded) void get().loadWorkspace();
+        if (patch.agentFolder !== undefined) void get().refreshSystem();
       } catch (err) {
         set({ error: codeOf(err), ...(before ? { settings: before } : {}) });
         if (before) void i18n.changeLanguage(before.language);
@@ -586,7 +602,19 @@ export const useApp = create<AppState>((set, get) => {
     },
 
     setView(view) {
-      set({ view, panel: undefined });
+      set({ view, panel: undefined, crewPeek: false });
+    },
+
+    toggleSidebar() {
+      const settings = get().settings;
+      if (settings) void get().patch({ sidebar: !settings.sidebar });
+    },
+
+    toggleCrew() {
+      const settings = get().settings;
+      if (!settings) return;
+      if (window.matchMedia(WIDE).matches) void get().patch({ crew: settings.crew === 'panel' ? 'strip' : 'panel' });
+      else set((s) => ({ crewPeek: !s.crewPeek }));
     },
 
     async openChannel(id) {
@@ -597,7 +625,7 @@ export const useApp = create<AppState>((set, get) => {
           s.channelId === id && s.view === 'channel'
             ? s.fresh
             : { ...s.fresh, [id]: { count: read?.count ?? 0, at: Date.now() } };
-        return { channelId: id, view: 'channel', panel: undefined, unread, fresh };
+        return { channelId: id, view: 'channel', panel: undefined, crewPeek: false, unread, fresh };
       });
       void core.call('channels.read', { channelId: id }).catch(() => {});
       lastChannel.set(id, get().workspace?.id);

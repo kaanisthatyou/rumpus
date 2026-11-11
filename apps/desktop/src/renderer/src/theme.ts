@@ -1,4 +1,4 @@
-import type { Settings } from '@lonca/protocol';
+import type { Settings, TextSize } from '@lonca/protocol';
 import { useEffect } from 'react';
 
 const TITLE_BAR = {
@@ -6,7 +6,13 @@ const TITLE_BAR = {
   light: { background: '#eceef1', symbols: '#5b616b' },
 } as const;
 
-/** Mirrors theme, accent, motion and language onto <html>, and keeps the window frame in the same colors. */
+/** The text sizes as zoom factors of the whole window. */
+const ZOOM: Record<TextSize, number> = { small: 0.9, normal: 1, large: 1.12 };
+
+/**
+ * Mirrors theme, accent, motion, density and language onto <html>, keeps the window frame in the same colors, and
+ * sets the window's zoom to the text size.
+ */
 export function useAppearance(settings: Settings | undefined): void {
   useEffect(() => {
     if (!settings) return;
@@ -17,10 +23,12 @@ export function useAppearance(settings: Settings | undefined): void {
       root.dataset.theme = theme;
       root.dataset.accent = settings.accent;
       root.dataset.motion = settings.motion;
+      root.dataset.density = settings.density;
       root.lang = settings.language;
       void window.lonca.shell.setTitleBar(TITLE_BAR[theme]);
     };
     apply();
+    void window.lonca.shell.setZoom(ZOOM[settings.textSize] ?? 1);
     media.addEventListener('change', apply);
     return () => media.removeEventListener('change', apply);
   }, [settings]);

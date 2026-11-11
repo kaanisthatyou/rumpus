@@ -6,12 +6,13 @@ import {
   type CliKind,
   DEFAULT_ACCESS,
 } from '@lonca/protocol';
-import { Button, Icon, IconButton, Segmented, Switch, TextField } from '@lonca/ui';
+import { Button, IconButton, Segmented, Switch, TextField } from '@lonca/ui';
 import { motion } from 'motion/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ErrorLine } from '../parts';
 import { useApp } from '../store';
+import { FolderField, TraitPicker } from './fields';
 
 /** CLIs Serai can run jobs with today. */
 export const RUNNABLE: CliKind[] = ['claude-code', 'codex'];
@@ -54,6 +55,7 @@ export function AgentDialog() {
   const [mode, setMode] = useState<AgentMode>(existing?.mode ?? 'read');
   const [model, setModel] = useState(existing?.model ?? '');
   const [instructions, setInstructions] = useState(existing?.instructions ?? '');
+  const [traits, setTraits] = useState<string[]>(existing?.traits ?? []);
   const [access, setAccess] = useState<AgentAccess>(existing?.access ?? DEFAULT_ACCESS);
   const [account, setAccount] = useState(existing?.account ?? '');
   const allAccounts = useApp((s) => s.accounts);
@@ -97,6 +99,7 @@ export function AgentDialog() {
             ...(model.trim() ? { model: model.trim() } : {}),
             ...(account && accounts.some((a) => a.id === account) ? { account } : {}),
             instructions,
+            traits,
             ...(team ? { access } : {}),
           });
         }}
@@ -151,23 +154,7 @@ export function AgentDialog() {
                   }}
                 />
               </div>
-              <div className="l-field">
-                <span className="l-field__label">{t('agentForm.folder')}</span>
-                <div className="folder__path l-card">
-                  <Icon name="folder" />
-                  <span className="l-mono">{folder || '—'}</span>
-                  <Button
-                    size="sm"
-                    onClick={async () => {
-                      const dir = await window.lonca.shell.pickFolder();
-                      if (dir) setFolder(dir);
-                    }}
-                  >
-                    {t('agentForm.pick')}
-                  </Button>
-                </div>
-                <span className="l-field__hint">{t('agentForm.folderHint')}</span>
-              </div>
+              <FolderField value={folder} onChange={setFolder} />
               <div className="l-field">
                 <span className="l-field__label">{t('agentForm.mode')}</span>
                 <Segmented
@@ -245,6 +232,7 @@ export function AgentDialog() {
                 hint={t('agentForm.modelHint')}
                 onChange={(e) => setModel(e.target.value)}
               />
+              <TraitPicker value={traits} onChange={setTraits} />
               <div className="l-field">
                 <label className="l-field__label" htmlFor="agent-instructions">
                   {t('agentForm.instructions')}
@@ -274,7 +262,7 @@ export function AgentDialog() {
           <Button variant="quiet" onClick={close}>
             {t('agentForm.cancel')}
           </Button>
-          <Button type="submit" variant="primary" disabled={kinds.length === 0 || !folder || !name.trim() || !handle}>
+          <Button type="submit" variant="primary" disabled={kinds.length === 0 || !name.trim() || !handle}>
             {t('agentForm.save')}
           </Button>
         </footer>

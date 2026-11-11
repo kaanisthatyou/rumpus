@@ -1,0 +1,451 @@
+/* The shell adapting to its room: a channel list that hides, a crew panel that narrows to a strip and opens over
+   the page, pages that lay themselves out by their own width (not the window's), and the compact density. */
+
+.shell {
+  position: relative;
+}
+
+/* ------------------------------------------------------------------ the channel list, hidden or shown */
+
+.rail {
+  position: relative;
+  z-index: 3;
+}
+.rail__side[aria-pressed='false'] {
+  color: var(--accent-ink);
+}
+@media (min-width: 761px) {
+  .shell > .side {
+    transition:
+      margin-left 260ms var(--out),
+      opacity 180ms var(--out),
+      visibility 0s;
+  }
+  .shell[data-side='off'] > .side {
+    margin-left: -248px;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+      margin-left 260ms var(--out),
+      opacity 180ms var(--out),
+      visibility 0s 260ms;
+  }
+}
+
+/* ------------------------------------------------------------------ the crew panel: beside the page, or over it */
+
+.crew__head {
+  gap: 6px;
+}
+.crew__head h2 {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.crew--over {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 8;
+  width: min(304px, calc(100% - 80px));
+  border-left: 1px solid var(--line-2);
+  box-shadow: -28px 0 56px -32px rgb(0 0 0 / 70%);
+}
+.shell__scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  cursor: default;
+}
+.live--over {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 6;
+  width: min(420px, calc(100% - 120px));
+  border-left: 1px solid var(--line-2);
+  box-shadow: -28px 0 56px -32px rgb(0 0 0 / 70%);
+}
+
+/* ------------------------------------------------------------------ the crew as a strip of avatars */
+
+.strip {
+  flex: 0 0 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-height: 0;
+  padding: 12px 0 10px;
+  overflow: hidden auto;
+  scrollbar-width: none;
+  background: var(--side);
+  border-left: 1px solid var(--line);
+}
+.strip__open {
+  position: relative;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  color: var(--mute);
+  transition:
+    background var(--t-fast),
+    color var(--t-fast);
+}
+.strip__open:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+.strip__flag {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--warn);
+  border: 1.5px solid var(--side);
+}
+.strip__list {
+  list-style: none;
+  margin: 0;
+  padding: 8px 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.strip__list + .strip__list {
+  margin-top: 6px;
+  border-top: 1px solid var(--line);
+}
+.strip__who {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  transition:
+    background var(--t-fast),
+    transform 300ms var(--spring);
+}
+button.strip__who:hover {
+  background: var(--hover);
+  transform: scale(1.05);
+}
+.strip__who.is-off {
+  opacity: 0.5;
+}
+/* A working agent: a ring in the accent that turns; one waiting on a person holds still in the warning color. */
+.strip__who.is-busy::before {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-radius: 10px;
+  padding: 1.5px;
+  background: conic-gradient(from var(--strip-turn, 0deg), var(--accent), transparent 55%, var(--accent));
+  mask:
+    linear-gradient(#000 0 0) content-box exclude,
+    linear-gradient(#000 0 0);
+  animation: strip-turn 2.4s linear infinite;
+}
+.strip__who.is-asking::before {
+  background: var(--warn);
+  animation: none;
+}
+@property --strip-turn {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+@keyframes strip-turn {
+  to {
+    --strip-turn: 360deg;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .strip__who.is-busy::before {
+    animation: none;
+  }
+}
+[data-motion='reduced'] .strip__who.is-busy::before {
+  animation: none;
+}
+.strip__quota {
+  position: relative;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  margin-bottom: 4px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: conic-gradient(var(--accent) calc(var(--used, 0) * 1turn), var(--line-2) 0);
+}
+.strip__quota::before {
+  content: '';
+  position: absolute;
+  inset: 2.5px;
+  border-radius: 50%;
+  background: var(--side);
+}
+.strip__quota.is-high {
+  background: conic-gradient(var(--warn) calc(var(--used, 0) * 1turn), var(--line-2) 0);
+}
+.strip__quota span {
+  position: relative;
+  font-size: 9.5px;
+  color: var(--mute);
+}
+@media (max-width: 760px) {
+  .strip,
+  .crew__narrow {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------------ pages lay out by their own width */
+
+.chat {
+  container: page / inline-size;
+}
+.chat__head h2 {
+  flex: none;
+  white-space: nowrap;
+}
+.chat__head > .l-btn,
+.chat__head > .l-iconbtn {
+  flex: none;
+}
+.chat__topic {
+  min-width: 0;
+}
+.col__head b {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.card__title {
+  overflow-wrap: anywhere;
+}
+
+@container page (max-width: 520px) {
+  .chat__topic {
+    display: none;
+  }
+  .chat__head {
+    padding: 0 12px 0 14px;
+  }
+}
+
+/* The board: four columns while each keeps a readable width; below that they keep it and the board scrolls
+   sideways, one column at a time. */
+@container page (max-width: 760px) {
+  .board__cols {
+    grid-template-columns: repeat(4, minmax(208px, 1fr));
+    scroll-snap-type: x proximity;
+    scroll-padding-left: 16px;
+  }
+  .col {
+    scroll-snap-align: start;
+  }
+}
+
+/* Records: the list beside the record while both fit; below that the list on top and the record under it. */
+@container page (max-width: 640px) {
+  .records__body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(120px, 34%) minmax(0, 1fr);
+  }
+  .records__list {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .records__editor {
+    padding: 14px 16px;
+  }
+}
+
+/* The overview: one column of blocks, two numbers to a row. */
+@container page (max-width: 720px) {
+  .home__stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .week {
+    grid-column: 1 / -1;
+  }
+  .home__cols,
+  .setup__list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@container page (max-width: 560px) {
+  .feed,
+  .composer {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+}
+
+/* ------------------------------------------------------------------ settings rows */
+
+.set__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.set .row-field__label {
+  width: 120px;
+}
+.swatches {
+  flex-wrap: wrap;
+}
+
+/* ------------------------------------------------------------------ character presets in the agent forms */
+
+.traits {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-inline-size: 0;
+}
+.traits__legend {
+  display: flex;
+  align-items: baseline;
+  width: 100%;
+  padding: 0;
+  margin-bottom: 6px;
+}
+.traits__count {
+  font-size: 11px;
+  color: var(--meta);
+}
+.traits__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.trait {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px 0 8px;
+  border-radius: 14px;
+  border: 1px solid var(--line-2);
+  background: var(--card);
+  color: var(--mute);
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition:
+    color var(--t-fast),
+    border-color var(--t-fast),
+    background var(--t-fast),
+    transform 300ms var(--spring);
+}
+.trait:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--line-3);
+}
+.trait:active:not(:disabled) {
+  transform: scale(0.96);
+}
+.trait.is-on {
+  color: var(--accent-ink);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--card));
+}
+.trait:disabled {
+  opacity: 0.45;
+}
+.traits__lines {
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 12px;
+  color: var(--meta);
+}
+.traits__lines li {
+  display: flex;
+  gap: 8px;
+}
+.traits__lines b {
+  flex: none;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
+/* ------------------------------------------------------------------ compact density */
+
+[data-density='compact'] .nav {
+  height: 26px;
+  font-size: 13px;
+}
+[data-density='compact'] .grp {
+  margin-bottom: 8px;
+}
+[data-density='compact'] .side__find {
+  height: 30px;
+  margin-bottom: 10px;
+}
+[data-density='compact'] .side__store {
+  margin-bottom: 8px;
+}
+[data-density='compact'] .who {
+  min-height: 36px;
+}
+[data-density='compact'] .crew h3 {
+  margin-top: 10px;
+}
+[data-density='compact'] .chat__head {
+  height: 44px;
+}
+[data-density='compact'] .msg {
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+[data-density='compact'] .msg--compact {
+  margin-top: -5px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+[data-density='compact'] .day {
+  margin: 6px 0 2px;
+}
+[data-density='compact'] .composer {
+  padding-bottom: 12px;
+}
+[data-density='compact'] .composer__box {
+  min-height: 42px;
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+[data-density='compact'] .card {
+  padding: 7px 9px 6px;
+}
+[data-density='compact'] .col__list {
+  gap: 6px;
+}
+[data-density='compact'] .rec {
+  padding: 5px 9px;
+}
+[data-density='compact'] .me {
+  padding: 5px 8px;
+}
+[data-density='compact'] .strip__list {
+  gap: 3px;
+}

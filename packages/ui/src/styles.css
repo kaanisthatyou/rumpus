@@ -73,8 +73,29 @@
   --accent: #a48bff;
   --accent-ink: var(--accent);
 }
+[data-accent='teal'] {
+  --accent: #4fd8c4;
+  --accent-ink: var(--accent);
+}
+[data-accent='rose'] {
+  --accent: #ff86ac;
+  --accent-ink: var(--accent);
+}
+[data-accent='amber'] {
+  --accent: #ffc24b;
+  --accent-ink: var(--accent);
+}
 [data-theme='light'][data-accent='lime'] {
   --accent-ink: #4e6b00;
+}
+[data-theme='light'][data-accent='teal'] {
+  --accent-ink: #0b7265;
+}
+[data-theme='light'][data-accent='rose'] {
+  --accent-ink: #b3245a;
+}
+[data-theme='light'][data-accent='amber'] {
+  --accent-ink: #855600;
 }
 [data-theme='light'][data-accent='blue'] {
   --accent-ink: #2457c5;
@@ -534,7 +555,9 @@ kbd,
 .l-seg {
   margin: 0;
   min-inline-size: 0;
+  max-width: 100%;
   display: inline-flex;
+  flex-wrap: wrap;
   padding: 3px;
   gap: 2px;
   border-radius: var(--r);
@@ -553,6 +576,7 @@ kbd,
   color: var(--mute);
   font-size: 12.5px;
   font-weight: 500;
+  white-space: nowrap;
   transition: color var(--t-fast);
 }
 .l-seg__opt[data-checked] {

@@ -1,7 +1,8 @@
-import { type CliKind, MEMBER_ROLES, type MemberRole, type Quota } from '@lonca/protocol';
+import { type CliKind, type Job, MEMBER_ROLES, type MemberRole, type Quota } from '@lonca/protocol';
 import { Avatar, Button, Icon, IconButton, type IconName, Kbd, Mark, popIn, stagger, Track } from '@lonca/ui';
+import type { TFunction } from 'i18next';
 import { AnimatePresence, motion } from 'motion/react';
-import { useMemo, useState } from 'react';
+import { type CSSProperties, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { RUNNABLE } from '../agents/AgentDialog';
 import { remoteOwner } from '../agents/owner';
@@ -10,12 +11,13 @@ import { Board } from '../board/Board';
 import { ChannelView } from '../channel/ChannelView';
 import { LiveView } from '../channel/LiveView';
 import { GoalsView } from '../goals/GoalsView';
+import { useMedia } from '../media';
 import { MemoryView } from '../memory/MemoryView';
 import { OverviewView } from '../overview/OverviewView';
 import { ProjectPage } from '../projects/ProjectView';
 import { RecordsView } from '../records/RecordsView';
 import { RoutinesView } from '../routines/RoutinesView';
-import { useApp, type View } from '../store';
+import { PHONE, useApp, type View, WIDE } from '../store';
 import { enablePush, pushState } from '../web';
 
 const BOARD: { view: View; icon: IconName }[] = [
@@ -95,6 +97,8 @@ function Rail({ onSettings }: { onSettings: () => void }) {
   const current = useApp((s) => s.workspace?.id);
   const openWorkspace = useApp((s) => s.openWorkspace);
   const activity = useApp((s) => s.activity);
+  const sidebar = useApp((s) => s.settings?.sidebar !== false);
+  const toggleSidebar = useApp((s) => s.toggleSidebar);
   return (
     <nav className="rail" aria-label={t('shell.workspaces')}>
       <div className="rail__mark">
@@ -134,6 +138,13 @@ function Rail({ onSettings }: { onSettings: () => void }) {
         <Icon name="plus" size={14} />
       </button>
       <span className="grow" />
+      <IconButton
+        icon="panelLeft"
+        className="rail__side"
+        label={t(sidebar ? 'shell.hideSidebar' : 'shell.showSidebar')}
+        aria-pressed={sidebar}
+        onClick={toggleSidebar}
+      />
       <IconButton icon="settings" label={t('shell.settings')} onClick={onSettings} />
     </nav>
   );
@@ -426,7 +437,161 @@ function PhoneBar({ onSettings }: { onSettings: () => void }) {
   );
 }
 
-function Crew() {
+/** What a working agent is doing right now: its running job's latest step. */
+function stepText(jobs: Record<string, Job>, agentId: string, t: TFunction): string {
+  const job = Object.values(jobs).find((j) => j.agentId === agentId && j.state === 'running');
+  const step = job?.steps.at(-1);
+  if (!step) return t('crew.running');
+  const label = t(`job.tool.${step.label}`, step.label);
+  return step.arg ? `${label} · ${step.arg}` : label;
+}
+
+/**
+ * The crew as a strip of avatars: who is here and who is working, in the room one avatar takes. A click on an
+ * agent opens its channel; the button on top opens the whole panel.
+ */
+function CrewStrip({ covered }: { covered: boolean }) {
+  const { t } = useTranslation();
+  const workspace = useApp((s) => s.workspace);
+  const clis = useApp((s) => s.clis);
+  const jobs = useApp((s) => s.jobs);
+  const quota = useApp((s) => s.quota);
+  const typing = useApp((s) => s.typing);
+  const openChannel = useApp((s) => s.openChannel);
+  const openAgentDialog = useApp((s) => s.openAgentDialog);
+  const toggleCrew = useApp((s) => s.toggleCrew);
+  const active = Object.values(jobs).filter((j) => j.state === 'running' || j.state === 'attention');
+  const busy = new Set(active.map((j) => j.agentId));
+  const asking = new Set(active.filter((j) => j.state === 'attention').map((j) => j.agentId));
+  const agents = workspace?.agents ?? [];
+  const advisors = workspace?.advisors ?? [];
+  const members = workspace?.members ?? [];
+  const me = workspace?.me;
+  const waiting = (workspace?.joins?.length ?? 0) + (workspace?.lessons?.length ?? 0);
+  return (
+    <motion.aside
+      className="strip"
+      aria-label={t('shell.crew')}
+      inert={covered}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0, transition: { duration: 0.1 } }}
+    >
+      <button
+        type="button"
+        className="strip__open"
+        aria-label={t('shell.expandCrew')}
+        title={t('shell.expandCrew')}
+        onClick={toggleCrew}
+      >
+        <Icon name="panelRight" size={16} />
+        {waiting > 0 && <span className="strip__flag" aria-hidden="true" />}
+      </button>
+      {agents.length > 0 && (
+        <ul className="strip__list">
+          {agents.map((a) => {
+            const owner = remoteOwner(a, workspace);
+            const cli = clis?.find((c) => c.kind === a.kind);
+            const missing = !owner && (!cli || cli.state === 'missing');
+            const channel = workspace?.channels.find((c) => c.kind === 'agent' && c.agentId === a.id);
+            const state = missing
+              ? t('crew.cliMissing')
+              : asking.has(a.id)
+                ? t('job.approval.title')
+                : busy.has(a.id)
+                  ? stepText(jobs, a.id, t)
+                  : owner
+                    ? t('agent.on', { name: owner })
+                    : t('crew.idle');
+            const label = `${a.name} · ${state}`;
+            return (
+              <li key={a.id}>
+                <button
+                  type="button"
+                  className={`strip__who ${busy.has(a.id) ? 'is-busy' : ''} ${asking.has(a.id) ? 'is-asking' : ''} ${missing ? 'is-off' : ''}`}
+                  aria-label={label}
+                  title={label}
+                  onClick={() => channel && void openChannel(channel.id)}
+                >
+                  <Avatar
+                    name=""
+                    icon={a.specialty ? specialistIcon(a) : 'terminal'}
+                    size={32}
+                    presence={missing ? 'off' : busy.has(a.id) ? 'busy' : 'on'}
+                  />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {advisors.length > 0 && (
+        <ul className="strip__list">
+          {advisors.map((a) => {
+            const writing = Object.values(typing).some((ids) => ids.includes(a.id));
+            const label = `${a.name} · ${writing ? t('advisor.writing') : t(`advisorForm.personalities.${a.personality}`)}`;
+            return (
+              <li key={a.id}>
+                <span className={`strip__who ${writing ? 'is-busy' : ''}`} role="img" aria-label={label} title={label}>
+                  <Avatar name={a.name} size={32} presence={writing ? 'busy' : a.chatter === 'off' ? 'off' : 'on'} />
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <ul className="strip__list">
+        {members.length > 0
+          ? members.map((m) => {
+              const label = `${m.name} · ${t(`shell.role.${m.role}`)}`;
+              return (
+                <li key={m.device}>
+                  <span
+                    className={`strip__who ${m.online ? '' : 'is-off'}`}
+                    role="img"
+                    aria-label={label}
+                    title={label}
+                  >
+                    <Avatar name={m.name} size={32} presence={m.online ? 'on' : 'off'} />
+                  </span>
+                </li>
+              );
+            })
+          : me && (
+              <li>
+                <span className="strip__who" role="img" aria-label={me.name} title={me.name}>
+                  <Avatar name={me.name} size={32} presence="on" />
+                </span>
+              </li>
+            )}
+      </ul>
+      <span className="grow" />
+      {Object.entries(quota).map(([id, q]) => {
+        const windows = Object.entries(q?.windows ?? {}).sort(([a], [b]) => a.localeCompare(b));
+        if (windows.length === 0) return null;
+        const top = Math.min(1, Math.max(...windows.map(([, w]) => w.used)));
+        const label = `${t('quota.title', { cli: t(`agent.kind.${id.split(':')[0]}`) })} · ${windows
+          .map(([name, w]) => `${t(`quota.window.${name}`, name)} %${Math.round(w.used * 100)}`)
+          .join(' · ')}`;
+        return (
+          <span
+            key={id}
+            className={`strip__quota ${top >= 0.9 ? 'is-high' : ''}`}
+            role="img"
+            aria-label={label}
+            title={label}
+            style={{ '--used': top } as CSSProperties}
+          >
+            <span className="l-mono">{Math.round(top * 100)}</span>
+          </span>
+        );
+      })}
+      <IconButton size="sm" icon="plus" label={t('crew.addAgent')} onClick={() => openAgentDialog('new')} />
+    </motion.aside>
+  );
+}
+
+function Crew({ over = false }: { over?: boolean }) {
   const { t } = useTranslation();
   const workspace = useApp((s) => s.workspace);
   const clis = useApp((s) => s.clis);
@@ -455,14 +620,7 @@ function Crew() {
       .filter((j) => j.state === 'attention')
       .map((j) => j.agentId),
   );
-  /** What a working agent is doing right now: its running job's latest step. */
-  const doing = (agentId: string): string => {
-    const job = Object.values(jobs).find((j) => j.agentId === agentId && j.state === 'running');
-    const step = job?.steps.at(-1);
-    if (!step) return t('crew.running');
-    const label = t(`job.tool.${step.label}`, step.label);
-    return step.arg ? `${label} · ${step.arg}` : label;
-  };
+  const doing = (agentId: string): string => stepText(jobs, agentId, t);
   const used = new Set(everyAgent.map((a) => a.kind));
   const suggestions = (clis ?? []).filter(
     (c) => RUNNABLE.includes(c.kind) && c.state !== 'missing' && !used.has(c.kind),
@@ -471,17 +629,28 @@ function Crew() {
 
   return (
     <motion.aside
-      className="crew"
+      className={`crew ${over ? 'crew--over' : ''}`}
       aria-label={t('shell.crew')}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0, transition: { duration: 0.1 } }}
+      initial={over ? { opacity: 0, x: 28 } : { opacity: 0 }}
+      animate={
+        over ? { opacity: 1, x: 0, transition: { type: 'spring', stiffness: 460, damping: 38 } } : { opacity: 1 }
+      }
+      exit={
+        over ? { opacity: 0, x: 28, transition: { duration: 0.14 } } : { opacity: 0, transition: { duration: 0.1 } }
+      }
     >
       <div className="crew__head">
-        <h2>{t('shell.crew')}</h2>
+        <h2 className="grow">{t('shell.crew')}</h2>
         <Button size="sm" icon="userPlus" onClick={() => useApp.setState({ inviteOpen: true })}>
           {t('shell.invite')}
         </Button>
+        <IconButton
+          size="sm"
+          icon="panelRight"
+          className="crew__narrow"
+          label={t(over ? 'shell.closeCrew' : 'shell.collapseCrew')}
+          onClick={() => useApp.getState().toggleCrew()}
+        />
       </div>
       <h3>
         <span className="grow">{t('shell.workers')}</span>
@@ -733,9 +902,32 @@ export function Shell({ onSettings }: { onSettings: () => void }) {
   const channel = useApp((s) => s.workspace?.channels.find((c) => c.id === s.channelId));
   const watching = useApp((s) => s.watching);
   const panel = useApp((s) => s.panel);
+  const { t } = useTranslation();
+  const sidebar = useApp((s) => s.settings?.sidebar !== false);
+  const crew = useApp((s) => s.settings?.crew ?? 'panel');
+  const peek = useApp((s) => s.crewPeek === true);
+  const phone = useMedia(PHONE);
+  const wide = useMedia(WIDE);
+  // Beside the page there is room for the panel (or the live view) only in a wide window; a phone has its own
+  // layout. In between, the strip stands there and the panel or the live view opens over the page.
+  const beside = phone || wide;
+  const strip = !phone && (!wide || crew === 'strip');
+  const over = beside ? undefined : watching ? 'live' : peek ? 'crew' : undefined;
+
+  useEffect(() => {
+    if (beside && peek) useApp.setState({ crewPeek: false });
+  }, [beside, peek]);
+  useEffect(() => {
+    if (over !== 'crew') return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && useApp.setState({ crewPeek: false });
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [over]);
+
   return (
     <motion.div
       data-panel={panel}
+      data-side={sidebar ? undefined : 'off'}
       className="shell"
       initial={{ opacity: 0, scale: 1.01 }}
       animate={{ opacity: 1, scale: 1, transition: { duration: 0.3 } }}
@@ -762,7 +954,29 @@ export function Shell({ onSettings }: { onSettings: () => void }) {
         <Placeholder view={view} />
       )}
       <AnimatePresence mode="wait">
-        {watching ? <LiveView key={watching} jobId={watching} /> : <Crew key="crew" />}
+        {beside && watching ? (
+          <LiveView key={watching} jobId={watching} />
+        ) : strip ? (
+          <CrewStrip key="strip" covered={over === 'crew'} />
+        ) : (
+          <Crew key="crew" />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {over === 'live' && watching && <LiveView key={`over-${watching}`} jobId={watching} over />}
+        {over === 'crew' && (
+          <motion.button
+            key="scrim"
+            type="button"
+            className="shell__scrim"
+            aria-label={t('shell.closeCrew')}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => useApp.setState({ crewPeek: false })}
+          />
+        )}
+        {over === 'crew' && <Crew key="crew-over" over />}
       </AnimatePresence>
       <PushBanner />
       <PhoneBar onSettings={onSettings} />

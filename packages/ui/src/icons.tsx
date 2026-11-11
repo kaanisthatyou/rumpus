@@ -179,6 +179,18 @@ const PATHS = {
   ),
   pin: <path d="M9 4h6l-1 6 3 3H7l3-3zM12 13v7" />,
   bolt: <path d="M13 3L5 13.5h6L10 21l8-10.5h-6z" />,
+  panelLeft: (
+    <>
+      <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" />
+      <path d="M9.5 4.5v15" />
+    </>
+  ),
+  panelRight: (
+    <>
+      <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" />
+      <path d="M14.5 4.5v15" />
+    </>
+  ),
 } satisfies Record<string, ReactNode>;
 
 export type IconName = keyof typeof PATHS;

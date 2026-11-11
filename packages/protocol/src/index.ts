@@ -42,14 +42,27 @@ export * from './connectors.js';
 export * from './providers.js';
 export * from './registry.js';
 export * from './specialists.js';
+export * from './traits.js';
 export * from './workspace.js';
 
 // ---------------------------------------------------------------- settings
 
 export const LANGUAGES = ['tr', 'en'] as const;
 export const THEMES = ['dark', 'light', 'system'] as const;
-export const ACCENTS = ['lime', 'blue', 'orange', 'violet'] as const;
+export const ACCENTS = ['lime', 'blue', 'orange', 'violet', 'teal', 'rose', 'amber'] as const;
 export const MOTION = ['system', 'reduced'] as const;
+/** The whole UI drawn smaller or larger (the window's zoom). */
+export const TEXT_SIZES = ['small', 'normal', 'large'] as const;
+/** How much room rows, messages and cards take. */
+export const DENSITIES = ['comfortable', 'compact'] as const;
+export const CLOCKS = ['24', '12'] as const;
+/** What a start shows first: the overview, or the channel that was open last. */
+export const START_VIEWS = ['home', 'last'] as const;
+/**
+ * The panel of agents and members: the whole panel, or a strip of avatars. A narrow window shows the strip either
+ * way, and the panel opens over the page from it.
+ */
+export const CREW_LAYOUTS = ['panel', 'strip'] as const;
 
 /** The settings fields as they are checked; the stored file fills in the newer ones from defaults (below). */
 const SETTINGS_FIELDS = {
@@ -72,6 +85,17 @@ const SETTINGS_FIELDS = {
   phone: z.boolean(),
   /** Rebound shortcuts: action → combo like `Ctrl+Shift+K`. Missing actions use the defaults. */
   shortcuts: z.record(z.string(), z.string().max(40)),
+  textSize: z.enum(TEXT_SIZES),
+  density: z.enum(DENSITIES),
+  clock: z.enum(CLOCKS),
+  startView: z.enum(START_VIEWS),
+  crew: z.enum(CREW_LAYOUTS),
+  /** The channel list is on screen (off: the middle column gets its room). */
+  sidebar: z.boolean(),
+  /** OS notifications while the app is in the background. */
+  notifications: z.boolean(),
+  /** The folder a new agent works in when none is picked. Empty means the desktop. */
+  agentFolder: z.string().max(1024),
 };
 
 export const SettingsSchema = z.object({
@@ -80,15 +104,26 @@ export const SettingsSchema = z.object({
   workspace: SETTINGS_FIELDS.workspace.default('personal'),
   phone: SETTINGS_FIELDS.phone.default(false),
   shortcuts: SETTINGS_FIELDS.shortcuts.default({}),
+  textSize: SETTINGS_FIELDS.textSize.default('normal'),
+  density: SETTINGS_FIELDS.density.default('comfortable'),
+  clock: SETTINGS_FIELDS.clock.default('24'),
+  startView: SETTINGS_FIELDS.startView.default('last'),
+  crew: SETTINGS_FIELDS.crew.default('panel'),
+  sidebar: SETTINGS_FIELDS.sidebar.default(true),
+  notifications: SETTINGS_FIELDS.notifications.default(true),
+  agentFolder: SETTINGS_FIELDS.agentFolder.default(''),
 });
 export type Settings = z.infer<typeof SettingsSchema>;
 export type Language = Settings['language'];
 export type Theme = Settings['theme'];
 export type Accent = Settings['accent'];
+export type TextSize = Settings['textSize'];
+export type Density = Settings['density'];
+export type CrewLayout = Settings['crew'];
 
 /**
  * A change to some settings. Built from the fields without their defaults: with them, a patch of one field would
- * carry every defaulted field too and reset it (shortcuts, quiet hours, the open workspace, the phone).
+ * carry every defaulted field too and reset it (shortcuts, quiet hours, the open workspace, the phone, the look).
  */
 export const SettingsPatchSchema = z
   .object(SETTINGS_FIELDS)
@@ -107,6 +142,8 @@ export const SHORTCUTS = {
   stop: 'Ctrl+.',
   prevWaiting: 'Ctrl+Shift+ArrowUp',
   nextWaiting: 'Ctrl+Shift+ArrowDown',
+  sidebar: 'Ctrl+B',
+  crew: 'Ctrl+Shift+B',
   /** Global: works while another app is in front (never Ctrl Space, which editors use). */
   quickEntry: 'Ctrl+Alt+Space',
 } as const;
@@ -126,6 +163,14 @@ export function defaultSettings(language: Language = 'en'): Settings {
     workspace: 'personal',
     phone: false,
     shortcuts: {},
+    textSize: 'normal',
+    density: 'comfortable',
+    clock: '24',
+    startView: 'last',
+    crew: 'panel',
+    sidebar: true,
+    notifications: true,
+    agentFolder: '',
   };
 }
 
@@ -243,7 +288,13 @@ export interface CoreMethods {
   'tailscale.status': { params: undefined; result: TailscaleInfo };
   'system.info': {
     params: undefined;
-    result: { platform: Platform; dataDir: string; defaultDataDir: string };
+    result: {
+      platform: Platform;
+      dataDir: string;
+      defaultDataDir: string;
+      /** The folder a new agent gets when none is picked: the one in settings, else the desktop. */
+      agentFolder: string;
+    };
   };
   'workspace.get': { params: undefined; result: WorkspaceState };
   'workspaces.list': { params: undefined; result: WorkspaceSummary[] };

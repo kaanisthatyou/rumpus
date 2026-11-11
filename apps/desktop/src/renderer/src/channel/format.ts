@@ -1,8 +1,16 @@
 // Small formatting helpers shared by the channel views.
 
-export function clock(ms: number): string {
+import { useApp } from '../store';
+
+/** The time of day as Settings asks: `16:05`, or `4:05` with the half of the day (`short` leaves that out). */
+export function clock(ms: number, short = false): string {
   const d = new Date(ms);
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  if (useApp.getState().settings?.clock !== '12') return `${String(d.getHours()).padStart(2, '0')}:${minutes}`;
+  const time = `${d.getHours() % 12 || 12}:${minutes}`;
+  if (short) return time;
+  const half = useApp.getState().settings?.language === 'tr' ? ['ÖÖ', 'ÖS'] : ['AM', 'PM'];
+  return `${time} ${half[d.getHours() < 12 ? 0 : 1]}`;
 }
 
 export function elapsed(from: number, to: number): string {

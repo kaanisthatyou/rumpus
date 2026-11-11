@@ -123,7 +123,7 @@ function MessageRow({
       animate={{ opacity: 1, y: 0, transition: { type: 'spring', stiffness: 420, damping: 32 } }}
     >
       {compact ? (
-        <time className="msg__gutter l-mono">{clock(message.created)}</time>
+        <time className="msg__gutter l-mono">{clock(message.created, true)}</time>
       ) : (
         <Avatar
           name={name}

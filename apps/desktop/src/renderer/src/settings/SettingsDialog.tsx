@@ -1,4 +1,5 @@
-import { Button, Icon, IconButton, type IconName, TextField } from '@lonca/ui';
+import { CLOCKS, CREW_LAYOUTS, DENSITIES, START_VIEWS, TEXT_SIZES } from '@lonca/protocol';
+import { Button, Chip, Icon, IconButton, type IconName, Segmented, Switch, TextField } from '@lonca/ui';
 import { motion } from 'motion/react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -105,27 +106,168 @@ function General() {
         </div>
         <p className="muted">{t('settings.quietHint')}</p>
       </section>
+      {!onPhone && (
+        <section className="set">
+          <h4>{t('settings.notifications')}</h4>
+          <div className="row-field">
+            <Switch
+              checked={settings?.notifications !== false}
+              onChange={(notifications) => void patch({ notifications })}
+              label={t('settings.notificationsLabel')}
+            />
+            <span>{t('settings.notificationsLabel')}</span>
+          </div>
+          <p className="muted">{t('settings.notificationsHint')}</p>
+        </section>
+      )}
+      {!onPhone && (
+        <section className="set">
+          <h4>{t('settings.agentFolder')}</h4>
+          <AgentFolder />
+        </section>
+      )}
+    </div>
+  );
+}
+
+/** Where an agent works when its form names no folder: a folder picked here, else the desktop. */
+function AgentFolder() {
+  const { t } = useTranslation();
+  const system = useApp((s) => s.system);
+  const settings = useApp((s) => s.settings);
+  const patch = useApp((s) => s.patch);
+  if (!system || !settings) return null;
+  return (
+    <div className="folder">
+      <div className="folder__path l-card">
+        <Icon name="folder" />
+        <span className="l-mono l-selectable">{system.agentFolder}</span>
+        {!settings.agentFolder && <Chip>{t('settings.agentFolderDesktop')}</Chip>}
+      </div>
+      <div className="folder__actions">
+        <Button
+          icon="folder"
+          onClick={async () => {
+            const dir = await window.lonca.shell.pickFolder();
+            if (dir) await patch({ agentFolder: dir });
+          }}
+        >
+          {t('common.change')}
+        </Button>
+        {settings.agentFolder && (
+          <Button variant="quiet" onClick={() => void patch({ agentFolder: '' })}>
+            {t('common.useDefault')}
+          </Button>
+        )}
+      </div>
+      <p className="muted">{t('settings.agentFolderHint')}</p>
     </div>
   );
 }
 
 function Appearance() {
   const { t } = useTranslation();
+  const settings = useApp((s) => s.settings);
+  const patch = useApp((s) => s.patch);
+  if (!settings) return null;
   return (
     <div className="stack">
-      <div className="row-field">
-        <span className="row-field__label">{t('launcher.appearance.theme')}</span>
-        <ThemePicker id="settings" />
-      </div>
-      <div className="row-field">
-        <span className="row-field__label">{t('launcher.appearance.accent')}</span>
-        <AccentPicker />
-      </div>
-      <div className="row-field">
-        <span className="row-field__label">{t('launcher.appearance.motion')}</span>
-        <MotionPicker id="settings" />
-      </div>
+      <section className="set">
+        <div className="set__rows">
+          <div className="row-field">
+            <span className="row-field__label">{t('launcher.appearance.theme')}</span>
+            <ThemePicker id="settings" />
+          </div>
+          <div className="row-field">
+            <span className="row-field__label">{t('launcher.appearance.accent')}</span>
+            <AccentPicker />
+          </div>
+          <div className="row-field">
+            <span className="row-field__label">{t('launcher.appearance.motion')}</span>
+            <MotionPicker id="settings" />
+          </div>
+          {!onPhone && (
+            <div className="row-field">
+              <span className="row-field__label">{t('settings.textSize')}</span>
+              <Segmented
+                layoutId="set-text"
+                label={t('settings.textSize')}
+                value={settings.textSize}
+                onChange={(textSize) => void patch({ textSize })}
+                options={TEXT_SIZES.map((v) => ({ value: v, label: t(`settings.textSizes.${v}`) }))}
+              />
+            </div>
+          )}
+          <div className="row-field">
+            <span className="row-field__label">{t('settings.density')}</span>
+            <Segmented
+              layoutId="set-density"
+              label={t('settings.density')}
+              value={settings.density}
+              onChange={(density) => void patch({ density })}
+              options={DENSITIES.map((v) => ({ value: v, label: t(`settings.densities.${v}`) }))}
+            />
+          </div>
+          <div className="row-field">
+            <span className="row-field__label">{t('settings.clock')}</span>
+            <Segmented
+              layoutId="set-clock"
+              label={t('settings.clock')}
+              value={settings.clock}
+              onChange={(clock) => void patch({ clock })}
+              options={CLOCKS.map((v) => ({ value: v, label: t(`settings.clocks.${v}`) }))}
+            />
+          </div>
+        </div>
+      </section>
       <AppearancePreview />
+      <section className="set">
+        <h4>{t('settings.layout')}</h4>
+        <div className="set__rows">
+          {!onPhone && (
+            <>
+              <div className="row-field">
+                <span className="row-field__label">{t('settings.crew')}</span>
+                <Segmented
+                  layoutId="set-crew"
+                  label={t('settings.crew')}
+                  value={settings.crew}
+                  onChange={(crew) => void patch({ crew })}
+                  options={CREW_LAYOUTS.map((v) => ({
+                    value: v,
+                    label: t(`settings.crews.${v}`),
+                    icon: v === 'panel' ? ('panelRight' as const) : ('users' as const),
+                  }))}
+                />
+              </div>
+              <div className="row-field">
+                <span className="row-field__label">{t('settings.sidebar')}</span>
+                <Segmented
+                  layoutId="set-sidebar"
+                  label={t('settings.sidebar')}
+                  value={settings.sidebar ? 'on' : 'off'}
+                  onChange={(v) => void patch({ sidebar: v === 'on' })}
+                  options={[
+                    { value: 'on', label: t('settings.sidebars.on') },
+                    { value: 'off', label: t('settings.sidebars.off') },
+                  ]}
+                />
+              </div>
+            </>
+          )}
+          <div className="row-field">
+            <span className="row-field__label">{t('settings.startView')}</span>
+            <Segmented
+              layoutId="set-start"
+              label={t('settings.startView')}
+              value={settings.startView}
+              onChange={(startView) => void patch({ startView })}
+              options={START_VIEWS.map((v) => ({ value: v, label: t(`settings.startViews.${v}`) }))}
+            />
+          </div>
+        </div>
+        {!onPhone && <p className="muted">{t('settings.crewHint')}</p>}
+      </section>
     </div>
   );
 }

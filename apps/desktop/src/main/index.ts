@@ -55,6 +55,23 @@ let win: BrowserWindow | undefined;
 let quick: BrowserWindow | undefined;
 /** The global key that opens it, as an Electron accelerator; the person can change it in Settings. */
 let quickKey: string | undefined;
+/** The text size as a zoom factor; Chromium shares it between windows of one origin, so both follow it. */
+let zoom = 1;
+const QUICK_SIZE = { width: 600, height: 172 };
+const TITLE_BAR_HEIGHT = 36;
+
+function applyZoom(): void {
+  if (win && !win.isDestroyed()) {
+    win.webContents.setZoomFactor(zoom);
+    if (process.platform !== 'darwin') win.setTitleBarOverlay({ height: Math.round(TITLE_BAR_HEIGHT * zoom) });
+  }
+  if (quick && !quick.isDestroyed()) {
+    quick.webContents.setZoomFactor(zoom);
+    quick.setResizable(true);
+    quick.setSize(Math.round(QUICK_SIZE.width * zoom), Math.round(QUICK_SIZE.height * zoom));
+    quick.setResizable(false);
+  }
+}
 
 /** Serai's combo (`Ctrl+Alt+Space`, `Ctrl+Shift+ArrowUp`) as an Electron accelerator. */
 function accelerator(combo: string): string {
@@ -111,6 +128,14 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(start);
 }
 
+function desktopDir(): string {
+  try {
+    return app.getPath('desktop');
+  } catch {
+    return '';
+  }
+}
+
 function startCore(): void {
   core = utilityProcess.fork(join(here, 'core.js'), [], {
     serviceName: `${BRAND.name} core`,
@@ -118,6 +143,8 @@ function startCore(): void {
       ...process.env,
       LONCA_APP_DIR: appDir,
       LONCA_LOCALE: process.env.LONCA_LANG ?? app.getLocale(),
+      // Where agents work when no folder is picked: the desktop as the system knows it (tests give their own).
+      LONCA_DESKTOP_DIR: process.env.LONCA_DESKTOP_DIR ?? desktopDir(),
       // The built UI, for paired phones (in development the page comes from Vite instead).
       ...(devUrl ? {} : { LONCA_WEB_DIR: join(here, '../renderer') }),
     },
@@ -180,6 +207,11 @@ function registerIpc(): void {
     if (!win || typeof c?.background !== 'string' || typeof c.symbols !== 'string') return;
     if (process.platform !== 'darwin') win.setTitleBarOverlay({ color: c.background, symbolColor: c.symbols });
     win.setBackgroundColor(c.background);
+  });
+  handle('shell:setZoom', (_e, factor) => {
+    if (typeof factor !== 'number' || !(factor >= 0.8 && factor <= 1.3) || factor === zoom) return;
+    zoom = factor;
+    applyZoom();
   });
   handle('shell:notify', (_e, title, body) => {
     if (typeof title !== 'string' || typeof body !== 'string' || !Notification.isSupported()) return;
@@ -286,8 +318,8 @@ function createWindow(): BrowserWindow {
 
 function createQuickWindow(): BrowserWindow {
   const q = new BrowserWindow({
-    width: 600,
-    height: 172,
+    width: Math.round(QUICK_SIZE.width * zoom),
+    height: Math.round(QUICK_SIZE.height * zoom),
     show: false,
     frame: false,
     resizable: false,
@@ -306,7 +338,10 @@ function createQuickWindow(): BrowserWindow {
       spellcheck: false,
     },
   });
-  q.webContents.on('did-finish-load', () => connect(q));
+  q.webContents.on('did-finish-load', () => {
+    q.webContents.setZoomFactor(zoom);
+    connect(q);
+  });
   q.on('blur', () => q.hide());
   q.on('closed', () => {
     quick = undefined;
@@ -325,7 +360,7 @@ function toggleQuick(): void {
   const q = quick ?? createQuickWindow();
   quick = q;
   const area = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
-  const [width = 600] = q.getSize();
+  const [width = QUICK_SIZE.width] = q.getSize();
   q.setPosition(Math.round(area.x + (area.width - width) / 2), Math.round(area.y + area.height * 0.26));
   const show = () => {
     q.show();

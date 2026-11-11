@@ -15,6 +15,7 @@ const bridge: LoncaBridge = {
     copy: (text) => ipcRenderer.invoke('shell:copy', text),
     appInfo: () => ipcRenderer.invoke('shell:appInfo'),
     setTitleBar: (colors) => ipcRenderer.invoke('shell:setTitleBar', colors),
+    setZoom: (factor) => ipcRenderer.invoke('shell:setZoom', factor),
     notify: (title, body) => ipcRenderer.invoke('shell:notify', title, body),
   },
   links: {

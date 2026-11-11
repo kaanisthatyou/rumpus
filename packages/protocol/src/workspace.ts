@@ -68,11 +68,14 @@ export const AgentInputSchema = z.object({
     .string()
     .trim()
     .regex(/^[a-z0-9][a-z0-9-]{0,31}$/),
-  folder: z.string().min(1),
+  /** Where it works. Empty means the default folder of this computer (Settings, else the desktop). */
+  folder: z.string().max(1024).default(''),
   mode: z.enum(AGENT_MODES),
   model: z.string().trim().max(80).optional(),
   /** The agent's own instruction layer (PLAN.md 5.14, layer 4). */
   instructions: z.string().max(20_000).default(''),
+  /** Character presets its owner picked (`AGENT_TRAITS`): ready-made instruction lines. */
+  traits: z.array(z.string().max(40)).max(8).default([]),
   /** One of this computer's extra logins of the CLI (Settings → Agents → Accounts); none means the default one. */
   account: z.string().max(64).optional(),
   /** In a team workspace: who besides the owner may give it jobs, and how far (PLAN.md 5.11). */
@@ -101,6 +104,8 @@ export interface Agent {
   mode: AgentMode;
   model?: string;
   instructions: string;
+  /** Character presets its owner picked (ids of `AGENT_TRAITS`). */
+  traits?: string[];
   /** The device that added it: jobs run there, on that member's CLI login. Missing on agents from before teams. */
   owner?: string;
   /** The owner's extra login of the CLI it runs on, when not the default one. */

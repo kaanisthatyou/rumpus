@@ -159,7 +159,12 @@
     "specialists": "Uzmanlar",
     "noSpecialists": "Uzman yok. Tek bir işe özelleşmiş agent eklenir.",
     "home": "Genel bakış",
-    "routines": "Rutinler"
+    "routines": "Rutinler",
+    "showSidebar": "Kanal listesini göster",
+    "hideSidebar": "Kanal listesini gizle",
+    "expandCrew": "Paneli aç",
+    "collapseCrew": "Şeride indir",
+    "closeCrew": "Paneli kapat"
   },
   "settings": {
     "title": "Ayarlar",
@@ -185,7 +190,46 @@
     "quietHours": "Danışmanların sessiz saatleri",
     "quietFrom": "Başlangıç",
     "quietTo": "Bitiş",
-    "quietHint": "Bu saatlerde danışmanlar yalnızca çağrıldıklarında yazar. İki saat aynıysa sessiz saat yoktur."
+    "quietHint": "Bu saatlerde danışmanlar yalnızca çağrıldıklarında yazar. İki saat aynıysa sessiz saat yoktur.",
+    "layout": "Düzen",
+    "textSize": "Yazı boyutu",
+    "textSizes": {
+      "small": "Küçük",
+      "normal": "Normal",
+      "large": "Büyük"
+    },
+    "density": "Sıklık",
+    "densities": {
+      "comfortable": "Ferah",
+      "compact": "Sıkı"
+    },
+    "clock": "Saat biçimi",
+    "clocks": {
+      "12": "12 saat",
+      "24": "24 saat"
+    },
+    "startView": "Açılış sayfası",
+    "startViews": {
+      "home": "Genel bakış",
+      "last": "Son kanal"
+    },
+    "crew": "Kişiler paneli",
+    "crews": {
+      "panel": "Panel",
+      "strip": "Şerit"
+    },
+    "crewHint": "Dar pencerede panel kendiliğinden şeride iner; şeritteki düğme paneli içeriğin üzerinde açar.",
+    "sidebar": "Kanal listesi",
+    "sidebars": {
+      "on": "Görünür",
+      "off": "Gizli"
+    },
+    "notifications": "Bildirimler",
+    "notificationsLabel": "Sistem bildirimleri",
+    "notificationsHint": "Uygulama arka plandayken onay bekleyen iş, katılma isteği ve başka üyelerin mesajı için bildirim gösterilir.",
+    "agentFolder": "Agentların varsayılan klasörü",
+    "agentFolderHint": "Klasör seçilmeden eklenen agent burada çalışır. Ayarlanmadıysa masaüstü kullanılır.",
+    "agentFolderDesktop": "Masaüstü"
   },
   "theme": {
     "dark": "Koyu",
@@ -196,7 +240,10 @@
     "lime": "Limon",
     "blue": "Mavi",
     "orange": "Turuncu",
-    "violet": "Mor"
+    "violet": "Mor",
+    "teal": "Turkuaz",
+    "rose": "Gül",
+    "amber": "Kehribar"
   },
   "motion": {
     "system": "Sistem ayarı",
@@ -349,7 +396,7 @@
     "handle": "Kısa ad",
     "handleHint": "Kanallarda @{{handle}} ile çağrılır.",
     "folder": "Klasör",
-    "folderHint": "Agent bu klasörde çalışır.",
+    "folderHint": "Agent bu klasörde çalışır. Seçilmezse varsayılan klasör kullanılır (Ayarlar → Genel).",
     "pick": "Seç",
     "mode": "İzin düzeyi",
     "modes": {
@@ -380,7 +427,8 @@
         "me": "Diğer üyeler bu agent'ı görür ama iş veremez.",
         "members": "Düzenleyici ve yöneticiler iş verebilir; işler bu bilgisayarda, bu bilgisayarın CLI girişiyle çalışır."
       }
-    }
+    },
+    "folderDefault": "Varsayılan"
   },
   "crew": {
     "addAgent": "Agent ekle",
@@ -462,7 +510,9 @@
     "reset": "Varsayılan",
     "fixed": "Mesaj kutusu tuşları sabittir.",
     "quickEntry": "Hızlı giriş (her yerden)",
-    "globalTaken": "Bu tuşlar başka bir uygulamada kullanılıyor; önceki tuşlar kaldı."
+    "globalTaken": "Bu tuşlar başka bir uygulamada kullanılıyor; önceki tuşlar kaldı.",
+    "sidebar": "Kanal listesini gizle ya da göster",
+    "crew": "Kişiler panelini daralt ya da aç"
   },
   "records": {
     "new": {
@@ -1211,5 +1261,59 @@
     "ran": "Yazıldı",
     "message": "Rutin",
     "messageHint": "Bu mesaj, sahibinin bir rutini tarafından yazıldı."
+  },
+  "traits": {
+    "title": "Karakter",
+    "hint": "Hazır talimat satırları. Seçilenler her işte agenta verilir; birbirinin tersi olanlardan yalnızca biri kalır.",
+    "count": "{{count}} / {{max}}",
+    "full": "En çok {{max}} karakter seçilir.",
+    "careful": {
+      "name": "Titiz",
+      "hint": "Bitti demeden önce çalıştırıp doğrular; neyi denetlediğini yazar."
+    },
+    "fast": {
+      "name": "Hızlı",
+      "hint": "En kısa yoldan sonuca gider; istenmeyeni eklemez, kısa rapor verir."
+    },
+    "asks": {
+      "name": "Önce sorar",
+      "hint": "Belirsiz ya da geri alınması zor adımlardan önce tek bir soru sorar."
+    },
+    "independent": {
+      "name": "Kendi karar verir",
+      "hint": "Küçük kararlarda durmaz; varsayımını yazar, iş bitene kadar sürdürür."
+    },
+    "brief": {
+      "name": "Az konuşur",
+      "hint": "Girizgâh ve tekrar olmadan birkaç satırla yanıt verir."
+    },
+    "teacher": {
+      "name": "Açıklar",
+      "hint": "Neden o yolu seçtiğini ve her önemli değişikliğin ne yaptığını anlatır."
+    },
+    "minimal": {
+      "name": "Az dokunur",
+      "hint": "İsteği çözen en küçük değişikliği yapar; yan düzenlemeye girmez."
+    },
+    "tests": {
+      "name": "Test yazar",
+      "hint": "Davranış değişikliğini testiyle birlikte getirir, testleri çalıştırır."
+    },
+    "planner": {
+      "name": "Plan yapar",
+      "hint": "Çok adımlı işe numaralı kısa bir planla başlar, adım adım ilerler."
+    },
+    "skeptic": {
+      "name": "Sorgular",
+      "hint": "Daha basit bir yol ya da gizli bir risk varsa işe başlamadan söyler."
+    },
+    "documenter": {
+      "name": "Not tutar",
+      "hint": "README, yorum, pano ve durum sayfasını güncel bırakır."
+    },
+    "creative": {
+      "name": "Seçenek sunar",
+      "hint": "Serbestlik olan yerde iki üç seçeneği artısı ve eksisiyle önerir."
+    }
   }
 }

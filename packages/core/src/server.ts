@@ -4,6 +4,7 @@ import { spawn } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { connect } from 'node:net';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 import {
   type Advisor,
@@ -23,6 +24,7 @@ import {
   CoreError,
   type CoreEvents,
   type CoreMethods,
+  cleanTraits,
   DEFAULT_ACCESS,
   type DeviceStatus,
   type EventName,
@@ -100,6 +102,8 @@ export interface Peer {
 export interface CoreOptions {
   /** Serai's own folder for settings (Electron's userData, or LONCA_HOME). */
   appDir: string;
+  /** The person's desktop folder, as the system reports it (it can be moved, to OneDrive for one). */
+  desktopDir?: string;
   language: Language;
   runner?: Runner;
   env?: NodeJS.ProcessEnv;
@@ -343,6 +347,7 @@ export class Core {
         platform: opts.platform ?? process.platform,
         dataDir: this.dataDir(),
         defaultDataDir: this.defaultDataDir(),
+        agentFolder: this.agentFolder(),
       }),
       'workspace.get': async () => this.state(),
       'workspaces.list': async () => this.registry(),
@@ -640,6 +645,16 @@ export class Core {
 
   dataDir(): string {
     return this.settings.get().dataDir || this.defaultDataDir();
+  }
+
+  /**
+   * Where a new agent works when its owner picked no folder: the folder in settings, else the desktop, else the
+   * home folder (a computer without a desktop folder).
+   */
+  agentFolder(): string {
+    const home = homedir();
+    const candidates = [this.settings.get().agentFolder, this.opts.desktopDir, join(home, 'Desktop'), home];
+    return candidates.find((dir) => dir && isDir(dir)) ?? home;
   }
 
   private loadDeviceId(): string {
@@ -2079,8 +2094,11 @@ export class Core {
       store.advisors().some((a) => a.handle === p.handle)
     )
       throw new CoreError('handle_taken');
-    if (!isDir(p.folder)) throw new CoreError('folder_missing');
+    // No folder picked: this computer's default one (Settings, else the desktop).
+    const folder = p.folder.trim() || this.agentFolder();
+    if (!isDir(folder)) throw new CoreError('folder_missing');
     if (p.account && this.accounts.get(p.account)?.kind !== p.kind) throw new CoreError('invalid_agent', 'account');
+    const traits = cleanTraits(p.traits);
     // A specialist's references are records of this workspace; ones that are gone drop out.
     const specialty = p.specialty
       ? { ...p.specialty, refs: p.specialty.refs.filter((id) => store.record(id)?.kind === 'reference') }
@@ -2090,11 +2108,12 @@ export class Core {
       kind: p.kind,
       name: p.name,
       handle: p.handle,
-      folder: p.folder,
+      folder,
       mode: p.mode,
       ...(p.model ? { model: p.model } : {}),
       ...(p.account ? { account: p.account } : {}),
       instructions: p.instructions,
+      ...(traits.length > 0 ? { traits } : {}),
       owner: existing?.owner ?? this.deviceId,
       ...(p.access ? { access: p.access } : existing?.access ? { access: existing.access } : {}),
       ...(specialty ? { specialty } : {}),

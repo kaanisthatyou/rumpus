@@ -159,7 +159,12 @@
     "specialists": "Specialists",
     "noSpecialists": "No specialists. An agent for one kind of work is added here.",
     "home": "Overview",
-    "routines": "Routines"
+    "routines": "Routines",
+    "showSidebar": "Show the channel list",
+    "hideSidebar": "Hide the channel list",
+    "expandCrew": "Open the panel",
+    "collapseCrew": "Narrow to a strip",
+    "closeCrew": "Close the panel"
   },
   "settings": {
     "title": "Settings",
@@ -185,7 +190,46 @@
     "quietHours": "Advisors' quiet hours",
     "quietFrom": "From",
     "quietTo": "To",
-    "quietHint": "During these hours advisors write only when called. Equal times mean no quiet hours."
+    "quietHint": "During these hours advisors write only when called. Equal times mean no quiet hours.",
+    "layout": "Layout",
+    "textSize": "Text size",
+    "textSizes": {
+      "small": "Small",
+      "normal": "Normal",
+      "large": "Large"
+    },
+    "density": "Density",
+    "densities": {
+      "comfortable": "Comfortable",
+      "compact": "Compact"
+    },
+    "clock": "Time format",
+    "clocks": {
+      "12": "12-hour",
+      "24": "24-hour"
+    },
+    "startView": "Start page",
+    "startViews": {
+      "home": "Overview",
+      "last": "Last channel"
+    },
+    "crew": "People panel",
+    "crews": {
+      "panel": "Panel",
+      "strip": "Strip"
+    },
+    "crewHint": "In a narrow window the panel becomes a strip by itself; the button on the strip opens it over the page.",
+    "sidebar": "Channel list",
+    "sidebars": {
+      "on": "Shown",
+      "off": "Hidden"
+    },
+    "notifications": "Notifications",
+    "notificationsLabel": "System notifications",
+    "notificationsHint": "Shown while the app is in the background: a job waiting for approval, a request to join, another member's message.",
+    "agentFolder": "Default folder for agents",
+    "agentFolderHint": "An agent added without a folder works here. When this is not set, the desktop is used.",
+    "agentFolderDesktop": "Desktop"
   },
   "theme": {
     "dark": "Dark",
@@ -196,7 +240,10 @@
     "lime": "Lime",
     "blue": "Blue",
     "orange": "Orange",
-    "violet": "Violet"
+    "violet": "Violet",
+    "teal": "Teal",
+    "rose": "Rose",
+    "amber": "Amber"
   },
   "motion": {
     "system": "System setting",
@@ -349,7 +396,7 @@
     "handle": "Handle",
     "handleHint": "Called with @{{handle}} in channels.",
     "folder": "Folder",
-    "folderHint": "The agent works in this folder.",
+    "folderHint": "The agent works in this folder. With none picked, the default folder is used (Settings → General).",
     "pick": "Choose",
     "mode": "Permission level",
     "modes": {
@@ -380,7 +427,8 @@
         "me": "Other members see this agent but cannot give it jobs.",
         "members": "Editors and admins can give it jobs; they run on this computer, on this computer's CLI login."
       }
-    }
+    },
+    "folderDefault": "Default"
   },
   "crew": {
     "addAgent": "Add agent",
@@ -462,7 +510,9 @@
     "reset": "Default",
     "fixed": "Message box keys are fixed.",
     "quickEntry": "Quick entry (from anywhere)",
-    "globalTaken": "Another app uses these keys; the previous keys stay."
+    "globalTaken": "Another app uses these keys; the previous keys stay.",
+    "sidebar": "Hide or show the channel list",
+    "crew": "Narrow or open the people panel"
   },
   "records": {
     "new": {
@@ -1211,5 +1261,59 @@
     "ran": "Posted",
     "message": "Routine",
     "messageHint": "This message was posted by one of its owner's routines."
+  },
+  "traits": {
+    "title": "Character",
+    "hint": "Ready-made instruction lines. The picked ones go to the agent with every job; of two opposites only one stays.",
+    "count": "{{count}} / {{max}}",
+    "full": "At most {{max}} can be picked.",
+    "careful": {
+      "name": "Thorough",
+      "hint": "Runs and checks before calling it done; says what was checked."
+    },
+    "fast": {
+      "name": "Quick",
+      "hint": "Takes the shortest path; adds nothing unasked, reports in a few lines."
+    },
+    "asks": {
+      "name": "Asks first",
+      "hint": "Asks one question before an unclear or hard-to-undo step."
+    },
+    "independent": {
+      "name": "Decides alone",
+      "hint": "Does not stop for small decisions; notes the assumption and finishes the job."
+    },
+    "brief": {
+      "name": "Few words",
+      "hint": "Answers in a few lines, without preamble or recap."
+    },
+    "teacher": {
+      "name": "Explains",
+      "hint": "Says why an approach was chosen and what each important change does."
+    },
+    "minimal": {
+      "name": "Light touch",
+      "hint": "Makes the smallest change that solves the request; no side refactoring."
+    },
+    "tests": {
+      "name": "Test-minded",
+      "hint": "Brings a test with every change in behavior and runs the suite."
+    },
+    "planner": {
+      "name": "Plans first",
+      "hint": "Starts a multi-step job with a short numbered plan and follows it."
+    },
+    "skeptic": {
+      "name": "Questions things",
+      "hint": "Names a simpler way or a hidden risk before doing the work."
+    },
+    "documenter": {
+      "name": "Keeps notes",
+      "hint": "Leaves the README, comments, board and status page current."
+    },
+    "creative": {
+      "name": "Brings options",
+      "hint": "Offers two or three options with trade-offs where there is room."
+    }
   }
 }

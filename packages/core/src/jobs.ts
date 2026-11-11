@@ -352,6 +352,7 @@ export class Jobs {
         live.agent.folder !== agent.folder ||
         live.agent.account !== agent.account ||
         live.agent.instructions !== agent.instructions ||
+        (live.agent.traits ?? []).join() !== (agent.traits ?? []).join() ||
         JSON.stringify(live.agent.specialty) !== JSON.stringify(agent.specialty))
     ) {
       this.close(live); // settings changed: start again, keeping the conversation

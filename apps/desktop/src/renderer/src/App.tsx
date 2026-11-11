@@ -98,6 +98,10 @@ export function App() {
           );
           return go(() => next && void s.openJob(next.id));
         }
+        case 'sidebar':
+          return go(() => s.toggleSidebar());
+        case 'crew':
+          return go(() => s.toggleCrew());
         case 'quickEntry':
           // Reaches the page only when the key could not be registered globally.
           return go(() => void window.lonca.quick.open());

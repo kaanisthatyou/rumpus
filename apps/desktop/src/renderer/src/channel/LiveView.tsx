@@ -9,7 +9,8 @@ import { useApp } from '../store';
 import { clock } from './format';
 import { Markdown } from './Markdown';
 
-export function LiveView({ jobId }: { jobId: string }) {
+/** `over`: drawn over the page instead of beside it (a window too narrow for both). */
+export function LiveView({ jobId, over = false }: { jobId: string; over?: boolean }) {
   const { t } = useTranslation();
   const job = useApp((s) => s.jobs[jobId]);
   const agent = useApp((s) => s.workspace?.agents.find((a) => a.id === s.jobs[jobId]?.agentId));
@@ -39,7 +40,7 @@ export function LiveView({ jobId }: { jobId: string }) {
 
   return (
     <motion.aside
-      className="live"
+      className={`live ${over ? 'live--over' : ''}`}
       aria-label={t('job.live')}
       initial={{ x: 24, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}

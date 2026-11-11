@@ -21,4 +21,7 @@ export const ACCENT_SWATCHES = {
   blue: '#7AA7FF',
   orange: '#FF8A5B',
   violet: '#A48BFF',
+  teal: '#4FD8C4',
+  rose: '#FF86AC',
+  amber: '#FFC24B',
 } as const;
