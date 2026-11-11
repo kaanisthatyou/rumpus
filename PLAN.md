@@ -3,7 +3,9 @@
 Status: **Phase 4 under way** (0.9.0-alpha.0, 2026-11-11). The product is called **Serai** since 2026-11-10 (it
 was Lonca; the code name `lonca` stays in package names and environment variables, see section 2). Built on
 2026-11-10/11: specialists (5.15), routines (5.16), the Overview page and unread counts (5.17), invite links with
-a check of the way to the inviter (5.11). Before that (0.8.0-alpha.0, 2026-10-19): memory, projects with status pages, hand-over, several
+a check of the way to the inviter (5.11); then (4.19) a shell that adapts to its room, an agent folder that no
+longer has to be picked, character presets for agents and the personal settings. The name is open again: Serai
+is taken (section 10). Before that (0.8.0-alpha.0, 2026-10-19): memory, projects with status pages, hand-over, several
 CLI logins, `/durum`, `/özet`, quick entry and advisor notes; voice is paused (Kaan, 2026-10-19). The
 connector store has its core and its catalog (4.10, 4.11, 2026-10-22): connectors from Serai's catalog, the MCP
 Registry or by hand, served through Serai's gateway with a policy per tool; OAuth and MCPB come next. The done-checks of Phases 1-3 wait for real use by Kaan and Arda; see the status blocks
@@ -39,7 +41,7 @@ From the Q&A on 2026-10-16.
 
 | Topic | Decision |
 |---|---|
-| Name | **Serai** since 2026-11-10 (a caravanserai: where people arriving with their own caravans meet). It was Lonca; Kaan asked for a name the product can be published and sold under. The name lives in `packages/protocol/src/brand.ts`; the code name `lonca` stays in package names (`@lonca/*`), environment variables (`LONCA_*`), wire headers and file names. Invite codes and the data folder of the former name are still accepted. Not yet checked: trademark and domain |
+| Name | **Serai** since 2026-11-10 (a caravanserai: where people arriving with their own caravans meet). It was Lonca; Kaan asked for a name the product can be published and sold under. The name lives in `packages/protocol/src/brand.ts`; the code name `lonca` stays in package names (`@lonca/*`), environment variables (`LONCA_*`), wire headers and file names. Invite codes and the data folder of the former name are still accepted. **2026-11-11: Kaan found the name taken; a new one is being chosen (section 10)** |
 | Workspace word | Independent of the product's name: "alan" in Turkish, "workspace" in English (2026-11-10) |
 | Distribution | Open source, **Apache-2.0** |
 | Platforms, first release | Windows, Linux, phone companion (PWA). No macOS yet |
@@ -128,10 +130,21 @@ Discord-like, three columns plus a rail:
 - **Right, "Loncadakiler":** invite code, **workers** (CLI agents, with state), **advisors** (with profile chip and
   today's budget), **members** (with role and presence), quota of your own agents.
 - Phone: the same UI in its narrow layout (bottom tabs), from the desktop app over Tailscale.
+- **The shell adapts to its room** (2026-11-11). The crew panel stands beside the page only in a wide window (from
+  1180 px); below that, or when the person narrows it, it is a **strip** of avatars (who is here, a turning ring on
+  a working agent, a still one in the warning color on one that waits for approval, the quota as a small ring) and
+  the whole panel opens over the page from it. The live view does the same in a narrow window. The channel list
+  hides and comes back (`Ctrl B`, a button on the rail; `Ctrl Shift B` for the crew panel). Pages lay themselves
+  out by their own width, not the window's (container queries on the middle column): the board keeps readable
+  columns and scrolls sideways one column at a time, records put the list above the record, the overview goes to
+  one column. The first window is 1440 × 900 where the screen has the room.
 
 ### 5.3 Workers (CLI agents)
 
 - An agent = a CLI kind + an owner + a machine + a folder + a mode + connectors + who may call it.
+- **The folder does not have to be picked** (2026-11-11): an agent added without one works in this computer's
+  default folder, which is a setting (Settings → General) and the desktop until it is set (as the system reports
+  it, so a desktop moved to OneDrive is found). New agents stay read-only, so the default is safe to take.
 - **Job card:** agent, CLI, mode, state, steps (read, edit with +/− lines, command, test), tokens (new / cache /
   output), cost when known, buttons: live view, steer, stop. Ends with a short summary message.
 - **One state model for every CLI:** idle, running, **needs attention** (waiting on a permission, a question or plan
@@ -319,6 +332,14 @@ bot and Blender agent prompts in `app/fabrika.py` and `app/backend/team_claude.p
   merge instead of overwriting.
 - **Personalities are presets:** Eleştirel, Doğrucu Davut and Olumlu are editable templates; duplicate one to make
   a new advisor.
+- **Character presets for agents** (2026-11-11): twelve ready-made instruction lines an owner picks as chips in the
+  agent form instead of writing them (thorough, quick, asks first, decides alone, few words, explains, light
+  touch, test-minded, plans first, questions things, keeps notes, brings options). Opposites exclude each other
+  (thorough/quick, asks first/decides alone, few words/explains), at most six per agent. The agent keeps the ids
+  and the text comes from `packages/protocol/src/traits.ts` every time, so a better wording reaches every agent
+  that picked it; they go into the prompt as part of the owner's layer (4), before the owner's own words, and
+  specialists can carry them next to their playbook. Like every instruction text they are English and grant
+  nothing.
 - **Text never grants rights.** No instruction layer can widen an agent's mode, folders or connectors; those come
   only from the owner's settings (principle 2).
 - Delivery per driver: Claude Code `--append-system-prompt` (or `--system-prompt` to replace, as Fabrika can);
@@ -478,7 +499,11 @@ Chosen direction: **Grafit & tek vurgu** (artboard 2 on the canvas; the other tw
   `#191B20`, hairlines at 7% and 12% white), text `#E9ECF1`, secondary `#969CA7`, meta `#8A909B`, **one accent**
   (lime `#C6F24E` by default, text on it `#0A0B0D`), diff colors `#8BE0A8` / `#FF9F70`. The accent marks only
   what is live or chosen: the active channel, a running job, a mention, the primary button. A few tested accents
-  can be picked in Settings; never two at once.
+  can be picked in Settings (lime, blue, orange, violet, teal, rose, amber); never two at once.
+- **Personal** (2026-11-11, Settings → Appearance): text size (small, normal, large: the window's zoom, so
+  everything scales together), density (comfortable or compact rows, messages and cards), the time format (24 or
+  12 hours), the crew panel as a panel or a strip, the channel list shown or hidden, and the start page (the
+  overview or the last channel). Settings → General: system notifications on or off, the default folder for agents.
 - **Type:** Geist for UI, Geist Mono for code, tokens, timers, counts and job steps (both OFL, bundled, no font
   requests at runtime). Dense sizes (13.5 px body), slight negative tracking.
 - **Shape:** 6-10 px radii, 1 px hairlines instead of shadows, square-ish avatars.
@@ -881,6 +906,21 @@ The details behind 5.11 and 6.5, decided before building.
   installation: the `serai://` handler (registered only by an installed app without `LONCA_HOME`) and the move of
   the former name's data folder.
 
+- 4.19 The shell, the agent form and personal settings (5.2, 5.3, 5.14, 7), 2026-11-11, from Kaan's notes after
+  using 0.9.0: text ran out of the board and the idea status control in a narrower window, a folder had to be
+  picked for every agent, and there was little to make the app one's own. Built: the adaptive shell (crew strip,
+  the panel and the live view over the page in a narrow window, a channel list that hides, container queries for
+  the board, records and overview, a segmented control that wraps), the default agent folder (`system.info` gives
+  it, `LONCA_DESKTOP_DIR` from the main process, a setting over it), character presets (`traits` on the agent,
+  `cleanTraits` / `traitsPrompt`, a session restarts when they change), the look and layout settings (three more
+  accents, text size through `shell:setZoom` with the title bar and the quick-entry window following, density,
+  time format, start page, notifications). Covered by unit tests (`traits.test.ts`: the presets, the prompt, the
+  default folder, old settings files) and `e2e/layout.mjs` (an agent without a folder, presets in the prompt
+  preview, every look setting, the strip and the panel over the page at 960 px, columns that keep their width,
+  the hidden channel list, a restart). `e2e/tour.mjs` walks every page at several window sizes for looking at
+  layouts (no assertions). Not yet: the same pass over the dialogs' own layouts below 760 px (the phone), and a
+  real CLI run with presets (they are prompt text only).
+
 ## 9. Risks
 
 - **Terms and billing move** (Anthropic's billing for `claude -p` changed twice in 2026; Google bans OAuth reuse):
@@ -900,8 +940,16 @@ The details behind 5.11 and 6.5, decided before building.
 
 From 2026-11-11, for the owners:
 
-- **The name.** Serai was chosen without a trademark or domain check (a DNS check from the dev machine gave no
-  usable answer). Changing it again is a change to `brand.ts`, the icon and `electron-builder.yml`.
+- **The name.** Serai was chosen without a trademark or domain check, and Kaan found it taken (2026-11-11; a web
+  search shows a Zurich smart-home company of that name and `serai.dev` / `serai.app` registered). Candidates
+  checked the same day with a web search and RDAP, which is weak evidence and no trademark search: **Avlu**
+  (courtyard, where a caravanserai's guests meet; `avlu.dev`, `avlu.ai` and `avlu.io` unregistered; an unrelated
+  loyalty app "Avlu Club"), **Tayfa** (crew; only `tayfa.io` unregistered; a Turkish game studio and a children's
+  series use the word), **Tezgah** (workbench; only `tezgah.io` unregistered; no software product found),
+  **Eyvan** (a caravanserai's vaulted hall; `eyvan.dev` and `eyvan.io` unregistered; eyva.ai is close). Ruled out:
+  Kalfa (a Claude Code extension has it) and Kovan (Kovant makes agent software). A new name is a change to
+  `brand.ts`, the icon, `electron-builder.yml`, `productName` in `apps/desktop/package.json` and `e2e/locale.mjs`;
+  the former names' invite codes and data folders should stay accepted.
 - **Earning money.** Kaan (2026-11-10): the product could be published and earn money. The plan so far says
   Apache-2.0 with no hosted service. Ways that fit it: paid signed builds with updates and support while the source
   stays open; a paid team tier (more than a few members, an always-on peer, audit log) on an open core; paid packs

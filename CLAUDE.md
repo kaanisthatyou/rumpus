@@ -55,7 +55,11 @@ purpose; never change roblox-factory for it.
    routine); `e2e/advisors.mjs` (providers, advisors)
    against `e2e/fake-provider.mjs`, a stand-in OpenAI-compatible server; `e2e/team.mjs` (two apps, invite, join,
    sync) with `LONCA_PEER_HOST=127.0.0.1` instead of Tailscale; `e2e/phone.mjs` (pairing a narrow window as a
-   phone) with `LONCA_PHONE_PORT=0` instead of `tailscale serve`. Look at the screenshots in
+   phone) with `LONCA_PHONE_PORT=0` instead of `tailscale serve`; `e2e/layout.mjs` (an agent without a folder,
+   character presets, the look settings, the crew strip and the hidden channel list in a 960 px window) with
+   `LONCA_DESKTOP_DIR=<folder>` instead of the real desktop. For a layout change also run `node e2e/tour.mjs`
+   (after a build; not part of `pnpm e2e`): it walks every page at 960, 1280 and 1440 px and only takes
+   screenshots (`test-results/tour-<width>-<page>.png`). Look at the screenshots in
    `apps/desktop/test-results/` before saying a UI change works. Spend real CLI quota only for a short probe: `e2e/real-specialist.mjs` (one Haiku job) for changes to specialists;
    `e2e/real-claude.mjs` (two Haiku turns) for driver changes, `LONCA_REAL_CODEX=<folder> vitest run
    packages/core/test/real-cli.test.ts` for Codex (no login needed, no tokens).
@@ -74,6 +78,12 @@ purpose; never change roblox-factory for it.
   `useApp((s) => …)`. A new array on every call makes React re-render forever and the window stays blank (it
   happened twice). Select the stored value and derive with `useMemo`, or fall back to a module-level constant.
 
+- The middle column (`.chat`) is a container for container queries (`shell/layout.css`), which can also make it
+  the containing block of anything `position: fixed` inside it. Dialogs and overlays are rendered from `App.tsx`,
+  outside it; keep it that way. Lay a page out with `@container page (max-width: …)`, not with the window's width:
+  the page's room depends on the channel list and the crew panel, not only on the window.
+- Two radios with the same label in one dialog break the e2e scripts' `choose(name)` (it happened with "Açık" for
+  the light theme and a shown panel): give options distinct words.
 - An update test must never install what it downloaded: the local test feed turns off install-on-quit. If a test
   build gets installed anyway, remove it with its own uninstaller from PowerShell.
 - Git Bash rewrites `/S`-style arguments into paths. Run Windows installers, `taskkill` and similar from

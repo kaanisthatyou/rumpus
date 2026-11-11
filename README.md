@@ -37,7 +37,12 @@ status are in [PLAN.md](PLAN.md).
   and quota.
 - **Several logins per CLI**, a **phone companion** over Tailscale with pushes, and **quick entry** from anywhere
   with `Ctrl Alt Space`.
-- Turkish and English, light and dark.
+- **Character presets.** Ready-made instruction lines picked as chips in an agent's form (thorough, quick, asks
+  first, decides alone, test-minded, ...). An agent needs no folder picked: it works in a default one (the desktop,
+  or a folder set in Settings).
+- **A shell that adapts.** In a narrow window the crew panel becomes a strip of avatars and opens over the page,
+  the channel list hides with `Ctrl B`, and the board, records and overview lay out by the room they have.
+- Turkish and English, light and dark, seven accents, three text sizes, two densities.
 
 ## Develop
 
