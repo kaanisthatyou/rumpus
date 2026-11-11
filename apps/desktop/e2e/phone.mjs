@@ -79,12 +79,12 @@ try {
   const p = await phone(link, 'persist:phone-a');
   await p.getByRole('navigation', { name: L.phone.bar }).waitFor();
   await p.getByRole('button', { name: L.shell.channels }).click();
-  await p.getByRole('button', { name: 'genel', exact: true }).click();
+  await p.getByRole('button', { name: /^genel/ }).click();
   const box = p.getByRole('textbox', { name: 'Mesaj · #genel' });
   await box.fill('Telefondan selam');
   await box.press('Enter');
   await desk.keyboard.press('Escape');
-  await desk.getByRole('button', { name: 'genel', exact: true }).click();
+  await desk.getByRole('button', { name: /^genel/ }).click();
   await desk.locator('.msg', { hasText: 'Telefondan selam' }).waitFor({ timeout: 15_000 });
   await p.locator('.msg', { hasText: 'Telefondan selam' }).waitFor();
   await shot(p, 'chat');

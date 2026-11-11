@@ -156,11 +156,11 @@ try {
   await page.getByRole('dialog').waitFor({ state: 'detached' });
   await page
     .getByRole('complementary', { name: L.shell.channels })
-    .getByRole('button', { name: '@claude', exact: true })
+    .getByRole('button', { name: /^@claude/ })
     .waitFor();
 
   // Call it in #genel.
-  await page.getByRole('button', { name: 'genel', exact: true }).click();
+  await page.getByRole('button', { name: /^genel/ }).click();
   const composer = page.getByRole('textbox', { name: 'Mesaj · #genel' });
   await composer.fill('@claude README dosyasında ne var?');
   await composer.press('Enter');
@@ -212,7 +212,7 @@ try {
   await page.getByRole('region', { name: L.board.status.done }).getByText('README dosyasını güncelle').waitFor();
 
   // Records: save an answer as an idea, add a reference image, attach it to a job, use a saved command.
-  await page.getByRole('button', { name: 'genel', exact: true }).click();
+  await page.getByRole('button', { name: /^genel/ }).click();
   const answerMsg = page.locator('.msg--agent').first();
   await answerMsg.hover();
   await answerMsg.getByRole('button', { name: L.records.saveMessage }).click();
@@ -298,7 +298,7 @@ try {
   await editAgent.getByRole('button', { name: L.agentForm.cancel }).click();
 
   // /durum: this computer's CLIs, the extra account and the quota.
-  await page.getByRole('button', { name: 'genel', exact: true }).click();
+  await page.getByRole('button', { name: /^genel/ }).click();
   await composer.fill('/durum');
   await composer.press('Enter');
   const statusDialog = page.getByRole('dialog', { name: L.status.title });
@@ -318,7 +318,10 @@ try {
   await composer.waitFor();
 
   // Approvals: a command that needs approval waits on a person; allowed once, denied once.
-  await page.getByRole('button', { name: '@claude', exact: true }).click();
+  await page
+    .getByRole('complementary', { name: L.shell.channels })
+    .getByRole('button', { name: /^@claude/ })
+    .click();
   const agentBox = page.getByRole('textbox', { name: 'Mesaj · @claude' });
   await agentBox.fill('onay iste');
   await agentBox.press('Enter');
@@ -391,7 +394,10 @@ try {
   await page.getByText('notlar.add_note').first().waitFor();
 
   // In the agent's own channel: a slow job, steered, then stopped.
-  await page.getByRole('button', { name: '@claude', exact: true }).click();
+  await page
+    .getByRole('complementary', { name: L.shell.channels })
+    .getByRole('button', { name: /^@claude/ })
+    .click();
   const agentComposer = page.getByRole('textbox', { name: 'Mesaj · @claude' });
   await agentComposer.fill('yavaş bir iş yap');
   await agentComposer.press('Enter');
@@ -408,7 +414,7 @@ try {
 
   // Goal mode: /goal opens the dialog, the plan waits for approval, a step comment travels with every step,
   // the done check runs after each step, and the goal ends when the agent says so and the check passes.
-  await page.getByRole('button', { name: 'genel', exact: true }).click();
+  await page.getByRole('button', { name: /^genel/ }).click();
   await composer.fill('/goal Login ekranını bitir');
   await composer.press('Enter');
   const goalDialog = page.getByRole('dialog', { name: L.goal.new });
@@ -440,7 +446,7 @@ try {
   git('config', 'user.name', 'e2e');
   git('add', '.');
   git('commit', '-qm', 'first');
-  await page.getByRole('button', { name: 'genel', exact: true }).click();
+  await page.getByRole('button', { name: /^genel/ }).click();
   await composer.fill('/goal Ayrı dalda dene');
   await composer.press('Enter');
   await goalDialog.getByRole('switch', { name: L.goal.worktree }).click();
@@ -478,7 +484,7 @@ try {
   assert.equal(await page.getByLabel(L.project.milestone).first().inputValue(), 'Kavram yazıldı');
   assert.equal(await page.getByLabel(L.project.leftOff).inputValue(), 'İskelet hazır.');
   await shot(page, 'project');
-  await page.getByRole('button', { name: 'genel', exact: true }).click();
+  await page.getByRole('button', { name: /^genel/ }).click();
   await composer.fill('@claude durumu güncelle');
   await composer.press('Enter');
   await page.getByText('Durum sayfası güncellendi (2 kilometre taşı).').waitFor({ timeout: 20_000 });
@@ -494,7 +500,7 @@ try {
   await shot(page, 'project-updated');
 
   // Memory: /hatırla writes a note, the profile is saved in Bellek, and the next job says what it recalled.
-  await page.getByRole('button', { name: 'genel', exact: true }).click();
+  await page.getByRole('button', { name: /^genel/ }).click();
   await composer.fill('/hatırla Cuma günleri deploy yok');
   await composer.press('Enter');
   await page.getByText(L.memory.remembered).waitFor();
@@ -506,7 +512,7 @@ try {
   // Saved: the section's buttons go away.
   await page.getByRole('button', { name: L.memory.save }).waitFor({ state: 'detached' });
   await shot(page, 'memory');
-  await page.getByRole('button', { name: 'genel', exact: true }).click();
+  await page.getByRole('button', { name: /^genel/ }).click();
   await composer.fill('@claude bellek testi');
   await composer.press('Enter');
   await page
@@ -534,7 +540,7 @@ try {
   if (quickPng) writeFileSync(join(shots, 'ch-quick-entry.png'), Buffer.from(quickPng, 'base64'));
   await quickPage.getByLabel(L.quick.message).press('Enter');
   await quickPage.getByText(L.quick.sent).waitFor();
-  await page.getByRole('button', { name: 'genel', exact: true }).click();
+  await page.getByRole('button', { name: /^genel/ }).click();
   await page.getByText('hızlı girişten not').waitFor();
 
   // Moving from Fabrika: the palette imports a roblox-factory-shaped folder (the folder picker answers with the project).
@@ -568,7 +574,7 @@ try {
   await shot(page, 'fabrika-import');
 
   // Edit and delete own messages.
-  await page.getByRole('button', { name: 'genel', exact: true }).click();
+  await page.getByRole('button', { name: /^genel/ }).click();
   const own = page.locator('.msg--person').first();
   await own.hover();
   await own.getByRole('button', { name: L.channel.edit }).click();
@@ -593,7 +599,7 @@ const second = await launch();
 page = second.page;
 try {
   await page.getByRole('heading', { name: L.shell.crew }).waitFor();
-  await page.getByRole('button', { name: 'genel', exact: true }).click();
+  await page.getByRole('button', { name: /^genel/ }).click();
   await page.getByText('(düzeltildi)').waitFor();
   await page.getByText('sahte proje').first().waitFor();
   assert.equal(await page.getByText('silinecek mesaj').count(), 0);
@@ -602,7 +608,10 @@ try {
     .first()
     .getByText(L.goal.state.done, { exact: true })
     .waitFor();
-  await page.getByRole('button', { name: '@claude', exact: true }).click();
+  await page
+    .getByRole('complementary', { name: L.shell.channels })
+    .getByRole('button', { name: /^@claude/ })
+    .click();
   await page.getByText(L.job.state.stopped).first().waitFor();
   await page.getByRole('button', { name: 'Sahte proje', exact: true }).click();
   assert.equal(await page.getByLabel(L.project.nextStep.replace('{{n}}', '1')).inputValue(), 'Yayın notlarını yaz');

@@ -131,7 +131,7 @@ try {
   await ekip.waitFor({ timeout: 30_000 });
   await ekip.click();
   await p.getByRole('heading', { name: 'Ekip', exact: true }).waitFor();
-  await p.getByRole('button', { name: 'genel', exact: true }).click();
+  await p.getByRole('button', { name: /^genel/ }).click();
   const ardaBox = p.getByRole('textbox', { name: 'Mesaj · #genel' });
   await ardaBox.fill('Merhaba, ben Arda');
   await ardaBox.press('Enter');

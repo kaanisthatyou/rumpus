@@ -73,9 +73,12 @@ try {
   await page.getByLabel(L.agentForm.model).fill('haiku');
   await page.getByText(L.agentForm.modes.edit, { exact: true }).click();
   await page.getByRole('button', { name: L.agentForm.save }).click();
-  await page.getByRole('button', { name: '@claude', exact: true }).waitFor();
+  await page
+    .getByRole('complementary', { name: L.shell.channels })
+    .getByRole('button', { name: /^@claude/ })
+    .waitFor();
 
-  await page.getByRole('button', { name: 'genel', exact: true }).click();
+  await page.getByRole('button', { name: /^genel/ }).click();
   const composer = page.getByRole('textbox', { name: 'Mesaj · #genel' });
   await composer.fill('@claude README.md dosyası ne anlatıyor? Tek cümleyle yanıtla.');
   await composer.press('Enter');
@@ -133,7 +136,7 @@ try {
   await shot('board');
 
   // A small goal: a plan from the real CLI, approved, worked on, and checked.
-  await page.getByRole('button', { name: 'genel', exact: true }).click();
+  await page.getByRole('button', { name: /^genel/ }).click();
   await composer.fill(
     "/goal README.md dosyasının en sonuna tek başına 'Lisans: MIT' satırını ekle. Başka bir şeyi değiştirme.",
   );

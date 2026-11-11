@@ -142,7 +142,7 @@ try {
   await crew.getByText('@davut', { exact: true }).waitFor();
 
   // A mention: the advisor answers, and its suggested task lands on the board.
-  await page.getByRole('button', { name: 'genel', exact: true }).click();
+  await page.getByRole('button', { name: /^genel/ }).click();
   const composer = page.getByRole('textbox', { name: 'Mesaj · #genel' });
   await composer.fill('@elestirmen login ne durumda?');
   await composer.press('Enter');

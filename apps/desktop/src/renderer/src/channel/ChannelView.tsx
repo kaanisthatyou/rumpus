@@ -489,11 +489,12 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
       setText('');
       return;
     }
-    if (await send(value)) {
-      setText('');
-      // The next words are a new message: others hear about the typing again at once.
-      typedAt.current = 0;
-    }
+    // The box empties at once, so what is typed while the message is on its way is not wiped when it lands; a
+    // message that could not be sent comes back unless something new was written meanwhile.
+    setText('');
+    // The next words are a new message: others hear about the typing again at once.
+    typedAt.current = 0;
+    if (!(await send(value))) setText((now) => now || value);
   };
 
   const placeholder = own
