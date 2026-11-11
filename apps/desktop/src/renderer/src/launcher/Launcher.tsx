@@ -1,3 +1,4 @@
+import { BRAND } from '@lonca/protocol';
 import { Avatar, Button, Icon, Mark, slide, TextField } from '@lonca/ui';
 import { AnimatePresence, motion } from 'motion/react';
 import { type FormEvent, useState } from 'react';
@@ -125,7 +126,7 @@ export function Launcher() {
         <div className="launch__brand">
           <Mark size={36} />
           <div>
-            <h1>Serai</h1>
+            <h1>{BRAND.name}</h1>
             <p>{t('launcher.tagline')}</p>
           </div>
         </div>

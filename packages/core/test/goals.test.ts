@@ -269,7 +269,7 @@ describe('Goals', () => {
     git('commit', '-qm', 'first');
 
     const g = await t.goals.create(input({ worktree: true, check: '' }));
-    expect(g.worktree?.branch).toMatch(/^serai\/goal-[a-z0-9_-]{6}$/);
+    expect(g.worktree?.branch).toMatch(/^rumpus\/goal-[a-z0-9_-]{6}$/);
     const path = g.worktree?.path ?? '';
     expect(existsSync(join(path, 'README.md'))).toBe(true);
     await settle();
@@ -289,6 +289,6 @@ describe('Goals', () => {
     const removed = await t.goals.removeWorktree(g.id);
     expect(removed.worktree?.removed).toBe(true);
     expect(existsSync(path)).toBe(false);
-    expect(git('branch', '--list', g.worktree?.branch ?? '').toString()).toContain('serai/goal-');
+    expect(git('branch', '--list', g.worktree?.branch ?? '').toString()).toContain('rumpus/goal-');
   });
 });

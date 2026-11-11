@@ -1,13 +1,13 @@
-# Serai
+# Rumpus
 
 An open-source desktop hub where people and the CLI coding agents they already have work together.
 
-Serai does not ship an agent of its own. It drives the CLIs installed and signed in on each computer (Claude Code,
+Rumpus does not ship an agent of its own. It drives the CLIs installed and signed in on each computer (Claude Code,
 Codex, OpenCode, ...), shows their work live, and puts channels, a task board, goals, projects, saved ideas and
 references, memory and advisor bots around them. Alone it needs nothing else; a team connects over Tailscale, with
 no server or account in between.
 
-**Status: 0.9.0-alpha.0** (2026-11-11), Phase 4 of the plan under way. Serai was called Lonca until 2026-11-10; the
+**Status: 0.9.0-alpha.0** (2026-11-11), Phase 4 of the plan under way. Rumpus was called Lonca until 2026-11-10 and Serai until 2026-11-11; the
 code name `lonca` remains in package names and environment variables. The plan, its decisions and every phase's
 status are in [PLAN.md](PLAN.md).
 
@@ -31,7 +31,7 @@ status are in [PLAN.md](PLAN.md).
 - **Advisors.** Bots on the person's own API keys (Groq, Anthropic, Gemini, OpenRouter, local servers, ...) that
   read the conversation and the project and give honest takes; `/meclis` for a round table, `/özet` for a summary.
 - **Records and memory.** Ideas, reference images, saved commands, small human-edited memory, full-text search.
-- **Team.** Workspaces shared by invite code or link (`serai://join/…`) with roles; before a request is sent the
+- **Team.** Workspaces shared by invite code or link (`rumpus://join/…`) with roles; before a request is sent the
   app says whether the inviter's computer can be reached, synced peer to peer over Tailscale with signed events;
   members' agents run on their owners' computers under their limits. `/durum` shows every computer's CLIs, logins
   and quota.

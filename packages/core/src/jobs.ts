@@ -58,7 +58,7 @@ export interface JobsDeps {
   publish?(job: Job): void;
   /** The connector tools an agent's session gets; a change starts its CLI again (same conversation). */
   toolset?(agent: Agent): string;
-  /** Serai's MCP endpoint; each session gets its own token. */
+  /** Rumpus's MCP endpoint; each session gets its own token. */
   gateway?: {
     ready(): Promise<string>;
     issue(ctx: { agentId: string; channelId: string; slot?: string }): string;
@@ -280,7 +280,7 @@ export class Jobs {
   }
 
   /**
-   * Starts a job with Serai's own prompt (goal mode); `request` is the message its card hangs under. With a
+   * Starts a job with Rumpus's own prompt (goal mode); `request` is the message its card hangs under. With a
    * `scope`, the job runs in a session of its own (and `folder`, when given, instead of the agent's folder).
    */
   startWith(
@@ -695,7 +695,7 @@ export class Jobs {
     if (live.token) this.deps.gateway?.revoke(live.token);
   }
 
-  /** A progress note from the agent (Serai's post_progress tool) on its current job. */
+  /** A progress note from the agent (Rumpus's post_progress tool) on its current job. */
   note(agentId: string, channelId: string, text: string): boolean {
     const live = [...this.live.values()].find(
       (l) =>

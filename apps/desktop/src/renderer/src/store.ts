@@ -102,7 +102,7 @@ interface AppState {
   goals: Goal[];
   workspaces: WorkspaceSummary[];
   newWorkspaceOpen?: boolean;
-  /** An invite the app was opened with (a `serai://join/…` link): the join dialog starts with it. */
+  /** An invite the app was opened with (a `rumpus://join/…` link): the join dialog starts with it. */
   joinCode?: string;
   inviteOpen?: boolean;
   memory?: MemoryState;
@@ -318,7 +318,7 @@ export const useApp = create<AppState>((set, get) => {
       core.on('workspace.changed', (workspace) => {
         const before = get().workspace;
         set({ workspace });
-        // Someone asks to join while Serai is in the background: an OS notification for the admin.
+        // Someone asks to join while Rumpus is in the background: an OS notification for the admin.
         const fresh = (workspace.joins ?? []).filter((j) => !(before?.joins ?? []).some((b) => b.id === j.id));
         if (fresh.length && before?.id === workspace.id && !document.hasFocus()) {
           notify(
@@ -371,7 +371,7 @@ export const useApp = create<AppState>((set, get) => {
         if (get().view === 'channel' && get().channelId === m.channelId && m.author.kind !== 'person') {
           void core.call('channels.read', { channelId: m.channelId }).catch(() => {});
         }
-        // Another member writes while Serai is in the background: an OS notification.
+        // Another member writes while Rumpus is in the background: an OS notification.
         const ws = get().workspace;
         if (ws?.kind === 'team' && m.author.kind === 'person' && m.author.id !== ws.me.id && !document.hasFocus()) {
           const channel = ws.channels.find((c) => c.id === m.channelId);
@@ -406,7 +406,7 @@ export const useApp = create<AppState>((set, get) => {
       core.on('job.updated', (job) => {
         const before = get().jobs[job.id];
         set((s) => ({ jobs: { ...s.jobs, [job.id]: job } }));
-        // A job that starts waiting on a person while Serai is in the background: an OS notification.
+        // A job that starts waiting on a person while Rumpus is in the background: an OS notification.
         if (job.state === 'attention' && before?.state !== 'attention' && !document.hasFocus()) {
           const agent = get().workspace?.agents.find((a) => a.id === job.agentId);
           const what = [job.approval?.label ? i18n.t(`job.tool.${job.approval.label}`) : '', job.approval?.arg ?? '']

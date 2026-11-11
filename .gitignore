@@ -6,6 +6,7 @@ coverage/
 .vite/
 *.log
 .lonca/
+.rumpus/
 .serai/
 tmp/
 test-results/

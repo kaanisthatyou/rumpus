@@ -28,10 +28,10 @@ export interface LoncaBridge {
     setTitleBar(colors: { background: string; symbols: string }): Promise<void>;
     /** The text size: everything in the window drawn at this factor (0.8 to 1.3). */
     setZoom(factor: number): Promise<void>;
-    /** An OS notification; clicking it brings Serai forward. */
+    /** An OS notification; clicking it brings Rumpus forward. */
     notify(title: string, body: string): Promise<void>;
   };
-  /** Invite links (`serai://join/<code>`) the app was opened with. */
+  /** Invite links (`rumpus://join/<code>`) the app was opened with. */
   links: {
     /** A link that arrived before the page was ready; it is handed out once. */
     pending(): Promise<string | null>;

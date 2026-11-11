@@ -1,5 +1,5 @@
 // A stand-in MCP server over stdio for tests: two tools, one that only reads and one that writes.
-// `notes` reports whether FAKE_TOKEN reached it and whether a variable Serai must not pass on did.
+// `notes` reports whether FAKE_TOKEN reached it and whether a variable Rumpus must not pass on did.
 import { createInterface } from 'node:readline';
 
 const notes = [];

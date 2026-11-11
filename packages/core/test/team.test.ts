@@ -120,20 +120,26 @@ describe('team workspaces between two apps', () => {
 
     // Only admins invite; a code carries the address and a one-time token.
     const { code } = await kaan.call<{ code: string }>('invites.create', { role: 'editor' });
-    expect(code.startsWith('SERAI1.')).toBe(true);
+    expect(code.startsWith('RUMPUS1.')).toBe(true);
     await expect(arda.call('invites.join', { code: 'LONCA1.bozuk' })).rejects.toThrow('bad_code');
     // Before asking: the invite says which workspace it is for and whether the inviter's app answers. The same
-    // code is read from an invite link and with the product's former prefix.
+    // code is read from an invite link and with the product's former prefixes and link schemes.
     const { link } = await kaan.call<{ link: string }>('invites.create', { role: 'viewer' });
-    expect(link).toMatch(/^serai:\/\/join\/SERAI1\./);
-    for (const pasted of [code, `serai://join/${code}`, ` ${code.replace('SERAI1.', 'LONCA1.')}\n`]) {
+    expect(link).toMatch(/^rumpus:\/\/join\/RUMPUS1\./);
+    for (const pasted of [
+      code,
+      `rumpus://join/${code}`,
+      ` ${code.replace('RUMPUS1.', 'LONCA1.')}\n`,
+      code.replace('RUMPUS1.', 'SERAI1.'),
+      `serai://join/${code.replace('RUMPUS1.', 'SERAI1.')}`,
+    ]) {
       expect(await arda.call<InviteCheck>('invites.check', { code: pasted })).toMatchObject({
         name: 'Ekip',
         reachable: true,
         joined: false,
       });
     }
-    await expect(arda.call('invites.check', { code: 'serai://join/bozuk' })).rejects.toThrow('bad_code');
+    await expect(arda.call('invites.check', { code: 'rumpus://join/bozuk' })).rejects.toThrow('bad_code');
     const joining = await arda.call<WorkspaceSummary>('invites.join', { code });
     expect((await arda.call<InviteCheck>('invites.check', { code })).joined).toBe(true);
     expect(joining).toMatchObject({ id: team.id, name: 'Ekip', state: 'joining' });

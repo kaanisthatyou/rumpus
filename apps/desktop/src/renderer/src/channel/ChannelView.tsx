@@ -1,4 +1,4 @@
-import { type Advisor, type Agent, type Channel, handleOf, type Job, type Message } from '@lonca/protocol';
+import { type Advisor, type Agent, BRAND, type Channel, handleOf, type Job, type Message } from '@lonca/protocol';
 import { Avatar, Button, Chip, Icon, IconButton, Kbd } from '@lonca/ui';
 import { AnimatePresence, motion } from 'motion/react';
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -103,7 +103,7 @@ function MessageRow({
   const mentioned = !own && Boolean(myHandle) && message.text.toLowerCase().includes(`@${myHandle}`);
   // An advisor's suggested task (`/todo …`) is already a board card: shown as a line of its own.
   const { body, todos } = useMemo(() => {
-    // The agent's end-of-goal mark is for Serai, not for people.
+    // The agent's end-of-goal mark is for Rumpus, not for people.
     if (a.kind === 'agent')
       return { body: message.text.replace(/^\s*GOAL_DONE\s*$/m, '').trim(), todos: [] as string[] };
     if (a.kind !== 'advisor') return { body: message.text, todos: [] as string[] };
@@ -111,7 +111,7 @@ function MessageRow({
     const tasks = lines.flatMap((l) => /^\/todo\s+(.+)$/.exec(l.trim())?.[1] ?? []);
     return { body: lines.filter((l) => !/^\/todo\s+/.test(l.trim())).join('\n'), todos: tasks };
   }, [a.kind, message.text]);
-  const name = a.kind === 'system' ? 'Serai' : a.name;
+  const name = a.kind === 'system' ? BRAND.name : a.name;
   const agent = a.kind === 'agent' ? agents.find((x) => x.id === a.id) : undefined;
   const advisor = useApp((s) => (a.kind === 'advisor' ? s.workspace?.advisors.find((x) => x.id === a.id) : undefined));
   const goal = useApp((s) => (a.kind === 'person' ? s.goals.find((g) => g.requestId === message.id) : undefined));

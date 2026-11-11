@@ -868,7 +868,7 @@
     "join": "Koda katıl",
     "joinIntro": "Davet kodu ya da bağlantısı yapıştırılır; hangi alana ait olduğu ve davet eden bilgisayara ulaşılıp ulaşılamadığı hemen görünür. İstek, bir yönetici onaylayınca alanı bu bilgisayara indirir.",
     "code": "Davet kodu",
-    "codeHint": "SERAI1. ile başlar; davet bağlantısı da yapıştırılabilir.",
+    "codeHint": "{{prefix}} ile başlar; davet bağlantısı da yapıştırılabilir.",
     "askToJoin": "Katılma isteği gönder",
     "makeInstead": "Yeni alan kur",
     "state": {

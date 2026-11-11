@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// A stand-in for Claude Code in tests: the same CLI surface Serai uses (--version, auth status --json, and the
+// A stand-in for Claude Code in tests: the same CLI surface Rumpus uses (--version, auth status --json, and the
 // stream-json conversation), without a model or an account. A message with "slow" or "yavaş" takes seconds,
 // so a test can steer or stop it. Messages sent during a turn wait as turns of their own, like the real CLI.
 import { createInterface } from 'node:readline';
@@ -26,9 +26,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const resume = args.indexOf('--resume');
 const session = resume >= 0 ? args[resume + 1] : `fake-${Date.now()}`;
 const queue = [];
-// Serai's MCP endpoint, as Claude Code would get it from --mcp-config.
+// Rumpus's MCP endpoint, as Claude Code would get it from --mcp-config.
 const mcpAt = args.indexOf('--mcp-config');
-const mcp = mcpAt >= 0 ? JSON.parse(args[mcpAt + 1]).mcpServers?.serai : undefined;
+const mcp = mcpAt >= 0 ? JSON.parse(args[mcpAt + 1]).mcpServers?.rumpus : undefined;
 let rpcId = 0;
 async function callTool(name, toolArgs) {
   const res = await fetch(mcp.url, {
@@ -50,7 +50,7 @@ async function listTools() {
 async function callAndShow(id, name, toolArgs) {
   out({
     type: 'assistant',
-    message: { content: [{ type: 'tool_use', id, name: `mcp__serai__${name}`, input: toolArgs }] },
+    message: { content: [{ type: 'tool_use', id, name: `mcp__rumpus__${name}`, input: toolArgs }] },
   });
   const result = await callTool(name, toolArgs);
   out({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: id, content: result }] } });
@@ -97,7 +97,7 @@ async function run() {
   while (queue.length > 0) {
     const text = queue.shift();
     if (canAsk && /onay iste/i.test(text)) {
-      // A command that needs approval: ask Serai, then go on with its answer.
+      // A command that needs approval: ask Rumpus, then go on with its answer.
       n += 1;
       if (!started) {
         out({ type: 'system', subtype: 'init', session_id: session, tools: ['Bash'] });
@@ -128,10 +128,10 @@ async function run() {
       continue;
     }
     if (mcp && /panoyu güncelle/i.test(text)) {
-      // The board through Serai's tools: list the cards, move the first one to done, leave a note.
+      // The board through Rumpus's tools: list the cards, move the first one to done, leave a note.
       n += 1;
       if (!started) {
-        out({ type: 'system', subtype: 'init', session_id: session, tools: ['mcp__serai__list_cards'] });
+        out({ type: 'system', subtype: 'init', session_id: session, tools: ['mcp__rumpus__list_cards'] });
         started = true;
       }
       const cards = await callAndShow(`l${n}`, 'list_cards', {});
@@ -152,10 +152,10 @@ async function run() {
       continue;
     }
     if (mcp && /bağlayıcıya not ekle/i.test(text)) {
-      // A connector served through Serai: add a note (its policy asks a person), then list the notes.
+      // A connector served through Rumpus: add a note (its policy asks a person), then list the notes.
       n += 1;
       if (!started) {
-        out({ type: 'system', subtype: 'init', session_id: session, tools: ['mcp__serai__list_cards'] });
+        out({ type: 'system', subtype: 'init', session_id: session, tools: ['mcp__rumpus__list_cards'] });
         started = true;
       }
       const tools = await listTools();
@@ -210,10 +210,10 @@ async function run() {
       continue;
     }
     if (mcp && /durumu güncelle/i.test(text)) {
-      // The project's status page through Serai's tools: read it, tick every milestone, rewrite where it stands.
+      // The project's status page through Rumpus's tools: read it, tick every milestone, rewrite where it stands.
       n += 1;
       if (!started) {
-        out({ type: 'system', subtype: 'init', session_id: session, tools: ['mcp__serai__read_status'] });
+        out({ type: 'system', subtype: 'init', session_id: session, tools: ['mcp__rumpus__read_status'] });
         started = true;
       }
       const page = await callAndShow(`r${n}`, 'read_status', {});

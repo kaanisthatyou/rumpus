@@ -1,5 +1,5 @@
 // A small MCP client for connectors (PLAN.md 5.9): JSON-RPC over a program's stdio (newline-delimited) or over
-// Streamable HTTP (POST, answered with JSON or a server-sent event stream). Only what Serai needs: initialize,
+// Streamable HTTP (POST, answered with JSON or a server-sent event stream). Only what Rumpus needs: initialize,
 // tools/list and tools/call. Requests from the server (sampling, roots, elicitation) are refused.
 import type { ChildProcess } from 'node:child_process';
 import spawn from 'cross-spawn';
@@ -91,7 +91,7 @@ function failAll(pending: Pending, why: string): void {
   pending.clear();
 }
 
-/** Variables a connector's program never inherits from Serai: secrets of other tools and Serai's own. */
+/** Variables a connector's program never inherits from Rumpus: secrets of other tools and Rumpus's own. */
 const DENY_ENV =
   /TOKEN|SECRET|PASSW|API_?KEY|CREDENTIAL|^AUTH|^LONCA_|^ELECTRON_|^ANTHROPIC|^OPENAI|^CLAUDE|^CODEX|^GEMINI|^AWS_|^AZURE_|^GOOGLE_APPLICATION|^NODE_OPTIONS$/i;
 
@@ -149,7 +149,7 @@ class StdioTransport implements Transport {
 
   private answerServer(id: unknown, method: string): void {
     if (method === 'ping') this.write({ jsonrpc: '2.0', id, result: {} });
-    else this.write({ jsonrpc: '2.0', id, error: { code: -32601, message: 'not supported by Serai' } });
+    else this.write({ jsonrpc: '2.0', id, error: { code: -32601, message: 'not supported by Rumpus' } });
   }
 
   request(method: string, params: unknown, timeoutMs: number): Promise<unknown> {

@@ -1,4 +1,4 @@
-// Settings → Connectors → Add: Serai's catalog (registry entries Serai checked) above a live search of the
+// Settings → Connectors → Add: Rumpus's catalog (registry entries Rumpus checked) above a live search of the
 // official MCP Registry (community entries, not reviewed), and the install form both lead to (PLAN.md 5.9).
 import {
   CATALOG,

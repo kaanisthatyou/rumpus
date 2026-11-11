@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const APP = 'Serai';
+const APP = 'Rumpus';
 
 export function locale(lang) {
   const file = join(here, '../src/renderer/src/locales', `${lang}.json`);

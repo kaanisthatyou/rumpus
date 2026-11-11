@@ -1,4 +1,4 @@
-import { CLOCKS, CREW_LAYOUTS, DENSITIES, START_VIEWS, TEXT_SIZES } from '@lonca/protocol';
+import { BRAND, CLOCKS, CREW_LAYOUTS, DENSITIES, START_VIEWS, TEXT_SIZES } from '@lonca/protocol';
 import { Button, Chip, Icon, IconButton, type IconName, Segmented, Switch, TextField } from '@lonca/ui';
 import { motion } from 'motion/react';
 import { useEffect, useRef, useState } from 'react';
@@ -317,7 +317,7 @@ function About() {
   return (
     <div className="stack">
       <p>
-        <b>Serai</b> · <span className="l-mono">{app?.version}</span>
+        <b>{BRAND.name}</b> · <span className="l-mono">{app?.version}</span>
       </p>
       <p className="muted">{t('launcher.tagline')}</p>
       <p className="muted">{t('settings.license')}</p>

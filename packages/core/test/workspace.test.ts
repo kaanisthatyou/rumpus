@@ -339,7 +339,7 @@ describe('Jobs', () => {
     expect(sessions).toHaveLength(1);
     expect(sessions[0]?.sent[0]).toContain('Kaan: @claude README nedir?');
     sessions[0]?.emit({ type: 'tool', id: 't1', label: 'read', arg: 'README.md' });
-    sessions[0]?.emit({ type: 'tool_result', id: 't1', ok: true, preview: '# Serai' });
+    sessions[0]?.emit({ type: 'tool_result', id: 't1', ok: true, preview: '# Rumpus' });
     sessions[0]?.finish('Bir masaüstü uygulaması.');
     await flush();
     const job = s.jobsFor([request.id])[0];

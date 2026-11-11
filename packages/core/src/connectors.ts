@@ -1,6 +1,6 @@
 // This computer's connectors (PLAN.md 5.9) in `<app>/connectors.json`: never synced, because a connector belongs
 // to the member whose machine runs it (principle 2). Secret values are sealed by the main process (safeStorage)
-// and opened only to be sent to their own server. Serai connects to each server itself, on first use, and closes
+// and opened only to be sent to their own server. Rumpus connects to each server itself, on first use, and closes
 // it again after a while without calls.
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
@@ -156,7 +156,7 @@ function slugOf(name: string): string {
   return s || 'connector';
 }
 
-/** `mcp__serai__` + this must fit in 64 characters (Anthropic's tool name rule): at most 50 here. */
+/** `mcp__rumpus__` + this must fit in 64 characters (Anthropic's tool name rule): at most 50 here. */
 export function exposedName(slug: string, tool: string): string {
   const clean = tool.replace(/[^A-Za-z0-9_-]/g, '_');
   const full = `${slug}__${clean}`;

@@ -1,11 +1,11 @@
 {
   "name": "@lonca/desktop",
-  "productName": "Serai",
+  "productName": "Rumpus",
   "private": true,
   "version": "0.9.0-alpha.0",
   "description": "Open-source hub where people and their CLI coding agents work together",
   "license": "Apache-2.0",
-  "author": "Serai contributors",
+  "author": "Rumpus contributors",
   "homepage": "https://github.com/kaanisthatyou/lonca",
   "type": "module",
   "main": "out/main/index.js",

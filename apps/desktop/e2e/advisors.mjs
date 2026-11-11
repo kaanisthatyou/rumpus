@@ -1,7 +1,7 @@
 // End-to-end test of providers and advisors in the real app, against a fake OpenAI-compatible server
 // (fake-provider.mjs): add a provider with a wrong key and then the right one, fetch its models, restart and find
 // it again with the key sealed on disk.
-// Usage: node e2e/advisors.mjs   (after electron-vite build; E2E_EXE=release/win-unpacked/Serai.exe for packaged)
+// Usage: node e2e/advisors.mjs   (after electron-vite build; E2E_EXE=release/win-unpacked/Rumpus.exe for packaged)
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';

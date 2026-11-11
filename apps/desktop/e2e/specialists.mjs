@@ -1,7 +1,7 @@
 // End-to-end test of specialists in the real app, with the fake Claude Code first on PATH: make one from a
 // template, call it in #genel (it reads the channel, keeps a lesson, hands a RESULT over), find the lesson in its
 // settings, and watch a slow job against its budget.
-// Usage: node e2e/specialists.mjs   (after electron-vite build; E2E_EXE=release/win-unpacked/Serai.exe for packaged)
+// Usage: node e2e/specialists.mjs   (after electron-vite build; E2E_EXE=release/win-unpacked/Rumpus.exe for packaged)
 import assert from 'node:assert/strict';
 import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -128,7 +128,7 @@ try {
   await result.getByText(L.specialists.resultFailed).waitFor();
   await result.getByText('findings').waitFor();
   assert.equal(await page.getByText('RESULT {').count(), 0);
-  await page.getByText('serai.learn_lesson').first().waitFor();
+  await page.getByText('rumpus.learn_lesson').first().waitFor();
   await crew.getByTitle(L.specialists.learned_other.replace('{{count}}', '1')).waitFor();
   await shot(page, 'result');
 
@@ -142,7 +142,7 @@ try {
   // Shared as text (without its folder and lessons), and pasted into the gallery it fills a new form.
   await edit.getByRole('button', { name: L.specialists.share.copy }).click();
   const sharedText = await app.evaluate(({ clipboard }) => clipboard.readText());
-  assert.equal(JSON.parse(sharedText).serai, 'specialist');
+  assert.equal(JSON.parse(sharedText).rumpus, 'specialist');
   assert.equal(sharedText.includes('npm test'), false);
   await edit.getByRole('button', { name: L.agentForm.cancel }).click();
   await edit.waitFor({ state: 'detached' });

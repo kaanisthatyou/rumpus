@@ -60,7 +60,7 @@ export interface AdvisorsDeps {
   addCard(title: string, channelId: string): void;
   /** What the project folder looks like now (git history and status), for the prompt. */
   project?(folder: string): Promise<string>;
-  /** What Serai remembers, put into words (PLAN.md 5.7). */
+  /** What Rumpus remembers, put into words (PLAN.md 5.7). */
   memory?(): string;
   /** Runs one of the read-only tools in the advisor's folder. */
   readTool?(folder: string, call: LlmCall): Promise<string>;

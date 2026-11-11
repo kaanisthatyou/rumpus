@@ -1,4 +1,4 @@
-// Rules for Serai's own UI text (PLAN.md 7.1): impersonal and objective.
+// Rules for Rumpus's own UI text (PLAN.md 7.1): impersonal and objective.
 // Catches what a machine can catch; review covers the rest.
 
 const RULES = [

@@ -1,14 +1,15 @@
-# Serai: plan
+# Rumpus: plan
 
-Status: **Phase 4 under way** (0.9.0-alpha.0, 2026-11-11; since then connectors sign in with OAuth, 4.20). The product is called **Serai** since 2026-11-10 (it
-was Lonca; the code name `lonca` stays in package names and environment variables, see section 2). Built on
+Status: **Phase 4 under way** (0.9.0-alpha.0, 2026-11-11; since then connectors sign in with OAuth, 4.20). The product is called **Rumpus** since 2026-11-11 (it
+was Lonca until 2026-11-10 and Serai for a day; the code name `lonca` stays in package names and environment
+variables, see section 2). Built on
 2026-11-10/11: specialists (5.15), routines (5.16), the Overview page and unread counts (5.17), invite links with
 a check of the way to the inviter (5.11); then (4.19) a shell that adapts to its room, an agent folder that no
-longer has to be picked, character presets for agents and the personal settings. The name is open again: Serai
-is taken (section 10). Before that (0.8.0-alpha.0, 2026-10-19): memory, projects with status pages, hand-over, several
+longer has to be picked, character presets for agents and the personal settings. The name was opened again that day (Serai was
+taken) and settled as Rumpus (4.21, section 10). Before that (0.8.0-alpha.0, 2026-10-19): memory, projects with status pages, hand-over, several
 CLI logins, `/durum`, `/özet`, quick entry and advisor notes; voice is paused (Kaan, 2026-10-19). The
-connector store has its core and its catalog (4.10, 4.11, 2026-10-22): connectors from Serai's catalog, the MCP
-Registry or by hand, served through Serai's gateway with a policy per tool; OAuth sign-in since 2026-11-11 (4.20),
+connector store has its core and its catalog (4.10, 4.11, 2026-10-22): connectors from Rumpus's catalog, the MCP
+Registry or by hand, served through Rumpus's gateway with a policy per tool; OAuth sign-in since 2026-11-11 (4.20),
 MCPB comes next. The done-checks of Phases 1-3 wait for real use by Kaan and Arda; see the status blocks
 under section 8. Owners: Kaan and Arda. v0.1 (the Python chat server, tag `v0.1.0`) was the starting point for
 ideas and the security model, not for code.
@@ -19,7 +20,7 @@ connectors, voice, networking). Theme: Grafit & tek vurgu, artboard 2 of the "Se
 
 ---
 
-## 1. What Serai is
+## 1. What Rumpus is
 
 An open-source desktop hub where people and the CLI coding agents they already have work together.
 
@@ -30,8 +31,8 @@ An open-source desktop hub where people and the CLI coding agents they already h
   the right like a Discord server; anyone allowed can give a task to any agent; each agent still runs on its owner's
   computer, under the owner's own login.
 
-Serai **does not have its own coding agent**. It drives the CLIs people install and log in to themselves. The only
-model calls Serai makes itself are for advisors, memory upkeep and voice, on API keys the person enters.
+Rumpus **does not have its own coding agent**. It drives the CLIs people install and log in to themselves. The only
+model calls Rumpus makes itself are for advisors, memory upkeep and voice, on API keys the person enters.
 
 It is the general version of Fabrika (roblox-factory's cockpit app), without Roblox and without the two-person
 assumption. Roblox can come back later as a pack (connectors, commands, advisor profiles).
@@ -42,7 +43,7 @@ From the Q&A on 2026-10-16.
 
 | Topic | Decision |
 |---|---|
-| Name | **Serai** since 2026-11-10 (a caravanserai: where people arriving with their own caravans meet). It was Lonca; Kaan asked for a name the product can be published and sold under. The name lives in `packages/protocol/src/brand.ts`; the code name `lonca` stays in package names (`@lonca/*`), environment variables (`LONCA_*`), wire headers and file names. Invite codes and the data folder of the former name are still accepted. **2026-11-11: Kaan found the name taken; a new one is being chosen (section 10)** |
+| Name | **Rumpus** since 2026-11-11 (a lively noise; a rumpus room is a room for play): one everyday word in Discord's manner, chosen by Kaan from the third round in section 10. It was Lonca until 2026-11-10 (Kaan asked for a name the product can be published and sold under), then Serai for a day (a caravanserai; taken by a company and under every domain ending tried). The name lives in `packages/protocol/src/brand.ts`; the code name `lonca` stays in package names (`@lonca/*`), environment variables (`LONCA_*`), wire headers and file names. Invite codes, invite links and the data folders of both former names are still accepted |
 | Workspace word | Independent of the product's name: "alan" in Turkish, "workspace" in English (2026-11-10) |
 | Distribution | Open source, **Apache-2.0** |
 | Platforms, first release | Windows, Linux, phone companion (PWA). No macOS yet |
@@ -51,7 +52,7 @@ From the Q&A on 2026-10-16.
 | Provider sign-in | API keys and local endpoints for advisors (Groq, Anthropic, Gemini, NVIDIA NIM, DeepSeek, OpenAI-compatible, Ollama / LM Studio). Subscriptions only through the official CLIs the user logged in to |
 | Workspace storage | Local only: every member keeps the whole workspace on their own PC. **No relay and no hosted server**, now or later |
 | Networking | Solo needs nothing. Teams connect over Tailscale, as Kaan and Arda do with Fabrika |
-| Code sharing | Git. Serai shows status and offers pull/push; chat, records and boards live in Serai's own store |
+| Code sharing | Git. Rumpus shows status and offers pull/push; chat, records and boards live in Rumpus's own store |
 | Advisors | Continuous chatter (like Fabrika's #genel bots), on the advisor owner's keys |
 | Cross-member jobs | Run on the agent owner's PC with the owner's login; the owner decides who may call it and how much it may do |
 | `/todo`, `/goal` | `/todo` adds a card to the board; `/goal` starts goal mode (step by step until done, stoppable) |
@@ -59,10 +60,10 @@ From the Q&A on 2026-10-16.
 | Phase order | Team (Phase 3) before memory, voice and the connector store (Phase 4) |
 | Viewer role | Reads and posts messages; cannot task agents or edit the board and records |
 | Repo | `github.com/kaanisthatyou/lonca`, private until Phase 1 is done, set up as open source from the first commit |
-| Telemetry | None. Serai sends nothing |
+| Telemetry | None. Rumpus sends nothing |
 | v0.1 code | Removed from `main` when the v2 skeleton lands; tag `v0.1.0` kept |
 | Theme | **Grafit & tek vurgu** (direction 2 on the canvas) |
-| UI copy | **Impersonal**: Serai's own text states facts and actions, with no author presence (7.1) |
+| UI copy | **Impersonal**: Rumpus's own text states facts and actions, with no author presence (7.1) |
 
 ## 3. Principles
 
@@ -78,16 +79,16 @@ From the Q&A on 2026-10-16.
    it starts work exactly as that message would if they typed it.
 4. **Safe defaults.** New agents: read-only, callable only by their owner. Others' requests are capped at read
    unless the owner raises it. Channel text reaches agents marked as untrusted.
-5. **No credential handling.** Serai never reads, copies or moves a CLI's login files. It spawns the unmodified
-   official binary, which uses its own login. No "Sign in with Claude/Gemini" inside Serai. "Claude" is never part
+5. **No credential handling.** Rumpus never reads, copies or moves a CLI's login files. It spawns the unmodified
+   official binary, which uses its own login. No "Sign in with Claude/Gemini" inside Rumpus. "Claude" is never part
    of an agent's product name in the UI beyond describing what it runs.
 6. **Clean room.** Nothing from closed apps (code, strings, assets). Open-source code only with its license notice.
 7. **Everything bilingual.** Turkish and English UI from the first build.
 8. **One small core with plugin points**, not Hermes-style breadth.
 
-## 4. From Fabrika to Serai
+## 4. From Fabrika to Rumpus
 
-| Fabrika | Serai |
+| Fabrika | Rumpus |
 |---|---|
 | Cockpit: one Claude chat per person | A direct channel with each of your agents, plus channels |
 | Team chat with channels, mirrored at both PCs | Channels in a workspace, replicated at every member |
@@ -160,7 +161,7 @@ Discord-like, three columns plus a rail:
 - **Worktrees:** a job can run in its own git worktree, with a merge-back check before it closes.
 - **Context given to every job:** who asked, the channel's recent messages (marked untrusted), referenced records,
   the workspace memory snapshot, area rules, the goal state. Shown on the card as "what was given".
-- **Serai's own MCP server** for the agents it runs: search history and records, read references (images), read
+- **Rumpus's own MCP server** for the agents it runs: search history and records, read references (images), read
   and update board cards and goal steps, post progress. This is how agents keep `/todo` and `/goal` current.
 
 ### 5.4 Advisors
@@ -221,7 +222,7 @@ Learned from Hermes: small, bounded, human-editable memory beats a big opaque st
 
 - **Dictation** into the composer, **read aloud** of job summaries and advisor messages, and a **voice mode** for
   talking to an agent (speech → message → job → spoken summary).
-- Push to talk: `Ctrl Space` inside Serai, toggle by default (Electron only sees key presses), plus the mic
+- Push to talk: `Ctrl Space` inside Rumpus, toggle by default (Electron only sees key presses), plus the mic
   button. From anywhere: the quick-entry window (`Ctrl Alt Space`) with the same mic. `Ctrl Space` is never
   registered globally, because editors use it for completion.
 - Local by default, downloaded on first use: whisper.cpp sidecar with the multilingual `small` model; Piper with a
@@ -232,7 +233,7 @@ Learned from Hermes: small, bounded, human-editable memory beats a big opaque st
 
 ### 5.9 Connector store
 
-- **Catalog:** a curated list (~30 entries, "Verified by Serai") published as an open, signed static index that
+- **Catalog:** a curated list (~30 entries, "Verified by Rumpus") published as an open, signed static index that
   anyone can mirror or self-host; each entry points at an official MCP Registry entry. Live registry search below
   it, marked "community, unreviewed". A workspace can keep its own allowlist and recommended set.
 - **One click per kind:** remote without auth (add); remote with OAuth (system browser, a one-shot loopback callback
@@ -245,11 +246,11 @@ Learned from Hermes: small, bounded, human-editable memory beats a big opaque st
   version, hash) re-checked at startup; settings kept across updates; an env deny list when spawning servers.
 - **Tool policy per tool**, four values: allow, ask every time, ask once per job, blocked. A team-visible log of
   tool decisions.
-- **Serai MCP gateway.** Headless CLIs cannot ask the person anything, so connectors do not go to the CLIs
-  directly: Serai runs or connects every connector itself and gives each job one local HTTP MCP endpoint with a
+- **Rumpus MCP gateway.** Headless CLIs cannot ask the person anything, so connectors do not go to the CLIs
+  directly: Rumpus runs or connects every connector itself and gives each job one local HTTP MCP endpoint with a
   per-job token that exposes only that agent's connectors. "Ask" becomes a needs-attention approval on the job
-  card; secrets never leave Serai; one audit point. The same endpoint serves Serai's own tools (5.3). For a CLI
-  without HTTP MCP support, Serai writes a per-run config instead (Claude Code `--mcp-config --strict-mcp-config`,
+  card; secrets never leave Rumpus; one audit point. The same endpoint serves Rumpus's own tools (5.3). For a CLI
+  without HTTP MCP support, Rumpus writes a per-run config instead (Claude Code `--mcp-config --strict-mcp-config`,
   Codex a temporary `CODEX_HOME`, Gemini a per-run settings dir).
 - **Secrets** in Electron `safeStorage` (DPAPI, libsecret, KWallet), in the main process only; the UI sees masked
   values. Never a plaintext fallback: without an OS secret store, an encrypted file behind an app passphrase.
@@ -265,7 +266,7 @@ portal on Wayland, and one searchable panel (`Ctrl /`). Defaults:
 |---|---|
 | `Ctrl Alt Space` (global) | Quick entry: a small always-on-top window to message or task an agent from anywhere; remembers its monitor, hides on blur |
 | `Ctrl K` | Search and command palette |
-| `Ctrl Space` | Push to talk (inside Serai, toggle) |
+| `Ctrl Space` | Push to talk (inside Rumpus, toggle) |
 | `Alt ↑ / ↓` | Previous / next channel |
 | `Ctrl Shift ↑ / ↓` | Previous / next item that needs attention |
 | `Ctrl .` | Stop the focused job |
@@ -302,12 +303,12 @@ the PC. Needs-attention pushes from day one.
 
 ### 5.13 Projects and git
 
-A project = a git repo; each member points it at their own clone. Serai shows branch, changes, ahead/behind, and
+A project = a git repo; each member points it at their own clone. Rumpus shows branch, changes, ahead/behind, and
 offers pull/push; jobs can end with a commit (owner's choice). Advisors read commits and diffs. Areas (folders
 a member mostly works on) generalize Fabrika's `split.md`: every job gets them as a record, never a lock (Fabrika
 dropped its claim rule on 2026-10-16 because it only slowed two people down); an agent that changes someone else's
 area says so in its summary. The project's status page generalizes Fabrika's `progress.md` (where it stands,
-milestones, next) and agents keep it current through Serai's tools.
+milestones, next) and agents keep it current through Rumpus's tools.
 
 ### 5.14 Agent instructions (system prompts)
 
@@ -320,8 +321,8 @@ bot and Blender agent prompts in `app/fabrika.py` and `app/backend/team_claude.p
   length, when to stay silent, never offer to do work), goal step (plan, step, report format), `/meclis`
   moderator, memory upkeep, quick entry.
 - **Layers,** assembled in this order for every job:
-  1. Serai's core rules (untrusted context, only people start work, the owner's limits). Shown read-only, because
-     Serai enforces them in code; the text only explains them to the model.
+  1. Rumpus's core rules (untrusted context, only people start work, the owner's limits). Shown read-only, because
+     Rumpus enforces them in code; the text only explains them to the model.
   2. The role's default template: editable, with "reset to default" and a diff against the default.
   3. Workspace instructions (Admins): team conventions, language, areas.
   4. The agent's or advisor's own instructions (its owner).
@@ -329,7 +330,7 @@ bot and Blender agent prompts in `app/fabrika.py` and `app/backend/team_claude.p
 - **Variables:** `{user}`, `{agent}`, `{workspace}`, `{channel}`, `{project}`, `{mode}`, `{language}`,
   `{members}`, `{areas}`, `{goal}`, `{date}`. A preview shows the exact text a sample job would receive.
 - **Files, not database rows:** Markdown with frontmatter, with history and revert; export and import, and share
-  as a workspace preset. When a release changes a default the person edited, Serai offers the new default as a
+  as a workspace preset. When a release changes a default the person edited, Rumpus offers the new default as a
   merge instead of overwriting.
 - **Personalities are presets:** Eleştirel, Doğrucu Davut and Olumlu are editable templates; duplicate one to make
   a new advisor.
@@ -423,7 +424,7 @@ packages/core       store, sync, roles and certificates, jobs, scheduler
 packages/agents     AgentDriver interface; claude-code, codex, opencode, acp, gemini/agy drivers
 packages/providers  LLM clients (OpenAI-compatible, Anthropic, Gemini) and presets
 packages/voice      STT/TTS engines, sidecar manager
-packages/connectors store, registry, OAuth, MCPB, MCP gateway (with Serai's own tools), per-CLI config writers
+packages/connectors store, registry, OAuth, MCPB, MCP gateway (with Rumpus's own tools), per-CLI config writers
 packages/ui         design tokens, components, motion presets
 docs/               PLAN.md stays at the root; research, ADRs
 ```
@@ -447,8 +448,8 @@ become TypeScript test cases for the same security rules.
 - **Peers only, no server.** Every member keeps the whole workspace. Online peers sync directly over Tailscale
   (each app listens on its Tailscale address); whenever any two members are online they catch up, and a third
   member passes on what the other two missed. Nobody is "the server", so a closed PC only means its own agents are
-  offline. Serai never runs or depends on a relay or hosted service.
-- A member who wants the workspace always reachable can leave Serai running in the tray on an always-on machine;
+  offline. Rumpus never runs or depends on a relay or hosted service.
+- A member who wants the workspace always reachable can leave Rumpus running in the tray on an always-on machine;
   it is just another peer.
 - Tailscale is detected and guided as in Fabrika: not installed (winget / download), signed out, wrong tailnet.
   Joining a workspace means being in the same tailnet, or the inviter sharing their device with the joiner
@@ -519,14 +520,14 @@ indicators; everything respects `prefers-reduced-motion`, and every state stays 
 
 ### 7.1 UI copy: impersonal
 
-Serai's own text (buttons, labels, menus, placeholders, empty states, notifications, errors, tooltips, the
+Rumpus's own text (buttons, labels, menus, placeholders, empty states, notifications, errors, tooltips, the
 launcher) is impersonal and objective: it names what a control does or states what happened. The author is not
 present in it.
 
 - No feelings, opinions, praise, jokes, greetings, encouragement or apologies; no exclamation marks; no emoji.
 - No addressing the reader: no `sen` / `siz`, no second-person possessives (`kotan`, `ayarların`), no
   "Hoş geldin". In English no "you" / "your".
-- The app never speaks as "I" or "we" and is never personified ("Serai düşünüyor" → "İşleniyor").
+- The app never speaks as "I" or "we" and is never personified ("Rumpus düşünüyor" → "İşleniyor").
 - Buttons are plain verbs or nouns: Kaydet, Durdur, Davet oluştur, Ayarlar.
 - Errors: what happened, the cause when known, the action: "İş başlatılamadı: `claude` bulunamadı. Kurulum
   komutu kopyalandı."
@@ -550,10 +551,10 @@ Each phase ends with something installable that the two of you use for real.
 
 | Phase | Contents | Done when |
 |---|---|---|
-| **0. Foundation** | Theme choice, tokens and component kit, repo scaffold, CI, Electron shell, first-run launcher, i18n, signed installer, auto-update | An installable empty Serai updates itself |
-| **1. Solo core** | Channels, messages, records (ideas, references, commands), Claude Code and Codex drivers with job cards, live view, steering, stop, quota, login state, autonomy ladder, needs-attention inbox, `Ctrl K`, shortcuts, `/todo` board, MCP gateway with Serai's own tools, worker instruction templates and their editor | Kaan runs a real non-Roblox project from Serai for a week |
+| **0. Foundation** | Theme choice, tokens and component kit, repo scaffold, CI, Electron shell, first-run launcher, i18n, signed installer, auto-update | An installable empty Rumpus updates itself |
+| **1. Solo core** | Channels, messages, records (ideas, references, commands), Claude Code and Codex drivers with job cards, live view, steering, stop, quota, login state, autonomy ladder, needs-attention inbox, `Ctrl K`, shortcuts, `/todo` board, MCP gateway with Rumpus's own tools, worker instruction templates and their editor | Kaan runs a real non-Roblox project from Rumpus for a week |
 | **2. Advisors and goals** | Provider presets and keys, advisor profiles with editable personality presets and chatter with budgets, `/meclis`, `/goal` with plan approval and comments, worktrees | A goal finishes on its own while the advisors comment |
-| **3. Team** | Peer sync over Tailscale, invites, approval, role certificates, members panel, cross-member jobs, notifications, phone companion | Kaan and Arda run a project together on Serai instead of Fabrika's team tab |
+| **3. Team** | Peer sync over Tailscale, invites, approval, role certificates, members panel, cross-member jobs, notifications, phone companion | Kaan and Arda run a project together on Rumpus instead of Fabrika's team tab |
 | **4. Memory, voice, connectors** | Memory layers and recall line, voice (local and cloud, custom servers), connector store with OAuth and MCPB | A connector installs in one click and a job is started by voice |
 | **5. Public 1.0** | OpenCode and the generic ACP driver, Linux packages, docs site, contribution guide, security review | Strangers install and use it without help |
 
@@ -600,7 +601,7 @@ Built and verified (unit tests, and the real app driven against a fake Claude Co
 - Codex driver over `codex exec --json`: checked against codex-cli 0.162.1 installed in a temporary folder and not
   logged in (`packages/core/test/real-cli.test.ts`, run with `LONCA_REAL_CODEX`): detection, "Not logged in" (which
   exits 0), the exec flags, `--image`, `resume`, retries (`error` events) before `turn.failed`, a 401 shown as a login
-  problem, and Serai's MCP endpoint reached through `-c mcp_servers.serai.*` with the token in an environment
+  problem, and Rumpus's MCP endpoint reached through `-c mcp_servers.rumpus.*` with the token in an environment
   variable. A logged-in run (tool calls, answers) is still untested.
 - Job cards (live steps, streaming answer, usage, cost, steer, stop), the live view with the whole transcript,
   the quota panel.
@@ -612,27 +613,27 @@ Built and verified (unit tests, and the real app driven against a fake Claude Co
   `{channel}`, `{date}`; any message saved as an idea; records attached to a message reach the job as notes,
   references as images (inline for Claude Code, `--image` for Codex).
 
-- Instructions (5.14): Serai's core rules shown read-only; the worker template and the workspace's instructions as
+- Instructions (5.14): Rumpus's core rules shown read-only; the worker template and the workspace's instructions as
   Markdown files (`<data>/instructions/worker.md`, `<workspace>/instructions.md`), with earlier versions kept under
   `history/`, "back to default", a notice when the shipped default changed under an edited copy, and a preview of
   the whole prompt per agent. A session restarts its CLI process (same conversation) when a layer changes.
 
 - The MCP gateway: a small Streamable HTTP endpoint on 127.0.0.1 with one bearer token per agent session (Host
-  and Origin checked), serving Serai's tools: `search_messages`, `list_records`, `read_record` (with the image),
+  and Origin checked), serving Rumpus's tools: `search_messages`, `list_records`, `read_record` (with the image),
   `list_cards`, `add_card`, `update_card`, `post_progress`. Claude Code gets it with `--mcp-config` and
-  `--allowedTools mcp__serai`; checked with a real Claude Code call (connected, tool called without a prompt).
+  `--allowedTools mcp__rumpus`; checked with a real Claude Code call (connected, tool called without a prompt).
   Codex gets the same endpoint through per-run config overrides.
 
-- Approvals: at read and edit, Claude Code asks Serai over stdio (`--permission-prompt-tool stdio`,
+- Approvals: at read and edit, Claude Code asks Rumpus over stdio (`--permission-prompt-tool stdio`,
   `control_request` / `can_use_tool`, checked with a real call); the job waits as "Onay bekliyor" with Allow and
-  Deny on its card, a "Bekleyenler" count in the sidebar, an OS notification when Serai is in the background, and
-  `Ctrl Shift ↑ / ↓` to go through waiting jobs. Control requests Serai does not handle get an error answer.
+  Deny on its card, a "Bekleyenler" count in the sidebar, an OS notification when Rumpus is in the background, and
+  `Ctrl Shift ↑ / ↓` to go through waiting jobs. Control requests Rumpus does not handle get an error answer.
 
 - Pinned commands as buttons above the message box; shortcuts rebindable in Settings (recorded by pressing them,
   conflicts refused, back to default), the shortcut list showing the current keys.
 
 - `e2e/real-claude.mjs` (by hand, two short Haiku turns): the real Claude Code answers from a project's files
-  and moves a board card through Serai's MCP tools; the packaged 0.3.0-alpha.0 passes `smoke.mjs` and
+  and moves a board card through Rumpus's MCP tools; the packaged 0.3.0-alpha.0 passes `smoke.mjs` and
   `channel.mjs`.
 
 Left open from Phase 1: a logged-in Codex run (no Codex login on the dev machine), and making the repository
@@ -657,7 +658,7 @@ public, which waits for the owners' go.
   person speaks, one unasked turn per channel per hour, one turn at a time per channel. They never write code or
   start jobs; a `/todo` line in their answer becomes a board card. `/meclis [topic]`: two rounds in turn, then a
   summary. Each advisor runs on the device that added it. Tested with unit tests and `e2e/advisors.mjs`; not yet
-  run against a real provider with a real key. Serai gathers the channel, the board and git history for them;
+  run against a real provider with a real key. Rumpus gathers the channel, the board and git history for them;
   with a project folder they also get read-only tools (`list_files`, `read_file`, `search`, `git_log`,
   `git_show`), kept inside the folder (symlinks included) with git on fixed arguments: up to three rounds of
   calls, then they answer with what they have; every round counts against the budget. The provider client speaks
@@ -672,7 +673,7 @@ public, which waits for the owners' go.
   steering and approvals; finished ones open from their step. Advisors of the channel take turns commenting on
   each step. A Goals view lists them. Tested with unit tests and `e2e/channel.mjs` against the fake CLI, and once
   with the real Claude Code on Haiku (`e2e/real-claude.mjs`: a four-step plan, an approval, the check passed).
-- Worktrees: a goal can run in its own git worktree (`<data>/worktrees/<goal id>`, branch `serai/goal-<id>`), in a
+- Worktrees: a goal can run in its own git worktree (`<data>/worktrees/<goal id>`, branch `rumpus/goal-<id>`), in a
   CLI session of its own, so the main folder stays as it is and the agent can take other work meanwhile; each step
   ends with a commit, the done check runs in the worktree, and the session closes when the goal ends. The card
   shows the branch, opens the folder, and removes the worktree when the goal is over (never forced: a worktree
@@ -750,7 +751,7 @@ The details behind 5.11 and 6.5, decided before building.
   3.6. A live path between members (`/v1/live`, signed like the rest, never stored): "Arda yazıyor" under the
   messages (at most every three seconds, at once again after a send), and another member's running job moving on
   everyone's card about once a second (only the agent's owner may report it). The members list shows who answered
-  the last sync. A message from another member in a background lonca marks it in the rail; while Serai is in the
+  the last sync. A message from another member in a background lonca marks it in the rail; while Rumpus is in the
   background a message from another member gives an OS notification.
   0.5.0-alpha.0 (2026-10-18): the packaged app passes all e2e tests; `e2e/tailscale.mjs` (by hand, on a computer
   with Tailscale) has one app listen on its real Tailscale address: the invite carried `100.76.173.48:47640` and the
@@ -817,7 +818,7 @@ The details behind 5.11 and 6.5, decided before building.
 - 4.6 `/özet [hours | hafta] [@advisor]`: an advisor of the channel (the one named, else the first) sums up the
   channel's last hours (24 by default): decisions, done work, what is open or blocked, who waits on whom. It reads up
   to 300 messages of the period instead of a normal turn's 30, on its own budget and provider; the summary is the
-  advisor's message, so Serai never speaks as itself. Covered by a unit test.
+  advisor's message, so Rumpus never speaks as itself. Covered by a unit test.
 - 4.7 Quick entry (5.10): `Ctrl Alt Space` from anywhere (registered globally by the main process; when another app
   holds it, the palette's "Hızlı giriş" opens the same window) shows a small always-on-top window on the screen the
   pointer is on: a channel or agent to write to (the last one used is remembered) and a message box; Enter sends and
@@ -836,24 +837,24 @@ The details behind 5.11 and 6.5, decided before building.
   it reads 20 ideas, 40 references, 9 prompts and 7 games. Covered by unit tests and `e2e/channel.mjs`.
 - 4.10 Connectors, the core of the store (5.9), 2026-10-22: Settings → Bağlayıcılar adds an MCP server by hand, a
   remote one (Streamable HTTP; JSON or event-stream answers, the session id, no redirects, https except loopback,
-  private networks and Tailscale) or a local program over stdio (no shell; it gets Serai's environment without
-  variables that look like keys or tokens, and Serai's own). Connectors belong to this computer:
+  private networks and Tailscale) or a local program over stdio (no shell; it gets Rumpus's environment without
+  variables that look like keys or tokens, and Rumpus's own). Connectors belong to this computer:
   `<app>/connectors.json`, never synced; header and variable values are sealed by the main process with safeStorage
   (none stored where nothing can seal them) and shown as their last characters. Saving tests the server in the
   background (`initialize`, `tools/list`, up to two minutes for a first `npx` download); a failure shows the server's
   own words. Each connector lists the agents of this computer that may use it, and each tool has a policy: allow
   (the default for tools the server marks read-only), ask every time (the default otherwise), ask once per job,
-  blocked (the agent does not see it). The gateway serves an agent's connector tools next to Serai's own as
-  `<slug>__<tool>` (at most 50 characters, so `mcp__serai__…` fits every CLI); a call that asks waits on the job card
+  blocked (the agent does not see it). The gateway serves an agent's connector tools next to Rumpus's own as
+  `<slug>__<tool>` (at most 50 characters, so `mcp__rumpus__…` fits every CLI); a call that asks waits on the job card
   like a CLI's approval (one at a time, ten minutes, then denied; Claude Code gets `MCP_TOOL_TIMEOUT` and Codex
   `tool_timeout_sec` to wait that long), and a request from another member never runs a tool unasked. A changed tool
-  list starts the agent's CLI again with the same conversation. Serai connects on first use and closes a server
+  list starts the agent's CLI again with the same conversation. Rumpus connects on first use and closes a server
   after ten idle minutes. Covered by unit tests (stdio and HTTP clients, the core end to end), `e2e/channel.mjs`
   (a local connector with a secret, an approval on the card) and `e2e/real-claude.mjs` (`REAL_QUICK=1`: the real
-  Claude Code on Haiku called a connector's tools through Serai after an approval); the Codex contract test passes
+  Claude Code on Haiku called a connector's tools through Rumpus after an approval); the Codex contract test passes
   with the new flag. Not yet: OAuth, MCPB bundles, the team-visible log of tool decisions, and connectors on other
   members' computers.
-- 4.11 The catalog (5.9), 2026-10-22: Bağlayıcılar → Katalogdan ekle shows Serai's catalog above a live search of the
+- 4.11 The catalog (5.9), 2026-10-22: Bağlayıcılar → Katalogdan ekle shows Rumpus's catalog above a live search of the
   official MCP Registry (`/v0.1/servers`, by name, latest active versions), which is marked as community and not
   reviewed. Both install the same way: a registry `server.json` becomes install plans (a Streamable HTTP remote, or
   an npm, PyPI or OCI package run pinned through `npx -y pkg@version`, `uvx pkg@version` or `docker run -i --rm`),
@@ -869,13 +870,13 @@ The details behind 5.11 and 6.5, decided before building.
   a signed index others can mirror waits for the public repository. Covered by unit tests (the conversion on real
   entries, every catalog entry, the search against a stand-in), `e2e/channel.mjs` (the catalog, an entry's form, a
   search against a stand-in registry) and two opt-in checks against the real servers: `LONCA_REAL_REMOTE=1`
-  (Context7, Microsoft Learn, Exa, Firecrawl and Hugging Face answer `initialize` and `tools/list` through Serai's
+  (Context7, Microsoft Learn, Exa, Firecrawl and Hugging Face answer `initialize` and `tools/list` through Rumpus's
   client) and `LONCA_REAL_NPX=1` (Playwright, Chrome DevTools, Context7 and Firecrawl start through npx on Windows).
   Next for the store: MCPB, a workspace's own allowlist, and the tool-decision log (OAuth: 4.20).
-- 4.12 The rename (2026-11-10): Serai. One constant (`BRAND`) for the name everywhere a person or a model reads it
-  (the UI through `{{app}}` in the locale files), the MCP server agents see (`mcp__serai__*`), git branch prefixes
-  (`serai/goal-…`), a new mark (a caravanserai's gate). Invite codes start with `SERAI1.`; `LONCA1.` codes are
-  still read. On first start the former name's data folder is moved to the new one (not yet tried on a real
+- 4.12 The first rename (2026-11-10): Serai (Rumpus since 4.21). One constant (`BRAND`) for the name everywhere a person or a model reads it
+  (the UI through `{{app}}` in the locale files), the MCP server agents see (`mcp__serai__*` then), git branch prefixes
+  (`serai/goal-…` then), a new mark (a caravanserai's gate). Invite codes started with `SERAI1.`; `LONCA1.` codes
+  were still read. On first start the former name's data folder is moved to the new one (not yet tried on a real
   installation). Workspaces are "alan" / "workspace" in the UI.
 - 4.13 Specialists (5.15), 2026-11-10: the `specialty` of an agent, the specialist prompt, the roster given to
   workers, a session per job, the budget (timers, a token check after every usage report), the RESULT line (kept
@@ -883,7 +884,7 @@ The details behind 5.11 and 6.5, decided before building.
   owner's computer, `lessons.accept` / `lessons.reject`), eight templates. In the app: a gallery, a form in four
   parts, a group of their own in the members panel with what they learned, the budget on the job card, the RESULT
   table. Covered by unit tests and `e2e/specialists.mjs`. Not yet run with a real CLI.
-- 4.14 Joining (5.11), 2026-11-11: `serai://join/<code>` opens the app (a second copy hands the link to the running
+- 4.14 Joining (5.11), 2026-11-11: `rumpus://join/<code>` opens the app (a second copy hands the link to the running
   one) with the join dialog filled in; `invites.check` reads an invite without using it and says which workspace
   it is for, whether Tailscale runs here, whether the inviter's device is in sight and whether its app answers.
   The invite dialog copies the code, the link, or a message with the steps for the person joining. Tailscale's
@@ -903,9 +904,23 @@ The details behind 5.11 and 6.5, decided before building.
   (invite link through a second copy). `e2e/real-specialist.mjs` (by hand, one Haiku job): the real Claude Code
   as a code reviewer read the channel, found the planted bug with file and line, kept a lesson through
   `learn_lesson` and ended with a RESULT line that was taken out of the chat. Not yet tried on a real
-  installation: the `serai://` handler (registered only by an installed app without `LONCA_HOME`) and the move of
+  installation: the `rumpus://` handler (registered only by an installed app without `LONCA_HOME`) and the move of
   the former name's data folder.
 
+- 4.21 The second rename (2026-11-11): Rumpus. `BRAND` holds the name, the slug (`rumpus`: the MCP server agents
+  see, `mcp__rumpus__*`; git branch prefixes, `rumpus/goal-…`; the link scheme, `rumpus://join/…`) and the app id
+  (`io.github.kaanisthatyou.rumpus`), and now a list of former names, latest first. Still accepted: invite codes
+  that start with `SERAI1.` or `LONCA1.` and `serai://` links pasted into the join dialog, a specialist's text
+  copied under the former name, a `.serai/status.md` seed, and on first start the data folder of the latest
+  former name that holds settings (`Serai`, else `Lonca`) is moved to `Rumpus`. Goals that run in a worktree keep
+  the branch name they were given. Places that had the name written by hand now take it from `BRAND` (the
+  launcher, About, the system author in the channel, the palette and the search tools, the invite prefix in the
+  join dialog's hint); the installer config, `productName`, the page title, the phone's service worker and
+  `e2e/locale.mjs` still hold it as text. The mark stays (a gate; it was drawn as a caravanserai's). Not done:
+  the repository's name, and an installed Serai 0.9.0 is another app to Windows (another app id), so it is
+  removed by hand and does not update into Rumpus; the move of the data folder is still untried on a real
+  installation. Checked: `pnpm check`, all seven e2e scripts against the built app, and `Rumpus-Setup-0.9.0-alpha.0.exe`
+  built with its unpacked app passing `smoke` and `team` (a `rumpus://` link through a second copy).
 - 4.20 Sign-in for remote connectors (5.9), 2026-11-11: a remote server that answers 401 (and has no
   `Authorization` header of the person's own) shows "sign-in needed" with a Sign in button. `connectors.signIn`
   asks the server without a token, reads the protected-resource metadata its challenge names (RFC 9728; else the
@@ -965,9 +980,9 @@ The details behind 5.11 and 6.5, decided before building.
 
 From 2026-11-11, for the owners:
 
-- **The name.** Serai was chosen without a trademark or domain check, and Kaan found it taken (2026-11-11; a web
-  search shows a Zurich smart-home company of that name, and `serai` is registered under .com, .dev, .app, .ai
-  and .io). Kaan asked for an English name. What was checked that day is weak evidence and no trademark search:
+- **The name: settled, Rumpus (2026-11-11).** What follows is the record of how. Serai was chosen without a
+  trademark or domain check, and Kaan found it taken (2026-11-11; a web search shows a Zurich smart-home company
+  of that name, and `serai` is registered under .com, .dev, .app, .ai and .io). Kaan asked for an English name. What was checked that day is weak evidence and no trademark search:
   the registries' own RDAP services for .com / .dev / .app / .ai / .io, and a web search for a product of the same
   name (done for the Turkish words only; the search quota ran out before the English ones).
   - English, single words: every one tried is registered under all five endings (Guildhall, Bullpen, Quarterdeck,
@@ -990,7 +1005,7 @@ From 2026-11-11, for the owners:
     - Unregistered under all five: **Aidehall**, Guildaide, Guildmain, Crewmain, Crewdais, Daishall, Braidroom.
     - Only .com registered: **Aidecamp** (aide-de-camp), Mainhall, Taife (Ottoman Turkish for a crew or a guild's
       members, where "tayfa" comes from), Hallwai, Serail (ruled out: it means a seraglio).
-    - Ending in "ai" as Serai does: **Balai** (Malay: a hall where a community meets; .dev .ai .io unregistered;
+    - Ending in "ai" as Serai did: **Balai** (Malay: a hall where a community meets; .dev .ai .io unregistered;
       a broom in French), **Technai** (Greek: the crafts; .dev .ai unregistered; reads as "tech AI", and Tech AI /
       TechAI companies exist), Mousai (the Muses; .dev .app), Selesai (Malay: done; .dev .io), Kaikki (Finnish:
       everyone; .dev .io).
@@ -1011,13 +1026,14 @@ From 2026-11-11, for the owners:
   - Others in this field already use Conductor, Squad, All Hands, Stagehand, Motley Crew and Cowork. Chat
     apps for people and agents found by the same searches: Buzz (Block), Chord, Cumora, Shapes, Zenzap, Kollab,
     Vokal, Persemble, CoChat, Glue, Hilo Team.
-  A new name is a change to `brand.ts`, the icon, `electron-builder.yml`, `productName` in
-  `apps/desktop/package.json` and `e2e/locale.mjs`; the former names' invite codes and data folders should stay
-  accepted.
+  Still open about it: no trademark search has been made for Rumpus; its plain domains are registered, and
+  rumpushq (.com .dev .app) and rumpus.team were not on 2026-11-11, nothing has been registered. A new name is a
+  change to `brand.ts` (the former one goes into `formers`), the icon, `electron-builder.yml`, `productName` in
+  `apps/desktop/package.json`, the page title, `sw.js` and `e2e/locale.mjs`.
 - **Earning money.** Kaan (2026-11-10): the product could be published and earn money. The plan so far says
   Apache-2.0 with no hosted service. Ways that fit it: paid signed builds with updates and support while the source
   stays open; a paid team tier (more than a few members, an always-on peer, audit log) on an open core; paid packs
   (specialist sets, connector bundles). Not decided; nothing in the code assumes any of them.
 - **Routines and principle 3.** Routines were added as a person's standing request. If the owners read "only a
   person starts work" more strictly, routines are one switch to remove.
-- **The repository** is still `kaanisthatyou/lonca` and private; renaming it and making it public are the owners'.
+- **The repository** is still `kaanisthatyou/lonca` and private (the working branch is still called `serai`); renaming it and making it public are the owners'.

@@ -1,5 +1,5 @@
 // Ctrl K: one box to reach channels, agents, views, actions and messages.
-import type { Message, ShortcutAction } from '@lonca/protocol';
+import { BRAND, type Message, type ShortcutAction } from '@lonca/protocol';
 import { Icon, IconButton, type IconName, Kbd } from '@lonca/ui';
 import { motion } from 'motion/react';
 import { useEffect, useMemo, useState } from 'react';
@@ -160,7 +160,7 @@ export function Palette({ onSettings }: { onSettings: () => void }) {
         group: 'messages',
         icon: 'search',
         label: m.text.length > 90 ? `${m.text.slice(0, 90)}…` : m.text,
-        detail: `${m.author.kind === 'system' ? 'Serai' : m.author.name} · #${channel?.name ?? ''}`,
+        detail: `${m.author.kind === 'system' ? BRAND.name : m.author.name} · #${channel?.name ?? ''}`,
         run: () => void s.openChannel(m.channelId),
       });
     }

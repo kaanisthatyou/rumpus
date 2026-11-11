@@ -29,14 +29,18 @@ if (process.env.LONCA_HOME) app.setPath('userData', process.env.LONCA_HOME);
 else adoptFormerData();
 
 /**
- * The app's folder is named after the product. After a rename, the folder of the former name is moved to the new
- * one, once and before anything opens it: settings, workspaces, sealed keys (their key travels in `Local State`).
- * A folder that cannot be moved (another copy of the app holds it) is used where it is.
+ * The app's folder is named after the product. After a rename, the folder of a former name (the latest one that
+ * holds settings) is moved to the new one, once and before anything opens it: settings, workspaces, sealed keys
+ * (their key travels in `Local State`). A folder that cannot be moved (another copy of the app holds it) is used
+ * where it is.
  */
 function adoptFormerData(): void {
   const now = app.getPath('userData');
-  const former = join(dirname(now), BRAND.former.name);
-  if (existsSync(join(now, 'settings.json')) || !existsSync(join(former, 'settings.json'))) return;
+  if (existsSync(join(now, 'settings.json'))) return;
+  const former = BRAND.formers
+    .map((f) => join(dirname(now), f.name))
+    .find((dir) => existsSync(join(dir, 'settings.json')));
+  if (!former) return;
   try {
     if (existsSync(now)) rmdirSync(now); // only an empty folder goes; anything else throws and the old one is used
     renameSync(former, now);
@@ -73,7 +77,7 @@ function applyZoom(): void {
   }
 }
 
-/** Serai's combo (`Ctrl+Alt+Space`, `Ctrl+Shift+ArrowUp`) as an Electron accelerator. */
+/** Rumpus's combo (`Ctrl+Alt+Space`, `Ctrl+Shift+ArrowUp`) as an Electron accelerator. */
 function accelerator(combo: string): string {
   return combo
     .split('+')
@@ -95,7 +99,7 @@ function setQuickKey(combo: string): boolean {
   return true;
 }
 /**
- * An invite link (`serai://join/<code>`) this app was opened with: from the command line on Windows and Linux
+ * An invite link (`rumpus://join/<code>`) this app was opened with: from the command line on Windows and Linux
  * (also a second copy's, which hands it over and quits), from `open-url` on macOS. Only the link's own shape gets
  * through; the page reads it as a pasted invite code and nothing is joined without the person.
  */
@@ -271,7 +275,7 @@ function registerIpc(): void {
 }
 
 function hardenSessions(): void {
-  // Nothing in Serai needs camera, location or notifications from the page yet; the microphone comes with voice.
+  // Nothing in Rumpus needs camera, location or notifications from the page yet; the microphone comes with voice.
   session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) =>
     callback(permission === 'clipboard-sanitized-write'),
   );

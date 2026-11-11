@@ -1,4 +1,4 @@
-// Opt-in: Serai's MCP client against the catalog's remote servers that need no key (they are free and public;
+// Opt-in: Rumpus's MCP client against the catalog's remote servers that need no key (they are free and public;
 // nothing is called but initialize and tools/list). LONCA_REAL_REMOTE=1.
 import { CATALOG, catalogPlans, connectorFromPlan } from '@lonca/protocol';
 import { describe, expect, it } from 'vitest';
@@ -56,7 +56,7 @@ describe.skipIf(!process.env.LONCA_REAL_REMOTE)('real remote connectors', () => 
   );
 });
 
-// Opt-in: the catalog's npm entries that need no key, started through npx the way Serai starts them (the first
+// Opt-in: the catalog's npm entries that need no key, started through npx the way Rumpus starts them (the first
 // run downloads the pinned package). LONCA_REAL_NPX=1.
 const npxKeyless = CATALOG.flatMap((entry) =>
   catalogPlans(entry)

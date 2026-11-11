@@ -1,8 +1,8 @@
-// Connectors (PLAN.md 5.9): MCP servers that Serai runs or connects to itself on this computer and serves to the
+// Connectors (PLAN.md 5.9): MCP servers that Rumpus runs or connects to itself on this computer and serves to the
 // agents allowed to use them, through its own gateway. Their settings and secrets never leave this computer.
 import { type KeyProtection, providerUrlAllowed } from './providers.js';
 
-/** `remote`: a Streamable HTTP endpoint. `local`: a program Serai starts and talks to over stdio. */
+/** `remote`: a Streamable HTTP endpoint. `local`: a program Rumpus starts and talks to over stdio. */
 export const CONNECTOR_KINDS = ['remote', 'local'] as const;
 export type ConnectorKind = (typeof CONNECTOR_KINDS)[number];
 
@@ -44,7 +44,7 @@ export interface ConnectorOAuth {
   clientId?: string;
 }
 
-/** Where an installed connector came from (the install record): Serai's catalog or a registry search. */
+/** Where an installed connector came from (the install record): Rumpus's catalog or a registry search. */
 export interface ConnectorSource {
   from: 'catalog' | 'registry';
   /** The entry's name in the official MCP Registry, `io.github.owner/server`. */

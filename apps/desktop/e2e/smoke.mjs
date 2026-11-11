@@ -1,7 +1,7 @@
 // End-to-end smoke test of the real app: a fresh data folder, the whole launcher, the shell, settings,
 // and a restart that must skip the launcher. Screenshots land in test-results/.
 // Usage: pnpm e2e   (E2E_LANG=en for English, E2E_KEEP=1 to keep the data folder,
-//                   E2E_EXE=release/win-unpacked/Serai.exe to test the packaged app)
+//                   E2E_EXE=release/win-unpacked/Rumpus.exe to test the packaged app)
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';

@@ -1,7 +1,7 @@
 // Two real apps on one computer, talking over loopback instead of Tailscale: Kaan makes a team lonca and invites
 // Arda as an editor, Arda joins with the code, Kaan approves, and messages travel both ways. Then Kaan's agent (a
 // fake Claude Code on Kaan's PATH only) is opened to editors, and Arda's mention runs it on Kaan's computer.
-// Usage: node e2e/team.mjs   (after electron-vite build; E2E_EXE=release/win-unpacked/Serai.exe for packaged)
+// Usage: node e2e/team.mjs   (after electron-vite build; E2E_EXE=release/win-unpacked/Rumpus.exe for packaged)
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -102,7 +102,7 @@ try {
   const codeBox = dialog.getByRole('textbox', { name: L.invite.code });
   await codeBox.waitFor();
   const code = await codeBox.inputValue();
-  assert.ok(code.startsWith('SERAI1.'), code);
+  assert.ok(code.startsWith('RUMPUS1.'), code);
   await dialog.getByRole('button', { name: L.invite.copyMessage }).waitFor();
   await dialog.getByText(L.invite.steps.code).waitFor();
   await kaan.shot('invite');
@@ -112,13 +112,13 @@ try {
   // dialog opens with the invite read (which workspace) and the way to Kaan's app tried.
   p = arda.page;
   const packaged = process.env.E2E_EXE ? join(appDir, process.env.E2E_EXE) : undefined;
-  spawn(packaged ?? electronPath, [...(packaged ? [] : [appDir]), `serai://join/${code}`], {
+  spawn(packaged ?? electronPath, [...(packaged ? [] : [appDir]), `rumpus://join/${code}`], {
     env: { ...process.env, LONCA_HOME: arda.dir, LONCA_LANG: 'tr', LONCA_PEER_HOST: '127.0.0.1', LONCA_PEER_PORT: '0' },
     stdio: 'ignore',
   });
   dialog = p.getByRole('dialog', { name: L.workspaces.join });
   await dialog.waitFor({ timeout: 30_000 });
-  assert.equal(await dialog.getByLabel(L.workspaces.code, { exact: true }).inputValue(), `serai://join/${code}`);
+  assert.equal(await dialog.getByLabel(L.workspaces.code, { exact: true }).inputValue(), `rumpus://join/${code}`);
   await dialog.getByText(L.join.reach.ok).waitFor();
   await dialog.getByText('Ekip', { exact: true }).waitFor();
   await arda.shot('join-check');

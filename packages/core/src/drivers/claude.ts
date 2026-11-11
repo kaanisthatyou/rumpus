@@ -22,7 +22,7 @@ const EDIT_TOOLS = [...READ_TOOLS, 'Edit', 'Write', 'NotebookEdit', 'Bash'];
 const IDLE_MS = 20 * 60 * 1000;
 
 /**
- * The autonomy ladder in Claude Code's terms. At read and edit, what would prompt is asked of Serai over stdio
+ * The autonomy ladder in Claude Code's terms. At read and edit, what would prompt is asked of Rumpus over stdio
  * (`control_request` / `can_use_tool`) and shown on the job card for a person to allow or deny.
  */
 export function claudeModeArgs(mode: AgentMode): string[] {
@@ -52,7 +52,7 @@ export function claudeArgs(opts: SessionOptions): string[] {
     '--append-system-prompt',
     opts.systemPrompt,
     ...claudeModeArgs(opts.mode),
-    // Serai's own tools touch Serai's data, not files: they run without asking at every level.
+    // Rumpus's own tools touch Rumpus's data, not files: they run without asking at every level.
     ...(opts.mcp
       ? [
           '--mcp-config',
@@ -102,7 +102,7 @@ export class ClaudeParser {
   constructor(
     private readonly cwd: string,
     private readonly emit: (e: DriverEvent) => void,
-    /** Control requests Serai does not handle get an error answer, so the CLI never waits on them. */
+    /** Control requests Rumpus does not handle get an error answer, so the CLI never waits on them. */
     private readonly unsupported: (requestId: string) => void = () => {},
   ) {}
 
@@ -325,7 +325,7 @@ class ClaudeSession implements AgentSession {
     this.parser?.pending.delete(id);
     const response = allow
       ? { behavior: 'allow', updatedInput: input ?? {} }
-      : { behavior: 'deny', message: 'A person denied this in Serai.' };
+      : { behavior: 'deny', message: 'A person denied this in Rumpus.' };
     this.proc?.stdin?.write(
       `${JSON.stringify({ type: 'control_response', response: { subtype: 'success', request_id: id, response } })}\n`,
     );

@@ -344,7 +344,7 @@ export interface GoalStep {
   text: string;
   state: 'pending' | 'running' | 'done' | 'failed';
   jobId?: string;
-  /** Extra steps Serai adds when the plan is done but the done check still fails. */
+  /** Extra steps Rumpus adds when the plan is done but the done check still fails. */
   fix?: boolean;
 }
 
@@ -555,7 +555,7 @@ export interface GitState {
   changes?: number;
   untracked?: number;
   commits?: { hash: string; date: string; author: string; subject: string }[];
-  /** When the remote was last fetched by Serai (ms). */
+  /** When the remote was last fetched by Rumpus (ms). */
   fetched?: number;
 }
 

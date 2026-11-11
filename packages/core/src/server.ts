@@ -100,7 +100,7 @@ export interface Peer {
 }
 
 export interface CoreOptions {
-  /** Serai's own folder for settings (Electron's userData, or LONCA_HOME). */
+  /** Rumpus's own folder for settings (Electron's userData, or LONCA_HOME). */
   appDir: string;
   /** The person's desktop folder, as the system reports it (it can be moved, to OneDrive for one). */
   desktopDir?: string;
@@ -2291,7 +2291,7 @@ export class Core {
         arg: `${t.connector.name}: ${t.tool.title ?? t.tool.name}`,
         ...(detail !== '{}' ? { detail: detail.length > 400 ? `${detail.slice(0, 400)}…` : detail } : {}),
       });
-      if (!allowed) return refuse('A person did not allow this call in Serai.');
+      if (!allowed) return refuse('A person did not allow this call in Rumpus.');
       if (policy === 'once') ws.allowedOnce.set(job.id, new Set([...(once ?? []), t.exposed]));
     }
     return this.connectors.call(t.connector.id, t.tool.name, args);
@@ -2394,7 +2394,7 @@ export class Core {
     ];
   }
 
-  /** Serai's tools for its agents (served by the gateway; the agent is known from its token). */
+  /** Rumpus's tools for its agents (served by the gateway; the agent is known from its token). */
   private tools(): Tool[] {
     const text = (t: string): ToolContent[] => [{ type: 'text', text: t }];
     const str = (v: unknown, max = 2000) => (typeof v === 'string' ? v.slice(0, max) : undefined);
@@ -2406,7 +2406,7 @@ export class Core {
     return [
       {
         name: 'search_messages',
-        description: 'Full-text search over the messages of every channel in this Serai workspace.',
+        description: 'Full-text search over the messages of every channel in this Rumpus workspace.',
         inputSchema: {
           type: 'object',
           properties: { query: { type: 'string' }, limit: { type: 'number' } },
@@ -2418,7 +2418,7 @@ export class Core {
           const names = new Map(store.channels().map((c) => [c.id, c.name]));
           const lines = found.map(
             (m) =>
-              `[${stamp(m.created)}] #${names.get(m.channelId) ?? '?'} ${m.author.kind === 'system' ? 'Serai' : m.author.name}: ${m.text.slice(0, 600)}`,
+              `[${stamp(m.created)}] #${names.get(m.channelId) ?? '?'} ${m.author.kind === 'system' ? BRAND.name : m.author.name}: ${m.text.slice(0, 600)}`,
           );
           return text(
             lines.length
@@ -2430,7 +2430,7 @@ export class Core {
       {
         name: 'search_workspace',
         description:
-          'Searches everything this Serai workspace keeps: messages, saved records (ideas, references, commands), board cards, goals and their steps, and project status pages. Use it to find earlier decisions and work.',
+          'Searches everything this Rumpus workspace keeps: messages, saved records (ideas, references, commands), board cards, goals and their steps, and project status pages. Use it to find earlier decisions and work.',
         inputSchema: {
           type: 'object',
           properties: { query: { type: 'string' }, limit: { type: 'number' } },
@@ -2459,7 +2459,7 @@ export class Core {
             .search(query, limit)
             .map(
               (m) =>
-                `- [${stamp(m.created)}] #${names.get(m.channelId) ?? '?'} ${m.author.kind === 'system' ? 'Serai' : m.author.name}: ${cut(m.text)}`,
+                `- [${stamp(m.created)}] #${names.get(m.channelId) ?? '?'} ${m.author.kind === 'system' ? BRAND.name : m.author.name}: ${cut(m.text)}`,
             );
           if (messages.length) sections.push(`Messages:\n${messages.join('\n')}`);
           const records = store
@@ -2588,7 +2588,7 @@ export class Core {
       {
         name: 'suggest_memory',
         description:
-          "Suggests something worth remembering: a fact about the person (notes) or a decision, convention or glossary entry of the workspace. A person accepts or rejects it in Serai's memory view; nothing is saved without them.",
+          "Suggests something worth remembering: a fact about the person (notes) or a decision, convention or glossary entry of the workspace. A person accepts or rejects it in Rumpus's memory view; nothing is saved without them.",
         inputSchema: {
           type: 'object',
           properties: {
@@ -2620,7 +2620,7 @@ export class Core {
         inputSchema: { type: 'object', properties: {} },
         run: (_a, ctx) => {
           const project = this.agentProject(ctx.agentId);
-          if (!project) return text('Your folder is not part of a project in Serai.');
+          if (!project) return text('Your folder is not part of a project in Rumpus.');
           const { store } = this.workspace();
           return text(
             projectPrompt(project, store.progress(project.id) ?? EMPTY_STATUS(project.id), (d) =>
@@ -2650,7 +2650,7 @@ export class Core {
         },
         run: (a, ctx) => {
           const project = this.agentProject(ctx.agentId);
-          if (!project) return text('Your folder is not part of a project in Serai.');
+          if (!project) return text('Your folder is not part of a project in Rumpus.');
           const agent = this.workspace().store.agent(ctx.agentId);
           try {
             this.saveStatus(
@@ -2884,7 +2884,7 @@ export class Core {
     return forAgent ? text : text.split('\n\n').slice(0, -1).join('\n\n');
   }
 
-  /** The project an agent works in, for Serai's tools. */
+  /** The project an agent works in, for Rumpus's tools. */
   private agentProject(agentId: string): Project | undefined {
     const { store } = this.workspace();
     const agent = store.agent(agentId);

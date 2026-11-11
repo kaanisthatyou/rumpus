@@ -1,6 +1,6 @@
 // Opt-in end-to-end test with the real Claude Code on this computer (it spends a little quota: a handful of short
-// turns on Haiku). It adds an agent, asks about a README, has the agent move a board card with Serai's own MCP
-// tools, uses a connector (a local MCP server) through Serai with an approval, then runs a small goal with a done
+// turns on Haiku). It adds an agent, asks about a README, has the agent move a board card with Rumpus's own MCP
+// tools, uses a connector (a local MCP server) through Rumpus with an approval, then runs a small goal with a done
 // check. Run by hand after `electron-vite build`: node e2e/real-claude.mjs. REAL_QUICK=1 stops after the connector
 // (two turns), the short probe for driver changes.
 import assert from 'node:assert/strict';
@@ -88,7 +88,7 @@ try {
   assert.match(first, /bütçe|harcama|Kumbara/i);
   await shot('answer');
 
-  // A connector: the real CLI sees its tools through Serai, and the one that writes waits for a person.
+  // A connector: the real CLI sees its tools through Rumpus, and the one that writes waits for a person.
   await page.keyboard.press('Control+Comma');
   const prefs = page.getByRole('dialog', { name: L.settings.title });
   await prefs.getByRole('button', { name: L.settings.tabs.connectors }).click();
@@ -125,11 +125,11 @@ try {
   await composer.press('Enter');
   await page.getByText(L.board.added).waitFor();
   await composer.fill(
-    '@claude Serai araçlarından list_cards ile panodaki kartları listele, sonra o kartı update_card ile review durumuna al. Kısa yanıtla.',
+    '@claude Rumpus araçlarından list_cards ile panodaki kartları listele, sonra o kartı update_card ile review durumuna al. Kısa yanıtla.',
   );
   await composer.press('Enter');
   await until(async () => (await page.locator('.msg--agent').count()) >= 3, 'third answer', 180_000);
-  await page.getByText('serai.update_card').first().waitFor();
+  await page.getByText('rumpus.update_card').first().waitFor();
   await shot('mcp');
   await page.getByRole('button', { name: L.shell.tasks, exact: true }).click();
   await page.getByRole('region', { name: L.board.status.review }).getByText('Kategorileri gözden geçir').waitFor();

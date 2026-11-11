@@ -1,12 +1,12 @@
-// Serai on a phone: shows the pushes the PC sends (job approvals, join requests, messages) and opens the app on a tap.
+// Rumpus on a phone: shows the pushes the PC sends (job approvals, join requests, messages) and opens the app on a tap.
 self.addEventListener('push', (event) => {
-  let data = { title: 'Serai', body: '' };
+  let data = { title: 'Rumpus', body: '' };
   try {
     data = event.data ? event.data.json() : data;
   } catch {
-    // a push without readable JSON still shows as Serai
+    // a push without readable JSON still shows as Rumpus
   }
-  event.waitUntil(self.registration.showNotification(data.title || 'Serai', { body: data.body || '', tag: data.tag }));
+  event.waitUntil(self.registration.showNotification(data.title || 'Rumpus', { body: data.body || '', tag: data.tag }));
 });
 
 self.addEventListener('notificationclick', (event) => {

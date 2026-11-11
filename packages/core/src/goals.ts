@@ -162,7 +162,7 @@ export class Goals {
       const { git, worktreesDir } = this.deps;
       if (!git || !worktreesDir) throw new CoreError('invalid_goal', 'worktree');
       if (!(await git.isRepo(agent.folder))) throw new CoreError('not_git');
-      const branch = `serai/goal-${id.slice(-6).toLowerCase()}`;
+      const branch = `rumpus/goal-${id.slice(-6).toLowerCase()}`;
       const path = join(worktreesDir, id);
       const made = await git.add(agent.folder, path, branch);
       if (!made.ok) throw new CoreError('worktree_failed', made.output.slice(-400));

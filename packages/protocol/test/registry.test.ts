@@ -71,7 +71,7 @@ const context7 = readRegistryServer({
 const source = { from: 'catalog' as const, name: 'x', via: 'remote' as const };
 
 describe('registry entries as connectors', () => {
-  it('offers the remote first, then the packages Serai can run; SSE and MCPB are left out', () => {
+  it('offers the remote first, then the packages Rumpus can run; SSE and MCPB are left out', () => {
     expect(installPlans(context7).map((p) => p.id)).toEqual(['remote:0', 'npm:0']);
     expect(installPlans(github).map((p) => p.id)).toEqual(['remote:0', 'oci:0']);
   });
@@ -183,7 +183,7 @@ describe('registry entries as connectors', () => {
 });
 
 describe('the catalog', () => {
-  it('offers only plans its entries have, with addresses Serai accepts and defaults for real fields', () => {
+  it('offers only plans its entries have, with addresses Rumpus accepts and defaults for real fields', () => {
     expect(new Set(CATALOG.map((e) => e.id)).size).toBe(CATALOG.length);
     for (const entry of CATALOG) {
       const plans = installPlans(entry.server);

@@ -164,8 +164,8 @@ describe('instructions', () => {
     });
     const preview = await call<string>('instructions.preview', { agentId: agent.id });
     const order = [
-      'Rules Serai enforces',
-      'Always answer in haiku, Serai.',
+      'Rules Rumpus enforces',
+      'Always answer in haiku, Rumpus.',
       'The project is a Roblox game.',
       `Never touch ${folder}/secrets.`,
     ];

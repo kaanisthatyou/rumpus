@@ -28,16 +28,16 @@ export function codexArgs(opts: SessionOptions, images: string[] = []): string[]
     '--sandbox',
     codexSandbox(opts.mode),
     ...(opts.model ? ['-m', opts.model] : []),
-    // Serai's MCP endpoint for this run only, as config overrides; the token travels in an environment variable.
+    // Rumpus's MCP endpoint for this run only, as config overrides; the token travels in an environment variable.
     ...(opts.mcp
       ? [
           '-c',
-          `mcp_servers.serai.url="${opts.mcp.url}"`,
+          `mcp_servers.rumpus.url="${opts.mcp.url}"`,
           '-c',
-          'mcp_servers.serai.bearer_token_env_var="LONCA_MCP_TOKEN"',
+          'mcp_servers.rumpus.bearer_token_env_var="LONCA_MCP_TOKEN"',
           // A connector call may wait for a person on the job card (up to ten minutes).
           '-c',
-          'mcp_servers.serai.tool_timeout_sec=900',
+          'mcp_servers.rumpus.tool_timeout_sec=900',
         ]
       : []),
     ...images.flatMap((p) => ['--image', p]),

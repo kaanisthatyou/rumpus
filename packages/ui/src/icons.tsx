@@ -211,7 +211,10 @@ export function Icon({ name, size = 16, label }: { name: IconName; size?: number
   );
 }
 
-/** The Serai mark: the gate of a caravanserai (an arch on its threshold) in a rounded square, in the accent. */
+/**
+ * The product's mark: a gate (an arch on its threshold) in a rounded square, in the accent. It was drawn as a
+ * caravanserai's gate when the product was called Serai; it stands for the door of the room now.
+ */
 export function Mark({ size = 32 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">

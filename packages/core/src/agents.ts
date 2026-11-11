@@ -1,5 +1,5 @@
 // Finds the CLI agents installed on this computer and reads their login state without spending tokens.
-// Serai never reads or copies a CLI's credential files: it only runs the CLI's own status command.
+// Rumpus never reads or copies a CLI's credential files: it only runs the CLI's own status command.
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import type { CliInfo, CliKind, CliState } from '@lonca/protocol';
@@ -15,7 +15,7 @@ interface KindSpec {
   kind: CliKind;
   bin: string;
   extraDirs: (ctx: Ctx) => string[];
-  /** Reads the login state; absent for CLIs that Serai runs with an API key only. */
+  /** Reads the login state; absent for CLIs that Rumpus runs with an API key only. */
   authArgs?: string[];
   parseAuth?: (r: RunResult, ctx: Ctx) => AuthReading;
   /** API-key-only CLIs: ready when one of these is set (Google forbids third-party use of its OAuth login). */

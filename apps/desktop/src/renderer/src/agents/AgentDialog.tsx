@@ -14,7 +14,7 @@ import { ErrorLine } from '../parts';
 import { useApp } from '../store';
 import { FolderField, TraitPicker } from './fields';
 
-/** CLIs Serai can run jobs with today. */
+/** CLIs Rumpus can run jobs with today. */
 export const RUNNABLE: CliKind[] = ['claude-code', 'codex'];
 
 export const slug = (name: string) =>

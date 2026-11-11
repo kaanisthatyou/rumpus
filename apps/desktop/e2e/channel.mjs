@@ -1,7 +1,7 @@
 // End-to-end test of channels and jobs in the real app, with a fake Claude Code (fake-claude.mjs) first on PATH:
 // add an agent, call it in #genel, watch the job card fill and the answer arrive, open the live view, steer and
 // stop a slow job in the agent's own channel, edit and delete a message, restart and find everything again.
-// Usage: node e2e/channel.mjs   (after electron-vite build; E2E_EXE=release/win-unpacked/Serai.exe for packaged)
+// Usage: node e2e/channel.mjs   (after electron-vite build; E2E_EXE=release/win-unpacked/Rumpus.exe for packaged)
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -51,7 +51,7 @@ writeFileSync(
   }),
 );
 
-// A stand-in for the official MCP Registry: one entry Serai can install, one it cannot (SSE only).
+// A stand-in for the official MCP Registry: one entry Rumpus can install, one it cannot (SSE only).
 const registry = createServer((req, res) => {
   const servers = [
     {
@@ -197,14 +197,14 @@ try {
   await review.getByText('README dosyasını güncelle').waitFor({ timeout: 20_000 });
   await shot(page, 'board-review');
 
-  // Serai's MCP tools: the agent moves the card to done itself and posts a progress note.
+  // Rumpus's MCP tools: the agent moves the card to done itself and posts a progress note.
   await page.keyboard.press('Control+k');
   await search.fill('genel');
   await search.press('Enter');
   await composer.fill('@claude panoyu güncelle');
   await composer.press('Enter');
   await page.getByText('bitti olarak işaretlendi').first().waitFor({ timeout: 20_000 });
-  await page.getByText('serai.update_card').first().waitFor();
+  await page.getByText('rumpus.update_card').first().waitFor();
   await page.getByText('Pano güncellendi').first().waitFor();
   await shot(page, 'mcp-tools');
   await page.keyboard.press('Control+k');
@@ -341,7 +341,7 @@ try {
   await page.keyboard.press('Control+Comma');
   await settingsDialog.getByRole('button', { name: L.settings.tabs.connectors }).click();
   await settingsDialog.getByText(L.connectors.empty).waitFor();
-  // The catalog: Serai's checked entries, and the registry searched by name (community, not reviewed).
+  // The catalog: Rumpus's checked entries, and the registry searched by name (community, not reviewed).
   await settingsDialog.getByRole('button', { name: L.connectors.add }).click();
   await settingsDialog.getByRole('button', { name: /Microsoft Learn/ }).waitFor();
   await shot(page, 'catalog');
@@ -481,16 +481,16 @@ try {
   await goalDialog.getByRole('switch', { name: L.goal.worktree }).click();
   await goalDialog.getByRole('button', { name: L.goal.start }).click();
   const treeCard = page.getByRole('region', { name: L.goal.title }).filter({ hasText: 'Ayrı dalda dene' });
-  await treeCard.getByText('serai/goal-').waitFor();
+  await treeCard.getByText('rumpus/goal-').waitFor();
   await treeCard.getByRole('button', { name: L.goal.approve, exact: true }).click();
   await treeCard.getByText(L.goal.state.done, { exact: true }).waitFor({ timeout: 30_000 });
   await shot(page, 'goal-worktree');
   await treeCard.getByRole('button', { name: L.goal.removeWorktree }).click();
   await treeCard.getByText(L.goal.worktreeRemoved).waitFor();
-  assert.match(git('branch', '--list', 'serai/*').toString(), /serai\/goal-/);
+  assert.match(git('branch', '--list', 'rumpus/*').toString(), /rumpus\/goal-/);
 
   // A project on the same repository: its progress.md starts the status page, the git panel shows the clone, the
-  // agent working in the folder reads and updates the page through Serai's tools, and a person edits it.
+  // agent working in the folder reads and updates the page through Rumpus's tools, and a person edits it.
   writeFileSync(
     join(project, 'progress.md'),
     '# Fake — progress\n\n## Where we left off\n\nİskelet hazır.\n\n## Milestones\n\n- [x] Kavram yazıldı\n- [ ] Yayınlandı\n\n## Next\n\n1. Testleri ekle\n',

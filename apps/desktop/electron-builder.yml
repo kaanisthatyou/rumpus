@@ -1,6 +1,6 @@
-appId: io.github.kaanisthatyou.serai
-productName: Serai
-copyright: Copyright 2026 Serai contributors
+appId: io.github.kaanisthatyou.rumpus
+productName: Rumpus
+copyright: Copyright 2026 Rumpus contributors
 directories:
   output: release
   buildResources: build
@@ -8,29 +8,29 @@ files:
   - out/**/*
   - package.json
 asar: true
-# The workspace package is "@lonca/desktop"; inside the app it is plain "serai", which names the install folder
-# (%LOCALAPPDATA%\Programs\lonca) and the updater cache.
+# The workspace package is "@lonca/desktop"; inside the app it is plain "rumpus", which names the install folder
+# (%LOCALAPPDATA%\Programs\rumpus) and the updater cache.
 extraMetadata:
-  name: serai
+  name: rumpus
 
-# Invite links: serai://join/<code> opens the app with the join dialog.
+# Invite links: rumpus://join/<code> opens the app with the join dialog.
 protocols:
-  - name: Serai invite
+  - name: Rumpus invite
     schemes:
-      - serai
+      - rumpus
 
 win:
   icon: build/icon.ico
   target:
     - target: nsis
       arch: [x64]
-  artifactName: Serai-Setup-${version}.${ext}
+  artifactName: Rumpus-Setup-${version}.${ext}
 
 nsis:
   # Per-user install without admin rights, like Discord or VS Code's user installer.
   oneClick: true
   perMachine: false
-  shortcutName: Serai
+  shortcutName: Rumpus
   deleteAppDataOnUninstall: false
 
 linux:
@@ -39,8 +39,8 @@ linux:
     - AppImage
     - deb
   category: Development
-  maintainer: Serai contributors <kaanisthatyou@users.noreply.github.com>
-  artifactName: Serai-${version}-${arch}.${ext}
+  maintainer: Rumpus contributors <kaanisthatyou@users.noreply.github.com>
+  artifactName: Rumpus-${version}-${arch}.${ext}
 
 publish:
   provider: github

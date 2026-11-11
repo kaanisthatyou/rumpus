@@ -1,4 +1,4 @@
-// What an agent is told. Layers (PLAN.md 5.14): Serai's core rules, the role template, the workspace's
+// What an agent is told. Layers (PLAN.md 5.14): Rumpus's core rules, the role template, the workspace's
 // instructions (Phase 3), the agent's own instructions; then each turn's context. Templates become editable
 // files in a later step of Phase 1; these are the defaults.
 import {
@@ -106,7 +106,7 @@ export interface PromptLayers {
   worker?: string;
   /** Layer 3: the workspace's instructions. */
   workspace?: string;
-  /** What Serai remembers (PLAN.md 5.7), already put into words. */
+  /** What Rumpus remembers (PLAN.md 5.7), already put into words. */
   memory?: string;
   /** The project the agent works in: its status page and areas (PLAN.md 5.13), already put into words. */
   project?: string;

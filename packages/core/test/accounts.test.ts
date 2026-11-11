@@ -106,7 +106,7 @@ describe('several logins per CLI', () => {
     const quota = await call<Record<string, Quota>>('quota.get');
     expect(Object.keys(quota)).toEqual([`claude-code:${second?.id}`]);
 
-    // Forgetting the account keeps its folder: the CLI's files are not Serai's to delete.
+    // Forgetting the account keeps its folder: the CLI's files are not Rumpus's to delete.
     expect(await call<CliAccount[]>('accounts.remove', { id: second?.id })).toEqual([]);
     expect(existsSync(second?.folder ?? '')).toBe(true);
     core.shutdown();

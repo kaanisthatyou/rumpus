@@ -1,7 +1,7 @@
 // Opt-in probe of a specialist with the real Claude Code on this computer (it spends a little quota: one job on
 // Haiku). It makes a code reviewer from the template, writes two messages in #genel, asks the specialist to look
 // at a small project, and checks what only a real model can show: it read the channel, it ended with a RESULT line
-// that Serai took out of the chat, and (reported, not required) it kept a lesson.
+// that Rumpus took out of the chat, and (reported, not required) it kept a lesson.
 // Run by hand after `electron-vite build`: node e2e/real-specialist.mjs
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';

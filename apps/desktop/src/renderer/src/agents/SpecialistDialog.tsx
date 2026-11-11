@@ -28,7 +28,7 @@ type Tab = 'who' | 'playbook' | 'context' | 'lessons';
 
 /** A specialist as it is shared: what it is and how it works, without its folder, references or lessons. */
 interface Shared {
-  serai: 'specialist';
+  rumpus: 'specialist';
   name: string;
   handle: string;
   mode: AgentMode;
@@ -43,11 +43,13 @@ interface Shared {
 function readShared(text: string): Shared | undefined {
   try {
     const d = JSON.parse(text.trim()) as Partial<Shared>;
-    if (d?.serai !== 'specialist' || typeof d.name !== 'string' || typeof d.role !== 'string') return undefined;
+    // Text copied under the former name carries `serai` instead.
+    const marked = d?.rumpus === 'specialist' || (d as { serai?: unknown } | undefined)?.serai === 'specialist';
+    if (!d || !marked || typeof d.name !== 'string' || typeof d.role !== 'string') return undefined;
     const minutes = Number(d.budget?.minutes);
     const tokens = Number(d.budget?.tokens);
     return {
-      serai: 'specialist',
+      rumpus: 'specialist',
       name: d.name.slice(0, 40),
       handle: slug(typeof d.handle === 'string' ? d.handle : d.name),
       mode: (AGENT_MODES as readonly string[]).includes(String(d.mode)) ? (d.mode as AgentMode) : 'read',
@@ -243,7 +245,7 @@ export function SpecialistDialog() {
   };
   const share = async () => {
     const out: Shared = {
-      serai: 'specialist',
+      rumpus: 'specialist',
       name,
       handle,
       mode,

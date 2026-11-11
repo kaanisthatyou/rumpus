@@ -868,7 +868,7 @@
     "join": "Join with a code",
     "joinIntro": "An invite code or link is pasted; which workspace it is for and whether the inviter's computer can be reached show at once. Once an admin approves the request, the workspace comes down to this computer.",
     "code": "Invite code",
-    "codeHint": "Starts with SERAI1.; an invite link can be pasted too.",
+    "codeHint": "Starts with {{prefix}}; an invite link can be pasted too.",
     "askToJoin": "Send join request",
     "makeInstead": "Create a new workspace",
     "state": {

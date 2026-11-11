@@ -1,4 +1,4 @@
-// The contract between Serai's core process and its clients (the renderer today; the phone and other
+// The contract between Rumpus's core process and its clients (the renderer today; the phone and other
 // members' apps later). Everything that crosses a process boundary is defined here.
 import { z } from 'zod';
 import type { ConnectorInput, ConnectorsState, ToolPolicy } from './connectors.js';
@@ -183,7 +183,7 @@ export { CLI_KINDS, type CliKind } from './kinds.js';
 /**
  * - `ready`: installed and signed in (or an API key is set).
  * - `signed-out`: installed, its own login reports no account.
- * - `needs-key`: installed, but Serai only runs it with an API key (Google's terms) and none is set.
+ * - `needs-key`: installed, but Rumpus only runs it with an API key (Google's terms) and none is set.
  * - `unknown`: installed, the login state cannot be read without spending tokens.
  * - `missing`: not found on this computer.
  */
@@ -199,7 +199,7 @@ export interface CliInfo {
   auth?: string;
   /** Plan name the CLI reports, e.g. `pro`. Never an email or account id. */
   plan?: string;
-  /** Serai can open the CLI's own login in a console. */
+  /** Rumpus can open the CLI's own login in a console. */
   canLogin: boolean;
   install: { windows: string; linux: string; docs: string };
 }
@@ -418,7 +418,7 @@ export interface CoreMethods {
   'connectors.test': { params: { id: string }; result: ConnectorsState };
   'connectors.remove': { params: { id: string }; result: ConnectorsState };
   'connectors.policy': { params: { id: string; tool: string; policy: ToolPolicy }; result: ConnectorsState };
-  /** The official MCP Registry, searched by name (community entries, not reviewed by Serai). */
+  /** The official MCP Registry, searched by name (community entries, not reviewed by Rumpus). */
   'connectors.search': {
     params: { query: string; cursor?: string };
     result: { servers: RegistryServer[]; next?: string };

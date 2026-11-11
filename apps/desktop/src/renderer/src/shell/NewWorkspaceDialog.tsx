@@ -1,7 +1,7 @@
 // A new team workspace, or joining one with an invite. Before a join request goes out, the invite is read and
 // the way to the inviter's computer is tried, so what is missing (Tailscale, the device in sight, the app) is
 // named instead of the request simply failing.
-import type { InviteCheck } from '@lonca/protocol';
+import { INVITE_PREFIX, type InviteCheck } from '@lonca/protocol';
 import { Button, Icon, IconButton, Spinner, TextField } from '@lonca/ui';
 import { AnimatePresence, motion } from 'motion/react';
 import { useCallback, useEffect, useState } from 'react';
@@ -209,7 +209,7 @@ export function NewWorkspaceDialog() {
                   autoFocus
                   onChange={(e) => setCode(e.target.value)}
                 />
-                <span className="l-field__hint">{t('workspaces.codeHint')}</span>
+                <span className="l-field__hint">{t('workspaces.codeHint', { prefix: INVITE_PREFIX })}</span>
               </div>
               <AnimatePresence mode="wait" initial={false}>
                 <motion.div

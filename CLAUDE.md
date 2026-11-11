@@ -1,4 +1,4 @@
-# Serai — rules for Claude
+# Rumpus — rules for Claude
 
 An open-source (Apache-2.0) desktop hub where people and the CLI coding agents they already have work together.
 It is the general version of roblox-factory's Fabrika app. Owners: Kaan and Arda. This repo is separate on
@@ -6,12 +6,12 @@ purpose; never change roblox-factory for it.
 
 - Reply to the user in **Turkish**. Everything in the repo is **English**. The UI has both languages
   (`apps/desktop/src/renderer/src/locales/tr.json` and `en.json`, always both).
-- The product's name is **Serai** (`packages/protocol/src/brand.ts`, and `{{app}}` in the locale files); `lonca` is
+- The product's name is **Rumpus** (`packages/protocol/src/brand.ts`, and `{{app}}` in the locale files); `lonca` is
   the code name and stays in package names (`@lonca/*`), environment variables (`LONCA_*`), `window.lonca`, wire
   headers and file names. Never write the product's name into UI strings or prompts by hand.
 - **Read `PLAN.md` first**: decisions, principles, phases, and what the current phase contains. Research behind it
   is in `docs/research/`.
-- Serai has **no agent of its own**. It drives the user's own CLIs (Claude Code, Codex, OpenCode...). Model calls
+- Rumpus has **no agent of its own**. It drives the user's own CLIs (Claude Code, Codex, OpenCode...). Model calls
   of its own are only for advisors, memory upkeep and voice, on the user's API keys.
 - **No relay and no hosted server**, now or later: solo needs nothing, teams connect over Tailscale.
 
@@ -32,7 +32,7 @@ purpose; never change roblox-factory for it.
 ## Rules
 
 - **Principles in PLAN.md section 3 are the product.** Safe defaults (agents read-only and owner-only), the owner's
-  machine decides what an agent may do, only a person's message starts work, Serai never reads or copies a CLI's
+  machine decides what an agent may do, only a person's message starts work, Rumpus never reads or copies a CLI's
   login files, no "Sign in with Claude/Gemini". Do not weaken them.
 - **UI copy is impersonal** (PLAN.md 7.1): no `sen`/`siz` or `you`/`your`, no `!`, no emoji, no greetings or
   praise, the app never speaks as itself. Buttons are plain verbs or nouns. `pnpm check:copy` enforces part of it.
@@ -63,7 +63,7 @@ purpose; never change roblox-factory for it.
    `apps/desktop/test-results/` before saying a UI change works. Spend real CLI quota only for a short probe: `e2e/real-specialist.mjs` (one Haiku job) for changes to specialists;
    `e2e/real-claude.mjs` (two Haiku turns) for driver changes, `LONCA_REAL_CODEX=<folder> vitest run
    packages/core/test/real-cli.test.ts` for Codex (no login needed, no tokens).
-3. Packaging changes: `pnpm dist`, then `E2E_EXE=release/win-unpacked/Serai.exe node e2e/smoke.mjs` in
+3. Packaging changes: `pnpm dist`, then `E2E_EXE=release/win-unpacked/Rumpus.exe node e2e/smoke.mjs` in
    `apps/desktop`. Updater changes: `e2e/update.mjs` (see its header).
 
 ## Gotchas
