@@ -30,6 +30,9 @@
   background: var(--main);
 }
 .app__body {
+  /* What grows past the edge for a moment (the shell arrives slightly enlarged) is cut, not scrolled to: a phone
+     would otherwise lay the whole page out wider and draw it smaller. */
+  overflow: clip;
   flex: 1;
   min-height: 0;
   display: flex;

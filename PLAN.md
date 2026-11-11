@@ -929,6 +929,19 @@ The details behind 5.11 and 6.5, decided before building.
   installation: the `rumpus://` handler (registered only by an installed app without `LONCA_HOME`) and the move of
   the former name's data folder.
 
+- 4.25 The phone's page as an installable web app (5.12), 2026-11-11, asked by Kaan: two things a real phone
+  needs were missing, and no test saw it because the test's "phone" was a narrow desktop window. The page had no
+  viewport tag, so a phone's browser would have laid it out 980 px wide and drawn it tiny (the phone layout,
+  which goes by width, would not even have shown); and there was no web app manifest, so a browser could only
+  bookmark it. Added: the viewport tag (`width=device-width`, `viewport-fit=cover` for the safe areas the
+  layout already reserves), `manifest.webmanifest` (standalone, start at `/`, the graphite ground) with icons
+  at 192 and 512 px, a maskable 512 px one (the mark inside the middle four fifths) and Apple's 180 px, all
+  rendered by `pnpm icon` from the same drawing as the desktop icon; the theme color and the tags iOS reads.
+  The shell arrives slightly enlarged, which for a moment made the page 2 px wider than the screen: the app's
+  body now clips it, so a phone does not lay the page out wider. `e2e/phone.mjs` now makes its window a phone
+  for the browser too (a mobile viewport and touch through the debugging protocol) and checks the page's width
+  at once and settled, the manifest and every icon. Not yet: an install on a real phone seen by a person, iOS,
+  and the newer pages (a race, a job's changes) looked at on a phone.
 - 4.24 Races (5.18), 2026-11-11, the third of the three. `Races` (`packages/core/src/races.ts`, kept in
   `<workspace>/races.json` on the computer that started them; `races.start` / `stop` / `pick` / `close`,
   `race.changed`): worktrees under `<data>/worktrees/race-<id>-<n>` on branches `rumpus/race-<id>-<handle>`;
@@ -996,8 +1009,8 @@ The details behind 5.11 and 6.5, decided before building.
   former name that holds settings (`Serai`, else `Lonca`) is moved to `Rumpus`. Goals that run in a worktree keep
   the branch name they were given. Places that had the name written by hand now take it from `BRAND` (the
   launcher, About, the system author in the channel, the palette and the search tools, the invite prefix in the
-  join dialog's hint); the installer config, `productName`, the page title, the phone's service worker and
-  `e2e/locale.mjs` still hold it as text. The mark stays (a gate; it was drawn as a caravanserai's). Not done:
+  join dialog's hint); the installer config, `productName`, the page title, the phone's service worker, the web
+  app manifest and `e2e/locale.mjs` still hold it as text. The mark stays (a gate; it was drawn as a caravanserai's). Not done:
   the repository's name, and an installed Serai 0.9.0 is another app to Windows (another app id), so it is
   removed by hand and does not update into Rumpus; the move of the data folder is still untried on a real
   installation. Checked: `pnpm check`, all seven e2e scripts against the built app, and `Rumpus-Setup-0.9.0-alpha.0.exe`

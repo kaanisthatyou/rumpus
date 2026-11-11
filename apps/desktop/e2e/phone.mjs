@@ -63,6 +63,22 @@ async function phone(url, partition) {
   return page;
 }
 
+/**
+ * Makes a window behave as a phone's browser does: a mobile viewport (the page is laid out by its viewport tag,
+ * 980 px wide without one) and touch. A narrow desktop window alone does not show a missing viewport tag.
+ */
+async function asPhone(page) {
+  const session = await page.context().newCDPSession(page);
+  await session.send('Emulation.setDeviceMetricsOverride', {
+    width: 390,
+    height: 844,
+    deviceScaleFactor: 2,
+    mobile: true,
+  });
+  await session.send('Emulation.setTouchEmulationEnabled', { enabled: true });
+  await page.reload();
+}
+
 try {
   await desk.getByRole('heading', { name: L.shell.crew }).waitFor();
   await desk.keyboard.press('Control+Comma');
@@ -78,6 +94,43 @@ try {
   // The phone pairs through the link and gets the app, laid out for a narrow screen.
   const p = await phone(link, 'persist:phone-a');
   await p.getByRole('navigation', { name: L.phone.bar }).waitFor();
+  // As a real phone's browser: the page keeps to the screen's width, and the phone layout is still there.
+  await asPhone(p);
+  await p.getByRole('navigation', { name: L.phone.bar }).waitFor();
+  // Anything wider than the screen would make the phone draw the whole page smaller: name what sticks out.
+  const wide = () =>
+    p.evaluate(() =>
+      [...document.querySelectorAll('body *')]
+        .filter((el) => el.getBoundingClientRect().right > 390.5 || el.scrollWidth > 391)
+        .slice(0, 8)
+        .map(
+          (el) =>
+            `${el.tagName.toLowerCase()}.${el.className} right=${Math.round(el.getBoundingClientRect().right)} scroll=${el.scrollWidth}`,
+        ),
+    );
+  // At once (the shell arrives slightly enlarged, which must not widen the page) and when it has settled.
+  assert.equal(await p.evaluate(() => window.innerWidth), 390);
+  await p.waitForTimeout(700);
+  assert.deepEqual([await p.evaluate(() => window.innerWidth), await wide()], [390, []]);
+  assert.equal(await p.evaluate(() => document.documentElement.scrollWidth <= 390), true);
+  // What a browser needs to install the page as an app: a manifest that says so, with its icons.
+  const manifest = await p.evaluate(async () => {
+    const link = document.querySelector('link[rel="manifest"]');
+    const data = await (await fetch(link.href)).json();
+    const icons = [];
+    for (const icon of data.icons) {
+      const res = await fetch(new URL(icon.src, link.href));
+      icons.push([icon.sizes, icon.purpose, res.status, res.headers.get('content-type')]);
+    }
+    return { ...data, icons };
+  });
+  assert.equal(manifest.display, 'standalone');
+  assert.equal(manifest.start_url, '/');
+  assert.deepEqual(manifest.icons, [
+    ['192x192', 'any', 200, 'image/png'],
+    ['512x512', 'any', 200, 'image/png'],
+    ['512x512', 'maskable', 200, 'image/png'],
+  ]);
   await p.getByRole('button', { name: L.shell.channels }).click();
   await p.getByRole('button', { name: /^genel/ }).click();
   const box = p.getByRole('textbox', { name: 'Mesaj · #genel' });
