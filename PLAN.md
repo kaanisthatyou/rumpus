@@ -1,6 +1,6 @@
 # Serai: plan
 
-Status: **Phase 4 under way** (0.9.0-alpha.0, 2026-11-11). The product is called **Serai** since 2026-11-10 (it
+Status: **Phase 4 under way** (0.9.0-alpha.0, 2026-11-11; since then connectors sign in with OAuth, 4.20). The product is called **Serai** since 2026-11-10 (it
 was Lonca; the code name `lonca` stays in package names and environment variables, see section 2). Built on
 2026-11-10/11: specialists (5.15), routines (5.16), the Overview page and unread counts (5.17), invite links with
 a check of the way to the inviter (5.11); then (4.19) a shell that adapts to its room, an agent folder that no
@@ -8,7 +8,8 @@ longer has to be picked, character presets for agents and the personal settings.
 is taken (section 10). Before that (0.8.0-alpha.0, 2026-10-19): memory, projects with status pages, hand-over, several
 CLI logins, `/durum`, `/özet`, quick entry and advisor notes; voice is paused (Kaan, 2026-10-19). The
 connector store has its core and its catalog (4.10, 4.11, 2026-10-22): connectors from Serai's catalog, the MCP
-Registry or by hand, served through Serai's gateway with a policy per tool; OAuth and MCPB come next. The done-checks of Phases 1-3 wait for real use by Kaan and Arda; see the status blocks
+Registry or by hand, served through Serai's gateway with a policy per tool; OAuth sign-in since 2026-11-11 (4.20),
+MCPB comes next. The done-checks of Phases 1-3 wait for real use by Kaan and Arda; see the status blocks
 under section 8. Owners: Kaan and Arda. v0.1 (the Python chat server, tag `v0.1.0`) was the starting point for
 ideas and the security model, not for code.
 
@@ -861,7 +862,7 @@ The details behind 5.11 and 6.5, decided before building.
   (catalog or registry, the registry name, version, how it runs) shown on the card. A bare key in `Authorization`
   gets `Bearer`; a docker `-e NAME={secret}` becomes a sealed variable passed by name, so secrets never sit in the
   arguments. SSE remotes, MCPB and OAuth-only entries are not offered yet. The catalog (`packages/protocol/src/
-  catalog.ts`) holds 11 entries checked on 2026-10-22 that work without OAuth: GitHub, Context7, Microsoft Learn,
+  catalog.ts`) holds 11 entries (13 since 4.20) checked on 2026-10-22 that work without OAuth: GitHub, Context7, Microsoft Learn,
   Playwright, Chrome DevTools, Exa, Tavily, Firecrawl, Hugging Face, Supabase (starts read-only) and Sentry, each a
   copy of its registry entry with the plans offered, safe defaults, where to get a key, and corrections found
   against the real server (GitHub's token is required although its entry says optional). It ships with the app;
@@ -870,8 +871,7 @@ The details behind 5.11 and 6.5, decided before building.
   search against a stand-in registry) and two opt-in checks against the real servers: `LONCA_REAL_REMOTE=1`
   (Context7, Microsoft Learn, Exa, Firecrawl and Hugging Face answer `initialize` and `tools/list` through Serai's
   client) and `LONCA_REAL_NPX=1` (Playwright, Chrome DevTools, Context7 and Firecrawl start through npx on Windows).
-  Next for the store: OAuth (Notion, Linear, Figma, Sentry's and Stripe's remotes need it), MCPB, a workspace's own
-  allowlist, and the tool-decision log.
+  Next for the store: MCPB, a workspace's own allowlist, and the tool-decision log (OAuth: 4.20).
 - 4.12 The rename (2026-11-10): Serai. One constant (`BRAND`) for the name everywhere a person or a model reads it
   (the UI through `{{app}}` in the locale files), the MCP server agents see (`mcp__serai__*`), git branch prefixes
   (`serai/goal-…`), a new mark (a caravanserai's gate). Invite codes start with `SERAI1.`; `LONCA1.` codes are
@@ -906,6 +906,31 @@ The details behind 5.11 and 6.5, decided before building.
   installation: the `serai://` handler (registered only by an installed app without `LONCA_HOME`) and the move of
   the former name's data folder.
 
+- 4.20 Sign-in for remote connectors (5.9), 2026-11-11: a remote server that answers 401 (and has no
+  `Authorization` header of the person's own) shows "sign-in needed" with a Sign in button. `connectors.signIn`
+  asks the server without a token, reads the protected-resource metadata its challenge names (RFC 9728; else the
+  well-known places; else the server is its own authorization server), then the authorization server's metadata
+  (RFC 8414, or OpenID's), registers the app there as a public client for one redirect address (RFC 7591), opens
+  the system browser, and takes the code on a one-shot listener at `http://127.0.0.1:<port>/callback` with PKCE
+  (S256), a 256-bit state, the `resource` parameter (RFC 8707) and the `iss` check (RFC 9207). Refused: metadata
+  about another site, an issuer that is not the one named, a server without S256, endpoints that are not https
+  (http only on this computer and private networks), redirects anywhere on the way, and on the listener another
+  path, method or Host, a parameter given twice, a wrong state, and a page's script instead of a navigation
+  (`Sec-Fetch-Mode`; this stands where 5.9 says Referer). Tokens and a client secret are sealed like other secrets
+  (`connectors.json`; the page gets only `needed` / `waiting` / `signed_in` and the issuer); a token with under
+  a minute left, or one the server refuses, is renewed first (requests at the same moment share one renewal, a
+  rotated refresh token is kept); when the grant has ended the connector shows it and its agents lose the tools.
+  Sign out forgets the tokens here (the server is not told: no revocation yet). The registered client is kept
+  and used again while its port is free. For services that register no apps: a client id entered by hand in the
+  connector's form, with the fixed redirect address `http://127.0.0.1:47650/callback`. The catalog has Notion and
+  Linear (13 entries), marked `signIn`. Covered by unit tests against a stand-in server and authorization server
+  (`oauth.test.ts`, `fixtures/fake-oauth-mcp.mjs`: the whole sign-in, renewal, an ended grant, every refusal, a
+  client id by hand), `e2e/channel.mjs` (the card through needed, waiting, signed in, signed out; the script
+  goes to the copied link as the browser would) and, with `LONCA_REAL_REMOTE=1`, the public metadata of Notion's
+  and Linear's real servers (the 401, the metadata, a registration endpoint; nothing registered, nobody signed
+  in). **Not yet: a real sign-in at a real service** (it needs a person at the browser), Client ID Metadata
+  Documents (they need a public https address for the document, so they wait for the public repository), token
+  revocation, and a workspace's own allowlist, MCPB and the tool-decision log as before.
 - 4.19 The shell, the agent form and personal settings (5.2, 5.3, 5.14, 7), 2026-11-11, from Kaan's notes after
   using 0.9.0: text ran out of the board and the idea status control in a narrower window, a folder had to be
   picked for every agent, and there was little to make the app one's own. Built: the adaptive shell (crew strip,
@@ -956,6 +981,22 @@ From 2026-11-11, for the owners:
     (workbench; only .io unregistered), Eyvan (only .dev and .io unregistered; eyva.ai is close), Tayfa (crew; all
     five registered; a game studio and a children's series use the word). Ruled out: Kalfa (a Claude Code
     extension has it) and Kovan (Kovant makes agent software).
+  - Second round, later on 2026-11-11: Kaan likes a name with "ai" in it and finds Guildroom good but long. Same
+    evidence (RDAP for the five endings; a web search for a product of that name for the first five below, which
+    found none of that exact name).
+    - Every short English word with "ai" in it that was tried is registered under all five endings (Bailey, Dais,
+      Cairn, Braid, Twain, Mainstay, Liaison, Fairlead, Aircrew, Maindeck, Baize), as are Lanai, Quai, Relais,
+      Sarai, Maidan, Arrai and Essai.
+    - Unregistered under all five: **Aidehall**, Guildaide, Guildmain, Crewmain, Crewdais, Daishall, Braidroom.
+    - Only .com registered: **Aidecamp** (aide-de-camp), Mainhall, Taife (Ottoman Turkish for a crew or a guild's
+      members, where "tayfa" comes from), Hallwai, Serail (ruled out: it means a seraglio).
+    - Ending in "ai" as Serai does: **Balai** (Malay: a hall where a community meets; .dev .ai .io unregistered;
+      a broom in French), **Technai** (Greek: the crafts; .dev .ai unregistered; reads as "tech AI", and Tech AI /
+      TechAI companies exist), Mousai (the Muses; .dev .app), Selesai (Malay: done; .dev .io), Kaikki (Finnish:
+      everyone; .dev .io).
+    - Neighbours found by the searches: Guild.ai (a platform for running agents), Guildless, Guild House and
+      AgentsRoom (a desktop app for coding agents) stand next to Guildroom; aide.dev (agentic coding tools),
+      Aide.app and AICamp next to the Aide- names. CrewAI is why no Crew- name ends in "ai".
   - Others in this field already use Conductor, Squad, All Hands, Stagehand, Motley Crew and Cowork.
   A new name is a change to `brand.ts`, the icon, `electron-builder.yml`, `productName` in
   `apps/desktop/package.json` and `e2e/locale.mjs`; the former names' invite codes and data folders should stay

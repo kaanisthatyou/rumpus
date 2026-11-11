@@ -303,6 +303,9 @@ export class Core {
       'connectors.search': async (p) =>
         this.connectors.search(String(p?.query ?? ''), typeof p?.cursor === 'string' ? p.cursor : undefined),
       'connectors.runtimes': async () => this.connectors.runtimes(),
+      'connectors.signIn': async (p) => this.connectors.signIn(String(p?.id ?? ''), this.settings.get().language),
+      'connectors.cancelSignIn': async (p) => this.connectors.cancelSignIn(String(p?.id ?? '')),
+      'connectors.signOut': async (p) => this.connectors.signOut(String(p?.id ?? '')),
       'connectors.policy': async (p) =>
         this.connectors.setPolicy(String(p?.id ?? ''), String(p?.tool ?? ''), p?.policy as never),
       'settings.get': async () => this.settings.get(),

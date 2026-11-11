@@ -1,6 +1,7 @@
 // Serai's catalog of connectors (PLAN.md 5.9): entries of the official MCP Registry that Serai checked, copied as
-// they were on the day they were checked, with the ways to install them that work without OAuth, and corrections where a server needs more than its entry says. Everything here
-// installs through the same steps as a registry search result (`registry.ts`). Checked: 2026-10-22.
+// they were on the day they were checked, with the ways to install them that work, and corrections where a server
+// needs more than its entry says. Everything here installs through the same steps as a registry search result
+// (`registry.ts`). Checked: 2026-10-22; the entries that sign in through the browser (`signIn`): 2026-11-11.
 import { type InstallPlan, installPlans, type RegistryServer } from './registry.js';
 
 export const CATALOG_CATEGORIES = ['code', 'docs', 'browser', 'search', 'data', 'ops'] as const;
@@ -19,6 +20,11 @@ export interface CatalogEntry {
   defaults?: Record<string, string>;
   /** Fields the registry calls optional that the server needs after all (checked against the server). */
   required?: string[];
+  /**
+   * The server takes no key: after installing, a sign-in in the browser is asked for (OAuth, with the app
+   * registering itself at the service; checked against the server's metadata).
+   */
+  signIn?: true;
   server: RegistryServer;
 }
 
@@ -195,6 +201,60 @@ export const CATALOG: CatalogEntry[] = [
         {
           type: 'streamable-http',
           url: 'https://learn.microsoft.com/api/mcp',
+        },
+      ],
+    },
+  },
+  {
+    id: 'notion',
+    name: 'Notion',
+    category: 'docs',
+    summary: {
+      tr: 'Notion sayfaları ve veritabanları: arama, okuma, yazma. Anahtar yok; tarayıcıda oturum açılır.',
+      en: 'Notion pages and databases: search, read, write. No key; signs in through the browser.',
+    },
+    plans: ['remote:0'],
+    signIn: true,
+    server: {
+      name: 'com.notion/mcp',
+      description: 'Official Notion MCP server',
+      version: '1.0.1',
+      remotes: [
+        {
+          type: 'streamable-http',
+          url: 'https://mcp.notion.com/mcp',
+        },
+        {
+          type: 'sse',
+          url: 'https://mcp.notion.com/sse',
+        },
+      ],
+    },
+  },
+  {
+    id: 'linear',
+    name: 'Linear',
+    category: 'code',
+    summary: {
+      tr: "Linear issue'ları, projeleri ve belgeleri. Anahtar yok; tarayıcıda oturum açılır.",
+      en: 'Linear issues, projects and documents. No key; signs in through the browser.',
+    },
+    plans: ['remote:0', 'remote:1'],
+    signIn: true,
+    server: {
+      name: 'app.linear/linear',
+      title: 'Linear',
+      description: 'Find and manage issues, projects, and documents in your Linear workspace.',
+      version: '1.0.2',
+      websiteUrl: 'https://linear.app',
+      remotes: [
+        {
+          type: 'streamable-http',
+          url: 'https://mcp.linear.app/mcp',
+        },
+        {
+          type: 'streamable-http',
+          url: 'https://mcp.linear.app/mcp/readonly',
         },
       ],
     },

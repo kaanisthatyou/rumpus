@@ -117,6 +117,12 @@ function InstallForm({
           <span>{t('catalog.communityNote')}</span>
         </p>
       )}
+      {entry?.signIn && (
+        <p className="prov__protect prov__protect--os">
+          <Icon name="key" size={14} />
+          <span>{t('catalog.signInNote')}</span>
+        </p>
+      )}
       {!plan ? (
         <p className="prov__protect prov__protect--none">
           <Icon name="alert" size={14} />

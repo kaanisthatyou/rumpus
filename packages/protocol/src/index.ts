@@ -423,6 +423,17 @@ export interface CoreMethods {
     params: { query: string; cursor?: string };
     result: { servers: RegistryServer[]; next?: string };
   };
+  /**
+   * Starts a sign-in for a remote connector whose server asks for one (OAuth): finds the authorization server,
+   * registers the app there unless a client id was entered, listens on 127.0.0.1 for the answer and gives the
+   * address to open in the system browser. The rest arrives as `connectors.changed`: `waiting`, then
+   * `signed_in` and a new test, or `needed` with what went wrong.
+   */
+  'connectors.signIn': { params: { id: string }; result: { url: string; state: ConnectorsState } };
+  /** Stops waiting for a sign-in. */
+  'connectors.cancelSignIn': { params: { id: string }; result: ConnectorsState };
+  /** Forgets a connector's tokens on this computer. */
+  'connectors.signOut': { params: { id: string }; result: ConnectorsState };
   /** Which programs that run connector packages this computer has. */
   'connectors.runtimes': { params: undefined; result: { npx: boolean; uvx: boolean; docker: boolean } };
 }
@@ -499,6 +510,10 @@ export const ERROR_CODES = [
   'connector_storage',
   'connector_failed',
   'registry_unreachable',
+  'connector_auth',
+  'oauth_failed',
+  'oauth_unsupported',
+  'oauth_cancelled',
   'over_budget',
   'provider_bad_url',
   'provider_bad_key',

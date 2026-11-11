@@ -22,6 +22,23 @@ export class McpError extends Error {
   }
 }
 
+/** The server answered 401: it wants a sign-in or a key. `challenge` is its `WWW-Authenticate` header. */
+export class McpAuthError extends McpError {
+  constructor(
+    detail: string,
+    readonly challenge: string,
+  ) {
+    super('connector_failed', detail);
+    this.name = 'McpAuthError';
+  }
+}
+
+/**
+ * Gives the bearer token of a signed-in connector for a request; `renew` asks for a new one because the server
+ * refused the last. Undefined sends none.
+ */
+export type McpAuth = (renew: boolean) => Promise<string | undefined>;
+
 export interface McpToolDef {
   name: string;
   title?: string;
@@ -166,13 +183,15 @@ class HttpTransport implements Transport {
     private readonly url: string,
     private readonly headers: Record<string, string>,
     private readonly fetcher: typeof fetch,
+    private readonly auth?: McpAuth,
   ) {}
 
   setVersion(v: string): void {
     this.version = v;
   }
 
-  private async post(body: unknown, timeoutMs: number): Promise<Response> {
+  private async post(body: unknown, timeoutMs: number, renew = false): Promise<Response> {
+    const bearer = await this.auth?.(renew);
     const abort = new AbortController();
     this.aborts.add(abort);
     const timer = setTimeout(() => abort.abort(), timeoutMs);
@@ -184,6 +203,7 @@ class HttpTransport implements Transport {
         signal: abort.signal,
         headers: {
           ...this.headers,
+          ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}),
           'Content-Type': 'application/json',
           Accept: 'application/json, text/event-stream',
           ...(this.session ? { 'Mcp-Session-Id': this.session } : {}),
@@ -202,12 +222,20 @@ class HttpTransport implements Transport {
 
   async request(method: string, params: unknown, timeoutMs: number): Promise<unknown> {
     const id = this.next++;
-    const res = await this.post({ jsonrpc: '2.0', id, method, ...(params === undefined ? {} : { params }) }, timeoutMs);
+    const body = { jsonrpc: '2.0', id, method, ...(params === undefined ? {} : { params }) };
+    let res = await this.post(body, timeoutMs);
+    if (res.status === 401 && this.auth) {
+      // The token ended early: once more with a new one.
+      void res.body?.cancel().catch(() => {});
+      res = await this.post(body, timeoutMs, true);
+    }
     const session = res.headers.get('mcp-session-id');
     if (session) this.session = session;
     if (!res.ok) {
       const text = (await res.text().catch(() => '')).slice(0, 300);
-      throw new McpError('connector_failed', `HTTP ${res.status}${text ? `: ${text}` : ''}`);
+      const detail = `HTTP ${res.status}${text ? `: ${text}` : ''}`;
+      if (res.status === 401) throw new McpAuthError(detail, res.headers.get('www-authenticate') ?? '');
+      throw new McpError('connector_failed', detail);
     }
     const type = res.headers.get('content-type') ?? '';
     const msg = type.includes('text/event-stream') ? await this.fromStream(res, id) : await this.fromJson(res);
@@ -279,18 +307,26 @@ class HttpTransport implements Transport {
   close(): void {
     this.dead = true;
     for (const a of this.aborts) a.abort();
-    if (this.session) {
-      void this.fetcher(this.url, {
-        method: 'DELETE',
-        redirect: 'error',
-        headers: { ...this.headers, 'Mcp-Session-Id': this.session },
-      }).catch(() => {});
+    const session = this.session;
+    if (session) {
+      void (async () => {
+        const bearer = await this.auth?.(false);
+        await this.fetcher(this.url, {
+          method: 'DELETE',
+          redirect: 'error',
+          headers: {
+            ...this.headers,
+            ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}),
+            'Mcp-Session-Id': session,
+          },
+        });
+      })().catch(() => {});
     }
   }
 }
 
 export type McpTarget =
-  | { kind: 'remote'; url: string; headers: Record<string, string>; fetch?: typeof fetch }
+  | { kind: 'remote'; url: string; headers: Record<string, string>; fetch?: typeof fetch; auth?: McpAuth }
   | { kind: 'local'; command: string; args: string[]; env: NodeJS.ProcessEnv; cwd?: string };
 
 export class McpClient {
@@ -306,7 +342,7 @@ export class McpClient {
     let http: HttpTransport | undefined;
     let t: Transport;
     if (target.kind === 'remote') {
-      http = new HttpTransport(target.url, target.headers, target.fetch ?? fetch);
+      http = new HttpTransport(target.url, target.headers, target.fetch ?? fetch, target.auth);
       t = http;
     } else t = new StdioTransport(target.command, target.args, target.env, target.cwd);
     const client = new McpClient(t);

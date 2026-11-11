@@ -306,7 +306,11 @@
     "invalid_connector": "The connector's details are missing or wrong.",
     "connector_storage": "Secrets cannot be stored safely on this system.",
     "connector_failed": "Could not connect to the connector.",
-    "registry_unreachable": "The MCP Registry could not be reached."
+    "registry_unreachable": "The MCP Registry could not be reached.",
+    "connector_auth": "The server asks for a sign-in.",
+    "oauth_failed": "The sign-in did not finish.",
+    "oauth_unsupported": "This server does not register apps itself: a client id made at the service is needed (Edit).",
+    "oauth_cancelled": "The sign-in was cancelled."
   },
   "channel": {
     "newSession": "New session",
@@ -680,7 +684,19 @@
       "blocked": "Blocked"
     },
     "policyNote": "New tools start without asking when the server says they only read, otherwise asking every time. A call that asks waits for approval on the job card; the agent never sees blocked tools.",
-    "manual": "Add by hand"
+    "manual": "Add by hand",
+    "oauth": {
+      "state": "Sign-in needed",
+      "needed": "This server asks for a sign-in in the browser.",
+      "signIn": "Sign in",
+      "waiting": "Waiting for the sign-in in the browser.",
+      "copyLink": "Copy sign-in link",
+      "linkCopied": "Link copied.",
+      "signedIn": "Signed in · {{issuer}}",
+      "signOut": "Sign out",
+      "clientId": "OAuth client id (optional)",
+      "clientIdHint": "Only for services that sign in through the browser but do not register apps themselves. The redirect address to enter at the service: {{uri}}"
+    }
   },
   "catalog": {
     "title": "{{app}} catalog",
@@ -690,6 +706,7 @@
     "none": "No catalog entry matches.",
     "registry": "MCP Registry",
     "communityNote": "A community entry, not checked by {{app}}. Its source should be looked at before installing; local programs run on this computer as the app's user.",
+    "signInNote": "No key is entered here. After installing, the connector's card asks for a sign-in in the browser; the tokens are encrypted and stay on this computer.",
     "searching": "Searching",
     "noResults": "No registry entry matches.",
     "more": "More",
@@ -698,7 +715,7 @@
     "installed": "Installed",
     "source": "Source",
     "website": "Website",
-    "cannot": "{{app}} cannot install this entry: it has no Streamable HTTP address and no npm, PyPI or Docker package (SSE, MCPB and OAuth are not supported yet).",
+    "cannot": "{{app}} cannot install this entry: it has no Streamable HTTP address and no npm, PyPI or Docker package (SSE and MCPB are not supported yet).",
     "cannotShort": "Cannot install",
     "how": "How it runs",
     "via": {

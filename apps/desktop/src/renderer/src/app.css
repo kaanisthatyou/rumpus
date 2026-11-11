@@ -1228,6 +1228,13 @@
   margin-top: 2px;
   color: var(--warn);
 }
+.conn__signin {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+}
 .conn__args {
   resize: vertical;
   font-size: 12.5px;

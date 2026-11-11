@@ -28,6 +28,22 @@ export interface ConnectorSecret {
   hint: string;
 }
 
+/**
+ * A remote connector's sign-in in the browser (OAuth, as MCP servers ask for it). The tokens are sealed on this
+ * computer and never shown; the page sees only where the sign-in stands.
+ */
+export interface ConnectorOAuth {
+  /** `needed`: the server asks for a sign-in. `waiting`: the browser is open for one. `signed_in`: tokens are kept. */
+  state: 'needed' | 'waiting' | 'signed_in';
+  /** The authorization server the sign-in went to, as the connector's own address named it. */
+  issuer?: string;
+  /** Why the last sign-in did not finish: an error code, and the server's own words. */
+  error?: string;
+  detail?: string;
+  /** A client id entered by hand, for services that do not register apps themselves. */
+  clientId?: string;
+}
+
 /** Where an installed connector came from (the install record): Serai's catalog or a registry search. */
 export interface ConnectorSource {
   from: 'catalog' | 'registry';
@@ -56,6 +72,8 @@ export interface ConnectorInfo {
   detail?: string;
   server?: { name: string; version?: string };
   source?: ConnectorSource;
+  /** Present once the server asked for a sign-in or a client id was entered. */
+  oauth?: ConnectorOAuth;
   tested?: number;
   added: number;
 }
@@ -72,12 +90,24 @@ export interface ConnectorInput {
   agents?: string[];
   /** Kept from the first install; a later edit by hand does not change it. */
   source?: ConnectorSource;
+  /**
+   * For a remote server that signs in with OAuth but does not register apps itself: the client id made at the
+   * service for the redirect address `OAUTH_REDIRECT_URI`. Empty removes it; not given keeps it.
+   */
+  clientId?: string;
 }
 
 export interface ConnectorsState {
   protection: KeyProtection;
   connectors: ConnectorInfo[];
 }
+
+/**
+ * The redirect address of a client id entered by hand: a fixed port on this computer, so it can be registered once
+ * at the service. Clients the app registers itself use any free port.
+ */
+export const OAUTH_REDIRECT_PORT = 47650;
+export const OAUTH_REDIRECT_URI = `http://127.0.0.1:${OAUTH_REDIRECT_PORT}/callback`;
 
 /** Header and variable names a connector's secret may have. */
 export const SECRET_NAME = /^[A-Za-z_][A-Za-z0-9_-]{0,63}$/;

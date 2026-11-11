@@ -5,6 +5,7 @@ import {
   type ConnectorKind,
   type ConnectorsState,
   connectorUrlAllowed,
+  OAUTH_REDIRECT_URI,
   SECRET_NAME,
   TOOL_POLICIES,
   type ToolPolicy,
@@ -48,6 +49,7 @@ function ConnectorForm({
     existing?.secrets.map((s) => ({ name: s.name, value: '', hint: s.hint })) ?? [],
   );
   const [chosen, setChosen] = useState<string[]>(existing?.agents ?? []);
+  const [clientId, setClientId] = useState(existing?.oauth?.clientId ?? '');
   const [busy, setBusy] = useState(false);
   const urlBad = kind === 'remote' && url.trim() !== '' && !connectorUrlAllowed(url.trim());
   const badSecret = secrets.some((s) => s.name.trim() !== '' && !SECRET_NAME.test(s.name.trim()));
@@ -61,7 +63,7 @@ function ConnectorForm({
         name: name.trim(),
         kind,
         ...(kind === 'remote'
-          ? { url: url.trim() }
+          ? { url: url.trim(), clientId: clientId.trim() }
           : {
               command: command.trim(),
               args: args
@@ -203,6 +205,17 @@ function ConnectorForm({
           {protection === 'none' ? t('connectors.protection.none') : t(`connectors.secretsHint.${kind}`)}
         </span>
       </fieldset>
+      {kind === 'remote' && (
+        <TextField
+          label={t('connectors.oauth.clientId')}
+          value={clientId}
+          maxLength={200}
+          spellCheck={false}
+          className="prov__url-field"
+          hint={t('connectors.oauth.clientIdHint', { uri: OAUTH_REDIRECT_URI })}
+          onChange={(e) => setClientId(e.target.value)}
+        />
+      )}
       <AgentChecks chosen={chosen} onChange={setChosen} />
       <div className="prov__actions">
         <Button type="submit" variant="primary" busy={busy} disabled={!ready}>
@@ -256,6 +269,105 @@ function ToolRow({
   );
 }
 
+/** A remote connector's sign-in in the browser: asked for, waited for, or done. */
+function SignInRow({ c, onState }: { c: ConnectorInfo; onState: (s: ConnectorsState) => void }) {
+  const { t } = useTranslation();
+  const flash = useApp((s) => s.flash);
+  const [busy, setBusy] = useState(false);
+  /** The address of the sign-in being waited for, to copy when the browser did not open. */
+  const [link, setLink] = useState<string>();
+  const oauth = c.oauth;
+  if (!oauth) return null;
+  const fail = (e: unknown) => flash(t(`errors.${e instanceof RpcError ? e.code : 'internal'}`, t('errors.internal')));
+  const signIn = async () => {
+    setBusy(true);
+    try {
+      const { url, state } = await core.call('connectors.signIn', { id: c.id });
+      setLink(url);
+      onState(state);
+      void window.lonca.shell.openExternal(url);
+    } catch (e) {
+      fail(e);
+    } finally {
+      setBusy(false);
+    }
+  };
+  if (oauth.state === 'signed_in')
+    return (
+      <div className="conn__signin">
+        <span className="keychip">
+          <Icon name="key" size={12} />
+          <span>{t('connectors.oauth.signedIn', { issuer: hostOf(oauth.issuer) })}</span>
+        </span>
+        <span className="grow" />
+        <Button
+          size="sm"
+          variant="quiet"
+          onClick={async () => {
+            try {
+              onState(await core.call('connectors.signOut', { id: c.id }));
+            } catch (e) {
+              fail(e);
+            }
+          }}
+        >
+          {t('connectors.oauth.signOut')}
+        </Button>
+      </div>
+    );
+  if (oauth.state === 'waiting')
+    return (
+      <div className="conn__signin" role="status">
+        <span className="muted">{t('connectors.oauth.waiting')}</span>
+        <span className="grow" />
+        {link && (
+          <Button
+            size="sm"
+            icon="copy"
+            onClick={async () => {
+              await window.lonca.shell.copy(link);
+              flash(t('connectors.oauth.linkCopied'));
+            }}
+          >
+            {t('connectors.oauth.copyLink')}
+          </Button>
+        )}
+        <Button
+          size="sm"
+          variant="quiet"
+          onClick={async () => onState(await core.call('connectors.cancelSignIn', { id: c.id }))}
+        >
+          {t('common.cancel')}
+        </Button>
+      </div>
+    );
+  return (
+    <>
+      <div className="conn__signin">
+        <span className="muted">{t('connectors.oauth.needed')}</span>
+        <span className="grow" />
+        <Button size="sm" variant="primary" busy={busy} onClick={signIn}>
+          {t('connectors.oauth.signIn')}
+        </Button>
+      </div>
+      {oauth.error && oauth.error !== 'oauth_cancelled' && (
+        <p className="conn__error" role="status">
+          <Icon name="alert" size={13} />
+          <span>
+            {t(`errors.${oauth.error}`, t('errors.oauth_failed'))}
+            {oauth.detail && oauth.detail !== oauth.error ? ` ${oauth.detail}` : ''}
+          </span>
+        </p>
+      )}
+    </>
+  );
+}
+
+/** The host of an authorization server, as the person knows it. */
+function hostOf(issuer: string | undefined): string {
+  return issuer && URL.canParse(issuer) ? new URL(issuer).host : (issuer ?? '');
+}
+
 function ConnectorRow({
   c,
   onEdit,
@@ -278,7 +390,11 @@ function ConnectorRow({
         <b>{c.name}</b>
         <Chip>{t(`connectors.kinds.${c.kind}`)}</Chip>
         {c.source && <Chip>{c.source.from === 'catalog' ? t('catalog.verified') : t('catalog.community')}</Chip>}
-        <span className={`conn__state conn__state--${c.state}`}>{t(`connectors.state.${c.state}`)}</span>
+        <span className={`conn__state conn__state--${c.state}`}>
+          {c.state === 'failed' && c.error === 'connector_auth'
+            ? t('connectors.oauth.state')
+            : t(`connectors.state.${c.state}`)}
+        </span>
         <span className="grow" />
         {confirming ? (
           <>
@@ -321,7 +437,8 @@ function ConnectorRow({
           ))}
         </div>
       )}
-      {c.state === 'failed' && (
+      <SignInRow c={c} onState={onState} />
+      {c.state === 'failed' && c.error !== 'connector_auth' && (
         <p className="conn__error" role="status">
           <Icon name="alert" size={13} />
           <span>{c.detail || t(`errors.${c.error ?? 'connector_failed'}`, t('errors.connector_failed'))}</span>

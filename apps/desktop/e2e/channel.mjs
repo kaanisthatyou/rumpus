@@ -11,6 +11,7 @@ import { tmpdir } from 'node:os';
 import { delimiter, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { _electron as electron } from 'playwright-core';
+import { browse, startFakeOAuthMcp } from '../../../packages/core/test/fixtures/fake-oauth-mcp.mjs';
 import { locale } from './locale.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -383,6 +384,34 @@ try {
   assert.equal(await connectorRow.getByLabel('list_notes').inputValue(), 'allow');
   await shot(page, 'connector');
   assert.equal(readFileSync(join(home, 'connectors.json'), 'utf8').includes('e2e-token-1234'), false);
+
+  // A remote connector that signs in through the browser (OAuth), against a stand-in for the server and its
+  // authorization server. The system browser is not opened for an http address; this script goes to the copied
+  // sign-in link itself, as the person's browser would.
+  const oauthMcp = await startFakeOAuthMcp();
+  await settingsDialog.getByRole('button', { name: L.connectors.manual }).click();
+  await settingsDialog.getByLabel(L.connectors.name, { exact: true }).fill('Oturumlu');
+  await settingsDialog.getByLabel(L.connectors.url, { exact: true }).fill(oauthMcp.url);
+  await settingsDialog.getByRole('button', { name: L.connectors.save }).click();
+  const signInRow = settingsDialog.locator('.conn', { hasText: 'Oturumlu' });
+  await signInRow.getByText(L.connectors.oauth.needed).waitFor({ timeout: 30_000 });
+  await shot(page, 'connector-sign-in');
+  await signInRow.getByRole('button', { name: L.connectors.oauth.signIn }).click();
+  await signInRow.getByText(L.connectors.oauth.waiting).waitFor();
+  await signInRow.getByRole('button', { name: L.connectors.oauth.copyLink }).click();
+  const signInLink = await first.app.evaluate(({ clipboard }) => clipboard.readText());
+  assert.equal(new URL(signInLink).origin, oauthMcp.origin);
+  assert.equal((await browse(signInLink)).status, 200);
+  await signInRow
+    .getByText(L.connectors.oauth.signedIn.replace('{{issuer}}', new URL(oauthMcp.origin).host))
+    .waitFor({ timeout: 30_000 });
+  await signInRow.getByText(L.connectors.state.ok).waitFor({ timeout: 30_000 });
+  await signInRow.getByRole('button', { name: L.connectors.tools_one.replace('{{count}}', '1') }).waitFor();
+  await shot(page, 'connector-signed-in');
+  assert.equal(/"(at|rt)-\d/.test(readFileSync(join(home, 'connectors.json'), 'utf8')), false);
+  await signInRow.getByRole('button', { name: L.connectors.oauth.signOut }).click();
+  await signInRow.getByText(L.connectors.oauth.needed).waitFor();
+  oauthMcp.close();
   await page.keyboard.press('Escape');
   await agentBox.fill('bağlayıcıya not ekle');
   await agentBox.press('Enter');

@@ -306,7 +306,11 @@
     "invalid_connector": "Bağlayıcı bilgileri eksik ya da hatalı.",
     "connector_storage": "Gizli değer bu sistemde güvenle saklanamıyor.",
     "connector_failed": "Bağlayıcıya bağlanılamadı.",
-    "registry_unreachable": "MCP Registry'ye ulaşılamadı."
+    "registry_unreachable": "MCP Registry'ye ulaşılamadı.",
+    "connector_auth": "Sunucu oturum açılmasını istiyor.",
+    "oauth_failed": "Oturum açma tamamlanamadı.",
+    "oauth_unsupported": "Bu sunucu uygulamaları kendisi kaydetmiyor: serviste oluşturulmuş bir istemci kimliği gerekiyor (Düzenle).",
+    "oauth_cancelled": "Oturum açma iptal edildi."
   },
   "channel": {
     "newSession": "Yeni oturum",
@@ -680,7 +684,19 @@
       "blocked": "Kapalı"
     },
     "policyNote": "Yeni araçlar, sunucu yalnızca okuduğunu bildiriyorsa sormadan, değilse her seferinde sorarak başlar. Sorulan çağrı iş kartında onay bekler; kapalı araçları agent hiç görmez.",
-    "manual": "Elle ekle"
+    "manual": "Elle ekle",
+    "oauth": {
+      "state": "Oturum gerekli",
+      "needed": "Bu sunucu tarayıcıda oturum açılmasını istiyor.",
+      "signIn": "Oturum aç",
+      "waiting": "Tarayıcıdaki oturum açma bekleniyor.",
+      "copyLink": "Oturum bağlantısını kopyala",
+      "linkCopied": "Bağlantı kopyalandı.",
+      "signedIn": "Oturum açık · {{issuer}}",
+      "signOut": "Oturumu kapat",
+      "clientId": "OAuth istemci kimliği (isteğe bağlı)",
+      "clientIdHint": "Yalnızca tarayıcıda oturum açtıran ama uygulamaları kendisi kaydetmeyen servisler için. Serviste girilecek yönlendirme adresi: {{uri}}"
+    }
   },
   "catalog": {
     "title": "{{app}} kataloğu",
@@ -690,6 +706,7 @@
     "none": "Katalogda eşleşen girdi yok.",
     "registry": "MCP Registry",
     "communityNote": "Topluluk girdisi, incelenmedi. Kurulmadan önce kaynağına bakılmalı; yerel programlar bu bilgisayarda uygulamanın kullanıcısıyla çalışır.",
+    "signInNote": "Buraya anahtar girilmez. Kurulumdan sonra bağlayıcının kartı tarayıcıda oturum açılmasını ister; token'lar şifrelenir ve bu bilgisayarda kalır.",
     "searching": "Aranıyor",
     "noResults": "Kayıt defterinde eşleşen girdi yok.",
     "more": "Daha fazla",
@@ -698,7 +715,7 @@
     "installed": "Kurulu",
     "source": "Kaynak",
     "website": "Site",
-    "cannot": "{{app}} bu girdiyi kuramıyor: ne Streamable HTTP adresi ne de npm, PyPI ya da Docker paketi var (SSE, MCPB ve OAuth henüz yok).",
+    "cannot": "{{app}} bu girdiyi kuramıyor: ne Streamable HTTP adresi ne de npm, PyPI ya da Docker paketi var (SSE ve MCPB henüz yok).",
     "cannotShort": "Kurulamaz",
     "how": "Nasıl çalışsın",
     "via": {
