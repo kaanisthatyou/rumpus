@@ -171,6 +171,7 @@ const PATHS = {
   link: <path d="M10 14a4 4 0 0 0 5.7 0l3-3A4 4 0 0 0 13 5.3l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3A4 4 0 0 0 11 18.7l1-1" />,
   home: <path d="M4 11l8-7 8 7M6 9.5V20h12V9.5M10 20v-5.5h4V20" />,
   reply: <path d="M9 7l-5 5 5 5M4 12h10a6 6 0 0 1 6 6v1" />,
+  undo: <path d="M9 14L4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />,
   smile: (
     <>
       <circle cx="12" cy="12" r="8.5" />

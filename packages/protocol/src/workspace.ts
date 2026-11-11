@@ -231,6 +231,25 @@ export interface Usage {
   out: number;
 }
 
+/** One file a job changed, by the repository's own count of lines. */
+export interface JobFileChange {
+  /** From the repository's top folder, with forward slashes. */
+  path: string;
+  status: 'added' | 'modified' | 'deleted';
+  added: number;
+  removed: number;
+  binary?: true;
+  /** Taken back to what it was before the job. */
+  undone?: true;
+}
+
+/** What a job changed in its agent's folder (a git repository), found from snapshots before and after it. */
+export interface JobChanges {
+  files: JobFileChange[];
+  /** Files changed beyond the ones listed. */
+  more?: number;
+}
+
 export interface Job {
   id: string;
   channelId: string;
@@ -251,6 +270,8 @@ export interface Job {
   budget?: { minutes: number; tokens?: number; warned?: boolean };
   /** While the job waits on a person: the tool call that needs approval. */
   approval?: { id: string; label: string; arg?: string; detail?: string };
+  /** Set a moment after the job ends, when it changed files in a git repository. */
+  changes?: JobChanges;
   started: number;
   ended?: number;
 }

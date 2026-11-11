@@ -7,6 +7,7 @@ import { remoteOwner } from '../agents/owner';
 import { specialistIcon } from '../agents/SpecialistDialog';
 import { useApp } from '../store';
 import { elapsed, tokens } from './format';
+import { JobChanges } from './JobChanges';
 
 const SHOWN = 6;
 
@@ -150,6 +151,7 @@ export function JobCard({ job, agent }: { job: Job; agent: Agent | undefined }) 
       )}
       {running && job.preview && <p className="job__preview">{job.preview.slice(-280)}</p>}
       {error && job.state !== 'done' && <p className="job__error">{error}</p>}
+      {!running && <JobChanges job={job} mine={!owner} />}
       <div className="job__foot">
         <span className="job__usage l-mono">
           {t('job.usage', {

@@ -371,6 +371,13 @@ export interface CoreMethods {
   'jobs.steer': { params: { id: string; text: string }; result: { ok: true } };
   'jobs.answer': { params: { id: string; allow: boolean }; result: { ok: true } };
   'jobs.transcript': { params: { id: string }; result: TranscriptEntry[] };
+  /** One changed file of a job as a unified diff (hunks only). Only on the computer that ran the job. */
+  'jobs.diff': { params: { id: string; path: string }; result: { patch: string; truncated?: true } };
+  /**
+   * Takes a job's changes back: the files given, or all of them. A file that is no longer as the job left it is
+   * skipped. Only on the computer that ran the job; the job comes back through `job.updated`.
+   */
+  'jobs.undo': { params: { id: string; paths?: string[] }; result: { undone: string[]; skipped: string[] } };
   /** Quota per CLI (`claude-code`) and per extra account (`claude-code:<account id>`). */
   'quota.get': { params: undefined; result: Record<string, Quota> };
   'cards.list': { params: undefined; result: Card[] };
@@ -510,6 +517,7 @@ export const ERROR_CODES = [
   'connector_storage',
   'connector_failed',
   'registry_unreachable',
+  'no_snapshot',
   'connector_auth',
   'oauth_failed',
   'oauth_unsupported',

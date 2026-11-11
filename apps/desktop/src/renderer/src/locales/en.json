@@ -310,7 +310,8 @@
     "connector_auth": "The server asks for a sign-in.",
     "oauth_failed": "The sign-in did not finish.",
     "oauth_unsupported": "This server does not register apps itself: a client id made at the service is needed (Edit).",
-    "oauth_cancelled": "The sign-in was cancelled."
+    "oauth_cancelled": "The sign-in was cancelled.",
+    "no_snapshot": "The snapshot of this job is no longer kept."
   },
   "channel": {
     "newSession": "New session",
@@ -390,6 +391,30 @@
       "deny": "Deny",
       "notifyTitle": "Approval needed",
       "owner": "Waiting for the owner's approval."
+    },
+    "changes": {
+      "title": "Changes",
+      "files_one": "{{count}} file",
+      "files_other": "{{count}} files",
+      "more_one": "and {{count}} more file",
+      "more_other": "and {{count}} more files",
+      "status": {
+        "added": "new",
+        "modified": "changed",
+        "deleted": "deleted"
+      },
+      "binary": "binary",
+      "diffOf": "Diff of {{path}}",
+      "noDiff": "No text diff for this file.",
+      "truncated": "The diff is long; its beginning is shown.",
+      "undo": "Undo",
+      "undoAll": "Undo all",
+      "undoConfirm": "Take every file back to what it was before this job?",
+      "undoneChip": "undone",
+      "undone_one": "{{count}} file taken back.",
+      "undone_other": "{{count}} files taken back.",
+      "skipped_one": "{{count}} file left as it is: changed since the job.",
+      "skipped_other": "{{count}} files left as they are: changed since the job."
     }
   },
   "agentForm": {

@@ -89,6 +89,7 @@ import { CORE_RULES, rosterPrompt, systemPrompt } from './prompts.js';
 import { runReadTool } from './readTools.js';
 import { nextRun, Routines } from './routines.js';
 import { SettingsStore } from './settings.js';
+import { Snapshots } from './snapshots.js';
 import { WorkspaceStore } from './store.js';
 import { Sync } from './sync.js';
 import { tailscaleStatus } from './tailscale.js';
@@ -532,6 +533,15 @@ export class Core {
       'jobs.transcript': async (p) => {
         if (typeof p?.id !== 'string') throw new CoreError('bad_request');
         return this.workspace().jobs.readTranscript(p.id);
+      },
+      'jobs.diff': async (p) => {
+        if (typeof p?.id !== 'string' || typeof p.path !== 'string') throw new CoreError('bad_request');
+        return this.workspace().jobs.diff(p.id, p.path);
+      },
+      'jobs.undo': async (p) => {
+        if (typeof p?.id !== 'string') throw new CoreError('bad_request');
+        const paths = Array.isArray(p.paths) ? p.paths.filter((x): x is string => typeof x === 'string') : undefined;
+        return this.workspace().jobs.undo(p.id, paths);
       },
       'quota.get': async () => this.workspace().jobs.quotas,
       'cards.list': async () => this.workspace().store.cards(),
@@ -1150,6 +1160,7 @@ export class Core {
       },
       store,
       dir,
+      snapshots: new Snapshots(this.opts.runner ?? run, join(dir, 'jobs')),
       layers: (agent) => ({
         worker: instructions.worker().text,
         workspace: instructions.workspace(),

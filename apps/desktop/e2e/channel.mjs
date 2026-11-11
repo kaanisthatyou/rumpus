@@ -4,7 +4,7 @@
 // Usage: node e2e/channel.mjs   (after electron-vite build; E2E_EXE=release/win-unpacked/Rumpus.exe for packaged)
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
@@ -488,6 +488,31 @@ try {
   await treeCard.getByRole('button', { name: L.goal.removeWorktree }).click();
   await treeCard.getByText(L.goal.worktreeRemoved).waitFor();
   assert.match(git('branch', '--list', 'rumpus/*').toString(), /rumpus\/goal-/);
+
+  // What a job changed: the agent edits a file and adds one in the repository; the card lists them with their
+  // lines, shows a file's diff, and takes one file and then the rest back.
+  await page
+    .getByRole('complementary', { name: L.shell.channels })
+    .getByRole('button', { name: /^@claude/ })
+    .click();
+  await agentBox.fill('dosyaları düzenle');
+  await agentBox.press('Enter');
+  await page.getByText('Dosyalar düzenlendi.').first().waitFor();
+  const changes = page.getByRole('region', { name: L.job.changes.title }).last();
+  await changes.getByText(L.job.changes.files_other.replace('{{count}}', '2')).waitFor({ timeout: 20_000 });
+  await changes.getByRole('button', { name: new RegExp(L.job.changes.title) }).click();
+  await changes.getByRole('button', { name: L.job.changes.diffOf.replace('{{path}}', 'README.md') }).click();
+  await changes.getByText('+e2e satırı').waitFor();
+  await shot(page, 'job-changes');
+  await changes.getByRole('button', { name: `${L.job.changes.undo} · yeni.txt` }).click();
+  await changes.getByText(L.job.changes.undoneChip).waitFor();
+  assert.equal(existsSync(join(project, 'yeni.txt')), false);
+  assert.match(readFileSync(join(project, 'README.md'), 'utf8'), /e2e satırı/);
+  await changes.getByRole('button', { name: L.job.changes.undoAll }).click();
+  await changes.getByRole('button', { name: L.job.changes.undoAll }).click();
+  await until(() => !readFileSync(join(project, 'README.md'), 'utf8').includes('e2e satırı'), 'the undo of README.md');
+  await shot(page, 'job-changes-undone');
+  assert.equal(git('status', '--porcelain').toString().trim(), '');
 
   // A project on the same repository: its progress.md starts the status page, the git panel shows the clone, the
   // agent working in the folder reads and updates the page through Rumpus's tools, and a person edits it.

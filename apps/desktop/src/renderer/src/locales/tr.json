@@ -310,7 +310,8 @@
     "connector_auth": "Sunucu oturum açılmasını istiyor.",
     "oauth_failed": "Oturum açma tamamlanamadı.",
     "oauth_unsupported": "Bu sunucu uygulamaları kendisi kaydetmiyor: serviste oluşturulmuş bir istemci kimliği gerekiyor (Düzenle).",
-    "oauth_cancelled": "Oturum açma iptal edildi."
+    "oauth_cancelled": "Oturum açma iptal edildi.",
+    "no_snapshot": "Bu işin anlık görüntüsü artık saklanmıyor."
   },
   "channel": {
     "newSession": "Yeni oturum",
@@ -390,6 +391,30 @@
       "deny": "Reddet",
       "notifyTitle": "Onay bekleniyor",
       "owner": "Sahibinin onayını bekliyor."
+    },
+    "changes": {
+      "title": "Değişiklikler",
+      "files_one": "{{count}} dosya",
+      "files_other": "{{count}} dosya",
+      "more_one": "ve {{count}} dosya daha",
+      "more_other": "ve {{count}} dosya daha",
+      "status": {
+        "added": "yeni",
+        "modified": "değişti",
+        "deleted": "silindi"
+      },
+      "binary": "ikili dosya",
+      "diffOf": "{{path}} farkı",
+      "noDiff": "Bu dosya için metin farkı yok.",
+      "truncated": "Fark uzun; başı gösteriliyor.",
+      "undo": "Geri al",
+      "undoAll": "Tümünü geri al",
+      "undoConfirm": "Bütün dosyalar bu işten önceki haline döndürülsün mü?",
+      "undoneChip": "geri alındı",
+      "undone_one": "{{count}} dosya geri alındı.",
+      "undone_other": "{{count}} dosya geri alındı.",
+      "skipped_one": "{{count}} dosya olduğu gibi bırakıldı: işten sonra değişmiş.",
+      "skipped_other": "{{count}} dosya olduğu gibi bırakıldı: işten sonra değişmiş."
     }
   },
   "agentForm": {

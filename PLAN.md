@@ -1,6 +1,7 @@
 # Rumpus: plan
 
-Status: **Phase 4 under way** (0.9.0-alpha.0, 2026-11-11; since then connectors sign in with OAuth, 4.20). The product is called **Rumpus** since 2026-11-11 (it
+Status: **Phase 4 under way** (0.9.0-alpha.0, 2026-11-11; since then connectors sign in with OAuth, 4.20, the
+name is Rumpus, 4.21, and a job's changes are listed and can be undone, 4.22). The product is called **Rumpus** since 2026-11-11 (it
 was Lonca until 2026-11-10 and Serai for a day; the code name `lonca` stays in package names and environment
 variables, see section 2). Built on
 2026-11-10/11: specialists (5.15), routines (5.16), the Overview page and unread counts (5.17), invite links with
@@ -159,6 +160,11 @@ Discord-like, three columns plus a rail:
   `danger-full-access`; Gemini/agy `plan` / `auto_edit` / `yolo`). Command allow/deny lists where the CLI has them;
   deny wins.
 - **Worktrees:** a job can run in its own git worktree, with a merge-back check before it closes.
+- **What a job changed, and undo** (2026-11-11): where the agent's folder is a git repository, the folder is
+  remembered before the job's first step and after its end; the card lists the files with their lines, shows a
+  file's diff, and takes a file or the whole job back to what it was before. A file someone worked on after the
+  job is left as it is. Other members see the list; the diff and the undo are the owner's, on the owner's
+  computer.
 - **Context given to every job:** who asked, the channel's recent messages (marked untrusted), referenced records,
   the workspace memory snapshot, area rules, the goal state. Shown on the card as "what was given".
 - **Rumpus's own MCP server** for the agents it runs: search history and records, read references (images), read
@@ -907,6 +913,26 @@ The details behind 5.11 and 6.5, decided before building.
   installation: the `rumpus://` handler (registered only by an installed app without `LONCA_HOME`) and the move of
   the former name's data folder.
 
+- 4.22 What a job changed, and undo (5.3), 2026-11-11: the first of three things Kaan agreed on that day (then an
+  effects pass: the card that grows into the live view, the board card that moves by itself, the taskbar, sounds;
+  then the race: one task to several agents in worktrees of their own, compared side by side). `Snapshots`
+  (`packages/core/src/snapshots.ts`): before a job's first step and after its end the agent's folder is added to
+  an index of its own (a copy of the person's, so little is read again; the person's index and files are never
+  touched, and git takes no optional locks), written as a tree and kept as a commit under
+  `refs/rumpus/jobs/<job>/before|after`, refs that git neither shows nor pushes by itself; the latest 40 jobs of a
+  repository are kept, a job that changed nothing keeps none, and a folder with more than 5000 files git does
+  not know is not snapshotted. The difference of the two trees inside the agent's folder becomes `job.changes`
+  (path, added / changed / deleted, lines, binary; at most 300 files), a moment after the job ended, also for a
+  stopped or failed one, and goes to the other members with the job. `jobs.diff` gives one file's hunks;
+  `jobs.undo` writes the `before` content of the files named (or all) back, removes files the job added, and skips
+  a file that is no longer as the job left it; a file that had plain LF endings comes back with them where git
+  would write CRLF. On the card: Changes with the count and lines, the files, a diff per file, Undo per file and
+  Undo all (asked once more). Not there: folders that are no git repository (the default desktop folder among
+  them), what a person or another job changed in the same folder while the job ran (it counts as the job's), and
+  taking an undo back. Covered by `snapshots.test.ts` (real git: the person's staged and unknown files left alone,
+  a subfolder of a repository, no commit yet, line endings, through the core with a stand-in CLI) and
+  `e2e/channel.mjs` (the fake CLI edits a file and adds one; the list, a diff, undo of one file and of all, a
+  clean `git status` afterwards). Not yet tried with a real CLI.
 - 4.21 The second rename (2026-11-11): Rumpus. `BRAND` holds the name, the slug (`rumpus`: the MCP server agents
   see, `mcp__rumpus__*`; git branch prefixes, `rumpus/goal-…`; the link scheme, `rumpus://join/…`) and the app id
   (`io.github.kaanisthatyou.rumpus`), and now a list of former names, latest first. Still accepted: invite codes

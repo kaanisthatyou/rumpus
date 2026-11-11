@@ -2,6 +2,7 @@
 // A stand-in for Claude Code in tests: the same CLI surface Rumpus uses (--version, auth status --json, and the
 // stream-json conversation), without a model or an account. A message with "slow" or "yavaş" takes seconds,
 // so a test can steer or stop it. Messages sent during a turn wait as turns of their own, like the real CLI.
+import { appendFileSync, writeFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 
 const args = process.argv.slice(2);
@@ -123,6 +124,39 @@ async function run() {
         result: answer,
         total_cost_usd: 0,
         usage: { input_tokens: 5, output_tokens: 5 },
+        queued_turn_count: queue.length,
+      });
+      continue;
+    }
+    if (/dosyaları düzenle/i.test(text)) {
+      // Work on files in the agent's folder: a line added to README.md and a new file.
+      n += 1;
+      if (!started) {
+        out({ type: 'system', subtype: 'init', session_id: session, tools: ['Edit', 'Write'] });
+        started = true;
+      }
+      const edits = [
+        ['Edit', 'README.md', () => appendFileSync('README.md', 'e2e satırı' + String.fromCharCode(10))],
+        ['Write', 'yeni.txt', () => writeFileSync('yeni.txt', 'ajanın yazdığı dosya' + String.fromCharCode(10))],
+      ];
+      for (const [tool, file, apply] of edits) {
+        const id = `f${n}${tool}`;
+        out({
+          type: 'assistant',
+          message: { content: [{ type: 'tool_use', id, name: tool, input: { file_path: file } }] },
+        });
+        apply();
+        out({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: id, content: 'ok' }] } });
+      }
+      const answer = 'Dosyalar düzenlendi.';
+      out({ type: 'assistant', message: { content: [{ type: 'text', text: answer }] } });
+      out({
+        type: 'result',
+        subtype: 'success',
+        is_error: false,
+        result: answer,
+        total_cost_usd: 0,
+        usage: { input_tokens: 8, output_tokens: 4 },
         queued_turn_count: queue.length,
       });
       continue;

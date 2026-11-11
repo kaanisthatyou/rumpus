@@ -15,7 +15,8 @@ status are in [PLAN.md](PLAN.md).
 
 - **Channels and agents.** Write to an agent in its own channel or `@mention` it anywhere; each job is a live card
   (steps, tokens, cost) with a live view, steering and stop. Agents run read-only, with edits, or fully, as their
-  owner sets; approvals wait on a person.
+  owner sets; approvals wait on a person. In a git repository the card lists what the job changed, shows each
+  file's diff and takes a file or the whole job back.
 - **Board and goals.** `/todo` makes a card that runs as a job; `/goal` lets an agent plan, get approval, and work step
   by step until a done check passes, optionally in its own git worktree.
 - **Projects.** A git repository each member points at their own clone of: branch, changes, pull and push, a status

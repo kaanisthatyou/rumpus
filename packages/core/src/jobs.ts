@@ -9,7 +9,9 @@ import {
   type Channel,
   type CliInfo,
   type CliKind,
+  CoreError,
   type Job,
+  type JobChanges,
   type JobStep,
   type Language,
   type Message,
@@ -23,6 +25,7 @@ import type { AgentSession, Attachment, DriverEvent, OpenSession } from './drive
 import { newId } from './ids.js';
 import { type Launch, resolveLaunch } from './proc.js';
 import { type PromptLayers, systemPrompt, turnPrompt } from './prompts.js';
+import type { Snapshots } from './snapshots.js';
 import type { WorkspaceStore } from './store.js';
 
 export const DRIVERS: Partial<Record<CliKind, OpenSession>> = {
@@ -58,6 +61,8 @@ export interface JobsDeps {
   publish?(job: Job): void;
   /** The connector tools an agent's session gets; a change starts its CLI again (same conversation). */
   toolset?(agent: Agent): string;
+  /** Remembers the agent's folder before and after a job, where it is a git repository (what changed, undo). */
+  snapshots?: Snapshots;
   /** Rumpus's MCP endpoint; each session gets its own token. */
   gateway?: {
     ready(): Promise<string>;
@@ -337,6 +342,8 @@ export class Jobs {
     if (!open) return this.fail(job, 'driver_missing');
     if (!cli?.path) return this.fail(job, 'cli_missing');
     if (!isDir(agent.folder)) return this.fail(job, 'folder_missing');
+    // The folder as it is before the agent's first step; nothing may run in it until this is taken.
+    await this.deps.snapshots?.before(job.id, agent.folder).catch(() => {});
 
     const key = this.key(agent.id, slot);
     let live = this.live.get(key);
@@ -646,8 +653,59 @@ export class Jobs {
     live.session.stop();
     this.transcript(job.id, { t: 'end', ok: false, error: error ?? 'stopped', at: this.now() });
     this.save(job, true);
+    this.settleChanges(job.id);
     this.endPart(live);
     return true;
+  }
+
+  // ---------------------------------------------------------------- what a job changed
+
+  /** After a job ended: what it changed goes onto its card (and to the other members). */
+  private settleChanges(jobId: string): void {
+    const snapshots = this.deps.snapshots;
+    if (!snapshots) return;
+    void snapshots
+      .after(jobId)
+      .then((changes) => {
+        if (changes) this.setChanges(jobId, changes);
+      })
+      .catch(() => {});
+  }
+
+  private setChanges(jobId: string, changes: JobChanges): void {
+    const job = this.deps.store.job(jobId);
+    if (!job) return;
+    const next: Job = { ...job, changes };
+    const live = [...this.live.values()].find((l) => l.job?.id === jobId);
+    if (live) live.job = next;
+    this.published.delete(jobId);
+    this.save(next, true);
+  }
+
+  /** One changed file of a job as a diff. */
+  async diff(jobId: string, path: string): Promise<{ patch: string; truncated?: true }> {
+    const job = this.deps.store.job(jobId);
+    const file = job?.changes?.files.find((f) => f.path === path);
+    if (!file || !this.deps.snapshots) throw new CoreError('no_snapshot');
+    if (file.binary) return { patch: '' };
+    return this.deps.snapshots.diff(jobId, path);
+  }
+
+  /** Takes a job's changes back, all of them or the files named; files changed since are left as they are. */
+  async undo(jobId: string, paths?: string[]): Promise<{ undone: string[]; skipped: string[] }> {
+    const job = this.deps.store.job(jobId);
+    if (!job?.changes || !this.deps.snapshots) throw new CoreError('no_snapshot');
+    if (job.state === 'running' || job.state === 'attention') throw new CoreError('busy');
+    const files = job.changes.files.filter((f) => !f.undone && (!paths || paths.includes(f.path)));
+    const result = await this.deps.snapshots.undo(jobId, files);
+    if (result.undone.length > 0) {
+      const latest = this.deps.store.job(jobId)?.changes ?? job.changes;
+      this.setChanges(jobId, {
+        ...latest,
+        files: latest.files.map((f) => (result.undone.includes(f.path) ? { ...f, undone: true as const } : f)),
+      });
+    }
+    return result;
   }
 
   newSession(agentId: string, channelId: string): void {
@@ -829,6 +887,7 @@ export class Jobs {
         live.job = ended;
         this.transcript(job.id, { t: 'end', ok: e.ok, ...(e.error ? { error: e.error } : {}), at });
         this.save(ended, true);
+        this.settleChanges(job.id);
         const answer = (e.final ?? live.lastText).trim();
         if (answer) this.postAnswer(live, ended, answer);
         this.endPart(live);
@@ -837,6 +896,7 @@ export class Jobs {
       case 'exit': {
         const failed = this.fail(job, job.error ?? (e.stderr ? `exited: ${e.stderr.slice(-400)}` : 'exited'));
         live.job = failed;
+        this.settleChanges(job.id);
         this.endPart(live);
         return;
       }
