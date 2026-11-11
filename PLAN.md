@@ -941,15 +941,25 @@ The details behind 5.11 and 6.5, decided before building.
 From 2026-11-11, for the owners:
 
 - **The name.** Serai was chosen without a trademark or domain check, and Kaan found it taken (2026-11-11; a web
-  search shows a Zurich smart-home company of that name and `serai.dev` / `serai.app` registered). Candidates
-  checked the same day with a web search and RDAP, which is weak evidence and no trademark search: **Avlu**
-  (courtyard, where a caravanserai's guests meet; `avlu.dev`, `avlu.ai` and `avlu.io` unregistered; an unrelated
-  loyalty app "Avlu Club"), **Tayfa** (crew; only `tayfa.io` unregistered; a Turkish game studio and a children's
-  series use the word), **Tezgah** (workbench; only `tezgah.io` unregistered; no software product found),
-  **Eyvan** (a caravanserai's vaulted hall; `eyvan.dev` and `eyvan.io` unregistered; eyva.ai is close). Ruled out:
-  Kalfa (a Claude Code extension has it) and Kovan (Kovant makes agent software). A new name is a change to
-  `brand.ts`, the icon, `electron-builder.yml`, `productName` in `apps/desktop/package.json` and `e2e/locale.mjs`;
-  the former names' invite codes and data folders should stay accepted.
+  search shows a Zurich smart-home company of that name, and `serai` is registered under .com, .dev, .app, .ai
+  and .io). Kaan asked for an English name. What was checked that day is weak evidence and no trademark search:
+  the registries' own RDAP services for .com / .dev / .app / .ai / .io, and a web search for a product of the same
+  name (done for the Turkish words only; the search quota ran out before the English ones).
+  - English, single words: every one tried is registered under all five endings (Guildhall, Bullpen, Quarterdeck,
+    Muster, Flotilla, Wheelhouse, Roundhouse, Retinue, Joinery, Homeport, Potluck, Tagteam, Manyhands, Deckhand,
+    ...), so a single word means a prefixed or suffixed domain.
+  - English, compounds with unregistered domains: **Crewhall** (.dev .ai .io), **Guildhand**, **Guildyard**,
+    **Guildroom**, **Crewloft** (.dev .app .ai .io each), **Crewbench** (.dev .app .ai), **Benchmates**
+    (.dev .app .io). "Crew" is the word the app already uses for the people and agents of a workspace; "guild" is
+    what Lonca meant.
+  - Turkish words: Avlu (courtyard; .dev and .ai unregistered; an unrelated loyalty app "Avlu Club"), Tezgah
+    (workbench; only .io unregistered), Eyvan (only .dev and .io unregistered; eyva.ai is close), Tayfa (crew; all
+    five registered; a game studio and a children's series use the word). Ruled out: Kalfa (a Claude Code
+    extension has it) and Kovan (Kovant makes agent software).
+  - Others in this field already use Conductor, Squad, All Hands, Stagehand, Motley Crew and Cowork.
+  A new name is a change to `brand.ts`, the icon, `electron-builder.yml`, `productName` in
+  `apps/desktop/package.json` and `e2e/locale.mjs`; the former names' invite codes and data folders should stay
+  accepted.
 - **Earning money.** Kaan (2026-11-10): the product could be published and earn money. The plan so far says
   Apache-2.0 with no hosted service. Ways that fit it: paid signed builds with updates and support while the source
   stays open; a paid team tier (more than a few members, an always-on peer, audit log) on an open core; paid packs
