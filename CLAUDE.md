@@ -56,7 +56,7 @@ purpose; never change roblox-factory for it.
    against `e2e/fake-provider.mjs`, a stand-in OpenAI-compatible server; `e2e/team.mjs` (two apps, invite, join,
    sync) with `LONCA_PEER_HOST=127.0.0.1` instead of Tailscale; `e2e/phone.mjs` (pairing a narrow window as a
    phone) with `LONCA_PHONE_PORT=0` instead of `tailscale serve`. Look at the screenshots in
-   `apps/desktop/test-results/` before saying a UI change works. Spend real CLI quota only for a short probe:
+   `apps/desktop/test-results/` before saying a UI change works. Spend real CLI quota only for a short probe: `e2e/real-specialist.mjs` (one Haiku job) for changes to specialists;
    `e2e/real-claude.mjs` (two Haiku turns) for driver changes, `LONCA_REAL_CODEX=<folder> vitest run
    packages/core/test/real-cli.test.ts` for Codex (no login needed, no tokens).
 3. Packaging changes: `pnpm dist`, then `E2E_EXE=release/win-unpacked/Serai.exe node e2e/smoke.mjs` in

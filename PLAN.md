@@ -870,7 +870,16 @@ The details behind 5.11 and 6.5, decided before building.
   every minute on the owner's computer, `routines.save` / `delete` / `run`, the Routines page. Covered by unit
   tests (due times, catch-up, ownership) and `e2e/specialists.mjs`.
 - 4.17 Small things, 2026-11-11: the members panel shows what a working agent is doing; an empty channel offers
-  the agents that can be called; a specialist is shared as text.
+  the agents that can be called; a specialist is shared as text; after the launcher the Overview opens first. The
+  message box empties at once on send (text typed while a message was on its way used to be wiped when it landed;
+  `e2e/specialists.mjs` caught it).
+- 4.18 Checks on 2026-11-11: all six e2e scripts pass against the built app; the packaged
+  `Serai-Setup-0.9.0-alpha.0.exe` was built and its unpacked app passes `smoke`, `specialists` and `team`
+  (invite link through a second copy). `e2e/real-specialist.mjs` (by hand, one Haiku job): the real Claude Code
+  as a code reviewer read the channel, found the planted bug with file and line, kept a lesson through
+  `learn_lesson` and ended with a RESULT line that was taken out of the chat. Not yet tried on a real
+  installation: the `serai://` handler (registered only by an installed app without `LONCA_HOME`) and the move of
+  the former name's data folder.
 
 ## 9. Risks
 
