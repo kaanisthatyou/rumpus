@@ -89,6 +89,16 @@ try {
   await p.locator('.msg', { hasText: 'Telefondan selam' }).waitFor();
   await shot(p, 'chat');
 
+  // The overview and the routines page in the narrow layout.
+  await p.getByRole('button', { name: L.shell.channels }).click();
+  await p.getByRole('button', { name: L.shell.home }).click();
+  await p.locator('.home').getByText(L.overview.setup.title).waitFor();
+  await shot(p, 'overview');
+  await p.getByRole('button', { name: L.shell.channels }).click();
+  await p.getByRole('button', { name: L.shell.routines }).click();
+  await p.getByText(L.shell.empty.routines).waitFor();
+  await shot(p, 'routines');
+
   // Another browser without pairing sees how to pair.
   const base = new URL(link).origin;
   const stranger = await phone(`${base}/`, 'persist:phone-b');

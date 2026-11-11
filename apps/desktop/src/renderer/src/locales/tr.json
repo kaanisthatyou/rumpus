@@ -1038,7 +1038,7 @@
     "learned_one": "{{count}} ders öğrendi",
     "learned_other": "{{count}} ders öğrendi",
     "resultOk": "Sonuç",
-    "resultFailed": "Sonuç · başarısız",
+    "resultFailed": "Sonuç · olumsuz",
     "tabs": {
       "who": "Kimlik",
       "playbook": "Yönerge",

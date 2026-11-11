@@ -336,8 +336,9 @@ function toggleQuick(): void {
 }
 
 function start(): void {
-  // Invite links open the installed app; a development or test run leaves the system's handlers alone.
-  if (app.isPackaged) app.setAsDefaultProtocolClient(BRAND.slug);
+  // Invite links open the installed app; a development run, or one with its own folder (a test, a second copy
+  // next to the installed one), leaves the system's handlers alone.
+  if (app.isPackaged && !process.env.LONCA_HOME) app.setAsDefaultProtocolClient(BRAND.slug);
   takeLink(process.argv);
   app.on('open-url', (event, url) => {
     event.preventDefault();

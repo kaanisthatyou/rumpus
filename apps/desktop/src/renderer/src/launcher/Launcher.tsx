@@ -107,8 +107,11 @@ export function Launcher() {
       setNameError(false);
       await patch({ profile: { name: clean } });
     }
-    if (last) await patch({ onboarded: true });
-    else go(index + 1);
+    if (last) {
+      // The first thing after the launcher is the overview, with the steps of setting a workspace up.
+      useApp.getState().setView('home');
+      await patch({ onboarded: true });
+    } else go(index + 1);
   };
 
   return (

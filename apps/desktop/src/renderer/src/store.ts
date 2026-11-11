@@ -579,7 +579,10 @@ export const useApp = create<AppState>((set, get) => {
       });
       const current = get().channelId ?? lastChannel.get(workspace.id);
       const target = workspace.channels.find((c) => c.id === current) ?? workspace.channels[0];
+      // The overview stays in front when it is the page on screen (right after the launcher, for one).
+      const home = get().view === 'home';
       if (target) await get().openChannel(target.id);
+      if (home) set({ view: 'home' });
     },
 
     setView(view) {

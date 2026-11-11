@@ -1038,7 +1038,7 @@
     "learned_one": "{{count}} lesson learned",
     "learned_other": "{{count}} lessons learned",
     "resultOk": "Result",
-    "resultFailed": "Result · failed",
+    "resultFailed": "Result · not ok",
     "tabs": {
       "who": "Identity",
       "playbook": "Playbook",

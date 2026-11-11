@@ -383,15 +383,20 @@ export function OverviewView({ onSettings }: { onSettings: () => void }) {
                       ) : (
                         <div className="person__agents">
                           {theirs.map((a) => (
-                            <span
+                            <button
                               key={a.id}
+                              type="button"
                               className={`agentpill ${busy.has(a.id) ? 'is-busy' : ''}`}
                               title={a.specialty?.role}
+                              onClick={() => {
+                                const own = workspace?.channels.find((c) => c.kind === 'agent' && c.agentId === a.id);
+                                if (own) void openChannel(own.id);
+                              }}
                             >
                               <Icon name={a.specialty ? specialistIcon(a) : 'terminal'} size={12} />
                               {a.name}
                               {busy.has(a.id) && <LiveDot />}
-                            </span>
+                            </button>
                           ))}
                         </div>
                       )}
