@@ -313,7 +313,11 @@
     "oauth_failed": "The sign-in did not finish.",
     "oauth_unsupported": "This server does not register apps itself: a client id made at the service is needed (Edit).",
     "oauth_cancelled": "The sign-in was cancelled.",
-    "no_snapshot": "The snapshot of this job is no longer kept."
+    "no_snapshot": "The snapshot of this job is no longer kept.",
+    "invalid_race": "The race could not start: it needs a task and two to four agents of this computer.",
+    "race_state": "This cannot be done with the race as it stands now.",
+    "race_conflict": "The work could not be applied: it collides with what is in the main folder. Nothing was changed there.",
+    "race_dirty": "The main folder has staged changes. They have to be committed or unstaged first."
   },
   "channel": {
     "newSession": "New session",
@@ -504,7 +508,8 @@
     "goal": "A goal for an agent: plan, approval, step by step",
     "remember": "Adds a line to the personal notes",
     "status": "CLIs, accounts and quota on every computer",
-    "digest": "An advisor sums up the channel's last 24 hours (/özet 6, /özet week, @advisor)"
+    "digest": "An advisor sums up the channel's last 24 hours (/özet 6, /özet week, @advisor)",
+    "race": "The same task for several agents at once; the results side by side"
   },
   "palette": {
     "placeholder": "Channel, agent, project, view, action or message",
@@ -1359,5 +1364,31 @@
       "name": "Brings options",
       "hint": "Offers two or three options with trade-offs where there is room."
     }
+  },
+  "race": {
+    "new": "New race",
+    "title": "Race",
+    "intro": "The same task goes to the chosen agents at once; each works in a copy of the repository of its own (a git worktree). The results stand side by side and one is kept.",
+    "task": "Task",
+    "agents": "Agents in the race",
+    "agentsHint": "Two to four agents of this computer. An agent on Read cannot change files: it only writes what it would do.",
+    "tooFew": "A race needs two agents of this computer.",
+    "repo": "Repository",
+    "repoHint": "The first chosen agent's folder. It has to be a git repository with a commit.",
+    "start": "Start",
+    "state": {
+      "running": "Running",
+      "ready": "Ready to compare",
+      "picked": "Kept",
+      "closed": "Closed"
+    },
+    "place": "{{place}}.",
+    "noChanges": "No changes",
+    "pick": "Keep {{name}}",
+    "close": "Keep none",
+    "closeConfirm": "End the race without keeping anything?",
+    "readyNote": "Keeping one applies its work to the main folder as staged changes; nothing is committed.",
+    "pickedNote": "{{name}}'s work is in the main folder as staged changes, not committed. The branches stay in the repository.",
+    "closedNote": "Nothing was kept. The branches stay in the repository."
   }
 }

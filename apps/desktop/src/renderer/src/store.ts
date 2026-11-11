@@ -26,6 +26,8 @@ import type {
   ProviderInput,
   ProvidersState,
   Quota,
+  Race,
+  RaceInput,
   RecordInput,
   RecordItem,
   Result,
@@ -101,6 +103,9 @@ export interface AppState {
   specialistDialog?: Agent | 'new';
   advisorDialog?: Advisor | 'new';
   goals: Goal[];
+  /** Races started on this computer in the open workspace. */
+  races: Race[];
+  raceDialog?: { channelId: string; text: string };
   workspaces: WorkspaceSummary[];
   newWorkspaceOpen?: boolean;
   /** An invite the app was opened with (a `rumpus://join/…` link): the join dialog starts with it. */
@@ -178,6 +183,12 @@ export interface AppState {
   answerLesson(id: string, keep: boolean, text?: string): Promise<void>;
   openAdvisorDialog(target: AppState['advisorDialog']): void;
   openGoalDialog(target: AppState['goalDialog']): void;
+  openRaceDialog(target: AppState['raceDialog']): void;
+  startRace(input: RaceInput): Promise<boolean>;
+  stopRace(id: string): Promise<void>;
+  /** Keeps one contestant's work; false when it could not be applied (the reason is flashed). */
+  pickRace(id: string, agentId: string): Promise<boolean>;
+  closeRace(id: string): Promise<void>;
   openWorkspace(id: string): Promise<void>;
   createWorkspace(name: string): Promise<boolean>;
   createInvite(role: MemberRole, hours: number): Promise<{ code: string; link: string } | undefined>;
@@ -306,6 +317,7 @@ export const useApp = create<AppState>((set, get) => {
     paletteOpen: false,
     typing: {},
     goals: [],
+    races: [],
     workspaces: [],
     peopleTyping: {},
     activity: {},
@@ -471,6 +483,13 @@ export const useApp = create<AppState>((set, get) => {
             : [...s.goals, goal],
         })),
       );
+      core.on('race.changed', (race) =>
+        set((s) => ({
+          races: s.races.some((r) => r.id === race.id)
+            ? s.races.map((r) => (r.id === race.id ? race : r))
+            : [...s.races, race],
+        })),
+      );
       core.on('advisor.spend', (spend) => set((s) => (s.workspace ? { workspace: { ...s.workspace, spend } } : {})));
       core.on('advisor.failed', ({ advisorId, code }) => {
         const name = get().workspace?.advisors.find((a) => a.id === advisorId)?.name ?? '';
@@ -593,6 +612,7 @@ export const useApp = create<AppState>((set, get) => {
       const cards = (await attempt(() => core.call('cards.list'))) ?? [];
       const records = (await attempt(() => core.call('records.list', {}))) ?? [];
       const goals = (await attempt(() => core.call('goals.list'))) ?? [];
+      const races = (await attempt(() => core.call('races.list'))) ?? [];
       const memory = await attempt(() => core.call('memory.get'));
       const projects = (await attempt(() => core.call('projects.list'))) ?? [];
       set({
@@ -602,6 +622,7 @@ export const useApp = create<AppState>((set, get) => {
         cards,
         records,
         goals,
+        races,
         projects,
         unread: workspace.unread ?? NO_UNREAD,
         ...(memory ? { memory } : {}),
@@ -812,6 +833,38 @@ export const useApp = create<AppState>((set, get) => {
 
     openGoalDialog(target) {
       set({ goalDialog: target, error: undefined });
+    },
+
+    openRaceDialog(target) {
+      set({ raceDialog: target, error: undefined });
+    },
+
+    async startRace(input) {
+      const race = await attempt(() => core.call('races.start', input));
+      if (!race) return false;
+      set((s) => ({
+        raceDialog: undefined,
+        races: s.races.some((r) => r.id === race.id) ? s.races : [...s.races, race],
+      }));
+      return true;
+    },
+
+    async stopRace(id) {
+      await attempt(() => core.call('races.stop', { id }));
+    },
+
+    async pickRace(id, agentId) {
+      try {
+        await core.call('races.pick', { id, agentId });
+        return true;
+      } catch (err) {
+        get().flash(i18n.t(`errors.${codeOf(err)}`, i18n.t('errors.internal')));
+        return false;
+      }
+    },
+
+    async closeRace(id) {
+      await attempt(() => core.call('races.close', { id }));
     },
 
     async createGoal(input) {

@@ -26,6 +26,8 @@ import type {
   ProjectStatusInput,
   ProjectView,
   Quota,
+  Race,
+  RaceInput,
   RecordInput,
   RecordItem,
   RecordKind,
@@ -355,6 +357,19 @@ export interface CoreMethods {
   'agents.newSession': { params: { agentId: string; channelId: string }; result: { ok: true } };
   'advisors.save': { params: AdvisorInput; result: Advisor };
   'advisors.delete': { params: { id: string }; result: { ok: true } };
+  /** The races started on this computer in the open workspace. */
+  'races.list': { params: undefined; result: Race[] };
+  /**
+   * Gives one task to several of this computer's agents at once, each in a git worktree of its own (made from
+   * the commit the first agent's folder is on). The jobs hang under a message posted for the person.
+   */
+  'races.start': { params: RaceInput; result: Race };
+  /** Stops the jobs still running. */
+  'races.stop': { params: { id: string }; result: Race };
+  /** Applies one contestant's work to the main folder (staged, not committed) and removes the worktrees. */
+  'races.pick': { params: { id: string; agentId: string }; result: Race };
+  /** Ends the race without keeping anyone's work in the main folder; the branches stay. */
+  'races.close': { params: { id: string }; result: Race };
   'goals.list': { params: undefined; result: Goal[] };
   'goals.create': { params: GoalInput; result: Goal };
   /** Approve the plan, with comments that travel with every step. */
@@ -470,6 +485,7 @@ export interface CoreEvents {
   'record.changed': RecordItem;
   'record.deleted': { id: string };
   'goal.changed': Goal;
+  'race.changed': Race;
   'project.changed': ProjectView;
   'project.deleted': { id: string };
   /** Another member is typing in a channel of the open workspace. */
@@ -522,6 +538,10 @@ export const ERROR_CODES = [
   'connector_failed',
   'registry_unreachable',
   'no_snapshot',
+  'invalid_race',
+  'race_state',
+  'race_conflict',
+  'race_dirty',
   'connector_auth',
   'oauth_failed',
   'oauth_unsupported',

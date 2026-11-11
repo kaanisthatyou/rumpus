@@ -86,6 +86,7 @@ import { PHONE_PORT, PhoneServer } from './phone.js';
 import { killTree, type Launch, openConsole, type Runner, run } from './proc.js';
 import { EMPTY_STATUS, ProjectGit, progressMarkdown, projectOf, projectPrompt, readProgressFile } from './projects.js';
 import { CORE_RULES, rosterPrompt, systemPrompt } from './prompts.js';
+import { Races } from './races.js';
 import { runReadTool } from './readTools.js';
 import { nextRun, Routines } from './routines.js';
 import { SettingsStore } from './settings.js';
@@ -174,6 +175,7 @@ interface Workspace {
   gateway: Gateway;
   advisors: Advisors;
   goals: Goals;
+  races: Races;
   routines: Routines;
   /** Jobs already handed to the advisors when they ended. */
   ended: Set<string>;
@@ -491,6 +493,15 @@ export class Core {
         advisors.digest(channel, hours, handle);
         return message;
       },
+      'races.list': async () => this.workspace().races.list(),
+      'races.start': async (p) => {
+        this.requireRole('editor');
+        for (const id of Array.isArray(p?.agentIds) ? p.agentIds : []) this.requireOwnAgent(id);
+        return this.workspace().races.create(p);
+      },
+      'races.stop': async (p) => this.workspace().races.stop(p?.id),
+      'races.pick': async (p) => this.workspace().races.pick(p?.id, p?.agentId),
+      'races.close': async (p) => this.workspace().races.close(p?.id),
       'goals.list': async () => this.workspace().goals.list(),
       'goals.create': async (p) => {
         this.requireRole('editor');
@@ -1201,6 +1212,8 @@ export class Core {
                     .list()
                     .some((g) => g.planJobId === job.id || g.steps.some((s) => s.jobId === job.id));
                   if (inGoal) ref.ws.goals.onJob(job);
+                  // A race's jobs are compared by the person; advisors would say the same thing several times.
+                  else if (ref.ws.races.has(job.id)) ref.ws.races.onJob(job);
                   else ref.ws.advisors.onJobEnded(job);
                 }),
               0,
@@ -1249,6 +1262,17 @@ export class Core {
       onStep: (goal, step, report) => advisors.onGoalStep(goal, step, report),
     });
     goals.recover();
+    const races = new Races({
+      store,
+      jobs,
+      runner: this.opts.runner ?? run,
+      file: join(dir, 'races.json'),
+      worktreesDir: join(this.dataDir(), 'worktrees'),
+      me: () => ({ ...this.me(), language: this.settings.get().language }),
+      emitRace: (race) => inWs(() => this.emit('race.changed', race)),
+      emitMessage: (message) => inWs(() => this.emit('message.added', message)),
+    });
+    races.recover();
     const routines = new Routines({
       store,
       deviceId: this.deviceId,
@@ -1296,6 +1320,7 @@ export class Core {
       gateway,
       advisors,
       goals,
+      races,
       routines,
       ended: new Set(),
       allowedOnce: new Map(),

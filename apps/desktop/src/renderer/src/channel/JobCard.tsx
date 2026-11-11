@@ -11,7 +11,8 @@ import { JobChanges } from './JobChanges';
 
 const SHOWN = 6;
 
-function useNow(active: boolean): number {
+/** The time, once a second while something runs (for elapsed times). */
+export function useNow(active: boolean): number {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     if (!active) return;

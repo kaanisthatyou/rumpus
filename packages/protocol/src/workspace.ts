@@ -231,6 +231,50 @@ export interface Usage {
   out: number;
 }
 
+/** One contestant of a race: an agent, its job, and the branch its work is committed to. */
+export interface RaceEntry {
+  agentId: string;
+  jobId?: string;
+  branch: string;
+  /** Its job has ended and its work was taken in. */
+  done?: boolean;
+  /** The order it finished in (1 is first); absent for a job that failed or was stopped. */
+  place?: number;
+  /** It left work on its branch. */
+  changed?: boolean;
+  /** Its worktree is gone (the branch stays). */
+  removed?: boolean;
+}
+
+export const RACE_STATES = ['running', 'ready', 'picked', 'closed'] as const;
+export type RaceState = (typeof RACE_STATES)[number];
+
+/**
+ * A race: one task given to several agents of one computer at once, each in a git worktree of its own. `ready`
+ * once every job has ended; `picked` when one contestant's work was applied to the main folder (staged, not
+ * committed); `closed` when none was. Kept on the computer that started it.
+ */
+export interface Race {
+  id: string;
+  channelId: string;
+  /** The person's message its card hangs under. */
+  requestId: string;
+  task: string;
+  entries: RaceEntry[];
+  state: RaceState;
+  /** The agent whose work was kept. */
+  winner?: string;
+  created: number;
+  ended?: number;
+}
+
+export interface RaceInput {
+  channelId: string;
+  task: string;
+  /** Two to four agents of this computer; the first one's folder names the repository. */
+  agentIds: string[];
+}
+
 /** One file a job changed, by the repository's own count of lines. */
 export interface JobFileChange {
   /** From the repository's top folder, with forward slashes. */

@@ -4,6 +4,7 @@ import './channel/channel.css';
 import './board/board.css';
 import './records/records.css';
 import './goals/goals.css';
+import './races/races.css';
 import './memory/memory.css';
 import './projects/projects.css';
 import './agents/specialists.css';

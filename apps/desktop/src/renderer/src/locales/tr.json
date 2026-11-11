@@ -313,7 +313,11 @@
     "oauth_failed": "Oturum açma tamamlanamadı.",
     "oauth_unsupported": "Bu sunucu uygulamaları kendisi kaydetmiyor: serviste oluşturulmuş bir istemci kimliği gerekiyor (Düzenle).",
     "oauth_cancelled": "Oturum açma iptal edildi.",
-    "no_snapshot": "Bu işin anlık görüntüsü artık saklanmıyor."
+    "no_snapshot": "Bu işin anlık görüntüsü artık saklanmıyor.",
+    "invalid_race": "Yarış başlatılamadı: bir görev ve bu bilgisayarın iki ile dört agentı gerekir.",
+    "race_state": "Yarışın şu anki durumunda bu işlem yapılamaz.",
+    "race_conflict": "İş uygulanamadı: ana klasördekilerle çakışıyor. Ana klasörde hiçbir şey değiştirilmedi.",
+    "race_dirty": "Ana klasörde hazırlanmış (staged) değişiklikler var. Önce commit edilmeleri ya da geri alınmaları gerekir."
   },
   "channel": {
     "newSession": "Yeni oturum",
@@ -504,7 +508,8 @@
     "goal": "Bir agent'a hedef: plan, onay, adım adım iş",
     "remember": "Kişisel notlara bir satır ekler",
     "status": "Her bilgisayardaki CLI'lar, hesaplar ve kotalar",
-    "digest": "Kanalın son 24 saatini bir danışman özetler (/özet 6, /özet hafta, @danışman)"
+    "digest": "Kanalın son 24 saatini bir danışman özetler (/özet 6, /özet hafta, @danışman)",
+    "race": "Aynı görevi birkaç agenta aynı anda verir; sonuçlar yan yana durur"
   },
   "palette": {
     "placeholder": "Kanal, agent, proje, görünüm, eylem ya da mesaj",
@@ -1359,5 +1364,31 @@
       "name": "Seçenek sunar",
       "hint": "Serbestlik olan yerde iki üç seçeneği artısı ve eksisiyle önerir."
     }
+  },
+  "race": {
+    "new": "Yeni yarış",
+    "title": "Yarış",
+    "intro": "Aynı görev seçilen agentlara aynı anda verilir; her biri deponun kendine ait bir kopyasında (git worktree) çalışır. Sonuçlar yan yana durur ve biri tutulur.",
+    "task": "Görev",
+    "agents": "Yarışacak agentlar",
+    "agentsHint": "Bu bilgisayarın iki ile dört agentı. Oku yetkisindeki agent dosya değiştiremez: yalnızca ne yapacağını yazar.",
+    "tooFew": "Yarış için bu bilgisayarda iki agent gerekir.",
+    "repo": "Depo",
+    "repoHint": "İlk seçilen agentın klasörü. Git deposu olması ve bir commit içermesi gerekir.",
+    "start": "Başlat",
+    "state": {
+      "running": "Sürüyor",
+      "ready": "Karşılaştırmaya hazır",
+      "picked": "Tutuldu",
+      "closed": "Kapatıldı"
+    },
+    "place": "{{place}}.",
+    "noChanges": "Değişiklik yok",
+    "pick": "{{name}} kalsın",
+    "close": "Hiçbiri kalmasın",
+    "closeConfirm": "Yarış hiçbir şey tutulmadan bitirilsin mi?",
+    "readyNote": "Biri tutulduğunda işi ana klasöre hazırlanmış (staged) değişiklik olarak uygulanır; commit edilmez.",
+    "pickedNote": "{{name}} adlı agentın işi ana klasörde hazırlanmış (staged) değişiklik olarak duruyor, commit edilmedi. Dallar depoda kalır.",
+    "closedNote": "Hiçbir şey tutulmadı. Dallar depoda kalır."
   }
 }

@@ -522,7 +522,7 @@ try {
     .click();
   await agentBox.fill('dosyaları düzenle');
   await agentBox.press('Enter');
-  await page.getByText('Dosyalar düzenlendi.').first().waitFor();
+  await page.getByText('İki dosyada çalışıldı.').first().waitFor();
   const changes = page.getByRole('region', { name: L.job.changes.title }).last();
   await changes.getByText(L.job.changes.files_other.replace('{{count}}', '2')).waitFor({ timeout: 20_000 });
   await changes.getByRole('button', { name: new RegExp(L.job.changes.title) }).click();
@@ -538,6 +538,48 @@ try {
   await until(() => !readFileSync(join(project, 'README.md'), 'utf8').includes('e2e satırı'), 'the undo of README.md');
   await shot(page, 'job-changes-undone');
   assert.equal(git('status', '--porcelain').toString().trim(), '');
+
+  // A race: a second agent on the same repository, the same task for both at once, each in a worktree of its
+  // own; the card shows them side by side with their places and changes, and one is kept.
+  await page.getByRole('button', { name: L.crew.addAgent, exact: true }).first().click();
+  const secondAgent = page.getByRole('dialog', { name: L.agentForm.new });
+  await secondAgent.getByLabel(L.agentForm.name, { exact: true }).fill('Kod');
+  await secondAgent.getByLabel(L.agentForm.handle, { exact: true }).fill('kod');
+  await secondAgent.getByRole('button', { name: L.agentForm.pick, exact: true }).click();
+  await secondAgent.getByText(project).waitFor();
+  await secondAgent.getByRole('button', { name: L.agentForm.save }).click();
+  await secondAgent.waitFor({ state: 'detached' });
+  await page.getByRole('button', { name: /^genel/ }).click();
+  await composer.fill('/yarış dosyaları düzenle');
+  await composer.press('Enter');
+  const raceDialog = page.getByRole('dialog', { name: L.race.new });
+  await raceDialog.getByText(project).waitFor();
+  await shot(page, 'race-dialog');
+  await raceDialog.getByRole('button', { name: L.race.start, exact: true }).click();
+  await raceDialog.waitFor({ state: 'detached' });
+  const raceCard = page.getByRole('region', { name: L.race.title, exact: true }).last();
+  await raceCard.getByText(L.race.state.ready, { exact: true }).waitFor({ timeout: 60_000 });
+  await raceCard.getByText('1.', { exact: true }).waitFor();
+  await raceCard.getByText('2.', { exact: true }).waitFor();
+  await until(
+    async () => (await raceCard.getByText(L.job.changes.files_other.replace('{{count}}', '2')).count()) >= 2,
+    'both contestants\u2019 changes',
+  );
+  // Nothing has reached the main folder yet.
+  assert.equal(existsSync(join(project, 'yeni.txt')), false);
+  await shot(page, 'race');
+  await raceCard.getByRole('button', { name: L.race.pick.replace('{{name}}', 'Kod') }).click();
+  await raceCard.getByText(L.race.state.picked, { exact: true }).first().waitFor({ timeout: 30_000 });
+  await raceCard.getByText(L.race.pickedNote.replace('{{name}}', 'Kod')).waitFor();
+  await shot(page, 'race-picked');
+  assert.equal(readFileSync(join(project, 'yeni.txt'), 'utf8').trim(), 'ajanın yazdığı dosya');
+  assert.deepEqual(git('diff', '--cached', '--name-only').toString().trim().split(/\r?\n/).sort(), [
+    'README.md',
+    'yeni.txt',
+  ]);
+  assert.equal(git('branch', '--list', 'rumpus/race-*').toString().trim().split(/\r?\n/).length, 2);
+  // The repository as it was, for what follows.
+  git('reset', '--hard', '-q');
 
   // A project on the same repository: its progress.md starts the status page, the git panel shows the clone, the
   // agent working in the folder reads and updates the page through Rumpus's tools, and a person edits it.

@@ -2,7 +2,7 @@
 
 Status: **Phase 4 under way** (0.9.0-alpha.0, 2026-11-11; since then connectors sign in with OAuth, 4.20, the
 name is Rumpus, 4.21, a job's changes are listed and can be undone, 4.22, and the live view, the board, the
-taskbar and sounds show what happens, 4.23). The product is called **Rumpus** since 2026-11-11 (it
+taskbar and sounds show what happens, 4.23, and one task can be raced by several agents, 4.24). The product is called **Rumpus** since 2026-11-11 (it
 was Lonca until 2026-11-10 and Serai for a day; the code name `lonca` stays in package names and environment
 variables, see section 2). Built on
 2026-11-10/11: specialists (5.15), routines (5.16), the Overview page and unread counts (5.17), invite links with
@@ -192,6 +192,7 @@ Discord-like, three columns plus a rail:
 | `/todo <text> [@who]` | A board card; assigned to an agent it becomes a job on one click |
 | `/goal <goal> [@agent]` | Goal mode: plan, approval, step by step with a report each step, until done, the budget ends, or someone stops it |
 | `/meclis [topic]` | Advisors discuss a topic in turn and end with a short summary |
+| `/yarış <task>` (`/race`) | The same task for several agents at once, each in its own worktree; one result is kept (5.18) |
 | `/kaydet` | Save the message, image or answer as an idea or a reference |
 | `/hatırla <fact>` | Add to personal or workspace memory |
 | `/özet [period]` | Summary of a channel |
@@ -395,6 +396,17 @@ agents' access rules treat it as theirs. "Run now" posts it at once.
 - **Unread**: each channel shows how many messages arrived since it was last open (kept on this computer) and
   whether one names the person (`@name`); members complete after `@`; a line marks where the new ones start.
 - A person's messages in quick succession read as one run.
+
+### 5.18 Races
+
+One task given to two to four of a person's own agents at once (`/yarış`, `/race`), each in a git worktree of
+its own on a branch of its own, made from the commit the first agent's folder is on, so they cannot be in each
+other's way and the main folder is not touched while they work. The card under the person's message shows them
+side by side: what each is doing now, the order they finished in, time, tokens and cost, what each changed (with
+every file's diff) and its answer. The person keeps one: its work is applied to the main folder as staged
+changes, nothing is committed, and the worktrees go; or keeps none. The branches stay in the repository. It is
+one request of one person to several agents, so it starts work as that person's message would (principle 3); an
+agent's mode is its owner's as always (an agent on Read only writes what it would do).
 
 ## 6. Architecture
 
@@ -917,6 +929,25 @@ The details behind 5.11 and 6.5, decided before building.
   installation: the `rumpus://` handler (registered only by an installed app without `LONCA_HOME`) and the move of
   the former name's data folder.
 
+- 4.24 Races (5.18), 2026-11-11, the third of the three. `Races` (`packages/core/src/races.ts`, kept in
+  `<workspace>/races.json` on the computer that started them; `races.start` / `stop` / `pick` / `close`,
+  `race.changed`): worktrees under `<data>/worktrees/race-<id>-<n>` on branches `rumpus/race-<id>-<handle>`;
+  each contestant is an ordinary job in a session of its own (its card data, its changes from 4.22, its live
+  view), told that it is one of several and must not commit; when a job ends its worktree is committed to its
+  branch under the agent's name (the person's hooks are not run for it) and it gets its place; when all have
+  ended the race is ready. Keeping one runs `git merge --squash` of its branch in the main folder: refused
+  beforehand when the main folder has staged changes, and undone (`reset --merge`) when it does not apply, so a
+  failed attempt leaves the folder as it was; then the worktrees are removed, never by force. Everything that
+  writes a race goes through one queue per race and reads it again after every wait (the first run in the real
+  app lost a job's id to an older copy: a quick contestant was being taken in while the next one started).
+  Advisors do not comment on a race's jobs. In the app: the dialog (task, the agents in the order chosen, the
+  repository), the card with a lane per contestant, Keep per lane, Keep none. Covered by `races.test.ts` (real
+  git, two stand-in agents: worktrees, places, commits, a pick that lands staged, staged changes and a colliding
+  file in the main folder, closing) and `e2e/channel.mjs` (a second agent, the dialog, both lanes with their
+  changes, keeping one, the files staged in the main folder). Not there: other members do not see the race card
+  (they see the jobs), a race across members' agents, running a check on each result, and a real CLI run. Along
+  the way: the mention chip in the routine form put the caret after the mention a frame late, so what was typed
+  at once landed in front of it; it is immediate now.
 - 4.23 Effects that show what happens (7), 2026-11-11, the second of the three: each one stands for a change of
   state, none decorates. **The live view grows out of its job's card** and goes back into it (`LiveView`: the
   panel is laid over the card with a transform and springs to its place, its contents come once it has its

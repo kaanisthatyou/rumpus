@@ -9,6 +9,7 @@ import { actionFor } from './keys';
 import { Launcher } from './launcher/Launcher';
 import { Palette, ShortcutsDialog } from './palette/Palette';
 import { ProjectDialog } from './projects/ProjectDialog';
+import { RaceDialog } from './races/RaceDialog';
 import { RoutineDialog } from './routines/RoutinesView';
 import { SettingsDialog } from './settings/SettingsDialog';
 import { InviteDialog } from './shell/InviteDialog';
@@ -34,6 +35,7 @@ export function App() {
   const routineDialog = useApp((s) => s.routineDialog);
   const advisorDialog = useApp((s) => s.advisorDialog);
   const goalDialog = useApp((s) => s.goalDialog);
+  const raceDialog = useApp((s) => s.raceDialog);
   const projectDialog = useApp((s) => s.projectDialog);
   const statusOpen = useApp((s) => s.statusOpen);
   const newWorkspaceOpen = useApp((s) => s.newWorkspaceOpen);
@@ -137,6 +139,7 @@ export function App() {
         <AnimatePresence>{routineDialog && <RoutineDialog key="routine-dialog" />}</AnimatePresence>
         <AnimatePresence>{advisorDialog && <AdvisorDialog key="advisor-dialog" />}</AnimatePresence>
         <AnimatePresence>{goalDialog && <GoalDialog key="goal-dialog" />}</AnimatePresence>
+        <AnimatePresence>{raceDialog && <RaceDialog key="race-dialog" />}</AnimatePresence>
         <AnimatePresence>
           {projectDialog && <ProjectDialog key={projectDialog === 'new' ? 'new' : projectDialog.id} />}
         </AnimatePresence>

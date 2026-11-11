@@ -28,7 +28,7 @@ function DiffLines({ patch }: { patch: string }) {
   );
 }
 
-function FileRow({ job, file, mine }: { job: Job; file: JobFileChange; mine: boolean }) {
+function FileRow({ job, file, mine, undo: canUndo }: { job: Job; file: JobFileChange; mine: boolean; undo: boolean }) {
   const { t } = useTranslation();
   const flash = useApp((s) => s.flash);
   const [diff, setDiff] = useState<Diff>();
@@ -90,7 +90,7 @@ function FileRow({ job, file, mine }: { job: Job; file: JobFileChange; mine: boo
             <span className="jobfile__add">+{file.added}</span> <span className="jobfile__del">−{file.removed}</span>
           </span>
         )}
-        {mine && !file.undone && (
+        {mine && canUndo && !file.undone && (
           <IconButton size="sm" icon="undo" label={`${t('job.changes.undo')} · ${file.path}`} onClick={undo} />
         )}
       </div>
@@ -112,7 +112,8 @@ function FileRow({ job, file, mine }: { job: Job; file: JobFileChange; mine: boo
   );
 }
 
-export function JobChanges({ job, mine }: { job: Job; mine: boolean }) {
+/** `undo` off: the diff only (a race's contestant, whose folder is a worktree that goes away). */
+export function JobChanges({ job, mine, undo = true }: { job: Job; mine: boolean; undo?: boolean }) {
   const { t } = useTranslation();
   const flash = useApp((s) => s.flash);
   const [open, setOpen] = useState(false);
@@ -153,6 +154,7 @@ export function JobChanges({ job, mine }: { job: Job; mine: boolean }) {
         </button>
         <span className="grow" />
         {mine &&
+          undo &&
           left > 0 &&
           (confirming ? (
             <>
@@ -180,7 +182,7 @@ export function JobChanges({ job, mine }: { job: Job; mine: boolean }) {
             transition={{ duration: 0.16 }}
           >
             {changes.files.map((f) => (
-              <FileRow key={f.path} job={job} file={f} mine={mine} />
+              <FileRow key={f.path} job={job} file={f} mine={mine} undo={undo} />
             ))}
             {changes.more ? (
               <li className="jobfile jobfile--more">{t('job.changes.more', { count: changes.more })}</li>

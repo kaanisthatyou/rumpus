@@ -1,0 +1,218 @@
+/* A race: the contestants side by side under the message that started it. */
+
+.race {
+  margin-top: 8px;
+  max-width: 980px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line-2);
+  background: var(--card);
+  overflow: hidden;
+}
+.race--running {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--line-2));
+}
+.race__head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 10px 8px 12px;
+}
+.race__head b {
+  font-weight: 600;
+}
+.race__state {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--meta);
+}
+.race__state--running {
+  color: var(--accent-ink);
+}
+.race__state--picked {
+  color: var(--ok);
+}
+.race__lanes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border-top: 1px solid var(--line);
+}
+.race__note {
+  margin: 0;
+  padding: 8px 12px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--mute);
+}
+
+.lane {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 0 8px;
+  background: var(--card);
+  font-size: 12.5px;
+}
+.lane > :not(.l-track, .lane__rule, .job__changes) {
+  margin-inline: 12px;
+}
+.lane__rule {
+  height: 2px;
+}
+.lane.is-winner {
+  background: color-mix(in srgb, var(--accent) 5%, var(--card));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.lane__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 6px;
+}
+.lane__head b {
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lane__place {
+  flex: none;
+  min-width: 20px;
+  padding: 0 5px;
+  border-radius: 5px;
+  border: 1px solid var(--line-2);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+  color: var(--mute);
+}
+.lane__place.is-first {
+  color: var(--accent-ink);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.lane__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.lane__state {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-block: 0;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--meta);
+}
+.lane__state--running,
+.lane__state--attention {
+  color: var(--accent-ink);
+}
+.lane__state--done {
+  color: var(--ok);
+}
+.lane__state--failed {
+  color: var(--bad);
+}
+.lane__step {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  margin-block: 0;
+  color: var(--ink-2);
+}
+.lane__step span {
+  white-space: nowrap;
+}
+.lane__step code {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--card-2);
+  border: 1px solid var(--line);
+  color: var(--mute);
+}
+.lane__numbers,
+.lane__changes {
+  margin-block: 0;
+  font-size: 11px;
+  color: var(--meta);
+}
+.lane__answer {
+  max-height: 132px;
+  overflow: auto;
+  padding: 6px 9px;
+  border-radius: var(--r-sm, 6px);
+  border: 1px solid var(--line);
+  background: var(--card-2);
+  color: var(--ink-2);
+}
+.lane__answer > :first-child {
+  margin-top: 0;
+}
+.lane__answer > :last-child {
+  margin-bottom: 0;
+}
+.lane .job__changes {
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.lane__foot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 2px;
+}
+
+.raceform__agents {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.raceform__agent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: var(--r);
+  border: 1px solid var(--line);
+  background: var(--card);
+  cursor: pointer;
+}
+.raceform__agent:has(input:checked) {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line-2));
+}
+.raceform__agent span:first-of-type {
+  flex: 1;
+  min-width: 0;
+}
+.raceform__repo {
+  display: block;
+  padding: 6px 9px;
+  border-radius: var(--r-sm, 6px);
+  border: 1px solid var(--line);
+  background: var(--card-2);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}

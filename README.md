@@ -18,7 +18,8 @@ status are in [PLAN.md](PLAN.md).
   owner sets; approvals wait on a person. In a git repository the card lists what the job changed, shows each
   file's diff and takes a file or the whole job back.
 - **Board and goals.** `/todo` makes a card that runs as a job; `/goal` lets an agent plan, get approval, and work step
-  by step until a done check passes, optionally in its own git worktree.
+  by step until a done check passes, optionally in its own git worktree. `/yarış` (`/race`) gives one task to
+  several agents at once, each in its own worktree, and shows the results side by side; one is kept.
 - **Projects.** A git repository each member points at their own clone of: branch, changes, pull and push, a status
   page (where it stands, milestones, next) that agents keep current, and areas (who mostly works on what).
 - **Hand-over.** An agent working on a person's request can hand self-contained parts to other agents and collect

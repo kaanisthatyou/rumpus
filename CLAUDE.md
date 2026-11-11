@@ -50,7 +50,7 @@ purpose; never change roblox-factory for it.
 
 1. `pnpm check` (Biome, TypeScript, Vitest, copy rules).
 2. `pnpm e2e`: the real app with a temporary `LONCA_HOME`: `e2e/smoke.mjs` (launcher, shell, settings, restart)
-   and `e2e/channel.mjs` (agents, jobs, live view, steer and stop, board, palette, projects, restart) against
+   and `e2e/channel.mjs` (agents, jobs, live view, steer and stop, board, palette, projects, a job's changes and undo, a race, restart) against
    `e2e/fake-claude.mjs`, a stand-in for Claude Code that costs no quota; `e2e/specialists.mjs` (a specialist from a template, its lesson and RESULT, the overview, unread marks, a
    routine); `e2e/advisors.mjs` (providers, advisors)
    against `e2e/fake-provider.mjs`, a stand-in OpenAI-compatible server; `e2e/team.mjs` (two apps, invite, join,
@@ -73,6 +73,9 @@ purpose; never change roblox-factory for it.
   edit never run `biome check --write` on the file: its fixes rewrite what the parser misread.
 - A command line that ends in `| tail` or `| grep` hides a failing `pnpm check`; send the output to a file and
   chain the commit with `&&`.
+
+- What several async steps write (a race, a job's changes) is read again after every `await` and written
+  through one queue: a copy taken before a wait overwrote a newer one once (a race lost a job's id).
 
 - A Zustand selector must return a stable value: no `.filter`, `.map`, `?? []` or object literals inside
   `useApp((s) => …)`. A new array on every call makes React re-render forever and the window stays blank (it

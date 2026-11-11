@@ -5,6 +5,7 @@ import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 
 import { useTranslation } from 'react-i18next';
 import { specialistIcon } from '../agents/SpecialistDialog';
 import { GoalCard } from '../goals/GoalCard';
+import { RaceCard } from '../races/RaceCard';
 import { fillCommand, RefImage, readImage } from '../records/RecordsView';
 import { core } from '../rpc';
 import { useApp } from '../store';
@@ -115,6 +116,7 @@ function MessageRow({
   const agent = a.kind === 'agent' ? agents.find((x) => x.id === a.id) : undefined;
   const advisor = useApp((s) => (a.kind === 'advisor' ? s.workspace?.advisors.find((x) => x.id === a.id) : undefined));
   const goal = useApp((s) => (a.kind === 'person' ? s.goals.find((g) => g.requestId === message.id) : undefined));
+  const race = useApp((s) => (a.kind === 'person' ? s.races.find((r) => r.requestId === message.id) : undefined));
 
   return (
     <motion.article
@@ -220,9 +222,12 @@ function MessageRow({
           </div>
         ) : null}
         {goal && <GoalCard goal={goal} agent={agents.find((x) => x.id === goal.agentId)} />}
+        {race && <RaceCard race={race} />}
         {jobs
           // A goal's finished jobs are reached from its steps; the running one stays, for steering and approvals.
           .filter((job) => !goal || job.state === 'running' || job.state === 'attention')
+          // A race shows its jobs side by side; one that waits for approval still gets its card, for the answer.
+          .filter((job) => !race || job.state === 'attention')
           .map((job) => (
             <JobCard key={job.id} job={job} agent={agents.find((x) => x.id === job.agentId)} />
           ))}
@@ -232,6 +237,8 @@ function MessageRow({
 }
 
 const NO_PEOPLE: Record<string, { name: string; at: number }> = {};
+/** The race command as it is offered; `/race` is taken too. */
+const RACE_COMMAND = '/yarış';
 
 function Typing({ channelId }: { channelId: string }) {
   const { t } = useTranslation();
@@ -279,7 +286,7 @@ interface Suggestion {
   insert: string;
   label: string;
   detail: string;
-  icon: 'terminal' | 'chevronRight' | 'chat' | 'target' | 'users';
+  icon: 'terminal' | 'chevronRight' | 'chat' | 'target' | 'users' | 'bolt';
 }
 
 function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
@@ -316,6 +323,7 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
   const commands: Suggestion[] = [
     { key: 'todo', insert: '/todo ', label: '/todo', detail: t('commands.todo'), icon: 'chevronRight' },
     { key: 'goal', insert: '/goal ', label: '/goal', detail: t('commands.goal'), icon: 'target' as const },
+    { key: 'race', insert: `${RACE_COMMAND} `, label: RACE_COMMAND, detail: t('commands.race'), icon: 'bolt' as const },
     {
       key: 'remember',
       insert: '/hatırla ',
@@ -458,6 +466,13 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
         text: named ? body.replace(/(^|\s)@[a-z0-9][a-z0-9-]*/, ' ').trim() : body,
         ...(named ? { agentId: named.id } : own ? { agentId: own.id } : {}),
       });
+      setText('');
+      return;
+    }
+    // `/yarış` (`/race`): the same task for several agents at once, each in a worktree of its own.
+    const raceText = /^\/(?:yarış|yaris|race)(?:\s+([\s\S]*))?$/i.exec(value);
+    if (raceText) {
+      useApp.getState().openRaceDialog({ channelId: channel.id, text: raceText[1]?.trim() ?? '' });
       setText('');
       return;
     }
@@ -688,7 +703,11 @@ export function ChannelView({ channel }: { channel: Channel }) {
   // How many of the latest messages arrived while the channel was closed (as it was when it was opened).
   const fresh = useApp((s) => s.fresh[channel.id]);
   const goals = useApp((s) => s.goals);
-  const goalRequests = useMemo(() => new Set(goals.map((g) => g.requestId)), [goals]);
+  const races = useApp((s) => s.races);
+  const goalRequests = useMemo(
+    () => new Set([...goals.map((g) => g.requestId), ...races.map((r) => r.requestId)]),
+    [goals, races],
+  );
   // The line sits above the first of them and stays there while newer messages arrive.
   const firstNewAt = useMemo(() => {
     if (!fresh?.count) return -1;

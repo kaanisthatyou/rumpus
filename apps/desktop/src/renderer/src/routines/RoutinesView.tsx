@@ -4,6 +4,7 @@ import type { RoutineView } from '@lonca/protocol';
 import { Button, Chip, Icon, IconButton, Switch } from '@lonca/ui';
 import { AnimatePresence, motion } from 'motion/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { ErrorLine } from '../parts';
 import { useApp } from '../store';
@@ -116,14 +117,13 @@ export function RoutineDialog() {
                     className="tile"
                     title={a.specialty?.role ?? a.name}
                     onClick={() => {
-                      setText((v) => (v.includes(`@${a.handle}`) ? v : `@${a.handle} ${v}`));
-                      // Writing goes on after the mention.
-                      requestAnimationFrame(() => {
-                        const el = box.current;
-                        if (!el) return;
-                        el.focus();
-                        el.setSelectionRange(el.value.length, el.value.length);
-                      });
+                      // The mention is in the box before the caret is put after it: what is typed right away
+                      // lands behind it (a frame later it used to land in front).
+                      flushSync(() => setText((v) => (v.includes(`@${a.handle}`) ? v : `@${a.handle} ${v}`)));
+                      const el = box.current;
+                      if (!el) return;
+                      el.focus();
+                      el.setSelectionRange(el.value.length, el.value.length);
                     }}
                   >
                     @{a.handle}

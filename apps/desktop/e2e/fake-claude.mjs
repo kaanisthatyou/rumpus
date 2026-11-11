@@ -148,7 +148,7 @@ async function run() {
         apply();
         out({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: id, content: 'ok' }] } });
       }
-      const answer = 'Dosyalar düzenlendi.';
+      const answer = 'İki dosyada çalışıldı.';
       out({ type: 'assistant', message: { content: [{ type: 'text', text: answer }] } });
       out({
         type: 'result',
