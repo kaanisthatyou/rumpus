@@ -10,5 +10,7 @@ coverage/
 .serai/
 tmp/
 test-results/
+# Written by scripts/notices.mjs for every build.
+apps/desktop/build/THIRD-PARTY-NOTICES.txt
 __pycache__/
 *.pyc

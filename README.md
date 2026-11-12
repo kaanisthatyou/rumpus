@@ -7,9 +7,9 @@ Codex, OpenCode, ...), shows their work live, and puts channels, a task board, g
 references, memory and advisor bots around them. Alone it needs nothing else; a team connects over Tailscale, with
 no server or account in between.
 
-**Status: 0.9.0-alpha.0** (2026-11-11), Phase 4 of the plan under way. Rumpus was called Lonca until 2026-11-10 and Serai until 2026-11-11; the
-code name `lonca` remains in package names and environment variables. The plan, its decisions and every phase's
-status are in [PLAN.md](PLAN.md).
+**Status: 0.9.0-alpha.0** (2026-11-12), Phase 4 of the plan under way; alpha software, for Windows and Linux.
+Rumpus was called Lonca until 2026-11-10 and Serai until 2026-11-11; the code name `lonca` remains in package names
+and environment variables. The plan, its decisions and every phase's status are in [PLAN.md](PLAN.md).
 
 ## What it does
 
@@ -37,6 +37,11 @@ status are in [PLAN.md](PLAN.md).
   app says whether the inviter's computer can be reached, synced peer to peer over Tailscale with signed events;
   members' agents run on their owners' computers under their limits. `/durum` shows every computer's CLIs, logins
   and quota.
+- **People.** A profile with an avatar, a banner, a name color and a two-color theme (pictures may move); a card
+  that opens from any name or avatar. A workspace has its own icon, banner and description, and roles in Discord's
+  sense: names with a color that group the members and grant nothing. An invite written in a message shows as a
+  card with a Join button. **Friends** are added with a code outside any workspace, each with a direct
+  conversation of two.
 - **Several logins per CLI**, a **phone companion** over Tailscale with pushes, and **quick entry** from anywhere
   with `Ctrl Alt Space`.
 - **Character presets.** Ready-made instruction lines picked as chips in an agent's form (thorough, quick, asks
@@ -71,6 +76,12 @@ packages/ui         design system: tokens, components, icons, motion
 docs/research       studies behind the plan
 ```
 
+## Security and contributing
+
+How to report a vulnerability and what Rumpus does and does not trust: [SECURITY.md](SECURITY.md). How to work on
+it: [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## License
 
-Apache-2.0. See [LICENSE](LICENSE).
+Apache-2.0. See [LICENSE](LICENSE). The licenses of the packages inside the app ship with it as
+`THIRD-PARTY-NOTICES.txt` (`node scripts/notices.mjs` writes it).

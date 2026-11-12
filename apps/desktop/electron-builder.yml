@@ -8,6 +8,10 @@ files:
   - out/**/*
   - package.json
 asar: true
+# The licenses of the packages whose code and fonts are inside the app (scripts/notices.mjs writes the file).
+extraResources:
+  - from: build/THIRD-PARTY-NOTICES.txt
+    to: THIRD-PARTY-NOTICES.txt
 # The workspace package is "@lonca/desktop"; inside the app it is plain "rumpus", which names the install folder
 # (%LOCALAPPDATA%\Programs\rumpus) and the updater cache.
 extraMetadata:
