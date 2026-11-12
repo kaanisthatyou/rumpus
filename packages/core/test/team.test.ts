@@ -17,7 +17,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import type { AgentSession, DriverEvent, OpenSession } from '../src/drivers/types.js';
 import { eventPayload, LocalSigner, type SignedEvent } from '../src/identity.js';
 import { Membership } from '../src/membership.js';
-import { peerAddressAllowed } from '../src/peer.js';
+import { PeerAddressError, PeerClient, peerAddressAllowed, peerTarget } from '../src/peer.js';
 import { Core } from '../src/server.js';
 import { WorkspaceStore } from '../src/store.js';
 
@@ -500,5 +500,51 @@ describe('membership checks', () => {
     expect(peerAddressAllowed('192.168.1.5')).toBe(false);
     expect(peerAddressAllowed('100.128.0.1')).toBe(false);
     expect(peerAddressAllowed(undefined)).toBe(false);
+  });
+
+  it('calls out only to an IP and a port on Tailscale, whatever an invite or a member names', async () => {
+    expect(peerTarget('100.76.1.2:47640')).toEqual({ host: '100.76.1.2', port: 47640 });
+    expect(peerTarget('[fd7a:115c:a1e0::1]:47640')).toEqual({ host: 'fd7a:115c:a1e0::1', port: 47640 });
+    // A home network, the internet, a name to resolve, a path or credentials smuggled in, a bad port.
+    for (const bad of [
+      '192.168.1.1:80',
+      '10.0.0.5:8080',
+      '169.254.169.254:80',
+      '8.8.8.8:53',
+      'evil.example:80',
+      'localhost:47640',
+      '100.76.1.2:47640/admin?x=',
+      'user:pw@100.76.1.2:47640',
+      '100.76.1.2',
+      '100.76.1.2:0',
+      '100.76.1.2:70000',
+      '[::ffff:192.168.1.1]:80',
+      '',
+      undefined,
+    ]) {
+      expect(peerTarget(bad), String(bad)).toBeUndefined();
+    }
+    // Loopback is another app only when this one listens there itself (tests on one computer).
+    expect(peerTarget('127.0.0.1:47640')).toBeUndefined();
+    expect(peerTarget('127.0.0.1:47640', true)).toEqual({ host: '127.0.0.1', port: 47640 });
+
+    // The client refuses before it connects: the request never leaves.
+    const real = globalThis.fetch;
+    let fetched = 0;
+    globalThis.fetch = (async () => {
+      fetched += 1;
+      return new Response('{}');
+    }) as typeof fetch;
+    try {
+      const client = new PeerClient('device-0001', new LocalSigner());
+      for (const bad of ['192.168.1.1:80', 'evil.example:80', '127.0.0.1:47640', '100.76.1.2:47640/x']) {
+        await expect(client.call(bad, '/v1/sync', 'w', {})).rejects.toBeInstanceOf(PeerAddressError);
+      }
+      expect(fetched).toBe(0);
+      await client.call('100.76.1.2:47640', '/v1/sync', 'w', {});
+      expect(fetched).toBe(1);
+    } finally {
+      globalThis.fetch = real;
+    }
   });
 });

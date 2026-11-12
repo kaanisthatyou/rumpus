@@ -18,6 +18,31 @@ export function peerAddressAllowed(raw: string | undefined): boolean {
   return a.startsWith('fd7a:115c:a1e0:');
 }
 
+/**
+ * An address this app may call another person's app at: an IP and a port, nothing else (no name to resolve, no
+ * path), the IP in Tailscale's ranges. Loopback only when this app itself listens there (tests on one computer).
+ * Addresses arrive in invites, friend codes and members' own events; without this, whoever writes one chooses
+ * where every reader's app sends its requests (a host on their home network, a path of the writer's choice).
+ */
+export function peerTarget(address: unknown, loopback = false): { host: string; port: number } | undefined {
+  if (typeof address !== 'string') return undefined;
+  const m = /^(?:(\d{1,3}(?:\.\d{1,3}){3})|\[([0-9a-f:]{2,39})\]):(\d{1,5})$/i.exec(address);
+  if (!m) return undefined;
+  const host = (m[1] ?? m[2] ?? '').toLowerCase();
+  const port = Number(m[3]);
+  if (port < 1 || port > 65535) return undefined;
+  const local = host === '127.0.0.1' || host === '::1';
+  if (local ? !loopback : !peerAddressAllowed(host)) return undefined;
+  return { host, port };
+}
+
+/** An address that is not another app's on Tailscale: refused before any connection is made. */
+export class PeerAddressError extends Error {
+  constructor() {
+    super('address');
+  }
+}
+
 const hash = (body: string) => createHash('sha256').update(body).digest('hex');
 
 export function requestPayload(
@@ -125,9 +150,12 @@ export class PeerClient {
     private readonly deviceId: string,
     private readonly signer: Signer,
     private readonly timeoutMs = 15_000,
+    /** This app listens on loopback itself (tests): other apps may be called there too. */
+    private readonly loopback = false,
   ) {}
 
   async call(address: string, path: string, ws: string, body: unknown): Promise<unknown> {
+    if (!peerTarget(address, this.loopback)) throw new PeerAddressError();
     const raw = JSON.stringify(body ?? {});
     const time = String(Date.now());
     const sig = await this.signer.sign(requestPayload('POST', path, ws, this.deviceId, time, raw));

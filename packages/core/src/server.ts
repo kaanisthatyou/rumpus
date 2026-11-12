@@ -82,7 +82,7 @@ import {
   PersonalMemory,
   scanSuggestion,
 } from './memory.js';
-import { PEER_PORT, PeerClient, PeerError, type PeerRequest, PeerServer } from './peer.js';
+import { PEER_PORT, PeerClient, PeerError, type PeerRequest, PeerServer, peerTarget } from './peer.js';
 import { PHONE_PORT, PhoneServer } from './phone.js';
 import { killTree, type Launch, openConsole, type Runner, run } from './proc.js';
 import { EMPTY_STATUS, ProjectGit, progressMarkdown, projectOf, projectPrompt, readProgressFile } from './projects.js';
@@ -1297,7 +1297,7 @@ export class Core {
           store,
           membership,
           signer,
-          peers: new PeerClient(this.deviceId, signer),
+          peers: this.peerClient(signer),
           onIngested: (events) => inWs(() => this.afterIngest(ref.ws, events)),
           onReach: (device, ok) => {
             if (this.reach.get(device) !== ok) {
@@ -1447,6 +1447,20 @@ export class Core {
     if (!ws.membership?.can(this.deviceId, needed)) throw new CoreError('not_allowed');
   }
 
+  /** This app listens on loopback (tests with two apps on one computer): then other apps may be there too. */
+  private loopbackPeers(): boolean {
+    const host = this.opts.peer?.host;
+    return host === '127.0.0.1' || host === '::1';
+  }
+
+  /**
+   * The one way out to other people's apps. It calls only an IP and a port in Tailscale's ranges, whatever an
+   * invite, a friend code or a member's own event names as an address.
+   */
+  private peerClient(signer: Signer, timeoutMs?: number): PeerClient {
+    return new PeerClient(this.deviceId, signer, timeoutMs, this.loopbackPeers());
+  }
+
   /** Starts the peer API once there is a team workspace, and keeps this device's address current in each. */
   private ensurePeer(): Promise<void> {
     this.peerStarting ??= (async () => {
@@ -1588,6 +1602,8 @@ export class Core {
     const at = address.lastIndexOf(':');
     const host = address.slice(0, at).replace(/^\[|\]$/g, '');
     const port = Number(address.slice(at + 1));
+    // An invite that names anything but another app on Tailscale is no invite: nothing is sent anywhere.
+    if (!peerTarget(address, this.loopbackPeers())) throw new CoreError('bad_code');
     const tailscale = await tailscaleStatus({
       ...(this.opts.runner ? { runner: this.opts.runner } : {}),
       ...(this.opts.env ? { env: this.opts.env } : {}),
@@ -1623,6 +1639,7 @@ export class Core {
     if (!/^[\w-]{1,40}$/.test(wsId) || !/^[\w.:[\]-]{3,80}$/.test(address) || typeof invite.t !== 'string') {
       throw new CoreError('bad_code');
     }
+    if (!peerTarget(address, this.loopbackPeers())) throw new CoreError('bad_code');
     if (this.teams().some((t) => t.id === wsId && !t.denied)) throw new CoreError('already_member');
     const signer = this.opts.signer;
     const publicKey = signer?.publicKey();
@@ -1631,7 +1648,7 @@ export class Core {
     const proof = await signer.sign(canonical(fields));
     let answer: { request?: string };
     try {
-      answer = (await new PeerClient(this.deviceId, signer).call(address, '/v1/join', wsId, { ...fields, proof })) as {
+      answer = (await this.peerClient(signer).call(address, '/v1/join', wsId, { ...fields, proof })) as {
         request?: string;
       };
     } catch (e) {
@@ -1659,16 +1676,11 @@ export class Core {
       if (!entry?.joining || !signer) return;
       let state = 'pending';
       try {
-        const answer = (await new PeerClient(this.deviceId, signer).call(
-          entry.joining.address,
-          '/v1/join/status',
-          wsId,
-          {
-            ws: wsId,
-            request: entry.joining.request,
-            device: this.deviceId,
-          },
-        )) as { state?: string };
+        const answer = (await this.peerClient(signer).call(entry.joining.address, '/v1/join/status', wsId, {
+          ws: wsId,
+          request: entry.joining.request,
+          device: this.deviceId,
+        })) as { state?: string };
         state = String(answer.state ?? 'pending');
       } catch {
         // the inviter is offline: ask again later
@@ -1749,7 +1761,7 @@ export class Core {
   private live(ws: Workspace, body: Record<string, unknown>): void {
     const signer = this.opts.signer;
     if (!signer || !ws.membership?.can(this.deviceId, 'viewer')) return;
-    const client = new PeerClient(this.deviceId, signer, 5000);
+    const client = this.peerClient(signer, 5000);
     const endpoints = ws.store.endpoints();
     for (const m of ws.store.members()) {
       if (m.device === this.deviceId || m.removed || this.reach.get(m.device) !== true) continue;
