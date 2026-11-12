@@ -1,5 +1,6 @@
 import { existsSync, renameSync, rmdirSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { BRAND } from '@lonca/protocol';
 import {
   app,
@@ -53,7 +54,11 @@ app.setAppUserModelId(BRAND.appId);
 
 const here = import.meta.dirname;
 const appDir = app.getPath('userData');
-const devUrl = process.env.ELECTRON_RENDERER_URL;
+// The development server's address counts only in a development run: an installed app loads its own files,
+// whatever the environment says.
+const devUrl = app.isPackaged ? undefined : process.env.ELECTRON_RENDERER_URL;
+/** The one page the app loads (the quick-entry window is the same file with a hash). */
+const pageUrl = pathToFileURL(join(here, '../renderer/index.html')).href;
 
 let win: BrowserWindow | undefined;
 /** The quick-entry window (Ctrl Alt Space), made the first time it is asked for. */
@@ -177,9 +182,12 @@ function connect(target: BrowserWindow): void {
   target.webContents.postMessage('lonca:port', null, [port2]);
 }
 
+/** The bridge answers the app's own page in its top frame, not any file that happens to be open in a window. */
 function isOwnPage(event: IpcMainInvokeEvent): boolean {
-  const url = event.senderFrame?.url ?? '';
-  return devUrl ? url.startsWith(devUrl) : url.startsWith('file://');
+  const frame = event.senderFrame;
+  if (!frame || frame.parent) return false;
+  const url = frame.url.split(/[?#]/)[0] ?? '';
+  return devUrl ? frame.url.startsWith(devUrl) : url === pageUrl;
 }
 
 function handle<T>(channel: string, fn: (event: IpcMainInvokeEvent, ...args: unknown[]) => T): void {

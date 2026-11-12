@@ -19,13 +19,12 @@ export class Updater {
     if (!app.isPackaged) autoUpdater.forceDevUpdateConfig = true;
     // Test hook: a local feed only (e2e/update.mjs). Release builds otherwise read GitHub from app-update.yml.
     const testFeed = process.env.LONCA_UPDATE_URL;
-    if (testFeed && /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//.test(testFeed)) {
-      autoUpdater.setFeedURL({ provider: 'generic', url: testFeed });
-      // A test must never install what it downloaded when the app closes.
-      autoUpdater.autoInstallOnAppQuit = false;
-    }
+    const testing = Boolean(testFeed && /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//.test(testFeed));
+    if (testing && testFeed) autoUpdater.setFeedURL({ provider: 'generic', url: testFeed });
     autoUpdater.autoDownload = true;
-    autoUpdater.autoInstallOnAppQuit = true;
+    // A test must never install what it downloaded when the app closes. (This line used to stand before an
+    // unconditional `true`, which undid it.)
+    autoUpdater.autoInstallOnAppQuit = !testing;
     autoUpdater.allowPrerelease = app.getVersion().includes('-');
     autoUpdater.on('checking-for-update', () => this.set({ status: 'checking' }));
     autoUpdater.on('update-available', (info) => this.set({ status: 'available', version: info.version }));
