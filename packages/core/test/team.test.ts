@@ -554,4 +554,26 @@ describe('membership checks', () => {
       globalThis.fetch = real;
     }
   });
+
+  it('an invite, a friend code or a member’s address that points elsewhere is refused or dropped', async () => {
+    const kaan = app('Kaan');
+    const invite = (address: string) =>
+      `RUMPUS1.${Buffer.from(JSON.stringify({ w: 'ws-1', n: 'Ekip', a: [address], t: 'x'.repeat(22) })).toString('base64url')}`;
+    for (const address of ['192.168.1.1:80', 'evil.example:80', '100.76.1.2:47640/x']) {
+      await expect(kaan.call('invites.check', { code: invite(address) })).rejects.toThrow('bad_code');
+      await expect(kaan.call('invites.join', { code: invite(address) })).rejects.toThrow('bad_code');
+    }
+    const friend = (address: string) =>
+      `RUMPUSF1.${Buffer.from(JSON.stringify({ d: 'device-0002', k: 'k'.repeat(60), n: 'Arda', a: [address] })).toString('base64url')}`;
+    await expect(kaan.call('friends.add', { code: friend('evil.example:80') })).rejects.toThrow('bad_friend_code');
+    await expect(kaan.call('friends.add', { code: friend('192.168.1.1:80') })).rejects.toThrow('bad_friend_code');
+
+    // A member's own word about where their app listens is kept only in the shape of an IP and a port.
+    const store = new WorkspaceStore(join(tmp('lonca-endpoint-'), 'lonca.db'), 'X');
+    store.commit({
+      type: 'device.endpoint',
+      data: { device: 'X', addresses: ['100.76.1.2:47640', 'evil.example:80/x?', '192.168.1.1:80', 7 as never] },
+    });
+    expect(store.endpoints().X).toEqual(['100.76.1.2:47640', '192.168.1.1:80']);
+  });
 });

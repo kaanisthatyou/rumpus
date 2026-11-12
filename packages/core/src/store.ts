@@ -152,6 +152,9 @@ export type WorkspaceEvent =
 
 const json = <T>(text: unknown): T => JSON.parse(String(text)) as T;
 
+/** An address a member's app listens on: an IPv4 or bracketed IPv6 address and a port. */
+const ENDPOINT = /^(?:\d{1,3}(?:\.\d{1,3}){3}|\[[0-9a-f:]{2,39}\]):\d{1,5}$/i;
+
 /** The tables an entity kind lives in (`<kind>:<id>`, from the event type's first word and the data's id). */
 const TABLES: Record<string, string> = {
   channel: 'channels',
@@ -543,9 +546,16 @@ export class WorkspaceStore {
           .run(e.data.id, JSON.stringify(e.data));
         return;
       case 'device.endpoint':
-        this.db
-          .prepare('INSERT OR REPLACE INTO endpoints (id, data) VALUES (?, ?)')
-          .run(e.data.device, JSON.stringify({ addresses: e.data.addresses.slice(0, 8) }));
+        this.db.prepare('INSERT OR REPLACE INTO endpoints (id, data) VALUES (?, ?)').run(
+          e.data.device,
+          // A member's own word about where their app listens: kept only in the shape of an IP and a port.
+          // Which IPs are called at all is decided where the call is made (`peerTarget`).
+          JSON.stringify({
+            addresses: (Array.isArray(e.data.addresses) ? e.data.addresses : [])
+              .filter((a): a is string => typeof a === 'string' && ENDPOINT.test(a))
+              .slice(0, 8),
+          }),
+        );
         return;
       case 'goal.saved':
         this.db
