@@ -78,7 +78,11 @@ try {
   await composer.press('Enter');
 
   // A reviewer from the template, on Haiku.
-  await page.getByRole('button', { name: L.specialists.new, exact: true }).click();
+  // The crew panel's own button (the overview's setup steps offer the same thing).
+  await page
+    .getByRole('complementary', { name: L.shell.crew })
+    .getByRole('button', { name: L.specialists.new, exact: true })
+    .click();
   const dialog = page.getByRole('dialog', { name: L.specialists.new });
   await dialog.getByText(L.specialists.templates.reviewer.name, { exact: true }).click();
   await dialog.getByRole('button', { name: L.agentForm.pick, exact: true }).click();

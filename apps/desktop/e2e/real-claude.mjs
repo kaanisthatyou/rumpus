@@ -92,7 +92,8 @@ try {
   await page.keyboard.press('Control+Comma');
   const prefs = page.getByRole('dialog', { name: L.settings.title });
   await prefs.getByRole('button', { name: L.settings.tabs.connectors }).click();
-  await prefs.getByRole('button', { name: L.connectors.add }).click();
+  // The form for a connector entered by hand (the other button opens the catalog).
+  await prefs.getByRole('button', { name: L.connectors.manual }).click();
   await prefs.getByLabel(L.connectors.name, { exact: true }).fill('Notlar');
   await prefs.getByText(L.connectors.kinds.local, { exact: true }).click();
   await prefs.getByLabel(L.connectors.command, { exact: true }).fill(process.execPath);
