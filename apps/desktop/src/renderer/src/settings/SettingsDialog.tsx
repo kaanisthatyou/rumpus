@@ -19,12 +19,14 @@ import { useApp } from '../store';
 import { ConnectorsPanel } from './ConnectorsPanel';
 import { InstructionsPanel } from './InstructionsPanel';
 import { PhonePanel } from './PhonePanel';
+import { ProfilePanel } from './ProfilePanel';
 import { ProvidersPanel } from './ProvidersPanel';
 import { ShortcutsPanel } from './ShortcutsPanel';
 
 const TABS: {
   id:
     | 'general'
+    | 'profile'
     | 'appearance'
     | 'agents'
     | 'providers'
@@ -38,6 +40,7 @@ const TABS: {
   icon: IconName;
 }[] = [
   { id: 'general', icon: 'settings' },
+  { id: 'profile', icon: 'user' },
   { id: 'appearance', icon: 'sun' },
   { id: 'agents', icon: 'terminal' },
   { id: 'providers', icon: 'key' },
@@ -58,26 +61,11 @@ function General() {
   const { t } = useTranslation();
   const settings = useApp((s) => s.settings);
   const patch = useApp((s) => s.patch);
-  const [name, setName] = useState(settings?.profile.name ?? '');
-  const save = () => {
-    const clean = name.trim();
-    if (clean && clean !== settings?.profile.name) void patch({ profile: { name: clean } });
-  };
   return (
     <div className="stack">
       <section className="set">
         <h4>{t('settings.language')}</h4>
         <LanguagePicker />
-      </section>
-      <section className="set">
-        <TextField
-          label={t('settings.name')}
-          value={name}
-          maxLength={40}
-          onChange={(e) => setName(e.target.value)}
-          onBlur={save}
-          onKeyDown={(e: { key: string }) => e.key === 'Enter' && save()}
-        />
       </section>
       <section className="set">
         <h4>{t('settings.dataFolder')}</h4>
@@ -346,9 +334,14 @@ function About() {
   );
 }
 
-export function SettingsDialog({ onClose }: { onClose: () => void }) {
+export function SettingsDialog({ onClose, initialTab }: { onClose: () => void; initialTab?: string }) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>('general');
+  // Asked for from outside ("Edit profile"), also while the dialog is already open.
+  useEffect(() => {
+    const wanted = TABS.find((x) => x.id === initialTab);
+    if (wanted) setTab(wanted.id);
+  }, [initialTab]);
   const closeRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     closeRef.current?.focus();
@@ -401,6 +394,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             animate={{ opacity: 1, x: 0 }}
           >
             {tab === 'general' && <General />}
+            {tab === 'profile' && <ProfilePanel />}
             {tab === 'appearance' && <Appearance />}
             {tab === 'agents' && <AgentList />}
             {tab === 'providers' && <ProvidersPanel />}

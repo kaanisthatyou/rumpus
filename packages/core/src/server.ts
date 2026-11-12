@@ -24,14 +24,18 @@ import {
   CoreError,
   type CoreEvents,
   type CoreMethods,
+  cleanProfile,
   cleanTraits,
   commandName,
   DEFAULT_ACCESS,
   type DeviceStatus,
   type EventName,
   type Frame,
+  type FriendsState,
   handleOf,
   IDEA_STATUSES,
+  type ImageRef,
+  ImageRefSchema,
   type InviteCheck,
   inviteCode,
   inviteLink,
@@ -41,19 +45,29 @@ import {
   type Language,
   LESSONS_LIMIT,
   type LessonSuggestion,
+  LIMITS,
+  MEMBER_ROLES,
   type Message,
   type MethodName,
   type Overview,
+  oneLine,
   type PhoneState,
+  PICTURE_SLOTS,
+  type Profile,
   type Project,
   ProjectInputSchema,
   ProjectStatusInputSchema,
   type ProjectView,
   RECORD_KINDS,
   type RecordItem,
+  RoleInputSchema,
+  type RoleTag,
   type Routine,
   RoutineInputSchema,
   type RoutineView,
+  type Settings,
+  WORKSPACE_SLOTS,
+  type WorkspaceLook,
   type WorkspaceState,
   type WorkspaceSummary,
 } from '@lonca/protocol';
@@ -64,6 +78,7 @@ import { Blobs } from './blobs.js';
 import { Connectors, type ExposedTool, noSealer, type Sealer } from './connectors.js';
 import type { OpenSession } from './drivers/types.js';
 import { isFabrika, readFabrika } from './fabrika.js';
+import { type FriendCard, FriendRequests, friendCard, MAX_ASKS, makeFriendCode, readFriendCode } from './friends.js';
 import { Gateway, type Tool, type ToolContent, type ToolContext, type ToolResult } from './gateway.js';
 import { Goals, gitWorktrees } from './goals.js';
 import { canonical, type SignedEvent, type Signer, verifySignature } from './identity.js';
@@ -142,6 +157,10 @@ interface TeamEntry {
   /** Asked to join, waiting for an admin. */
   joining?: { address: string; request: string };
   denied?: boolean;
+  /** The workspace's icon, kept here so the rail can show it without opening the workspace. */
+  icon?: ImageRef;
+  /** A direct conversation with a friend: who it is with, as last heard. */
+  dm?: { device: string; name: string; avatar?: ImageRef };
 }
 
 interface JoinRequestData {
@@ -187,6 +206,8 @@ interface Workspace {
 
 /** Events that are not about one workspace: they reach the window whichever workspace sent them. */
 const GLOBAL_EVENTS = new Set<EventName>([
+  'blob.added',
+  'friends.changed',
   'settings.changed',
   'clis.changed',
   'quota.changed',
@@ -196,7 +217,7 @@ const GLOBAL_EVENTS = new Set<EventName>([
 
 type Handler<M extends MethodName> = (params: CoreMethods[M]['params']) => Promise<CoreMethods[M]['result']>;
 
-const MAX_TEXT = 20_000;
+const MAX_TEXT = LIMITS.message;
 const CHANNEL_NAME = /^[\p{Ll}\p{N}][\p{Ll}\p{N}-]{0,39}$/u;
 
 function isDir(path: string): boolean {
@@ -284,6 +305,12 @@ export class Core {
   /** What other members' computers said about their CLIs and quota (`/durum`), per workspace and device. */
   private readonly peerStatus = new Map<string, DeviceStatus>();
   private statusSent = 0;
+  /** People's and workspaces' pictures, by the hash of their bytes: this person's own and other members'. */
+  private pictureStore: Blobs | undefined;
+  /** Pictures being asked for from other members right now. */
+  private readonly fetching = new Set<string>();
+  private readonly friendRequests: FriendRequests;
+  private readonly friendPolls = new Map<string, NodeJS.Timeout>();
   private readonly handlers: { [M in MethodName]: Handler<M> };
 
   constructor(private readonly opts: CoreOptions) {
@@ -296,6 +323,7 @@ export class Core {
       ...(opts.registry ? { registry: opts.registry } : {}),
     });
     this.connectors.onChange((state) => this.emit('connectors.changed', state));
+    this.friendRequests = new FriendRequests(join(opts.appDir, 'friends.json'));
     this.handlers = {
       'connectors.list': async () => this.connectors.state(),
       'connectors.save': async (p) => this.connectors.save(p),
@@ -319,8 +347,50 @@ export class Core {
         if (next.dataDir !== before.dataDir) this.closeAll();
         if (next.phone !== before.phone) void this.applyPhone();
         this.emit('settings.changed', next);
+        if (canonical(next.profile) !== canonical(before.profile)) this.profileChanged();
         return next;
       },
+      'profile.picture': async (p) => this.setPicture(p?.slot, p?.data),
+      'blobs.get': async (p) => {
+        const faces = this.faces();
+        if (typeof p?.blob !== 'string' || !faces.has(p.blob)) throw new CoreError('not_found');
+        return faces.picture(p.blob);
+      },
+      'workspace.look': async (p) => this.saveLook({ name: p?.name, about: p?.about }),
+      'workspace.picture': async (p) => {
+        if (!(WORKSPACE_SLOTS as readonly unknown[]).includes(p?.slot)) throw new CoreError('bad_request', 'slot');
+        const picture = p.data === null ? null : this.faces().savePicture(p.data);
+        return this.saveLook({ [p.slot]: picture });
+      },
+      'roles.save': async (p) => this.saveRole(p),
+      'roles.delete': async (p) => {
+        const ws = this.workspace();
+        this.requireTeamAdmin();
+        if (typeof p?.id !== 'string' || !ws.store.tags().some((r) => r.id === p.id)) throw new CoreError('not_found');
+        ws.store.commit({ type: 'tag.deleted', data: { id: p.id } });
+        this.changed();
+        return { ok: true as const };
+      },
+      'roles.assign': async (p) => this.assignRoles(p?.device, p?.roles),
+      'friends.get': async (p) => {
+        // Looking at the friends is what turns listening for them on; a start that only reads the state does not.
+        if (p?.listen === true) {
+          const data = this.friendRequests.read();
+          if (!data.on) this.friendRequests.write({ ...data, on: true });
+          await this.ensurePeer();
+        }
+        return this.friendsState();
+      },
+      'friends.add': async (p) => this.addFriend(p?.code),
+      'friends.answer': async (p) => this.answerFriend(p?.id, p?.accept === true),
+      'friends.cancel': async (p) => {
+        const data = this.friendRequests.read();
+        this.friendRequests.write({ ...data, sent: data.sent.filter((x) => x.device !== p?.device) });
+        clearTimeout(this.friendPolls.get(String(p?.device)));
+        this.friendPolls.delete(String(p?.device));
+        return this.friendsChanged();
+      },
+      'friends.remove': async (p) => this.removeFriend(p?.device),
       'clis.list': async (params) => this.listClis(params?.refresh === true),
       'clis.login': async (params) => this.login(params?.kind, params?.account),
       'accounts.list': async (p) => this.accountList(p?.refresh === true),
@@ -654,7 +724,10 @@ export class Core {
 
   private startTeams(): void {
     const teams = this.teams();
-    if (teams.length === 0) return;
+    // Requests between friends travel while the app runs, also before there is any workspace to sync.
+    const requests = this.friendRequests.read();
+    for (const sent of requests.sent) this.pollFriend(sent.device, 500);
+    if (teams.length === 0 && requests.sent.length === 0 && !requests.on) return;
     for (const t of teams) {
       if (t.joining) this.pollJoin(t.id, 500);
       else if (!t.denied) this.load(t.id);
@@ -1028,6 +1101,16 @@ export class Core {
           ...(Array.isArray(w.seeds) ? { seeds: w.seeds.filter((a) => typeof a === 'string').slice(0, 4) } : {}),
           ...(w.joining?.address && w.joining.request ? { joining: w.joining } : {}),
           ...(w.denied ? { denied: true } : {}),
+          ...(ImageRefSchema.safeParse(w.icon).success ? { icon: w.icon as ImageRef } : {}),
+          ...(typeof w.dm?.device === 'string'
+            ? {
+                dm: {
+                  device: w.dm.device,
+                  name: String(w.dm.name ?? '').slice(0, LIMITS.personName),
+                  ...(ImageRefSchema.safeParse(w.dm.avatar).success ? { avatar: w.dm.avatar as ImageRef } : {}),
+                },
+              }
+            : {}),
         }));
     } catch {
       return [];
@@ -1050,6 +1133,8 @@ export class Core {
           kind: 'team',
           created: t.created,
           ...(t.denied ? { state: 'denied' as const } : t.joining ? { state: 'joining' as const } : {}),
+          ...(t.icon ? { icon: t.icon } : {}),
+          ...(t.dm ? { friend: t.dm } : {}),
         }),
       ),
     ];
@@ -1062,7 +1147,7 @@ export class Core {
 
   /** A new team workspace: its first event names this device the root admin. */
   private createWorkspace(name: unknown): WorkspaceSummary {
-    const clean = typeof name === 'string' ? name.trim().slice(0, 40) : '';
+    const clean = typeof name === 'string' ? name.trim().slice(0, LIMITS.workspaceName) : '';
     if (!clean) throw new CoreError('bad_request', 'name');
     const publicKey = this.opts.signer?.publicKey();
     if (!publicKey) throw new CoreError('no_identity');
@@ -1306,7 +1391,15 @@ export class Core {
             }
           },
           seeds: () => this.teams().find((t) => t.id === id)?.seeds ?? [],
-          beforeRound: () => inWs(() => this.renewCertificates(ref.ws)),
+          beforeRound: () =>
+            inWs(() => {
+              this.renewCertificates(ref.ws);
+              // This device's address, also when its certificate arrived only after the app began to listen: a
+              // device that joined in that order never said where it listens, and nobody could call it.
+              this.publishEndpoint(ref.ws);
+              this.publishProfile(ref.ws);
+              void this.fetchPictures(ref.ws);
+            }),
         });
         store.onCommit = () => sync?.kick();
       }
@@ -1340,9 +1433,12 @@ export class Core {
   private closeAll(): void {
     for (const t of this.joinPolls.values()) clearTimeout(t);
     this.joinPolls.clear();
+    for (const t of this.friendPolls.values()) clearTimeout(t);
+    this.friendPolls.clear();
     this.peerServer?.close();
     this.peerServer = undefined;
     this.peerAddress = undefined;
+    this.pictureStore = undefined;
     for (const ws of this.open.values()) {
       ws.sync?.stop();
       clearInterval(ws.timer);
@@ -1362,21 +1458,38 @@ export class Core {
     const me = ws.membership.member(this.deviceId);
     const now = Date.now();
     const role = me && !me.removed && me.expires > now ? me.role : undefined;
+    const profiles = ws.store.profiles();
+    const roles = ws.store.tags();
+    const known = new Set(roles.map((r) => r.id));
+    const tagged = ws.store.tagged();
+    const look = ws.store.look();
     return {
       members: ws.store
         .members()
         .filter((m) => !m.removed)
-        .map((m) => ({
-          device: m.device,
-          name: m.name,
-          role: m.role,
-          me: m.device === this.deviceId,
-          ...(m.device === this.deviceId
-            ? { online: true }
-            : this.reach.has(m.device)
-              ? { online: this.reach.get(m.device) === true }
-              : {}),
-        })),
+        .map((m) => {
+          // This person's own profile is the one in their settings, also before it reached the log.
+          const profile = m.device === this.deviceId ? this.ownProfile() : profiles[m.device];
+          const carried = (tagged[m.device] ?? []).filter((id) => known.has(id));
+          return {
+            device: m.device,
+            name: profile?.name || m.name,
+            role: m.role,
+            me: m.device === this.deviceId,
+            ...(m.device === this.deviceId
+              ? { online: true }
+              : this.reach.has(m.device)
+                ? { online: this.reach.get(m.device) === true }
+                : {}),
+            ...(profile ? { profile } : {}),
+            ...(carried.length ? { roles: carried } : {}),
+          };
+        }),
+      ...(look?.about ? { about: look.about } : {}),
+      ...(look?.icon ? { icon: look.icon } : {}),
+      ...(look?.banner ? { banner: look.banner } : {}),
+      roles,
+      created: Number(ws.store.meta('created')) || 0,
       ...(role ? { role } : {}),
       ...(role === 'admin'
         ? {
@@ -1386,6 +1499,7 @@ export class Core {
           }
         : {}),
       ...(this.peerAddress ? { address: this.peerAddress } : {}),
+      ...(this.dmOf(ws.id) ? { friend: this.dmOf(ws.id)?.device } : {}),
     };
   }
 
@@ -1476,7 +1590,7 @@ export class Core {
           ).ip;
         if (!host) return;
         const server = new PeerServer({
-          open: new Set(['/v1/join', '/v1/join/status']),
+          open: new Set(['/v1/join', '/v1/join/status', '/v1/invite/peek', '/v1/friend/ask', '/v1/friend/status']),
           keyOf: (ws, device) => this.peerKey(ws, device),
           handle: (req) => this.peerHandle(req),
         });
@@ -1516,14 +1630,28 @@ export class Core {
   private async peerHandle(req: PeerRequest): Promise<unknown> {
     const body = (req.body ?? {}) as Record<string, unknown>;
     if (req.path === '/v1/join') return this.joinRequested(body);
+    if (req.path === '/v1/friend/ask') return this.friendAsked(body);
+    if (req.path === '/v1/friend/status') {
+      const ask = this.friendRequests.read().asks.find((a) => a.id === body.request && a.device === body.device);
+      if (!ask) throw new PeerError(404, 'request');
+      return { state: ask.state, ...(ask.state === 'accepted' && ask.ws ? { ws: ask.ws } : {}) };
+    }
     if (req.path === '/v1/join/status') {
       const ws = this.teams().some((t) => t.id === body.ws) ? this.load(String(body.ws)) : undefined;
       const found = ws?.store.joinRequest<JoinRequestData>(String(body.request ?? ''));
       if (!found || found.request.device !== body.device) throw new PeerError(404, 'request');
       return { state: found.state };
     }
+    if (req.path === '/v1/invite/peek') return this.invitePeek(body);
     const ws = this.load(req.ws);
     if (!ws.sync) throw new PeerError(404, 'workspace');
+    if (req.path === '/v1/blob') {
+      // Only pictures this workspace shows: a member cannot ask for what another workspace keeps here.
+      const name = String(body.blob ?? '');
+      const faces = this.faces();
+      if (!this.pictures(ws.store).some((p) => p.blob === name) || !faces.has(name)) throw new PeerError(404, 'blob');
+      return { data: faces.base64(name) };
+    }
     if (req.path === '/v1/sync') {
       ws.sync.kick();
       return ws.sync.serve((body.heads ?? {}) as Record<string, number>);
@@ -1561,7 +1689,7 @@ export class Core {
       id: newId(),
       device: String(device),
       publicKey: String(publicKey),
-      name: String(name).trim().slice(0, 40) || '?',
+      name: oneLine(String(name)).slice(0, LIMITS.personName) || '?',
       role: role as Role,
       at: Date.now(),
     };
@@ -1573,7 +1701,8 @@ export class Core {
 
   private createInvite(role: unknown, hours: unknown): { code: string; link: string; expires: number } {
     const ws = this.workspace();
-    if (ws.kind !== 'team') throw new CoreError('bad_request', 'personal');
+    // The personal workspace is one person's; a conversation with a friend is two people's.
+    if (ws.kind !== 'team' || this.dmOf(ws.id)) throw new CoreError('bad_request', 'personal');
     this.requireRole('admin');
     if (!ROLES.includes(role as Role)) throw new CoreError('bad_request', 'role');
     if (!this.peerAddress) {
@@ -1610,24 +1739,92 @@ export class Core {
       ...(this.opts.platform ? { platform: this.opts.platform } : {}),
     });
     const peer = tailscale.peers?.find((p) => p.ip === host);
-    const reachable = await new Promise<boolean>((resolve) => {
-      if (!host || !Number.isInteger(port) || port < 1 || port > 65535) return resolve(false);
-      const socket = connect({ host, port });
-      const done = (ok: boolean) => {
-        socket.destroy();
-        resolve(ok);
-      };
-      socket.setTimeout(3000, () => done(false));
-      socket.once('connect', () => done(true));
-      socket.once('error', () => done(false));
-    });
+    const connects = () =>
+      new Promise<boolean>((resolve) => {
+        if (!host || !Number.isInteger(port) || port < 1 || port > 65535) return resolve(false);
+        const socket = connect({ host, port });
+        const done = (ok: boolean) => {
+          socket.destroy();
+          resolve(ok);
+        };
+        socket.setTimeout(3000, () => done(false));
+        socket.once('connect', () => done(true));
+        socket.once('error', () => done(false));
+      });
+    // The inviter's app is asked about the invite (it answers only to someone who holds the code): whether it
+    // still works, and what the workspace looks like. An app from before this answers 401, which still shows
+    // that it is there.
+    let reachable = false;
+    let seen: InviteCheck['invite'];
+    let name = String(invite.n ?? '').slice(0, LIMITS.workspaceName) || wsId;
+    const signer = this.opts.signer;
+    if (signer?.publicKey() && typeof invite.t === 'string') {
+      try {
+        const a = (await this.peerClient(signer, 4000).call(address, '/v1/invite/peek', wsId, {
+          ws: wsId,
+          token: invite.t,
+        })) as Record<string, unknown>;
+        reachable = true;
+        const state = a.state === 'used' || a.state === 'expired' ? a.state : 'valid';
+        const count = (v: unknown) => (Number.isInteger(v) && Number(v) >= 0 ? { n: Math.min(Number(v), 9999) } : {});
+        seen = {
+          state,
+          ...((MEMBER_ROLES as readonly unknown[]).includes(a.role) ? { role: a.role as Role } : {}),
+          ...(Number.isFinite(a.expires) ? { expires: Number(a.expires) } : {}),
+          ...(typeof a.about === 'string' && a.about ? { about: a.about.slice(0, LIMITS.workspaceAbout) } : {}),
+          ...('n' in count(a.members) ? { members: count(a.members).n } : {}),
+          ...('n' in count(a.online) ? { online: count(a.online).n } : {}),
+          ...(typeof a.icon === 'string' &&
+          /^data:image\/(png|jpeg|webp|gif);base64,/.test(a.icon) &&
+          a.icon.length < 700_000
+            ? { icon: a.icon }
+            : {}),
+        };
+        if (typeof a.name === 'string' && a.name.trim()) name = a.name.trim().slice(0, LIMITS.workspaceName);
+      } catch (e) {
+        reachable = e instanceof PeerError;
+        // The inviter's app knows no such invite, or no longer has the workspace.
+        if (e instanceof PeerError && e.status === 404) seen = { state: 'expired' };
+      }
+    } else {
+      reachable = await connects();
+    }
     return {
-      name: String(invite.n ?? '').slice(0, 40) || wsId,
+      workspace: wsId,
+      name,
       address,
       tailscale: tailscale.state,
       ...(peer ? { peer: { name: peer.name, online: peer.online } } : {}),
       reachable,
       joined: this.teams().some((t) => t.id === wsId && !t.denied),
+      ...(seen ? { invite: seen } : {}),
+    };
+  }
+
+  /** What an invite's holder may know before asking to join: whether the code works, and how the workspace looks. */
+  private invitePeek(body: Record<string, unknown>): Record<string, unknown> {
+    const wsId = String(body.ws ?? '');
+    if (!this.teams().some((t) => t.id === wsId && !t.joining && !t.denied)) throw new PeerError(404, 'workspace');
+    const ws = this.load(wsId);
+    const found = typeof body.token === 'string' ? ws.store.invite(sha256(body.token)) : undefined;
+    if (!found) throw new PeerError(404, 'invite');
+    const look = this.lookOf(ws);
+    const members = ws.store.members().filter((m) => !m.removed);
+    const faces = this.faces();
+    // The icon travels inside the answer, so only a small one does.
+    const icon =
+      look.icon && faces.has(look.icon.blob) && faces.size(look.icon.blob) <= 400_000
+        ? faces.picture(look.icon.blob)
+        : undefined;
+    return {
+      state: found.used ? 'used' : found.expires < Date.now() ? 'expired' : 'valid',
+      role: found.role,
+      expires: found.expires,
+      name: look.name,
+      about: look.about,
+      members: members.length,
+      online: members.filter((m) => m.device === this.deviceId || this.reach.get(m.device) === true).length,
+      ...(icon ? { icon } : {}),
     };
   }
 
@@ -1889,11 +2086,452 @@ export class Core {
         case 'project.deleted':
           this.emit('project.deleted', { id });
           break;
+        case 'look.saved':
+          this.lookChanged(ws);
+          structure = true;
+          break;
         default:
           structure = true;
       }
     }
+    // A picture is asked for when it is first named, and again when a member says where their app listens (the
+    // address may arrive after the profile).
+    if (events.some((e) => e.type === 'profile.saved' || e.type === 'look.saved' || e.type === 'device.endpoint')) {
+      void this.fetchPictures(ws);
+    }
+    if (events.some((e) => e.type === 'profile.saved')) this.friendSeen(ws);
     if (structure) this.changed();
+  }
+
+  // ---------------------------------------------------------------- friends (5.20)
+
+  /** The friend a workspace is the conversation with, when it is one. */
+  private dmOf(wsId: string): TeamEntry['dm'] {
+    return this.teams().find((t) => t.id === wsId)?.dm;
+  }
+
+  /** This computer as a friend code or a friend request names it; undefined before the app listens. */
+  private ownCard(): FriendCard | undefined {
+    const publicKey = this.opts.signer?.publicKey();
+    if (!publicKey || !this.peerAddress) return undefined;
+    return { device: this.deviceId, publicKey, name: this.me().name, address: this.peerAddress };
+  }
+
+  private friendsState(): FriendsState {
+    const { asks, sent } = this.friendRequests.read();
+    const me = this.ownCard();
+    return {
+      ...(me ? { code: makeFriendCode(me) } : {}),
+      friends: this.teams().flatMap((t) =>
+        t.dm && !t.joining && !t.denied
+          ? [
+              {
+                device: t.dm.device,
+                name: t.dm.name,
+                workspace: t.id,
+                ...(t.dm.avatar ? { avatar: t.dm.avatar } : {}),
+                ...(this.reach.has(t.dm.device) ? { online: this.reach.get(t.dm.device) === true } : {}),
+              },
+            ]
+          : [],
+      ),
+      requests: asks
+        .filter((a) => a.state === 'pending')
+        .sort((a, b) => a.at - b.at)
+        .map(({ id, device, name, at }) => ({ id, device, name, at })),
+      sent: sent.map(({ device, name, at }) => ({ device, name, at })),
+    };
+  }
+
+  private friendsChanged(): FriendsState {
+    const state = this.friendsState();
+    this.emitGlobal('friends.changed', state);
+    return state;
+  }
+
+  private isFriend(device: string): boolean {
+    return this.teams().some((t) => t.dm?.device === device);
+  }
+
+  /** Sends a request to the computer a friend code names; that person answers there. */
+  private async addFriend(code: unknown): Promise<FriendsState> {
+    const them = readFriendCode(code);
+    if (!peerTarget(them.address, this.loopbackPeers())) throw new CoreError('bad_friend_code');
+    if (them.device === this.deviceId) throw new CoreError('friend_self');
+    if (this.isFriend(them.device)) throw new CoreError('already_friend');
+    await this.ensurePeer();
+    const signer = this.opts.signer;
+    const me = this.ownCard();
+    if (!signer) throw new CoreError('no_identity');
+    if (!me) throw new CoreError('no_address');
+    const fields = { to: them.device, ...me };
+    const proof = await signer.sign(canonical(fields));
+    let answer: { request?: unknown };
+    try {
+      answer = (await this.peerClient(signer).call(them.address, '/v1/friend/ask', '', {
+        ...fields,
+        proof,
+      })) as { request?: unknown };
+    } catch (e) {
+      if (e instanceof PeerError && e.status === 409) throw new CoreError('already_friend');
+      throw new CoreError(e instanceof PeerError ? 'friend_refused' : 'unreachable');
+    }
+    if (typeof answer.request !== 'string') throw new CoreError('friend_refused');
+    const data = this.friendRequests.read();
+    this.friendRequests.write({
+      ...data,
+      on: true,
+      sent: [
+        ...data.sent.filter((x) => x.device !== them.device),
+        { ...them, request: answer.request, at: Date.now() },
+      ],
+    });
+    this.pollFriend(them.device);
+    return this.friendsChanged();
+  }
+
+  /** Someone with this person's code asks to be friends: kept until this person answers. */
+  private friendAsked(body: Record<string, unknown>): { request: string } {
+    const card = friendCard(body);
+    if (body.to !== this.deviceId) throw new PeerError(404, 'device');
+    if (!card || typeof body.proof !== 'string' || card.device === this.deviceId) throw new PeerError(400, 'fields');
+    // The asker holds the key they will be certified with.
+    const fields = {
+      to: body.to,
+      device: body.device,
+      publicKey: body.publicKey,
+      name: body.name,
+      address: body.address,
+    };
+    if (!verifySignature(canonical(fields), body.proof, card.publicKey)) throw new PeerError(400, 'proof');
+    if (this.isFriend(card.device)) throw new PeerError(409, 'friend');
+    const data = this.friendRequests.read();
+    const waiting = data.asks.filter((a) => a.state === 'pending');
+    const known = waiting.find((a) => a.device === card.device);
+    if (known) return { request: known.id };
+    if (waiting.length >= MAX_ASKS) throw new PeerError(429, 'full');
+    const ask = { ...card, id: newId(), at: Date.now(), state: 'pending' as const };
+    this.friendRequests.write({ ...data, asks: [...data.asks.filter((a) => a.device !== card.device), ask] });
+    this.friendsChanged();
+    return { request: ask.id };
+  }
+
+  /**
+   * Accepting makes the conversation: a workspace of two, started by this device, with both as admins. The asker
+   * was certified with the key their request proved, so their app can take the workspace from here at once.
+   */
+  private answerFriend(id: unknown, accept: boolean): FriendsState {
+    const data = this.friendRequests.read();
+    const ask = data.asks.find((a) => a.id === id && a.state === 'pending');
+    if (!ask) throw new CoreError('not_found');
+    let wsId: string | undefined;
+    if (accept && !this.isFriend(ask.device)) {
+      const publicKey = this.opts.signer?.publicKey();
+      if (!publicKey) throw new CoreError('no_identity');
+      const entry: TeamEntry = {
+        id: newId(),
+        name: ask.name,
+        created: Date.now(),
+        dm: { device: ask.device, name: ask.name },
+      };
+      wsId = entry.id;
+      this.saveTeams([...this.teams(), entry]);
+      const ws = this.load(entry.id);
+      this.within(ws, () => {
+        const me = this.me();
+        const forever = Date.now() + 36500 * DAY;
+        ws.store.commit({ type: 'workspace.created', data: { id: entry.id, name: '', root: me.id, publicKey } });
+        ws.store.commit({
+          type: 'member.certified',
+          data: { device: me.id, publicKey, name: me.name, role: 'admin', expires: forever },
+        });
+        ws.store.commit({
+          type: 'member.certified',
+          data: { device: ask.device, publicKey: ask.publicKey, name: ask.name, role: 'admin', expires: forever },
+        });
+        ws.store.commit({
+          type: 'channel.created',
+          data: {
+            id: newId(),
+            name: this.settings.get().language === 'tr' ? 'sohbet' : 'chat',
+            kind: 'channel',
+            topic: '',
+            created: Date.now(),
+          },
+        });
+      });
+      void this.ensurePeer();
+    }
+    this.friendRequests.write({
+      ...data,
+      asks: data.asks.map((a) =>
+        a.id === ask.id
+          ? { ...a, state: accept ? ('accepted' as const) : ('denied' as const), ...(wsId ? { ws: wsId } : {}) }
+          : a,
+      ),
+    });
+    return this.friendsChanged();
+  }
+
+  /** Asks the other computer what became of a request this one sent, until it is answered. */
+  private pollFriend(device: string, delay = 2000): void {
+    clearTimeout(this.friendPolls.get(device));
+    const timer = setTimeout(async () => {
+      this.friendPolls.delete(device);
+      const sent = this.friendRequests.read().sent.find((x) => x.device === device);
+      const signer = this.opts.signer;
+      if (!sent || !signer) return;
+      let answer: { state?: unknown; ws?: unknown } = {};
+      try {
+        answer = (await this.peerClient(signer).call(sent.address, '/v1/friend/status', '', {
+          request: sent.request,
+          device: this.deviceId,
+        })) as { state?: unknown; ws?: unknown };
+      } catch (e) {
+        // Away: ask again later. The request is unknown there (404): it is over.
+        if (e instanceof PeerError && e.status === 404) answer = { state: 'denied' };
+      }
+      const forget = () => {
+        const data = this.friendRequests.read();
+        this.friendRequests.write({ ...data, sent: data.sent.filter((x) => x.device !== device) });
+      };
+      if (answer.state === 'accepted' && typeof answer.ws === 'string' && /^[\w-]{1,40}$/.test(answer.ws)) {
+        forget();
+        if (!this.teams().some((t) => t.id === answer.ws)) {
+          const entry: TeamEntry = {
+            id: answer.ws,
+            name: sent.name,
+            created: Date.now(),
+            seeds: [sent.address],
+            dm: { device: sent.device, name: sent.name },
+          };
+          this.saveTeams([...this.teams(), entry]);
+          const ws = this.load(entry.id);
+          ws.sync?.start();
+          await ws.sync?.round();
+          void this.ensurePeer();
+        }
+        this.friendsChanged();
+      } else if (answer.state === 'denied') {
+        forget();
+        this.friendsChanged();
+      } else {
+        this.pollFriend(device, Math.min(delay * 1.5, 30_000));
+      }
+    }, delay);
+    timer.unref?.();
+    this.friendPolls.set(device, timer);
+  }
+
+  /** The friend's name and avatar, as their profile in the conversation says, kept where the rail reads them. */
+  private friendSeen(ws: Workspace): void {
+    const teams = this.teams();
+    const entry = teams.find((t) => t.id === ws.id);
+    if (!entry?.dm) return;
+    const profile = ws.store.profile(entry.dm.device);
+    if (!profile) return;
+    const dm = {
+      device: entry.dm.device,
+      name: profile.name || entry.dm.name,
+      ...(profile.avatar ? { avatar: profile.avatar } : {}),
+    };
+    if (canonical(dm) === canonical(entry.dm)) return;
+    ws.store.setMeta('name', dm.name);
+    this.saveTeams(teams.map((t) => (t.id === ws.id ? { ...t, name: dm.name, dm } : t)));
+    this.friendsChanged();
+  }
+
+  /** The conversation leaves this computer's list and stops syncing; its folder stays on disk. */
+  private removeFriend(device: unknown): FriendsState {
+    const entry = this.teams().find((t) => t.dm && t.dm.device === device);
+    if (!entry) throw new CoreError('not_found');
+    const wasOpen = this.currentId() === entry.id;
+    const ws = this.open.get(entry.id);
+    if (ws) {
+      ws.sync?.stop();
+      clearInterval(ws.timer);
+      ws.advisors.dispose();
+      ws.goals.dispose();
+      ws.jobs.disposeAll();
+      ws.gateway.close();
+      ws.store.close();
+      this.open.delete(entry.id);
+    }
+    this.saveTeams(this.teams().filter((t) => t.id !== entry.id));
+    if (wasOpen) {
+      this.emit('settings.changed', this.settings.update({ workspace: 'personal' }));
+      this.emit('workspace.changed', this.state());
+    }
+    return this.friendsChanged();
+  }
+
+  // ---------------------------------------------------------------- profiles, the workspace's look, roles (5.19)
+
+  /** The store of people's and workspaces' pictures, shared by every workspace of this computer. */
+  private faces(): Blobs {
+    this.pictureStore ??= new Blobs(join(this.dataDir(), 'faces'));
+    return this.pictureStore;
+  }
+
+  /** This person's profile as others get it: checked, and never without a name. */
+  private ownProfile(): Profile {
+    return { ...cleanProfile(this.settings.get().profile), name: this.me().name };
+  }
+
+  private async setPicture(slot: unknown, data: unknown): Promise<Settings> {
+    if (!(PICTURE_SLOTS as readonly unknown[]).includes(slot)) throw new CoreError('bad_request', 'slot');
+    const picture = data === null ? null : this.faces().savePicture(data);
+    const next = this.settings.update({ profile: { [slot as string]: picture } });
+    this.emit('settings.changed', next);
+    this.profileChanged();
+    return next;
+  }
+
+  /** The profile changed here: every team workspace hears it, and the open one shows it. */
+  private profileChanged(): void {
+    for (const ws of this.open.values()) {
+      if (ws.kind === 'team') this.within(ws, () => this.publishProfile(ws));
+    }
+    this.changed();
+  }
+
+  /** Writes this person's profile into a team workspace's log when it differs from what the log says. */
+  private publishProfile(ws: Workspace): void {
+    if (ws.kind !== 'team' || !ws.membership?.can(this.deviceId, 'viewer')) return;
+    const mine = this.ownProfile();
+    const known = ws.store.profile(this.deviceId);
+    if (known && canonical(known) === canonical(mine)) return;
+    ws.store.commit({ type: 'profile.saved', data: { device: this.deviceId, ...mine } });
+  }
+
+  /** The pictures a workspace shows, each with the device most likely to have it. */
+  private pictures(store: WorkspaceStore): { blob: string; owner?: string }[] {
+    const out: { blob: string; owner?: string }[] = [];
+    for (const [device, p] of Object.entries(store.profiles())) {
+      for (const image of [p.avatar, p.banner]) if (image) out.push({ blob: image.blob, owner: device });
+    }
+    const look = store.look();
+    for (const image of [look?.icon, look?.banner]) if (image) out.push({ blob: image.blob });
+    return out;
+  }
+
+  /** Asks other members for pictures the workspace shows and this computer lacks: the owner first. */
+  private async fetchPictures(ws: Workspace): Promise<void> {
+    const signer = this.opts.signer;
+    if (!signer || !ws.membership?.can(this.deviceId, 'viewer')) return;
+    const faces = this.faces();
+    const wanted = this.pictures(ws.store).filter((p) => !faces.has(p.blob) && !this.fetching.has(p.blob));
+    if (wanted.length === 0) return;
+    for (const p of wanted) this.fetching.add(p.blob);
+    const client = this.peerClient(signer, 20_000);
+    const endpoints = ws.store.endpoints();
+    const others = ws.store
+      .members()
+      .filter((m) => !m.removed && m.device !== this.deviceId)
+      .map((m) => m.device);
+    for (const p of wanted) {
+      try {
+        const order = [...new Set([...(p.owner ? [p.owner] : []), ...others])].filter((d) => d !== this.deviceId);
+        for (const device of order) {
+          const address = endpoints[device]?.[0];
+          if (!address) continue;
+          try {
+            const answer = (await client.call(address, '/v1/blob', ws.id, { blob: p.blob })) as { data?: unknown };
+            if (typeof answer.data === 'string' && faces.put(p.blob, Buffer.from(answer.data, 'base64'))) {
+              this.emitGlobal('blob.added', { blob: p.blob });
+              break;
+            }
+          } catch {
+            // this member does not have it or is away: the next one, or the next round
+          }
+        }
+      } finally {
+        this.fetching.delete(p.blob);
+      }
+    }
+  }
+
+  /** A look and roles belong to a workspace of a team: not the personal one, not a conversation of two friends. */
+  private requireTeamAdmin(): void {
+    const ws = this.workspace();
+    if (ws.kind !== 'team' || this.dmOf(ws.id)) throw new CoreError('bad_request', 'personal');
+    this.requireRole('admin');
+  }
+
+  /** How a team workspace presents itself; before anyone changed it, the name it was made with. */
+  private lookOf(ws: Workspace): WorkspaceLook {
+    const look = ws.store.look();
+    return { ...look, name: look?.name || ws.store.meta('name') || ws.id, about: look?.about ?? '' };
+  }
+
+  /** The name and the icon are also kept where the rail reads them. */
+  private lookChanged(ws: Workspace): void {
+    const look = this.lookOf(ws);
+    ws.store.setMeta('name', look.name);
+    const teams = this.teams();
+    const entry = teams.find((t) => t.id === ws.id);
+    if (!entry || (entry.name === look.name && canonical(entry.icon ?? null) === canonical(look.icon ?? null))) return;
+    const { icon: _old, ...rest } = entry;
+    const next: TeamEntry = { ...rest, name: look.name, ...(look.icon ? { icon: look.icon } : {}) };
+    this.saveTeams(teams.map((t) => (t.id === ws.id ? next : t)));
+  }
+
+  private saveLook(patch: {
+    name?: unknown;
+    about?: unknown;
+    icon?: ImageRef | null;
+    banner?: ImageRef | null;
+  }): WorkspaceState {
+    const ws = this.workspace();
+    this.requireTeamAdmin();
+    const before = this.lookOf(ws);
+    const name = patch.name === undefined ? before.name : typeof patch.name === 'string' ? patch.name.trim() : '';
+    const about = patch.about === undefined ? before.about : typeof patch.about === 'string' ? patch.about.trim() : '';
+    if (!name || name.length > LIMITS.workspaceName || about.length > LIMITS.workspaceAbout) {
+      throw new CoreError('bad_request', 'look');
+    }
+    const icon = patch.icon === undefined ? before.icon : (patch.icon ?? undefined);
+    const banner = patch.banner === undefined ? before.banner : (patch.banner ?? undefined);
+    ws.store.commit({
+      type: 'look.saved',
+      data: { id: 'workspace', name, about, ...(icon ? { icon } : {}), ...(banner ? { banner } : {}) },
+    });
+    this.lookChanged(ws);
+    this.changed();
+    return this.state();
+  }
+
+  private saveRole(input: unknown): RoleTag {
+    const ws = this.workspace();
+    this.requireTeamAdmin();
+    const parsed = RoleInputSchema.safeParse(input);
+    if (!parsed.success) throw new CoreError('invalid_role', parsed.error.message);
+    const roles = ws.store.tags();
+    const before = parsed.data.id ? roles.find((r) => r.id === parsed.data.id) : undefined;
+    if (parsed.data.id && !before) throw new CoreError('not_found');
+    if (!before && roles.length >= LIMITS.roles) throw new CoreError('too_many_roles');
+    const role: RoleTag = {
+      id: before?.id ?? newId(),
+      name: parsed.data.name,
+      color: parsed.data.color,
+      created: before?.created ?? Date.now(),
+    };
+    ws.store.commit({ type: 'tag.saved', data: role });
+    this.changed();
+    return role;
+  }
+
+  private assignRoles(device: unknown, roles: unknown): { ok: true } {
+    const ws = this.workspace();
+    this.requireTeamAdmin();
+    const m = typeof device === 'string' ? ws.membership?.member(device) : undefined;
+    if (!m || m.removed) throw new CoreError('not_found');
+    const known = new Set(ws.store.tags().map((r) => r.id));
+    const list = Array.isArray(roles) ? [...new Set(roles.filter((r): r is string => known.has(r as string)))] : [];
+    if (list.length > LIMITS.memberRoles) throw new CoreError('too_many_roles');
+    ws.store.commit({ type: 'tagged.saved', data: { device: m.device, tags: list } });
+    this.changed();
+    return { ok: true };
   }
 
   private state(): WorkspaceState {
@@ -2917,9 +3555,10 @@ export class Core {
     return folder;
   }
 
+  /** The name a member goes by: the one in their profile, else the one they joined with. */
   private memberName(store: WorkspaceStore, device: string): string | undefined {
     if (device === this.deviceId) return this.me().name;
-    return store.member(device)?.name;
+    return store.profile(device)?.name || store.member(device)?.name;
   }
 
   /** The project an agent (or advisor) folder is in, put into words for its prompt. */

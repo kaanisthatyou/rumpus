@@ -9,6 +9,7 @@ import type {
   CliInfo,
   CliKind,
   DeviceStatus,
+  FriendsState,
   Goal,
   GoalBudget,
   GoalComment,
@@ -19,6 +20,7 @@ import type {
   MemoryState,
   Message,
   Overview,
+  PictureSlot,
   ProjectInput,
   ProjectStatusInput,
   ProjectView,
@@ -31,11 +33,13 @@ import type {
   RecordInput,
   RecordItem,
   Result,
+  RoleInput,
   RoutineInput,
   RoutineView,
   Settings,
   SettingsPatch,
   TailscaleInfo,
+  WorkspaceSlot,
   WorkspaceState,
   WorkspaceSummary,
 } from '@lonca/protocol';
@@ -136,6 +140,20 @@ export interface AppState {
   attached: Record<string, string[]>;
   /** Full images of references, loaded when first shown. */
   images: Record<string, string>;
+  /** People's and workspaces' pictures as data URLs, by blob name, loaded when first shown. */
+  faces: Record<string, string>;
+  /**
+   * The profile card over the page: whose, and where it was opened from (`x` is where it stands to the right of
+   * what was clicked, `left` where its right edge stands when it goes to the left instead).
+   */
+  profileCard?: { id: string; x: number; left: number; y: number; name?: string } | undefined;
+  /** The open team workspace's own dialog: its look and its roles. */
+  workspaceDialog?: boolean;
+  /** Friends and the requests on their way (PLAN.md 5.20); the dialog that shows them. */
+  friends?: FriendsState;
+  friendsOpen?: boolean;
+  /** Settings open on this tab ("Edit profile"); cleared when they close. */
+  settingsTab?: string | undefined;
   /** Text to put into the message box of the open channel (a saved command). */
   inject?: { text: string; at: number };
   paletteOpen: boolean;
@@ -201,6 +219,20 @@ export interface AppState {
   answerJoin(id: string, approve: boolean): Promise<void>;
   setMemberRole(device: string, role: MemberRole): Promise<void>;
   removeMember(device: string): Promise<void>;
+  loadFace(blob: string): Promise<void>;
+  /** Sets one of this person's pictures from a data URL, or takes it away (null). */
+  setPicture(slot: PictureSlot, data: string | null): Promise<void>;
+  saveLook(patch: { name?: string; about?: string }): Promise<boolean>;
+  setWorkspacePicture(slot: WorkspaceSlot, data: string | null): Promise<void>;
+  saveRole(input: RoleInput): Promise<boolean>;
+  deleteRole(id: string): Promise<void>;
+  assignRoles(device: string, roles: string[]): Promise<void>;
+  /** Reads the friends; with `listen` (the dialog) the app also starts listening for them. */
+  loadFriends(listen?: boolean): Promise<void>;
+  addFriend(code: string): Promise<boolean>;
+  answerFriend(id: string, accept: boolean): Promise<void>;
+  cancelFriend(device: string): Promise<void>;
+  removeFriend(device: string): Promise<void>;
   createGoal(input: GoalInput): Promise<boolean>;
   approveGoal(id: string, comments: GoalComment[]): Promise<void>;
   stopGoal(id: string): Promise<void>;
@@ -263,6 +295,12 @@ const lastChannel = {
   },
 };
 
+/** Changes to the settings sent to the core and not answered yet. */
+let patchesInFlight = 0;
+
+/** Pictures being asked for from the core right now. */
+const loadingFaces = new Set<string>();
+
 /** From this width on the crew panel fits beside the page; below it the strip stands there. */
 export const WIDE = '(min-width: 1180px)';
 /** The narrow layout: a phone, or a window as narrow as one. */
@@ -315,6 +353,7 @@ export const useApp = create<AppState>((set, get) => {
     projects: [],
     attached: {},
     images: {},
+    faces: {},
     paletteOpen: false,
     typing: {},
     goals: [],
@@ -330,6 +369,8 @@ export const useApp = create<AppState>((set, get) => {
       window.lonca.links.onJoin(join);
       void window.lonca.links.pending().then(join);
       core.on('settings.changed', (settings) => {
+        // While this window's own changes are on their way, their last answer is what the settings are.
+        if (patchesInFlight > 0) return;
         set({ settings });
         void i18n.changeLanguage(settings.language);
       });
@@ -402,6 +443,18 @@ export const useApp = create<AppState>((set, get) => {
         }
       });
       core.on('memory.changed', (memory) => set({ memory }));
+      core.on('blob.added', ({ blob }) => void get().loadFace(blob));
+      core.on('friends.changed', (friends) => {
+        const before = get().friends;
+        set({ friends });
+        // Someone asks to be friends: heard, and told by the system while the app is in the background.
+        const fresh = friends.requests.filter((r) => !(before?.requests ?? []).some((b) => b.id === r.id));
+        if (!before || fresh.length === 0) return;
+        sound('join');
+        if (!document.hasFocus()) {
+          notify(i18n.t('friends.notifyTitle'), i18n.t('friends.wants', { name: fresh[0]?.name ?? '' }));
+        }
+      });
       core.on('status.changed', (status) =>
         set((s) => ({
           statuses: s.statuses.some((x) => x.device === status.device)
@@ -512,6 +565,7 @@ export const useApp = create<AppState>((set, get) => {
       window.lonca.updates.onChange((update) => set({ update }));
       core.on('workspaces.changed', (workspaces) => set({ workspaces }));
       void core.call('workspaces.list').then((workspaces) => set({ workspaces }));
+      void get().loadFriends();
       window.lonca.providers.onChange((providers) => set({ providers }));
       void window.lonca.providers.state().then((providers) => set({ providers }));
 
@@ -545,9 +599,14 @@ export const useApp = create<AppState>((set, get) => {
         set({ settings: { ...before, ...patch, profile: { ...before.profile, ...patch.profile } } });
         if (patch.language) void i18n.changeLanguage(patch.language);
       }
+      patchesInFlight += 1;
       try {
         const settings = await core.call('settings.update', patch);
-        set({ settings, error: undefined });
+        patchesInFlight -= 1;
+        // Answers come in the order the changes were sent, each with everything up to it. While a later change
+        // is on its way, showing this answer would take that change back for a moment (a color picked right
+        // after a text field was left jumped back; the packaged app's e2e run caught it).
+        if (patchesInFlight === 0) set({ settings, error: undefined });
         if (patch.dataDir !== undefined) {
           void get().refreshSystem();
           set({ messages: {}, jobs: {}, channelId: undefined });
@@ -556,8 +615,11 @@ export const useApp = create<AppState>((set, get) => {
         if (patch.onboarded) void get().loadWorkspace();
         if (patch.agentFolder !== undefined) void get().refreshSystem();
       } catch (err) {
-        set({ error: codeOf(err), ...(before ? { settings: before } : {}) });
-        if (before) void i18n.changeLanguage(before.language);
+        patchesInFlight -= 1;
+        // With a later change still on its way, its answer says what the settings are.
+        const last = patchesInFlight === 0;
+        set({ error: codeOf(err), ...(before && last ? { settings: before } : {}) });
+        if (before && last) void i18n.changeLanguage(before.language);
       }
     },
 
@@ -836,6 +898,77 @@ export const useApp = create<AppState>((set, get) => {
 
     async removeMember(device) {
       await attempt(() => core.call('members.remove', { device }));
+    },
+
+    async loadFace(blob) {
+      if (get().faces[blob] || loadingFaces.has(blob)) return;
+      loadingFaces.add(blob);
+      try {
+        const url = await core.call('blobs.get', { blob });
+        set((s) => ({ faces: { ...s.faces, [blob]: url } }));
+      } catch {
+        // Not on this computer yet: `blob.added` asks again once it has come from its owner.
+      } finally {
+        loadingFaces.delete(blob);
+      }
+    },
+
+    async setPicture(slot, data) {
+      const settings = await attempt(() => core.call('profile.picture', { slot, data }));
+      // A change to the settings that is still on its way answers with the picture too.
+      if (settings && patchesInFlight === 0) set({ settings });
+    },
+
+    async saveLook(patch) {
+      const workspace = await attempt(() => core.call('workspace.look', patch));
+      if (workspace) set({ workspace });
+      return Boolean(workspace);
+    },
+
+    async setWorkspacePicture(slot, data) {
+      const workspace = await attempt(() => core.call('workspace.picture', { slot, data }));
+      if (workspace) set({ workspace });
+    },
+
+    async saveRole(input) {
+      return Boolean(await attempt(() => core.call('roles.save', input)));
+    },
+
+    async deleteRole(id) {
+      await attempt(() => core.call('roles.delete', { id }));
+    },
+
+    async assignRoles(device, roles) {
+      await attempt(() => core.call('roles.assign', { device, roles }));
+    },
+
+    async loadFriends(listen) {
+      try {
+        set({ friends: await core.call('friends.get', listen ? { listen: true } : undefined) });
+      } catch {
+        // The rail simply shows no friends then.
+      }
+    },
+
+    async addFriend(code) {
+      const friends = await attempt(() => core.call('friends.add', { code }));
+      if (friends) set({ friends });
+      return Boolean(friends);
+    },
+
+    async answerFriend(id, accept) {
+      const friends = await attempt(() => core.call('friends.answer', { id, accept }));
+      if (friends) set({ friends });
+    },
+
+    async cancelFriend(device) {
+      const friends = await attempt(() => core.call('friends.cancel', { device }));
+      if (friends) set({ friends });
+    },
+
+    async removeFriend(device) {
+      const friends = await attempt(() => core.call('friends.remove', { device }));
+      if (friends) set({ friends });
     },
 
     async createWorkspace(name) {

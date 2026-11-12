@@ -54,6 +54,43 @@ export function inviteLink(code: string): string {
   return `${BRAND.slug}://join/${code}`;
 }
 
+/** What a friend code starts with (`RUMPUSF1.`), for the box it is pasted into. */
+export const FRIEND_PREFIX = `${BRAND.slug.toUpperCase()}F1.`;
+
+/** A friend code as it is handed out: `RUMPUSF1.<payload>`. It names a person's computer; it is not a secret. */
+export function friendCode(payload: string): string {
+  return `${FRIEND_PREFIX}${payload}`;
+}
+
+/** The payload of a pasted friend code; undefined when it is none. */
+export function friendPayload(pasted: string): string | undefined {
+  const raw = pasted.trim();
+  if (!raw.toUpperCase().startsWith(FRIEND_PREFIX)) return undefined;
+  const payload = raw.slice(FRIEND_PREFIX.length);
+  return /^[\w-]+$/.test(payload) ? payload : undefined;
+}
+
+const INVITE_IN_TEXT = new RegExp(
+  `(?:(?:${SLUGS.join('|')})://join/)?(?:${SLUGS.map((s) => s.toUpperCase()).join('|')})1\\.[A-Za-z0-9_-]{40,}`,
+  'gi',
+);
+
+/**
+ * The invites written in a message, as they stand in it (a code or a link), in order; one invite written twice
+ * (its code and its link) counts once. At most three.
+ */
+export function findInvites(text: string): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const found of text.match(INVITE_IN_TEXT) ?? []) {
+    const payload = invitePayload(found);
+    if (!payload || seen.has(payload)) continue;
+    seen.add(payload);
+    out.push(found);
+  }
+  return out.slice(0, 3);
+}
+
 /**
  * The payload of what a person pasted: a code, a code or a link from under a former name, or an invite link.
  * Undefined when it is none of them.

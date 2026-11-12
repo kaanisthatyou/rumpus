@@ -1,4 +1,4 @@
-import { BRAND } from '@lonca/protocol';
+import { BRAND, LIMITS } from '@lonca/protocol';
 import { Avatar, Button, Icon, Mark, slide, TextField } from '@lonca/ui';
 import { AnimatePresence, motion } from 'motion/react';
 import { type FormEvent, useState } from 'react';
@@ -60,7 +60,8 @@ function StepBody({
             label={t('launcher.profile.name')}
             placeholder={t('launcher.profile.placeholder')}
             value={name}
-            maxLength={40}
+            maxLength={LIMITS.personName}
+            counted
             autoFocus
             onChange={(e) => setName(e.target.value)}
             {...(nameError ? { error: t('launcher.profile.required') } : {})}

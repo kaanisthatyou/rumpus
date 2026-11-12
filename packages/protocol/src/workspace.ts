@@ -1,6 +1,7 @@
 // Workspace data: channels, agents, messages, jobs. Shared by the core and every client.
 import { z } from 'zod';
 import { CLI_KINDS } from './kinds.js';
+import type { ImageRef, Profile, RoleTag } from './profile.js';
 
 /** The autonomy ladder, the same three words for every CLI: read, edit, full. */
 export const AGENT_MODES = ['read', 'edit', 'full'] as const;
@@ -343,6 +344,13 @@ export interface WorkspaceSummary {
   created: number;
   /** A team workspace this device asked to join: waiting for an admin, or turned down. */
   state?: 'joining' | 'denied';
+  /** The workspace's icon, when it has one. */
+  icon?: ImageRef;
+  /**
+   * Set on a direct conversation with a friend (PLAN.md 5.20): a workspace of two, shown under the friends and
+   * not among the workspaces. The friend's device, name and avatar.
+   */
+  friend?: { device: string; name: string; avatar?: ImageRef };
 }
 
 export const MEMBER_ROLES = ['viewer', 'editor', 'admin'] as const;
@@ -355,6 +363,21 @@ export interface MemberInfo {
   me: boolean;
   /** Reached in the last sync round. */
   online?: boolean;
+  /** How the member presents themselves, once their app has said so. */
+  profile?: Profile;
+  /** The workspace's roles the member carries (ids of `WorkspaceState.roles`), in order. */
+  roles?: string[];
+}
+
+/** The people this person added outside any workspace, and the requests on their way (PLAN.md 5.20). */
+export interface FriendsState {
+  /** This person's own friend code, once the app listens for others (Tailscale runs). */
+  code?: string;
+  friends: { device: string; name: string; workspace: string; avatar?: ImageRef; online?: boolean }[];
+  /** Requests from others that wait for this person's answer. */
+  requests: { id: string; device: string; name: string; at: number }[];
+  /** Requests this person sent that wait for the other's answer. */
+  sent: { device: string; name: string; at: number }[];
 }
 
 export interface JoinRequest {
@@ -370,6 +393,14 @@ export interface WorkspaceState {
   name: string;
   kind: 'personal' | 'team';
   me: { id: string; name: string };
+  /** Team workspaces: a line about the workspace, its icon and banner, and its roles (names with a color). */
+  about?: string;
+  icon?: ImageRef;
+  banner?: ImageRef;
+  roles?: RoleTag[];
+  created?: number;
+  /** In a direct conversation with a friend: the friend's device. */
+  friend?: string;
   channels: Channel[];
   agents: Agent[];
   advisors: Advisor[];

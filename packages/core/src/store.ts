@@ -4,20 +4,27 @@
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import type {
-  Advisor,
-  Agent,
-  Author,
-  Card,
-  Channel,
-  Goal,
-  Job,
-  MemorySuggestion,
-  Message,
-  Project,
-  ProjectStatus,
-  RecordItem,
-  Routine,
+import {
+  type Advisor,
+  type Agent,
+  type Author,
+  type Card,
+  type Channel,
+  cleanProfile,
+  type Goal,
+  ImageRefSchema,
+  isHexColor,
+  type Job,
+  LIMITS,
+  type MemorySuggestion,
+  type Message,
+  type Profile,
+  type Project,
+  type ProjectStatus,
+  type RecordItem,
+  type RoleTag,
+  type Routine,
+  type WorkspaceLook,
 } from '@lonca/protocol';
 import type { SignedEvent } from './identity.js';
 import { Clock, newId } from './ids.js';
@@ -95,6 +102,12 @@ CREATE TABLE IF NOT EXISTS project_folders (id TEXT PRIMARY KEY, folder TEXT NOT
 CREATE TABLE IF NOT EXISTS routines (
   id TEXT PRIMARY KEY, data TEXT NOT NULL, created INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS profiles (id TEXT PRIMARY KEY, data TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS looks (id TEXT PRIMARY KEY, data TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS tags (
+  id TEXT PRIMARY KEY, data TEXT NOT NULL, created INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS tagged (id TEXT PRIMARY KEY, data TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS sessions (
   agent_id TEXT NOT NULL, channel_id TEXT NOT NULL, session_id TEXT NOT NULL, PRIMARY KEY (agent_id, channel_id)
 );
@@ -126,7 +139,16 @@ export type WorkspaceEvent =
   | { type: 'record.deleted'; data: { id: string } }
   | { type: 'project.saved'; data: Project }
   | { type: 'project.deleted'; data: { id: string } }
-  | { type: 'progress.saved'; data: ProjectStatus };
+  | { type: 'progress.saved'; data: ProjectStatus }
+  /** How a member presents themselves; written by that member's own device. */
+  | { type: 'profile.saved'; data: Profile & { device: string } }
+  /** The workspace's name, the line about it, its icon and banner (`id` is always `workspace`). */
+  | { type: 'look.saved'; data: WorkspaceLook & { id: 'workspace' } }
+  /** A role in Discord's sense: a name with a color. It grants nothing. */
+  | { type: 'tag.saved'; data: RoleTag }
+  | { type: 'tag.deleted'; data: { id: string } }
+  /** The roles a member carries. */
+  | { type: 'tagged.saved'; data: { device: string; tags: string[] } };
 
 const json = <T>(text: unknown): T => JSON.parse(String(text)) as T;
 
@@ -146,6 +168,10 @@ const TABLES: Record<string, string> = {
   memory: 'memory',
   project: 'projects',
   progress: 'progress',
+  profile: 'profiles',
+  look: 'looks',
+  tag: 'tags',
+  tagged: 'tagged',
 };
 
 export function entityOf(type: string, data: unknown): string {
@@ -538,7 +564,10 @@ export class WorkspaceStore {
             m.id,
             m.channelId,
             JSON.stringify(m.author),
-            m.text,
+            // The sender's own app refuses a longer message; another member's computer is held to the same
+            // length here, where every copy applies it alike (one oversized message froze nobody's channel yet,
+            // and should not get the chance).
+            String(m.text ?? '').slice(0, LIMITS.message),
             m.created,
             m.jobId ?? null,
             m.refs?.length ? JSON.stringify(m.refs) : null,
@@ -551,7 +580,7 @@ export class WorkspaceStore {
       case 'message.edited':
         this.db
           .prepare('UPDATE messages SET text = ?, edited = ? WHERE id = ?')
-          .run(e.data.text, e.data.edited, e.data.id);
+          .run(String(e.data.text ?? '').slice(0, LIMITS.message), e.data.edited, e.data.id);
         return;
       case 'message.deleted':
         this.db.prepare("UPDATE messages SET deleted = 1, text = '' WHERE id = ?").run(e.data.id);
@@ -601,7 +630,103 @@ export class WorkspaceStore {
           .prepare('INSERT OR REPLACE INTO progress (id, data) VALUES (?, ?)')
           .run(e.data.id, JSON.stringify(e.data));
         return;
+      // What follows comes from other members' computers too: every field is checked again before it is kept.
+      case 'profile.saved':
+        this.db
+          .prepare('INSERT OR REPLACE INTO profiles (id, data) VALUES (?, ?)')
+          .run(String(e.data.device), JSON.stringify(cleanProfile(e.data)));
+        return;
+      case 'look.saved': {
+        const image = (v: unknown) => {
+          const parsed = ImageRefSchema.safeParse(v);
+          return parsed.success ? parsed.data : undefined;
+        };
+        const icon = image(e.data.icon);
+        const banner = image(e.data.banner);
+        const look: WorkspaceLook = {
+          name: String(e.data.name ?? '')
+            .trim()
+            .slice(0, LIMITS.workspaceName),
+          about: String(e.data.about ?? '').slice(0, LIMITS.workspaceAbout),
+          ...(icon ? { icon } : {}),
+          ...(banner ? { banner } : {}),
+        };
+        this.db.prepare('INSERT OR REPLACE INTO looks (id, data) VALUES (?, ?)').run('workspace', JSON.stringify(look));
+        return;
+      }
+      case 'tag.saved': {
+        const tag: RoleTag = {
+          id: String(e.data.id),
+          name: String(e.data.name ?? '')
+            .trim()
+            .slice(0, LIMITS.roleName),
+          color: isHexColor(e.data.color) ? e.data.color : '',
+          created: Number(e.data.created) || 0,
+        };
+        this.db
+          .prepare(
+            'INSERT INTO tags (id, data, created) VALUES (?, ?, ?) ON CONFLICT (id) DO UPDATE SET data = excluded.data, deleted = 0',
+          )
+          .run(tag.id, JSON.stringify(tag), tag.created);
+        return;
+      }
+      case 'tag.deleted':
+        this.db.prepare('UPDATE tags SET deleted = 1 WHERE id = ?').run(e.data.id);
+        return;
+      case 'tagged.saved': {
+        const tags = Array.isArray(e.data.tags)
+          ? [...new Set(e.data.tags.filter((t): t is string => typeof t === 'string'))].slice(0, LIMITS.memberRoles)
+          : [];
+        this.db
+          .prepare('INSERT OR REPLACE INTO tagged (id, data) VALUES (?, ?)')
+          .run(String(e.data.device), JSON.stringify(tags));
+        return;
+      }
     }
+  }
+
+  // ---------------------------------------------------------------- how people and the workspace look
+
+  profile(device: string): Profile | undefined {
+    const r = this.db.prepare('SELECT data FROM profiles WHERE id = ?').get(device) as Row | undefined;
+    return r ? json<Profile>(r.data) : undefined;
+  }
+
+  profiles(): Record<string, Profile> {
+    const out: Record<string, Profile> = {};
+    for (const r of this.db.prepare('SELECT id, data FROM profiles').all() as Row[]) {
+      out[String(r.id)] = json<Profile>(r.data);
+    }
+    return out;
+  }
+
+  look(): WorkspaceLook | undefined {
+    const r = this.db.prepare("SELECT data FROM looks WHERE id = 'workspace'").get() as Row | undefined;
+    return r ? json<WorkspaceLook>(r.data) : undefined;
+  }
+
+  /** The workspace's roles (names with a color), in the order they were made. */
+  tags(): RoleTag[] {
+    return (this.db.prepare('SELECT data FROM tags WHERE deleted = 0 ORDER BY created, id').all() as Row[]).map((r) =>
+      json<RoleTag>(r.data),
+    );
+  }
+
+  /** The roles each member carries, by device. */
+  tagged(): Record<string, string[]> {
+    const out: Record<string, string[]> = {};
+    for (const r of this.db.prepare('SELECT id, data FROM tagged').all() as Row[]) {
+      out[String(r.id)] = json<string[]>(r.data);
+    }
+    return out;
+  }
+
+  /** An invite as it stands, without using it. */
+  invite(tokenHash: string): { role: string; expires: number; used: boolean } | undefined {
+    const r = this.db.prepare('SELECT role, expires, used FROM invites WHERE token = ?').get(tokenHash) as
+      | Row
+      | undefined;
+    return r ? { role: String(r.role), expires: Number(r.expires), used: Boolean(Number(r.used)) } : undefined;
   }
 
   eventCount(): number {

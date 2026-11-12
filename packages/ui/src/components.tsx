@@ -76,21 +76,39 @@ export function Avatar({
   size = 32,
   presence,
   icon,
+  src,
 }: {
   name: string;
   size?: number;
   presence?: 'on' | 'busy' | 'off';
   icon?: IconName;
+  /** The person's own picture; without one the first letter of the name stands in. */
+  src?: string | undefined;
 }) {
   const initial = name.trim().charAt(0).toLocaleUpperCase() || '·';
   return (
     <span
-      className="l-avatar"
+      className={cx('l-avatar', src && 'l-avatar--pic')}
       style={{ width: size, height: size, fontSize: Math.round(size * 0.4) }}
       aria-hidden="true"
     >
-      {icon ? <Icon name={icon} size={Math.round(size * 0.5)} /> : initial}
+      {src ? (
+        <img src={src} alt="" draggable={false} />
+      ) : icon ? (
+        <Icon name={icon} size={Math.round(size * 0.5)} />
+      ) : (
+        initial
+      )}
       {presence && <span className={cx('l-presence', presence !== 'off' && `l-presence--${presence}`)} />}
+    </span>
+  );
+}
+
+/** How much of a field's room is used ("12 / 40"); it warns close to the end. */
+export function Counter({ value, max }: { value: number; max: number }) {
+  return (
+    <span className={cx('l-counter', value >= max * 0.9 && 'l-counter--near', value >= max && 'l-counter--full')}>
+      {value} / {max}
     </span>
   );
 }
@@ -115,16 +133,28 @@ export function Track({ value, busy }: { value?: number; busy?: boolean }) {
   );
 }
 
-type FieldProps = ComponentProps<'input'> & { label: string; hint?: string; error?: string };
+type FieldProps = ComponentProps<'input'> & {
+  label: string;
+  hint?: string;
+  error?: string;
+  /** Shows how much of `maxLength` is used, next to the label. */
+  counted?: boolean;
+};
 
-export function TextField({ label, hint, error, id, className, ...rest }: FieldProps) {
+export function TextField({ label, hint, error, id, className, counted, ...rest }: FieldProps) {
   const auto = useId();
   const inputId = id ?? auto;
   return (
     <div className={cx('l-field', className)}>
-      <label className="l-field__label" htmlFor={inputId}>
-        {label}
-      </label>
+      {/* The counter stands beside the label, not inside it: the field keeps its plain name. */}
+      <span className="l-field__top">
+        <label className="l-field__label" htmlFor={inputId}>
+          {label}
+        </label>
+        {counted && typeof rest.maxLength === 'number' && (
+          <Counter value={String(rest.value ?? '').length} max={rest.maxLength} />
+        )}
+      </span>
       <input
         id={inputId}
         className="l-input"

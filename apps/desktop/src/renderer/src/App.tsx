@@ -9,15 +9,18 @@ import { GoalDialog } from './goals/GoalDialog';
 import { actionFor } from './keys';
 import { Launcher } from './launcher/Launcher';
 import { Palette, ShortcutsDialog } from './palette/Palette';
+import { ProfilePopover } from './people/ProfileCard';
 import { ProjectDialog } from './projects/ProjectDialog';
 import { RaceDialog } from './races/RaceDialog';
 import { RoutineDialog } from './routines/RoutinesView';
 import { SettingsDialog } from './settings/SettingsDialog';
+import { FriendsDialog } from './shell/FriendsDialog';
 import { InviteDialog } from './shell/InviteDialog';
 import { NewWorkspaceDialog } from './shell/NewWorkspaceDialog';
 import { Shell } from './shell/Shell';
 import { StatusDialog } from './shell/StatusDialog';
 import { TitleBar } from './shell/TitleBar';
+import { WorkspaceDialog } from './shell/WorkspaceDialog';
 import { useApp } from './store';
 import { useAppearance } from './theme';
 
@@ -46,7 +49,18 @@ export function App() {
   const init = useApp((s) => s.init);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const openSettings = useCallback(() => setSettingsOpen(true), []);
-  const closeSettings = useCallback(() => setSettingsOpen(false), []);
+  const closeSettings = useCallback(() => {
+    setSettingsOpen(false);
+    useApp.setState({ settingsTab: undefined });
+  }, []);
+  const settingsTab = useApp((s) => s.settingsTab);
+  const profileCard = useApp((s) => s.profileCard);
+  const workspaceDialog = useApp((s) => s.workspaceDialog);
+  const friendsOpen = useApp((s) => s.friendsOpen);
+  // "Edit profile" on the person's own card: the settings, on that tab.
+  useEffect(() => {
+    if (settingsTab) setSettingsOpen(true);
+  }, [settingsTab]);
   const onboarded = settings?.onboarded === true;
 
   useEffect(() => {
@@ -134,7 +148,14 @@ export function App() {
             </AnimatePresence>
           )}
         </div>
-        <AnimatePresence>{settingsOpen && <SettingsDialog onClose={closeSettings} />}</AnimatePresence>
+        <AnimatePresence>
+          {settingsOpen && (
+            <SettingsDialog onClose={closeSettings} {...(settingsTab ? { initialTab: settingsTab } : {})} />
+          )}
+        </AnimatePresence>
+        <AnimatePresence>{onboarded && workspaceDialog && <WorkspaceDialog key="workspace" />}</AnimatePresence>
+        <AnimatePresence>{onboarded && friendsOpen && <FriendsDialog key="friends" />}</AnimatePresence>
+        <AnimatePresence>{onboarded && profileCard && <ProfilePopover key="profile-card" />}</AnimatePresence>
         <AnimatePresence>{agentDialog && <AgentDialog key="agent-dialog" />}</AnimatePresence>
         <AnimatePresence>{specialistDialog && <SpecialistDialog key="specialist-dialog" />}</AnimatePresence>
         <AnimatePresence>{routineDialog && <RoutineDialog key="routine-dialog" />}</AnimatePresence>

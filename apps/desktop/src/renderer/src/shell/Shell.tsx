@@ -14,11 +14,13 @@ import { GoalsView } from '../goals/GoalsView';
 import { useMedia } from '../media';
 import { MemoryView } from '../memory/MemoryView';
 import { OverviewView } from '../overview/OverviewView';
+import { nameStyle, PersonAvatar, PersonButton, personOf, useFace, WorkspaceIcon } from '../people/people';
 import { ProjectPage } from '../projects/ProjectView';
 import { RecordsView } from '../records/RecordsView';
 import { RoutinesView } from '../routines/RoutinesView';
 import { PHONE, useApp, type View, WIDE } from '../store';
 import { enablePush, pushState } from '../web';
+import { FriendAvatar } from './FriendsDialog';
 import { useTaskbar } from './taskbar';
 
 const BOARD: { view: View; icon: IconName }[] = [
@@ -100,12 +102,17 @@ function Rail({ onSettings }: { onSettings: () => void }) {
   const activity = useApp((s) => s.activity);
   const sidebar = useApp((s) => s.settings?.sidebar !== false);
   const toggleSidebar = useApp((s) => s.toggleSidebar);
+  const asking = useApp((s) => s.friends?.requests.length ?? 0);
+  const reach = useApp((s) => s.friends?.friends);
+  // Workspaces first; conversations with friends stand apart, under the friends button.
+  const spaces = useMemo(() => workspaces.filter((w) => !w.friend), [workspaces]);
+  const direct = useMemo(() => workspaces.filter((w) => w.friend), [workspaces]);
   return (
     <nav className="rail" aria-label={t('shell.workspaces')}>
       <div className="rail__mark">
         <Mark size={32} />
       </div>
-      {workspaces.map((w) => {
+      {spaces.map((w) => {
         const name = w.kind === 'personal' ? t('shell.workspace') : w.name;
         const fresh = activity[w.id] === true && w.id !== current;
         const note = w.state
@@ -124,7 +131,7 @@ function Rail({ onSettings }: { onSettings: () => void }) {
             disabled={Boolean(w.state)}
             onClick={() => void openWorkspace(w.id)}
           >
-            {name.slice(0, 2)}
+            <WorkspaceIcon name={name} icon={w.icon} />
             {fresh && <span className="ws__dot" aria-hidden="true" />}
           </button>
         );
@@ -138,6 +145,43 @@ function Rail({ onSettings }: { onSettings: () => void }) {
       >
         <Icon name="plus" size={14} />
       </button>
+      <span className="rail__rule" aria-hidden="true" />
+      <button
+        type="button"
+        className="ws ws--friends"
+        aria-label={
+          asking > 0 ? `${t('friends.title')} · ${t('friends.requestCount', { count: asking })}` : t('friends.title')
+        }
+        title={t('friends.title')}
+        onClick={() => useApp.setState({ friendsOpen: true })}
+      >
+        <Icon name="users" size={16} />
+        {asking > 0 && <span className="ws__dot" aria-hidden="true" />}
+      </button>
+      {direct.map((w) => {
+        const fresh = activity[w.id] === true && w.id !== current;
+        const name = w.friend?.name ?? w.name;
+        const note = fresh ? `${name} · ${t('workspaces.news')}` : name;
+        return (
+          <button
+            key={w.id}
+            type="button"
+            className={`ws ws--dm ${w.id === current ? 'is-on' : ''}`}
+            aria-label={note}
+            aria-current={w.id === current ? 'page' : undefined}
+            title={note}
+            onClick={() => void openWorkspace(w.id)}
+          >
+            <FriendAvatar
+              name={name}
+              avatar={w.friend?.avatar}
+              size={36}
+              online={reach?.find((f) => f.workspace === w.id)?.online}
+            />
+            {fresh && <span className="ws__dot" aria-hidden="true" />}
+          </button>
+        );
+      })}
       <span className="grow" />
       <IconButton
         icon="panelLeft"
@@ -175,6 +219,8 @@ function Sidebar({ onSettings }: { onSettings: () => void }) {
   const waiting = Object.values(jobs)
     .filter((j) => j.state === 'attention' && runsHere(j, workspace))
     .sort((a, b) => a.started - b.started);
+  const banner = useFace(workspace?.kind === 'team' ? workspace.banner : undefined, false);
+  const mine = personOf(workspace, settings, workspace?.me.id ?? '');
   const running = new Set(
     Object.values(jobs)
       .filter((j) => j.state === 'running')
@@ -183,13 +229,28 @@ function Sidebar({ onSettings }: { onSettings: () => void }) {
 
   return (
     <aside className="side" aria-label={t('shell.channels')}>
+      {banner && <div className="side__banner" style={{ backgroundImage: `url("${banner}")` }} aria-hidden="true" />}
       <div className="side__ws">
         <h1>{workspace?.kind === 'team' ? workspace.name : t('shell.workspace')}</h1>
-        <Icon name="chevronDown" size={14} />
+        {workspace?.kind === 'team' && !workspace.friend ? (
+          <IconButton
+            size="sm"
+            icon="chevronDown"
+            label={t('wsForm.open')}
+            onClick={() => useApp.setState({ workspaceDialog: true })}
+          />
+        ) : (
+          <Icon name={workspace?.friend ? 'user' : 'chevronDown'} size={14} />
+        )}
       </div>
+      {workspace?.kind === 'team' && workspace.about && <p className="side__about">{workspace.about}</p>}
       <div className="side__store">
         <span className="dot dot--ok" />
-        {workspace?.kind === 'team' ? t('shell.teamStorage') : t('shell.storage')}
+        {workspace?.friend
+          ? t('friends.direct')
+          : workspace?.kind === 'team'
+            ? t('shell.teamStorage')
+            : t('shell.storage')}
         {tailscale?.state === 'running' && <span className="side__ts">· Tailscale</span>}
       </div>
       <button type="button" className="side__find" onClick={() => useApp.getState().setPalette(true)}>
@@ -315,11 +376,15 @@ function Sidebar({ onSettings }: { onSettings: () => void }) {
       </div>
       <span className="grow" />
       <div className="me">
-        <Avatar name={settings?.profile.name ?? ''} size={28} presence="on" />
-        <div className="me__who">
-          <b>{settings?.profile.name}</b>
-          <span>{t(`shell.role.${workspace?.role ?? 'admin'}`)}</span>
-        </div>
+        <PersonButton id={mine.id} name={mine.name} className="me__open">
+          <PersonAvatar id={mine.id} name={mine.name} size={28} presence="on" />
+          <span className="me__who">
+            <b className={mine.color ? 'named' : ''} style={nameStyle(mine.color)}>
+              {settings?.profile.name}
+            </b>
+            <span>{mine.profile.status || t(`shell.role.${workspace?.role ?? 'admin'}`)}</span>
+          </span>
+        </PersonButton>
         <IconButton icon="mic" label={t('shell.voice')} size="sm" disabled title={t('common.notYet')} />
         <IconButton icon="settings" label={t('shell.settings')} size="sm" onClick={onSettings} />
       </div>
@@ -549,25 +614,19 @@ function CrewStrip({ covered }: { covered: boolean }) {
       <ul className="strip__list">
         {members.length > 0
           ? members.map((m) => {
-              const label = `${m.name} · ${t(`shell.role.${m.role}`)}`;
               return (
                 <li key={m.device}>
-                  <span
-                    className={`strip__who ${m.online ? '' : 'is-off'}`}
-                    role="img"
-                    aria-label={label}
-                    title={label}
-                  >
-                    <Avatar name={m.name} size={32} presence={m.online ? 'on' : 'off'} />
-                  </span>
+                  <PersonButton id={m.device} name={m.name} className={`strip__who ${m.online ? '' : 'is-off'}`}>
+                    <PersonAvatar id={m.device} name={m.name} size={32} presence={m.online ? 'on' : 'off'} />
+                  </PersonButton>
                 </li>
               );
             })
           : me && (
               <li>
-                <span className="strip__who" role="img" aria-label={me.name} title={me.name}>
-                  <Avatar name={me.name} size={32} presence="on" />
-                </span>
+                <PersonButton id={me.id} name={me.name} className="strip__who">
+                  <PersonAvatar id={me.id} name={me.name} size={32} presence="on" />
+                </PersonButton>
               </li>
             )}
       </ul>
@@ -611,6 +670,17 @@ function Crew({ over = false }: { over?: boolean }) {
   const removeMember = useApp((s) => s.removeMember);
   const typing = useApp((s) => s.typing);
   const openSpecialistDialog = useApp((s) => s.openSpecialistDialog);
+  const settings = useApp((s) => s.settings);
+  // Members in the order of the workspace's roles: whoever carries a role stands under it, the rest after.
+  const groups = useMemo(() => {
+    const members = workspace?.members ?? [];
+    const roles = workspace?.roles ?? [];
+    const first = (m: (typeof members)[number]) => roles.find((r) => m.roles?.[0] === r.id);
+    return [
+      ...roles.map((role) => ({ role, members: members.filter((m) => first(m)?.id === role.id) })),
+      { role: undefined, members: members.filter((m) => !first(m)) },
+    ].filter((g) => g.members.length > 0);
+  }, [workspace?.members, workspace?.roles]);
   const everyAgent = workspace?.agents ?? [];
   const agents = everyAgent.filter((a) => !a.specialty);
   const specialists = everyAgent.filter((a) => a.specialty);
@@ -647,9 +717,12 @@ function Crew({ over = false }: { over?: boolean }) {
     >
       <div className="crew__head">
         <h2 className="grow">{t('shell.crew')}</h2>
-        <Button size="sm" icon="userPlus" onClick={() => useApp.setState({ inviteOpen: true })}>
-          {t('shell.invite')}
-        </Button>
+        {/* A conversation with a friend is two people's: nobody is invited into it. */}
+        {!workspace?.friend && (
+          <Button size="sm" icon="userPlus" onClick={() => useApp.setState({ inviteOpen: true })}>
+            {t('shell.invite')}
+          </Button>
+        )}
         <IconButton
           size="sm"
           icon="panelRight"
@@ -851,50 +924,66 @@ function Crew({ over = false }: { over?: boolean }) {
       </h3>
       {workspace?.members ? (
         <ul className="crew__list" aria-label={t('shell.members')}>
-          {workspace.members.map((m) => (
-            <li key={m.device} className="who who--member">
-              <div className="who__open">
-                <Avatar name={m.name} size={28} presence={m.online ? 'on' : 'off'} />
-                <div className="who__text">
-                  <b>
-                    {m.name}
-                    {m.me && <span className="muted"> · {t('members.me')}</span>}
-                  </b>
-                  <span>{t(`shell.role.${m.role}`)}</span>
-                </div>
-              </div>
-              {workspace.role === 'admin' && !m.me && (
-                <>
-                  <select
-                    className="l-input member__role"
-                    aria-label={t('members.role', { name: m.name })}
-                    value={m.role}
-                    onChange={(e) => void setMemberRole(m.device, e.target.value as MemberRole)}
-                  >
-                    {MEMBER_ROLES.map((r) => (
-                      <option key={r} value={r}>
-                        {t(`shell.role.${r}`)}
-                      </option>
-                    ))}
-                  </select>
-                  <IconButton
-                    size="sm"
-                    icon="trash"
-                    label={t('members.remove', { name: m.name })}
-                    onClick={() => void removeMember(m.device)}
-                  />
-                </>
-              )}
-            </li>
-          ))}
+          {groups.flatMap((g) => [
+            ...(g.role && groups.length > 1
+              ? [
+                  <li key={`role-${g.role.id}`} className="crew__group" style={nameStyle(g.role.color)}>
+                    <span className="rolechip__dot" aria-hidden="true" />
+                    <span className="grow">{g.role.name}</span>
+                    <span className="l-mono">{g.members.length}</span>
+                  </li>,
+                ]
+              : []),
+            ...g.members.map((m) => {
+              const color = personOf(workspace, settings, m.device).color;
+              return (
+                <li key={m.device} className={`who who--member ${m.online ? '' : 'is-away'}`}>
+                  <PersonButton id={m.device} name={m.name} className="who__open">
+                    <PersonAvatar id={m.device} name={m.name} size={28} presence={m.online ? 'on' : 'off'} />
+                    <span className="who__text">
+                      <b className={color ? 'named' : ''} style={nameStyle(color)}>
+                        {m.name}
+                        {m.me && <span className="muted"> · {t('members.me')}</span>}
+                      </b>
+                      <span>{m.profile?.status || t(`shell.role.${m.role}`)}</span>
+                    </span>
+                  </PersonButton>
+                  {workspace.role === 'admin' && !m.me && !workspace.friend && (
+                    <>
+                      <select
+                        className="l-input member__role"
+                        aria-label={t('members.role', { name: m.name })}
+                        value={m.role}
+                        onChange={(e) => void setMemberRole(m.device, e.target.value as MemberRole)}
+                      >
+                        {MEMBER_ROLES.map((r) => (
+                          <option key={r} value={r}>
+                            {t(`shell.role.${r}`)}
+                          </option>
+                        ))}
+                      </select>
+                      <IconButton
+                        size="sm"
+                        icon="trash"
+                        label={t('members.remove', { name: m.name })}
+                        onClick={() => void removeMember(m.device)}
+                      />
+                    </>
+                  )}
+                </li>
+              );
+            }),
+          ])}
         </ul>
       ) : (
         <div className="who">
-          <Avatar name={me?.name ?? ''} size={28} presence="on" />
-          <div className="who__text">
-            <b>{me?.name}</b>
-            <span>{t('shell.role.admin')}</span>
-          </div>
+          <PersonButton id={me?.id ?? ''} name={me?.name ?? ''} className="who__open">
+            <PersonAvatar id={me?.id ?? ''} name={me?.name ?? ''} size={28} presence="on" />
+            <span className="who__text">
+              <b>{me?.name}</b>
+              <span>{settings?.profile.status || t('shell.role.admin')}</span>
+            </span>
+          </PersonButton>
         </div>
       )}
       <span className="grow" />

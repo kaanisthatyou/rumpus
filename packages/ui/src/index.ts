@@ -3,6 +3,7 @@ export {
   Badge,
   Button,
   Chip,
+  Counter,
   IconButton,
   Kbd,
   LiveDot,

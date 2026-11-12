@@ -42,6 +42,7 @@ function minRole(type: string, data: Record<string, unknown>): Role | undefined 
     case 'message.deleted':
     case 'device.endpoint':
     case 'job.saved':
+    case 'profile.saved':
       return 'viewer';
     case 'card.saved':
     case 'card.deleted':
@@ -66,6 +67,11 @@ function minRole(type: string, data: Record<string, unknown>): Role | undefined 
     case 'channel.deleted':
     case 'member.certified':
     case 'member.removed':
+    // The workspace's name and pictures, and its roles (names with a color): an admin's.
+    case 'look.saved':
+    case 'tag.saved':
+    case 'tag.deleted':
+    case 'tagged.saved':
       return 'admin';
     default:
       return undefined;
@@ -179,8 +185,13 @@ export class Membership {
       case 'message.deleted':
         if (owner && owner !== e.author && author.role !== 'admin') return 'not_allowed';
         break;
+      // An address and a profile are a device's own word about itself.
       case 'device.endpoint':
+      case 'profile.saved':
         if (data.device !== e.author) return 'not_allowed';
+        break;
+      case 'look.saved':
+        if (data.id !== 'workspace') return 'not_allowed';
         break;
       case 'job.saved':
         // A job runs on its agent's owner's computer, and only that computer reports it.

@@ -6,6 +6,7 @@ import {
   type CommandKey,
   commandName,
   commandNames,
+  findInvites,
   handleOf,
   type Job,
   type Message,
@@ -17,11 +18,13 @@ import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 
 import { useTranslation } from 'react-i18next';
 import { specialistIcon } from '../agents/SpecialistDialog';
 import { GoalCard } from '../goals/GoalCard';
+import { nameStyle, PersonAvatar, PersonButton, usePerson } from '../people/people';
 import { RaceCard } from '../races/RaceCard';
 import { fillCommand, RefImage, readImage } from '../records/RecordsView';
 import { core } from '../rpc';
 import { useApp } from '../store';
 import { clock, dayKey, dayLabel } from './format';
+import { InviteCard } from './InviteCard';
 import { JobCard } from './JobCard';
 import { Markdown } from './Markdown';
 
@@ -124,7 +127,12 @@ function MessageRow({
     const tasks = lines.flatMap((l) => /^\/todo\s+(.+)$/.exec(l.trim())?.[1] ?? []);
     return { body: lines.filter((l) => !/^\/todo\s+/.test(l.trim())).join('\n'), todos: tasks };
   }, [a.kind, message.text]);
-  const name = a.kind === 'system' ? BRAND.name : a.name;
+  // A person is shown as the workspace knows them now (name, color, picture), not as the message was signed.
+  const person = usePerson(a.kind === 'person' ? a.id : '', a.kind === 'person' ? a.name : '');
+  const name = a.kind === 'system' ? BRAND.name : a.kind === 'person' ? person.name : a.name;
+  // Invites a person wrote into the message become cards; a message that is only an invite shows only its card.
+  const invites = useMemo(() => (a.kind === 'person' ? findInvites(message.text) : []), [a.kind, message.text]);
+  const onlyInvite = invites.length === 1 && message.text.trim() === invites[0];
   const agent = a.kind === 'agent' ? agents.find((x) => x.id === a.id) : undefined;
   const advisor = useApp((s) => (a.kind === 'advisor' ? s.workspace?.advisors.find((x) => x.id === a.id) : undefined));
   const goal = useApp((s) => (a.kind === 'person' ? s.goals.find((g) => g.requestId === message.id) : undefined));
@@ -138,6 +146,10 @@ function MessageRow({
     >
       {compact ? (
         <time className="msg__gutter l-mono">{clock(message.created, true)}</time>
+      ) : a.kind === 'person' ? (
+        <PersonButton id={a.id} name={name} className="msg__face">
+          <PersonAvatar id={a.id} name={a.name} size={32} />
+        </PersonButton>
       ) : (
         <Avatar
           name={name}
@@ -147,7 +159,15 @@ function MessageRow({
       )}
       <div className="msg__body">
         <div className="msg__meta">
-          <b>{name}</b>
+          {a.kind === 'person' ? (
+            <PersonButton id={a.id} name={name} className="msg__name">
+              <b className={person.color ? 'named' : ''} style={nameStyle(person.color)}>
+                {name}
+              </b>
+            </PersonButton>
+          ) : (
+            <b>{name}</b>
+          )}
           {agent && <Chip mono>@{agent.handle}</Chip>}
           {advisor && <Chip mono>@{advisor.handle}</Chip>}
           {a.kind === 'advisor' && <span className="msg__role">{t('advisor.role')}</span>}
@@ -215,7 +235,10 @@ function MessageRow({
           </form>
         ) : (
           <>
-            {body && <Markdown text={body} />}
+            {body && !onlyInvite && <Markdown text={body} />}
+            {invites.map((code) => (
+              <InviteCard key={code} code={code} />
+            ))}
             {message.result && <ResultBlock result={message.result} />}
             {todos.map((task) => (
               <div key={task} className="msg__todo">

@@ -2,6 +2,14 @@
 // members' apps later). Everything that crosses a process boundary is defined here.
 import { z } from 'zod';
 import type { ConnectorInput, ConnectorsState, ToolPolicy } from './connectors.js';
+import {
+  type PictureSlot,
+  PROFILE_FIELDS,
+  ProfileSchema,
+  type RoleInput,
+  type RoleTag,
+  type WorkspaceSlot,
+} from './profile.js';
 import type { RegistryServer } from './registry.js';
 import type {
   Advisor,
@@ -11,6 +19,7 @@ import type {
   Card,
   CardStatus,
   Channel,
+  FriendsState,
   GitState,
   Goal,
   GoalBudget,
@@ -42,6 +51,7 @@ export * from './brand.js';
 export * from './catalog.js';
 export * from './commands.js';
 export * from './connectors.js';
+export * from './profile.js';
 export * from './providers.js';
 export * from './registry.js';
 export * from './specialists.js';
@@ -74,9 +84,8 @@ const SETTINGS_FIELDS = {
   theme: z.enum(THEMES),
   accent: z.enum(ACCENTS),
   motion: z.enum(MOTION),
-  profile: z.object({
-    name: z.string().trim().max(40),
-  }),
+  /** Who the person is to others: the name, and how their profile looks (PLAN.md 5.19). */
+  profile: z.object(PROFILE_FIELDS),
   /** Where workspaces, records and history live. Empty means the default inside the app's data folder. */
   dataDir: z.string(),
   onboarded: z.boolean(),
@@ -105,6 +114,7 @@ const SETTINGS_FIELDS = {
 
 export const SettingsSchema = z.object({
   ...SETTINGS_FIELDS,
+  profile: ProfileSchema,
   quietHours: SETTINGS_FIELDS.quietHours.default({ from: '23:00', to: '08:00' }),
   workspace: SETTINGS_FIELDS.workspace.default('personal'),
   phone: SETTINGS_FIELDS.phone.default(false),
@@ -162,7 +172,7 @@ export function defaultSettings(language: Language = 'en'): Settings {
     theme: 'dark',
     accent: 'lime',
     motion: 'system',
-    profile: { name: '' },
+    profile: { name: '', pronouns: '', status: '', bio: '', color: '', theme: [], avatar: null, banner: null },
     dataDir: '',
     onboarded: false,
     quietHours: { from: '23:00', to: '08:00' },
@@ -262,7 +272,9 @@ export interface TailscaleInfo {
  * can be reached from here, so a join that cannot work is explained instead of failing.
  */
 export interface InviteCheck {
-  /** The workspace's name, as the invite carries it. */
+  /** The workspace the invite is for. */
+  workspace: string;
+  /** The workspace's name: as the inviter's app gives it now, else as the invite carries it. */
   name: string;
   /** The inviter's address (`100.x.y.z:47640`). */
   address: string;
@@ -271,6 +283,19 @@ export interface InviteCheck {
   peer?: { name: string; online: boolean };
   /** A connection to the inviter's app opened. */
   reachable: boolean;
+  /**
+   * What the inviter's app says about the invite and its workspace, when it answers: whether the code still
+   * works, and enough of the workspace to show a card (its icon as a data URL).
+   */
+  invite?: {
+    state: 'valid' | 'used' | 'expired';
+    role?: MemberRole;
+    expires?: number;
+    about?: string;
+    members?: number;
+    online?: number;
+    icon?: string;
+  };
   /** This computer already has the workspace (or a request waiting). */
   joined: boolean;
 }
@@ -304,6 +329,33 @@ export interface CoreMethods {
     };
   };
   'workspace.get': { params: undefined; result: WorkspaceState };
+  /** Sets or clears (null) one of the person's own pictures: a data URL of a png, jpeg, webp or gif, at most 2 MB. */
+  'profile.picture': { params: { slot: PictureSlot; data: string | null }; result: Settings };
+  /** A picture of a person or a workspace as a data URL; `not_found` while it has not arrived from its owner. */
+  'blobs.get': { params: { blob: string }; result: string };
+  /** The open team workspace's name and the line about it (admins). */
+  'workspace.look': { params: { name?: string; about?: string }; result: WorkspaceState };
+  /** Sets or clears (null) the open team workspace's icon or banner (admins). */
+  'workspace.picture': { params: { slot: WorkspaceSlot; data: string | null }; result: WorkspaceState };
+  /** A role of the open team workspace: a name and a color for members (admins). It grants nothing. */
+  'roles.save': { params: RoleInput; result: RoleTag };
+  'roles.delete': { params: { id: string }; result: { ok: true } };
+  /** The roles one member carries, in order (admins). */
+  'roles.assign': { params: { device: string; roles: string[] }; result: { ok: true } };
+  /**
+   * Friends, their requests and this person's own friend code. With `listen` (the person opened their friends)
+   * the app starts listening for others on its Tailscale address, as a team workspace does, and keeps doing so
+   * at every start; without it only what is known is read.
+   */
+  'friends.get': { params: { listen?: boolean } | undefined; result: FriendsState };
+  /** Sends a friend request to the person whose code this is; they answer on their own computer. */
+  'friends.add': { params: { code: string }; result: FriendsState };
+  /** Answers a request: accepting makes the direct conversation, a workspace of two. */
+  'friends.answer': { params: { id: string; accept: boolean }; result: FriendsState };
+  /** Withdraws a request this person sent (the other's app is not told). */
+  'friends.cancel': { params: { device: string }; result: FriendsState };
+  /** Removes a friend here: the conversation leaves this computer's list; its data stays on disk. */
+  'friends.remove': { params: { device: string }; result: FriendsState };
   'workspaces.list': { params: undefined; result: WorkspaceSummary[] };
   'workspaces.create': { params: { name: string }; result: WorkspaceSummary };
   /** Makes a workspace the open one; others keep running in the background. */
@@ -473,6 +525,9 @@ export interface CoreEvents {
   'connectors.changed': ConnectorsState;
   'phones.changed': PhoneState;
   'memory.changed': MemoryState;
+  /** A picture arrived from another member's computer. */
+  'blob.added': { blob: string };
+  'friends.changed': FriendsState;
   'message.added': Message;
   'message.updated': Message;
   'message.deleted': { id: string; channelId: string };
@@ -539,6 +594,14 @@ export const ERROR_CODES = [
   'connector_failed',
   'registry_unreachable',
   'no_snapshot',
+  'picture_type',
+  'picture_too_large',
+  'too_many_roles',
+  'invalid_role',
+  'bad_friend_code',
+  'already_friend',
+  'friend_self',
+  'friend_refused',
   'invalid_race',
   'race_state',
   'race_conflict',
