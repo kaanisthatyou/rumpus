@@ -1,0 +1,1357 @@
+/* The app's window as a drawing (see mock.js). Sizes are in em and the font size follows the window's own width,
+   so the same markup fills a hero, a poster or a phone screen. Colors are the app's tokens ("Grafit & tek vurgu"). */
+
+.rw {
+  --lime: #c6f24e;
+  --bg: #0a0b0d;
+  --rail: #08090a;
+  --side: #0f1013;
+  --main: #0c0d10;
+  --card: #131418;
+  --card-2: #191b20;
+  --line: rgb(232 236 242 / 7%);
+  --line-2: rgb(232 236 242 / 12%);
+  --ink: #e9ecf1;
+  --mute: #969ca7;
+  --meta: #8a909b;
+  --ok: #8be0a8;
+  --warn: #f2c14e;
+  --bad: #ff9f70;
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  container-type: inline-size;
+  width: 100%;
+}
+
+.rw__in {
+  font:
+    400 clamp(6px, 1.055cqw, var(--rw-max, 14px)) / 1.45 'Geist',
+    system-ui,
+    sans-serif;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line-2);
+  border-radius: 0.9em;
+  overflow: hidden;
+  text-align: left;
+}
+
+.rw code,
+.rw kbd,
+.rw time,
+.rw-chip,
+.rw-state,
+.rw-card__f,
+.rw-diff,
+.rw-log,
+.rw-lane__s,
+.rw-lane__m,
+.rw-place {
+  font-family: 'Geist Mono', ui-monospace, monospace;
+  font-size: 0.86em;
+}
+
+.rw-i {
+  width: 1.2em;
+  height: 1.2em;
+  flex: none;
+}
+
+.rw-mark {
+  width: 1.5em;
+  height: 1.5em;
+  flex: none;
+}
+
+/* ---- chrome */
+
+.rw__bar {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  height: 2.7em;
+  padding: 0 1em;
+  color: var(--mute);
+  font-weight: 500;
+  border-bottom: 1px solid var(--line);
+  --mark-body: var(--lime);
+  --mark-face: var(--bg);
+}
+
+.rw__bar span {
+  margin-right: auto;
+}
+
+.rw__bar i {
+  width: 0.75em;
+  height: 0.75em;
+  border-radius: 50%;
+  background: var(--line-2);
+}
+
+.rw__body {
+  display: grid;
+  grid-template-columns: 4.7em 18.4em 1fr 21em;
+  height: 50em;
+}
+
+.rw__rail {
+  background: var(--rail);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9em;
+  padding-top: 0.9em;
+}
+
+.rw__rail > span {
+  width: 2.8em;
+  height: 2.8em;
+  border-radius: 0.75em;
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  background: var(--card);
+  border: 1px solid var(--line);
+  color: var(--mute);
+}
+
+.rw__rail .rw-rail__logo {
+  background: var(--lime);
+  border: 0;
+}
+
+.rw-rail__logo .rw-mark {
+  width: 2.1em;
+  height: 2.1em;
+}
+
+.rw__rail .rw-rail__ws {
+  color: var(--ink);
+}
+
+.rw__rail .rw-rail__add {
+  border-style: dashed;
+  background: none;
+}
+
+.rw__side {
+  background: var(--side);
+  border-right: 1px solid var(--line);
+  padding: 1.1em 0.8em 0.8em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1em;
+  min-width: 0;
+}
+
+.rw-ws {
+  padding: 0 0.5em 0.8em;
+  display: grid;
+  gap: 0.2em;
+}
+
+.rw-ws b {
+  font-size: 1.15em;
+  font-weight: 600;
+}
+
+.rw small {
+  font-size: 0.86em;
+  color: var(--mute);
+  font-weight: 400;
+}
+
+.rw-on {
+  display: inline-block;
+  width: 0.5em;
+  height: 0.5em;
+  border-radius: 50%;
+  background: var(--ok);
+  margin-right: 0.6em;
+}
+
+.rw-search {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  border: 1px solid var(--line-2);
+  border-radius: 0.6em;
+  padding: 0.5em 0.6em;
+  color: var(--mute);
+  margin-bottom: 0.7em;
+}
+
+.rw-search span {
+  margin-right: auto;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.rw kbd {
+  border: 1px solid var(--line-2);
+  border-radius: 0.35em;
+  padding: 0 0.45em;
+  color: var(--mute);
+  font-size: 0.78em;
+  white-space: nowrap;
+}
+
+.rw h6 {
+  margin: 1em 0 0.3em;
+  padding: 0 0.6em;
+  font-size: 0.86em;
+  font-weight: 500;
+  color: var(--mute);
+  display: flex;
+  justify-content: space-between;
+}
+
+.rw h6 i {
+  font-style: normal;
+}
+
+.rw-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7em;
+  padding: 0.42em 0.6em;
+  border-radius: 0.55em;
+  color: var(--mute);
+  border-left: 2px solid transparent;
+  transition:
+    background 0.25s,
+    color 0.25s;
+}
+
+.rw-row[data-on] {
+  background: rgb(232 236 242 / 7%);
+  color: var(--ink);
+  font-weight: 500;
+  border-left-color: var(--lime);
+}
+
+.rw-row--wait {
+  display: none;
+  color: var(--warn);
+  margin-top: 0.7em;
+}
+
+.rw-row--wait em {
+  margin-left: auto;
+  font-style: normal;
+  font-weight: 600;
+  background: var(--warn);
+  color: var(--bg);
+  border-radius: 0.4em;
+  padding: 0 0.5em;
+  font-size: 0.86em;
+}
+
+.rw[data-scene='approval'] .rw-row--wait {
+  display: flex;
+}
+
+.rw-me {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.7em;
+  border: 1px solid var(--line);
+  border-radius: 0.7em;
+  padding: 0.6em;
+  background: var(--card);
+}
+
+.rw-me div,
+.rw-who div {
+  display: grid;
+  line-height: 1.3;
+  min-width: 0;
+}
+
+.rw-av {
+  position: relative;
+  flex: none;
+  width: 2.3em;
+  height: 2.3em;
+  border-radius: 0.6em;
+  background: var(--card-2);
+  border: 1px solid var(--line-2);
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 0.92em;
+}
+
+.rw-av--agent {
+  color: var(--ink);
+}
+
+.rw-av--on::after {
+  content: '';
+  position: absolute;
+  right: -0.15em;
+  bottom: -0.15em;
+  width: 0.6em;
+  height: 0.6em;
+  border-radius: 50%;
+  background: var(--ok);
+  border: 0.15em solid var(--main);
+}
+
+/* ---- the channel */
+
+.rw__main {
+  background: var(--main);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.rw__head {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  height: 3.7em;
+  flex: none;
+  padding: 0 1.5em;
+  border-bottom: 1px solid var(--line);
+  color: var(--mute);
+}
+
+.rw__head b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.rw__head span {
+  border-left: 1px solid var(--line-2);
+  padding-left: 0.9em;
+  margin-left: 0.3em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rw__head--board,
+.rw[data-scene='board'] .rw__head:not(.rw__head--board),
+.rw[data-scene='board'] .rw__composer,
+.rw[data-scene='board'] .rw-day,
+.rw[data-scene='live'] .rw__composer,
+.rw[data-scene='live'] .rw-day {
+  display: none;
+}
+
+.rw[data-scene='board'] .rw__head--board {
+  display: flex;
+}
+
+.rw__stage {
+  flex: 1;
+  min-height: 0;
+  padding: 1.3em 1.5em 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.rw-day {
+  display: flex;
+  align-items: center;
+  gap: 1em;
+  color: var(--mute);
+  font-size: 0.86em;
+  margin-bottom: 1.2em;
+}
+
+.rw-day::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.rw-scene {
+  display: none;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  gap: 1.1em;
+}
+
+.rw[data-scene='job'] .rw-scene[data-scene='job'],
+.rw[data-scene='live'] .rw-scene[data-scene='live'],
+.rw[data-scene='approval'] .rw-scene[data-scene='approval'],
+.rw[data-scene='race'] .rw-scene[data-scene='race'],
+.rw[data-scene='board'] .rw-scene[data-scene='board'],
+.rw[data-scene='team'] .rw-scene[data-scene='team'] {
+  display: flex;
+}
+
+.rw-msg {
+  display: flex;
+  gap: 0.9em;
+}
+
+.rw-msg__h {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6em;
+}
+
+.rw-msg__h b {
+  font-weight: 600;
+}
+
+.rw time {
+  color: var(--meta);
+}
+
+.rw-msg p {
+  margin: 0.25em 0 0;
+  max-width: 62ch;
+}
+
+.rw-at,
+.rw-cmd {
+  color: var(--lime);
+  font-weight: 500;
+}
+
+.rw-chip {
+  display: inline-block;
+  border: 1px solid var(--line-2);
+  border-radius: 0.4em;
+  padding: 0.05em 0.5em;
+  color: var(--mute);
+  background: var(--card-2);
+  white-space: nowrap;
+}
+
+.rw code {
+  border: 1px solid var(--line-2);
+  border-radius: 0.4em;
+  padding: 0.05em 0.45em;
+  background: var(--card-2);
+  white-space: nowrap;
+}
+
+.rw-card {
+  margin-left: 3.2em;
+  border: 1px solid var(--line-2);
+  border-radius: 0.8em;
+  background: var(--card);
+  max-width: 46em;
+}
+
+.rw-card__h {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  padding: 0.75em 0.9em;
+  border-bottom: 1px solid var(--line);
+}
+
+.rw-card__h .rw-av {
+  width: 1.9em;
+  height: 1.9em;
+}
+
+.rw-card__h b {
+  font-weight: 600;
+  font-size: 1.05em;
+}
+
+.rw-state {
+  margin-left: auto;
+  display: grid;
+  color: var(--ok);
+  white-space: nowrap;
+}
+
+.rw-state > span {
+  grid-area: 1 / 1;
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.rw-state__a {
+  color: var(--lime);
+}
+
+.rw-state--warn {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  color: var(--warn);
+}
+
+.rw-dot {
+  width: 0.55em;
+  height: 0.55em;
+  border-radius: 50%;
+  background: currentcolor;
+}
+
+.rw-ring {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  flex: none;
+  border-radius: 50%;
+  border: 0.16em solid rgb(198 242 78 / 22%);
+  border-top-color: var(--lime);
+  animation: rw-spin 0.9s linear infinite;
+}
+
+.rw-ring--warn {
+  border-color: rgb(242 193 78 / 25%);
+  border-top-color: var(--warn);
+  animation: none;
+}
+
+.rw-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0.6em 0.9em;
+  display: grid;
+  gap: 0.45em;
+}
+
+.rw-steps li {
+  display: flex;
+  align-items: center;
+  gap: 0.7em;
+}
+
+.rw-tick {
+  color: var(--ok);
+  display: grid;
+}
+
+.rw-tick .rw-i {
+  width: 1em;
+  height: 1em;
+}
+
+.rw-diff {
+  display: inline-flex;
+  gap: 0.5em;
+}
+
+.rw-diff i {
+  font-style: normal;
+  color: var(--ok);
+}
+
+.rw-diff u {
+  text-decoration: none;
+  color: var(--bad);
+}
+
+.rw-changes {
+  display: flex;
+  align-items: center;
+  gap: 0.7em;
+  padding: 0.6em 0.9em;
+  border-top: 1px solid var(--line);
+  color: var(--mute);
+}
+
+.rw-changes b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.rw-card__f {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1em;
+  padding: 0.6em 0.9em;
+  border-top: 1px solid var(--line);
+  color: var(--mute);
+  white-space: nowrap;
+}
+
+.rw-card__btns {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  margin-left: auto;
+}
+
+.rw-ghost,
+.rw-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+  font:
+    500 1rem / 1 'Geist',
+    system-ui,
+    sans-serif;
+  font-size: 0.95em;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.rw-ghost {
+  color: var(--mute);
+}
+
+.rw-btn {
+  border: 1px solid var(--line-2);
+  border-radius: 0.55em;
+  padding: 0.5em 0.8em;
+  background: var(--card);
+}
+
+.rw-btn--go {
+  background: var(--lime);
+  border-color: var(--lime);
+  color: var(--bg);
+}
+
+/* approval */
+
+.rw-card--wait {
+  border-color: rgb(242 193 78 / 55%);
+}
+
+.rw-steps__wait {
+  color: var(--ink);
+}
+
+.rw-appr {
+  display: flex;
+  align-items: center;
+  gap: 1em;
+  padding: 0.8em 0.9em;
+  background: rgb(242 193 78 / 7%);
+  border-top: 1px solid var(--line);
+}
+
+.rw-appr b {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.rw-appr p {
+  margin: 0.3em 0 0.2em;
+  display: flex;
+  gap: 0.6em;
+  align-items: center;
+}
+
+.rw-appr small {
+  display: block;
+}
+
+.rw-appr .rw-btn--go {
+  animation: rw-nudge 1.6s var(--out) 3.6s infinite;
+}
+
+/* live view */
+
+.rw-live {
+  flex: 1;
+  min-height: 0;
+  margin-bottom: 1.3em;
+  border: 1px solid var(--line-2);
+  border-radius: 0.8em;
+  background: var(--card);
+  display: flex;
+  flex-direction: column;
+}
+
+.rw-live__h {
+  display: flex;
+  align-items: center;
+  gap: 0.7em;
+  padding: 0.8em 1em;
+  border-bottom: 1px solid var(--line);
+}
+
+.rw-live__h b {
+  font-weight: 600;
+}
+
+.rw-live__n {
+  color: var(--mute);
+}
+
+.rw-av--run::before {
+  content: '';
+  position: absolute;
+  inset: -0.3em;
+  border-radius: 0.8em;
+  border: 0.14em solid transparent;
+  border-top-color: var(--lime);
+  border-right-color: var(--lime);
+  animation: rw-spin 1.2s linear infinite;
+}
+
+.rw-live__b {
+  flex: 1;
+  padding: 1em 1.1em;
+  display: grid;
+  align-content: start;
+  gap: 0.55em;
+}
+
+.rw-log {
+  color: var(--mute);
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  padding-left: 1.4em;
+}
+
+.rw-log--tool {
+  color: var(--ink);
+  padding-left: 0;
+}
+
+.rw-log--tool::before {
+  content: '>';
+  color: var(--lime);
+  width: 0.8em;
+}
+
+.rw-log--bad {
+  color: var(--bad);
+}
+
+.rw-log--ok {
+  color: var(--ok);
+}
+
+.rw-log--steer {
+  color: var(--bg);
+  background: var(--lime);
+  border-radius: 0.45em;
+  padding: 0.3em 0.7em;
+  justify-self: start;
+  font-weight: 500;
+}
+
+.rw-caret::before {
+  content: '';
+  width: 0.55em;
+  height: 1.1em;
+  border-radius: 0.2em;
+  background: var(--lime);
+  animation: rw-blink 1s steps(1) infinite;
+}
+
+.rw-live__f {
+  display: flex;
+  align-items: center;
+  gap: 0.7em;
+  margin: 0 1em 1em;
+  padding: 0.7em 0.9em;
+  border: 1px solid var(--line-2);
+  border-radius: 0.6em;
+  background: var(--main);
+}
+
+.rw-live__ph {
+  color: var(--mute);
+  margin-right: auto;
+}
+
+.rw-typed {
+  margin-right: auto;
+}
+
+/* race */
+
+.rw-race {
+  max-width: 54em;
+}
+
+.rw-race .rw-card__h > .rw-i {
+  color: var(--lime);
+}
+
+.rw-race__s {
+  color: var(--mute);
+  font-family: 'Geist Mono', monospace;
+  font-size: 0.86em;
+}
+
+.rw-race__x {
+  margin-left: auto;
+}
+
+.rw-lanes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.rw-lane {
+  padding: 0.9em;
+  display: grid;
+  gap: 0.55em;
+  min-width: 0;
+}
+
+.rw-lane + .rw-lane {
+  border-left: 1px solid var(--line);
+}
+
+.rw-lane__h {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+}
+
+.rw-lane__h .rw-av {
+  width: 1.9em;
+  height: 1.9em;
+}
+
+.rw-lane__h b {
+  font-weight: 600;
+}
+
+.rw-place {
+  border: 1px solid var(--lime);
+  color: var(--lime);
+  border-radius: 0.4em;
+  padding: 0 0.45em;
+}
+
+.rw-lane__c {
+  display: flex;
+  gap: 0.5em;
+}
+
+.rw-lane__s {
+  display: grid;
+  color: var(--lime);
+}
+
+.rw-lane__s > span {
+  grid-area: 1 / 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.rw-ok {
+  color: var(--ok);
+}
+
+.rw-bar {
+  height: 0.25em;
+  border-radius: 1em;
+  background: var(--line-2);
+  overflow: hidden;
+}
+
+.rw-bar i {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: var(--lime);
+  transform-origin: left;
+}
+
+.rw-lane__m {
+  color: var(--mute);
+  display: flex;
+  gap: 0.7em;
+}
+
+.rw-lane__a {
+  border: 1px solid var(--line-2);
+  border-radius: 0.5em;
+  padding: 0.5em 0.7em;
+  background: var(--main);
+}
+
+.rw-lane__f {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6em;
+  padding-top: 0.3em;
+}
+
+.rw-race__n {
+  padding: 0.65em 0.9em;
+  border-top: 1px solid var(--line);
+  color: var(--mute);
+  font-size: 0.92em;
+}
+
+/* board */
+
+.rw-board {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.9em;
+  padding-bottom: 1.3em;
+}
+
+.rw-col {
+  background: var(--side);
+  border: 1px solid var(--line);
+  border-radius: 0.8em;
+  padding: 0.7em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+  min-width: 0;
+}
+
+.rw-col h5 {
+  margin: 0 0.2em 0.2em;
+  font-size: 0.95em;
+  font-weight: 600;
+  display: flex;
+  justify-content: space-between;
+}
+
+.rw-col h5 i {
+  font-style: normal;
+  color: var(--mute);
+  font-weight: 400;
+}
+
+.rw-kard {
+  border: 1px solid var(--line-2);
+  border-radius: 0.6em;
+  background: var(--card);
+  padding: 0.65em 0.7em;
+  display: grid;
+  gap: 0.5em;
+}
+
+.rw-kard p {
+  margin: 0;
+  line-height: 1.35;
+}
+
+.rw-kard span {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  color: var(--mute);
+  font-size: 0.9em;
+}
+
+.rw-kard .rw-av {
+  width: 1.6em;
+  height: 1.6em;
+  border-radius: 0.45em;
+}
+
+.rw-kard--run {
+  border-color: rgb(198 242 78 / 55%);
+}
+
+.rw-kard--run .rw-av::before {
+  content: '';
+  position: absolute;
+  inset: -0.28em;
+  border-radius: 0.6em;
+  border: 0.13em solid transparent;
+  border-top-color: var(--lime);
+  border-right-color: var(--lime);
+  animation: rw-spin 1.2s linear infinite;
+}
+
+/* the final state: the card has left "In progress" and stands in "In review" */
+.rw-kard--leave {
+  display: none;
+}
+
+/* ---- crew panel */
+
+.rw__crew {
+  background: var(--side);
+  border-left: 1px solid var(--line);
+  padding: 1.1em 1em 0.9em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2em;
+  min-width: 0;
+}
+
+.rw-crew__h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.4em;
+}
+
+.rw-crew__h b {
+  font-weight: 600;
+  font-size: 1.05em;
+}
+
+.rw__crew h6 {
+  padding: 0;
+}
+
+.rw-who {
+  display: flex;
+  align-items: center;
+  gap: 0.8em;
+  padding: 0.4em 0;
+}
+
+.rw-who b {
+  font-weight: 600;
+}
+
+.rw-who b small {
+  font-family: 'Geist Mono', monospace;
+}
+
+.rw-who__run,
+.rw-who__wait {
+  display: none;
+  color: var(--lime);
+}
+
+.rw-who__wait {
+  color: var(--warn);
+}
+
+.rw:is([data-scene='job'], [data-scene='live'], [data-scene='team']) [data-agent='claude'] .rw-who__run,
+.rw[data-scene='race'] .rw-who__run,
+.rw[data-scene='approval'] [data-agent='claude'] .rw-who__wait {
+  display: inline;
+}
+
+.rw:is([data-scene='job'], [data-scene='live'], [data-scene='team'], [data-scene='approval'])
+  [data-agent='claude']
+  .rw-who__idle,
+.rw[data-scene='race'] .rw-who__idle {
+  display: none;
+}
+
+.rw:is([data-scene='job'], [data-scene='live'], [data-scene='team']) [data-agent='claude'] .rw-av::before,
+.rw[data-scene='race'] [data-agent] .rw-av::before {
+  content: '';
+  position: absolute;
+  inset: -0.3em;
+  border-radius: 0.8em;
+  border: 0.14em solid transparent;
+  border-top-color: var(--lime);
+  border-right-color: var(--lime);
+  animation: rw-spin 1.2s linear infinite;
+}
+
+.rw[data-scene='approval'] [data-agent='claude'] .rw-av::before {
+  content: '';
+  position: absolute;
+  inset: -0.3em;
+  border-radius: 0.8em;
+  border: 0.14em solid var(--warn);
+}
+
+.rw-quota {
+  margin-top: auto;
+  border: 1px solid var(--line);
+  border-radius: 0.7em;
+  background: var(--card);
+  padding: 0.8em;
+  display: grid;
+  gap: 0.5em;
+}
+
+.rw-quota b {
+  font-weight: 600;
+}
+
+.rw-quota p {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 5em 1fr 2.6em;
+  align-items: center;
+  gap: 0.6em;
+  color: var(--mute);
+  font-size: 0.9em;
+}
+
+.rw-quota i {
+  height: 0.2em;
+  border-radius: 1em;
+  background: linear-gradient(90deg, var(--lime) var(--v), var(--line-2) var(--v));
+}
+
+/* ---- composer */
+
+.rw__composer {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.8em;
+  margin: 1em 1.5em 1.3em;
+  padding: 0.55em 0.55em 0.55em 1em;
+  border: 1px solid var(--line-2);
+  border-radius: 0.8em;
+  background: var(--card);
+  color: var(--mute);
+}
+
+.rw__composer span {
+  margin-right: auto;
+}
+
+.rw__composer b {
+  width: 2.6em;
+  height: 2.6em;
+  border-radius: 0.6em;
+  background: rgb(198 242 78 / 55%);
+  color: var(--bg);
+  display: grid;
+  place-items: center;
+}
+
+/* ---- narrow: only the channel */
+
+@container (max-width: 720px) {
+  .rw__in {
+    font-size: clamp(10px, 2.9cqw, var(--rw-max, 14px));
+  }
+
+  .rw__body {
+    grid-template-columns: 1fr;
+    height: 40em;
+  }
+
+  .rw__rail,
+  .rw__side,
+  .rw__crew,
+  .rw__head span {
+    display: none;
+  }
+
+  .rw-card {
+    margin-left: 0;
+  }
+
+  .rw-board {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .rw__stage {
+    padding: 1em 1em 0;
+  }
+
+  .rw__composer {
+    margin: 0.8em 1em 1em;
+  }
+
+  .rw-card__f .rw-ghost,
+  .rw-lane__f .rw-ghost {
+    display: none;
+  }
+}
+
+.rw--bare .rw__rail,
+.rw--bare .rw__side,
+.rw--bare .rw__crew {
+  display: none;
+}
+
+.rw--bare .rw__body {
+  grid-template-columns: 1fr;
+  height: auto;
+  min-height: 30em;
+}
+
+@container (min-width: 720.01px) {
+  .rw--bare .rw__in {
+    font-size: clamp(6px, 2.1cqw, var(--rw-max, 14px));
+  }
+}
+
+/* the channel and the crew panel only, drawn larger */
+.rw--focus .rw__in {
+  font-size: clamp(6px, 1.62cqw, var(--rw-max, 14px));
+}
+
+.rw--focus .rw__rail,
+.rw--focus .rw__side {
+  display: none;
+}
+
+.rw--focus .rw__body {
+  grid-template-columns: 1fr 19em;
+  height: 44em;
+}
+
+/* ---- what moves. Without `.play` every scene stands in its final state. A page that lays several scenes on one
+   timeline (the reel) sets `--t0`, when the scene starts, and `--k`, how much faster than written it runs. */
+
+.play .in {
+  animation: rw-in 0.45s var(--out) both;
+  animation-delay: calc(var(--t0, 0s) + var(--d, 0s) * var(--k, 1));
+}
+
+.play .rw-steps .in {
+  animation-name: rw-step;
+  animation-duration: 0.35s;
+}
+
+.play .rw-card.in,
+.play .rw-live.in {
+  animation-name: rw-pop;
+  animation-timing-function: var(--spring);
+}
+
+/* shown until --d */
+.swa {
+  visibility: hidden;
+}
+
+.play .swa {
+  animation: rw-until calc(var(--d) * var(--k, 1)) steps(1) var(--t0, 0s) both;
+}
+
+/* shown from --d */
+.play .swb {
+  animation: rw-from 0.3s var(--spring) both;
+  animation-delay: calc(var(--t0, 0s) + var(--d) * var(--k, 1));
+}
+
+.play .rw-bar i {
+  animation: rw-fill calc(var(--d) * var(--k, 1)) cubic-bezier(0.3, 0.1, 0.5, 1) var(--t0, 0s) both;
+}
+
+.play .rw-typed {
+  overflow: hidden;
+  white-space: nowrap;
+  animation: rw-type 0.8s steps(24) both;
+  animation-delay: calc(var(--t0, 0s) + (var(--d) + 0.05s) * var(--k, 1));
+}
+
+.play .rw-kard--leave {
+  display: grid;
+  animation: rw-leave 0.5s var(--out) both;
+  animation-delay: calc(var(--t0, 0s) + var(--d) * var(--k, 1));
+}
+
+.play .rw-kard--arrive {
+  animation: rw-arrive 0.55s var(--spring) both;
+  animation-delay: calc(var(--t0, 0s) + (var(--d) + 0.25s) * var(--k, 1));
+}
+
+@keyframes rw-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.7em);
+  }
+}
+
+@keyframes rw-step {
+  from {
+    opacity: 0;
+    transform: translateX(-0.6em);
+  }
+}
+
+@keyframes rw-pop {
+  from {
+    opacity: 0;
+    transform: translateY(0.9em) scale(0.97);
+  }
+}
+
+@keyframes rw-until {
+  from {
+    visibility: visible;
+  }
+
+  to {
+    visibility: hidden;
+  }
+}
+
+@keyframes rw-from {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+}
+
+@keyframes rw-fill {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes rw-type {
+  from {
+    max-width: 0;
+  }
+
+  to {
+    max-width: 30em;
+  }
+}
+
+@keyframes rw-leave {
+  to {
+    opacity: 0;
+    transform: translateX(60%) rotate(4deg);
+    height: 0;
+    padding-block: 0;
+    margin-bottom: -0.6em;
+    border-width: 0;
+  }
+}
+
+@keyframes rw-arrive {
+  from {
+    opacity: 0;
+    transform: translateX(-60%) rotate(-4deg);
+  }
+}
+
+@keyframes rw-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes rw-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes rw-nudge {
+  0%,
+  30%,
+  100% {
+    transform: none;
+  }
+
+  12% {
+    transform: scale(1.07);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rw *,
+  .rw *::before {
+    animation: none !important;
+  }
+
+  .rw .swa {
+    visibility: hidden;
+  }
+}

@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Rumpus: put your agents in one room</title>
+    <meta
+      name="description"
+      content="Rumpus is an open-source desktop hub where people and the CLI coding agents they already use work together: channels, live job cards, a board, races. No account, no server, no agent of its own."
+    />
+    <meta name="theme-color" content="#c6f24e" />
+    <meta property="og:title" content="Rumpus: put your agents in one room" />
+    <meta
+      property="og:description"
+      content="An open-source desktop hub for people and their CLI coding agents. No account, no server, no agent of its own."
+    />
+    <meta property="og:image" content="img/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="img/favicon.svg" type="image/svg+xml" />
+    <link rel="preload" href="fonts/bricolage-grotesque-latin-standard-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="fonts.css" />
+    <link rel="stylesheet" href="mock.css" />
+    <link rel="stylesheet" href="styles.css" />
+    <script type="module" src="app.js"></script>
+  </head>
+  <body>
+    <a class="skip" href="#room" data-t="skip">Skip to what it does</a>
+
+    <header class="hero" id="top">
+      <nav class="nav" aria-label="Rumpus">
+        <a class="logo" href="#top">
+          <img src="img/mark-on-lime.svg" alt="" width="52" height="52" />
+          <img src="img/wordmark-ink.svg" alt="Rumpus" width="150" height="40" />
+        </a>
+        <div class="nav__links">
+          <a href="#room" data-t="nav.room">What it does</a>
+          <a href="#refuses" data-t="nav.no">What it refuses</a>
+          <a href="https://github.com/kaanisthatyou/lonca">GitHub</a>
+          <button class="lang" type="button" id="lang" aria-label="Türkçe">TR</button>
+        </div>
+      </nav>
+
+      <div class="hero__top">
+        <h1 class="hero__title" data-split data-t="hero.title">Put your<br />agents in<br />one room.</h1>
+
+        <button class="bub" type="button" id="bub" data-t-label="bub.label" aria-label="Make a rumpus">
+          <svg viewBox="-60 -70 640 620" aria-hidden="true">
+            <g transform="rotate(-6 256 256)">
+              <g class="bub__noise">
+                <path d="M468 76l30-44M500 150l52-18M410 52l6-56" />
+              </g>
+              <g class="bub__body">
+                <path
+                  class="bub__shape"
+                  d="M152 88H360A96 96 0 0 1 456 184V284A96 96 0 0 1 360 380H276L170 456Q142 474 146 442L154 380H152A96 96 0 0 1 56 284V184A96 96 0 0 1 152 88Z"
+                />
+                <g class="bub__face">
+                  <path class="bub__chev" d="M170 180l62 54-62 54" />
+                  <rect class="bub__cur" x="308" y="176" width="48" height="116" rx="24" />
+                  <path class="bub__smile" d="M238 318q28 26 56 0" />
+                  <path class="bub__mouth" d="M222 312h88a44 44 0 0 1-88 0z" />
+                </g>
+              </g>
+            </g>
+          </svg>
+        </button>
+      </div>
+
+      <div class="hero__sub">
+        <p class="lead" data-t="hero.lead">
+          Rumpus is an open-source desktop hub where people and the CLI coding agents they already use work together.
+          Picture a Discord server whose member list includes Claude Code and Codex.
+        </p>
+        <div class="hero__cta">
+          <a class="btn btn--ink" href="https://github.com/kaanisthatyou/lonca/releases" data-t="cta.get">Get the alpha</a>
+          <a class="btn" href="https://github.com/kaanisthatyou/lonca/blob/main/PLAN.md" data-t="cta.plan">Read the plan</a>
+          <p class="hero__note" data-t="hero.note">0.9 alpha for Windows and Linux. Apache-2.0. No account.</p>
+        </div>
+      </div>
+
+      <div class="hero__win" id="heroWin" data-win="job"></div>
+    </header>
+
+    <main>
+      <section class="room" id="room">
+        <div class="room__pin">
+          <div class="room__text">
+            <h2 data-t="room.title">Inside the room</h2>
+            <ol class="room__list" id="roomList">
+              <li data-scene="live">
+                <button type="button"><h3 data-t="room.live.h">Watch it work. Steer it. Stop it.</h3></button>
+                <p data-t="room.live.p">
+                  Every job is a live card: steps, tokens, cost. The live view shows the whole transcript; a message
+                  sent mid-run changes its course, and one key stops it.
+                </p>
+                <div class="room__mini" data-win="live" data-bare></div>
+              </li>
+              <li data-scene="approval">
+                <button type="button"><h3 data-t="room.approval.h">Nothing risky runs on its own.</h3></button>
+                <p data-t="room.approval.p">
+                  New agents are read-only and answer only to their owner. A command above an agent's level waits on
+                  its card until a person allows it.
+                </p>
+                <div class="room__mini" data-win="approval" data-bare></div>
+              </li>
+              <li data-scene="race">
+                <button type="button"><h3 data-t="room.race.h">Race them.</h3></button>
+                <p data-t="room.race.p">
+                  <code>/race</code> gives one task to several agents at once, each in a git worktree of its own. The
+                  results stand side by side; one is kept, as staged changes.
+                </p>
+                <div class="room__mini" data-win="race" data-bare></div>
+              </li>
+              <li data-scene="board">
+                <button type="button"><h3 data-t="room.board.h">A board that does the work.</h3></button>
+                <p data-t="room.board.p">
+                  <code>/todo</code> adds a card. Give the card an agent and it runs as a job; when the job ends, the
+                  card moves to review.
+                </p>
+                <div class="room__mini" data-win="board" data-bare></div>
+              </li>
+              <li data-scene="team">
+                <button type="button"><h3 data-t="room.team.h">Bring the team. Skip the server.</h3></button>
+                <p data-t="room.team.p">
+                  A workspace is shared with an invite code and roles. Each agent still runs on its owner's computer,
+                  under the owner's own login and limits.
+                </p>
+                <div class="room__mini" data-win="team" data-bare></div>
+              </li>
+            </ol>
+          </div>
+          <div class="room__win" id="roomWin" data-win="live,approval,race,board,team" data-focus></div>
+        </div>
+      </section>
+
+      <div class="tape" aria-hidden="true"><div class="tape__run" id="tape"></div></div>
+
+      <section class="no" id="refuses">
+        <div class="no__in">
+          <div class="no__head">
+            <h2 data-t="no.title">Rumpus says no.</h2>
+            <img class="no__bub" src="img/bub-placard-on-lime.svg" alt="" width="360" height="360" />
+          </div>
+          <ul class="no__list" id="noList">
+            <li>
+              <p class="no__what" data-strike data-t="no.1.w">An agent of its own</p>
+              <p class="no__so" data-t="no.1.s">
+                It drives the CLIs already installed and signed in on the computer: Claude Code and Codex today.
+              </p>
+            </li>
+            <li>
+              <p class="no__what" data-strike data-t="no.2.w">Accounts, servers, relays</p>
+              <p class="no__so" data-t="no.2.s">
+                Alone it needs nothing else. A team connects computer to computer over Tailscale; nothing sits in
+                between.
+              </p>
+            </li>
+            <li>
+              <p class="no__what" data-strike data-t="no.3.w">Telemetry</p>
+              <p class="no__so" data-t="no.3.s">
+                Rumpus sends nothing. The workspace is a file on each member's own disk.
+              </p>
+            </li>
+            <li>
+              <p class="no__what" data-strike data-t="no.4.w">“Sign in with Claude”</p>
+              <p class="no__so" data-t="no.4.s">
+                It never reads, copies or moves a CLI's login files. It starts the official program, which uses its
+                own login.
+              </p>
+            </li>
+            <li>
+              <p class="no__what" data-strike data-t="no.5.w">Agents that start themselves</p>
+              <p class="no__so" data-t="no.5.s">
+                Only a person's message, card or goal starts work. Agents cannot keep each other going.
+              </p>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="net" id="together">
+        <h2 data-t="net.title">Alone, or with a crew.</h2>
+        <div class="net__grid">
+          <article>
+            <svg class="net__svg" viewBox="0 0 520 380" role="img" aria-labelledby="soloT">
+              <title id="soloT" data-t="net.solo.alt">One computer running Rumpus with two CLI agents, and no cloud.</title>
+              <g class="net__ghost" transform="translate(360 40)">
+                <path d="M30 70a34 34 0 0 1 8-67 44 44 0 0 1 84 14 30 30 0 0 1-6 59z" />
+                <path class="net__x" d="M10 -6l130 96" />
+                <text x="76" y="118" text-anchor="middle" data-t="net.cloud">no cloud</text>
+              </g>
+              <g transform="translate(60 110)">
+                <rect class="net__pc" width="300" height="210" rx="22" />
+                <text class="net__name" x="24" y="42" data-t="net.pc1">Kaan's computer</text>
+                <use href="#markSym" x="24" y="66" width="72" height="72" />
+                <rect class="net__chip" x="112" y="72" width="164" height="38" rx="10" />
+                <text class="net__mono" x="128" y="97">claude-code</text>
+                <rect class="net__chip" x="112" y="120" width="164" height="38" rx="10" />
+                <text class="net__mono" x="128" y="145">codex</text>
+                <text class="net__small" x="24" y="186" data-t="net.own">its own logins, its own disk</text>
+              </g>
+            </svg>
+            <h3 data-t="net.solo.h">Alone</h3>
+            <p data-t="net.solo.p">No account, no network, no setup beyond the CLIs already on the computer.</p>
+          </article>
+          <article>
+            <svg class="net__svg" viewBox="0 0 520 380" role="img" aria-labelledby="teamT">
+              <title id="teamT" data-t="net.team.alt">
+                Three computers connected directly to each other, with no server in the middle.
+              </title>
+              <g class="net__links">
+                <path id="l1" d="M150 110L370 110" />
+                <path id="l2" d="M110 150L230 280" />
+                <path id="l3" d="M410 150L290 280" />
+              </g>
+              <g class="net__pulses">
+                <circle r="7"><animateMotion dur="2.4s" repeatCount="indefinite" path="M150 110L370 110" /></circle>
+                <circle r="7"><animateMotion dur="2.9s" repeatCount="indefinite" path="M230 280L110 150" /></circle>
+                <circle r="7"><animateMotion dur="2.6s" repeatCount="indefinite" path="M410 150L290 280" /></circle>
+                <circle r="7">
+                  <animateMotion dur="2.4s" begin="1.2s" repeatCount="indefinite" path="M370 110L150 110" />
+                </circle>
+              </g>
+              <g class="net__ghost" transform="translate(222 150)">
+                <rect width="76" height="56" rx="10" />
+                <path class="net__x" d="M-8 -8l92 72" />
+                <text x="38" y="84" text-anchor="middle" data-t="net.server">no server</text>
+              </g>
+              <g transform="translate(20 60)">
+                <rect class="net__pc" width="150" height="100" rx="18" />
+                <text class="net__name" x="18" y="34">Kaan</text>
+                <rect class="net__chip" x="18" y="48" width="114" height="34" rx="9" />
+                <text class="net__mono" x="30" y="71">@claude</text>
+              </g>
+              <g transform="translate(350 60)">
+                <rect class="net__pc" width="150" height="100" rx="18" />
+                <text class="net__name" x="18" y="34">Arda</text>
+                <rect class="net__chip" x="18" y="48" width="114" height="34" rx="9" />
+                <text class="net__mono" x="30" y="71">@codex</text>
+              </g>
+              <g transform="translate(185 262)">
+                <rect class="net__pc" width="150" height="100" rx="18" />
+                <text class="net__name" x="18" y="34">Ece</text>
+                <rect class="net__chip" x="18" y="48" width="114" height="34" rx="9" />
+                <text class="net__mono" x="30" y="71">@review</text>
+              </g>
+            </svg>
+            <h3 data-t="net.team.h">Together</h3>
+            <p data-t="net.team.p">
+              Every member keeps the whole workspace. Whenever two are online they catch up, with signed events.
+              Nobody is the server, so a closed laptop only takes its own agents offline.
+            </p>
+          </article>
+        </div>
+
+        <dl class="more">
+          <div>
+            <dt><code>/goal</code></dt>
+            <dd data-t="more.goal">
+              An agent writes a plan, a person approves it, and the agent works step by step until a done-check
+              passes.
+            </dd>
+          </div>
+          <div>
+            <dt data-t="more.spec.t">Specialists</dt>
+            <dd data-t="more.spec">Agents for one kind of work, with a playbook, a budget and lessons they keep.</dd>
+          </div>
+          <div>
+            <dt data-t="more.adv.t">Advisors</dt>
+            <dd data-t="more.adv">
+              Bots on the person's own API keys that read the project and give honest takes, one at a time or
+              together at a round table.
+            </dd>
+          </div>
+          <div>
+            <dt data-t="more.undo.t">Undo</dt>
+            <dd data-t="more.undo">
+              In a git repository the card lists what a job changed, shows each diff and takes it back.
+            </dd>
+          </div>
+          <div>
+            <dt data-t="more.rout.t">Routines</dt>
+            <dd data-t="more.rout">
+              A message posted at set times, as its owner: “@test run the suite” every morning.
+            </dd>
+          </div>
+          <div>
+            <dt data-t="more.conn.t">Connectors</dt>
+            <dd data-t="more.conn">
+              MCP connectors run behind Rumpus's own gateway; each tool is allowed, asked about or blocked.
+            </dd>
+          </div>
+          <div>
+            <dt data-t="more.mem.t">Records and memory</dt>
+            <dd data-t="more.mem">
+              Ideas, reference images, saved commands and a small memory that people can read and edit.
+            </dd>
+          </div>
+          <div>
+            <dt data-t="more.phone.t">Phone</dt>
+            <dd data-t="more.phone">
+              The same workspace on a phone over Tailscale, with a push when a job waits for approval.
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="end">
+        <img class="end__bub" src="img/bub-wave-on-lime.svg" alt="" width="420" height="354" />
+        <h2 data-split data-t="end.title">Make a<br />rumpus.</h2>
+        <p class="lead" data-t="end.lead">
+          Rumpus is 0.9 alpha and open source under Apache-2.0. Windows and Linux for now.
+        </p>
+        <div class="hero__cta">
+          <a class="btn btn--ink" href="https://github.com/kaanisthatyou/lonca/releases" data-t="cta.get">Get the alpha</a>
+          <a class="btn" href="https://github.com/kaanisthatyou/lonca" data-t="cta.source">Read the source</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <a class="logo" href="#top">
+        <img src="img/mark.svg" alt="" width="44" height="44" />
+        <img src="img/wordmark-paper.svg" alt="Rumpus" width="128" height="34" />
+      </a>
+      <p data-t="foot.legal">
+        Rumpus is not affiliated with Anthropic, OpenAI, Discord or Tailscale. Claude Code, Codex, Discord and
+        Tailscale are names of their owners' products.
+      </p>
+      <p>
+        <a href="https://github.com/kaanisthatyou/lonca">GitHub</a>
+        <a href="https://github.com/kaanisthatyou/lonca/blob/main/LICENSE">Apache-2.0</a>
+        <a href="https://github.com/kaanisthatyou/lonca/blob/main/PLAN.md" data-t="foot.plan">Plan</a>
+      </p>
+    </footer>
+
+    <canvas class="burst" id="burst" aria-hidden="true"></canvas>
+
+    <svg width="0" height="0" class="defs" aria-hidden="true">
+      <symbol id="markSym" viewBox="0 0 512 512">
+        <g transform="rotate(-6 256 256)">
+          <path
+            d="M152 88H360A96 96 0 0 1 456 184V284A96 96 0 0 1 360 380H276L170 456Q142 474 146 442L154 380H152A96 96 0 0 1 56 284V184A96 96 0 0 1 152 88Z"
+            fill="#c6f24e"
+          />
+          <path d="M170 180l62 54-62 54" fill="none" stroke="#0a0b0d" stroke-width="46" stroke-linecap="round" stroke-linejoin="round" />
+          <rect x="308" y="176" width="48" height="116" rx="24" fill="#0a0b0d" />
+        </g>
+      </symbol>
+    </svg>
+  </body>
+</html>
