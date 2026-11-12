@@ -226,7 +226,7 @@
     },
     "notifications": "Bildirimler",
     "notificationsLabel": "Sistem bildirimleri",
-    "notificationsHint": "Uygulama arka plandayken onay bekleyen iş, katılma isteği ve başka üyelerin mesajı için bildirim gösterilir.",
+    "notificationsHint": "Uygulama arka plandayken gösterilir: bu bilgisayarda onay bekleyen iş, bu bilgisayarın ajanlarının ve buradan istenen işlerin bitişi, katılma isteği, başka üyelerin mesajı. Başka bir üyenin ajanı, sahibinin adıyla birlikte anılır.",
     "agentFolder": "Agentların varsayılan klasörü",
     "agentFolderHint": "Klasör seçilmeden eklenen agent burada çalışır. Ayarlanmadıysa masaüstü kullanılır.",
     "agentFolderDesktop": "Masaüstü",
@@ -421,6 +421,10 @@
       "undone_other": "{{count}} dosya geri alındı.",
       "skipped_one": "{{count}} dosya olduğu gibi bırakıldı: işten sonra değişmiş.",
       "skipped_other": "{{count}} dosya olduğu gibi bırakıldı: işten sonra değişmiş."
+    },
+    "notify": {
+      "done": "İş bitti",
+      "failed": "İş tamamlanamadı"
     }
   },
   "agentForm": {

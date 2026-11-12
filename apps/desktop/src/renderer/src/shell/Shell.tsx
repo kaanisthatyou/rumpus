@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { type CSSProperties, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { RUNNABLE } from '../agents/AgentDialog';
-import { remoteOwner } from '../agents/owner';
+import { remoteOwner, runsHere } from '../agents/owner';
 import { specialistIcon } from '../agents/SpecialistDialog';
 import { Board } from '../board/Board';
 import { ChannelView } from '../channel/ChannelView';
@@ -171,8 +171,9 @@ function Sidebar({ onSettings }: { onSettings: () => void }) {
   const unread = useApp((s) => s.unread);
   const channels = workspace?.channels.filter((c) => c.kind === 'channel') ?? [];
   const agentChannels = workspace?.channels.filter((c) => c.kind === 'agent') ?? [];
+  // Jobs that wait for this person: an approval is given on the computer the agent runs on.
   const waiting = Object.values(jobs)
-    .filter((j) => j.state === 'attention')
+    .filter((j) => j.state === 'attention' && runsHere(j, workspace))
     .sort((a, b) => a.started - b.started);
   const running = new Set(
     Object.values(jobs)
@@ -396,7 +397,11 @@ function PhoneBar({ onSettings }: { onSettings: () => void }) {
   const panel = useApp((s) => s.panel);
   const view = useApp((s) => s.view);
   const jobs = useApp((s) => s.jobs);
-  const waiting = useMemo(() => Object.values(jobs).filter((j) => j.state === 'attention'), [jobs]);
+  const workspace = useApp((s) => s.workspace);
+  const waiting = useMemo(
+    () => Object.values(jobs).filter((j) => j.state === 'attention' && runsHere(j, workspace)),
+    [jobs, workspace],
+  );
   const toggle = (p: 'side' | 'crew') => useApp.setState({ panel: panel === p ? undefined : p });
   return (
     <nav className="phonebar" aria-label={t('phone.bar')}>

@@ -3,6 +3,7 @@ import { AnimatePresence, MotionConfig, motion } from 'motion/react';
 import { useCallback, useEffect, useState } from 'react';
 import { AdvisorDialog } from './agents/AdvisorDialog';
 import { AgentDialog } from './agents/AgentDialog';
+import { runsHere } from './agents/owner';
 import { SpecialistDialog } from './agents/SpecialistDialog';
 import { GoalDialog } from './goals/GoalDialog';
 import { actionFor } from './keys';
@@ -67,7 +68,7 @@ export function App() {
       };
       const waiting = () =>
         Object.values(s.jobs)
-          .filter((j) => j.state === 'attention')
+          .filter((j) => j.state === 'attention' && runsHere(j, s.workspace))
           .sort((a, b) => a.started - b.started);
       const step = <T,>(list: T[], current: number, down: boolean) =>
         list[(current + (down ? 1 : list.length - 1) + list.length) % list.length];

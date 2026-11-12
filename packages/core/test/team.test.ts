@@ -219,6 +219,12 @@ describe('team workspaces between two apps', () => {
       const answered = page.messages.some((m) => m.author.kind === 'agent' && m.text.startsWith('README bir bütçe'));
       return answered && page.jobs.some((j) => j.agentId === agent.id && j.state === 'done');
     }, 'arda sees the answer and the finished job');
+    // The job says whose request it is, so each app can tell whom its end and its approvals concern.
+    const ardaId = (await arda.call<WorkspaceState>('workspace.get')).me.id;
+    for (const who of [kaan, arda]) {
+      const page = await who.call<{ jobs: Job[] }>('messages.list', { channelId: genel });
+      expect(page.jobs.find((j) => j.agentId === agent.id)?.by).toBe(ardaId);
+    }
 
     // With "approve others' jobs first", the job waits on Kaan.
     await kaan.call('agents.save', { ...agent, access: { who: 'members', maxMode: 'read', approveOthers: true } });
@@ -233,6 +239,7 @@ describe('team workspaces between two apps', () => {
       return page.jobs.find((j) => j.state === 'attention' && j.approval?.id === 'start');
     }, 'job waits for the owner');
     expect(held.approval?.arg).toBe('Arda');
+    expect(held.by).toBe(ardaId);
     await kaan.call('jobs.answer', { id: held.id, allow: true });
     await until(
       async () =>

@@ -216,6 +216,13 @@ export class Jobs {
     return Date.now();
   }
 
+  /** Whose request a job is: the person who wrote it, or for a handed-over part the person it continues. */
+  private askedBy(message: Message): { by?: string } {
+    if (message.author.kind === 'person') return { by: message.author.id };
+    const request = message.handover ? this.deps.store.message(message.handover.requestId) : undefined;
+    return request?.author.kind === 'person' ? { by: request.author.id } : {};
+  }
+
   /** Jobs another member asked for that wait for the owner's yes before they start. */
   private readonly held = new Map<string, { agent: Agent; channel: Channel; message: Message }>();
 
@@ -225,6 +232,7 @@ export class Jobs {
       channelId: channel.id,
       agentId: agent.id,
       requestId: message.id,
+      ...this.askedBy(message),
       state: 'attention',
       steps: [],
       usage: { in: 0, cached: 0, out: 0 },
@@ -328,6 +336,7 @@ export class Jobs {
           channelId: channel.id,
           agentId: agent.id,
           requestId: request.id,
+          ...this.askedBy(request),
           state: 'running',
           steps: [],
           usage: { in: 0, cached: 0, out: 0 },

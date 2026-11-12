@@ -42,6 +42,7 @@ import type {
 import { ERROR_CODES, handleOf } from '@lonca/protocol';
 import { create } from 'zustand';
 import type { AppInfo, UpdateState } from '../../shared/bridge';
+import { agentLabel, concernsMe, runsHere, senderOf } from './agents/owner';
 import i18n from './i18n';
 import { core, RpcError } from './rpc';
 import { play, type Sound } from './sounds';
@@ -390,12 +391,14 @@ export const useApp = create<AppState>((set, get) => {
         if (get().view === 'channel' && get().channelId === m.channelId && m.author.kind !== 'person') {
           void core.call('channels.read', { channelId: m.channelId }).catch(() => {});
         }
-        // Another member writes while Rumpus is in the background: an OS notification.
+        // Another member writes, or another member's agent or advisor names this person, while Rumpus is in the
+        // background: an OS notification under the sender's own name (a bot's with its owner's).
         const ws = get().workspace;
-        if (ws?.kind === 'team' && m.author.kind === 'person' && m.author.id !== ws.me.id && !document.hasFocus()) {
+        const from = ws ? senderOf(m, ws) : undefined;
+        if (ws && from && !document.hasFocus()) {
           sound('message');
           const channel = ws.channels.find((c) => c.id === m.channelId);
-          notify(`#${channel?.name ?? ''} · ${ws.name}`, `${m.author.name}: ${m.text.slice(0, 200)}`);
+          notify(`#${channel?.name ?? ''} · ${ws.name}`, `${from}: ${m.text.slice(0, 200)}`);
         }
       });
       core.on('memory.changed', (memory) => set({ memory }));
@@ -426,18 +429,29 @@ export const useApp = create<AppState>((set, get) => {
       core.on('job.updated', (job) => {
         const before = get().jobs[job.id];
         set((s) => ({ jobs: { ...s.jobs, [job.id]: job } }));
-        // What can be heard: a job that starts waiting on a person, and the end of one that was seen working.
+        // What can be heard and what notifies is only what is this person's business. An approval is its agent's
+        // owner's to give, so a job that waits on another member's computer is silent here (it used to ring and
+        // notify everyone); the end of a job is told for this computer's agents and for jobs this person asked for.
+        const ws = get().workspace;
         const worked = before?.state === 'running' || before?.state === 'attention';
-        if (job.state === 'attention' && before?.state !== 'attention') sound('attention');
-        else if (worked && job.state === 'done') sound('done');
-        else if (worked && job.state === 'failed') sound('failed');
-        // A job that starts waiting on a person while Rumpus is in the background: an OS notification.
-        if (job.state === 'attention' && before?.state !== 'attention' && !document.hasFocus()) {
-          const agent = get().workspace?.agents.find((a) => a.id === job.agentId);
-          const what = [job.approval?.label ? i18n.t(`job.tool.${job.approval.label}`) : '', job.approval?.arg ?? '']
-            .filter(Boolean)
-            .join(' · ');
-          notify(i18n.t('job.approval.notifyTitle'), `${agent?.name ?? ''}: ${what}`);
+        const asks = job.state === 'attention' && before?.state !== 'attention' && runsHere(job, ws);
+        const ended = worked && (job.state === 'done' || job.state === 'failed') && concernsMe(job, ws);
+        if (asks) sound('attention');
+        else if (ended) sound(job.state === 'done' ? 'done' : 'failed');
+        if ((asks || ended) && !document.hasFocus()) {
+          // An agent of another member is announced with its owner's name.
+          const who = agentLabel(
+            ws?.agents.find((a) => a.id === job.agentId),
+            ws,
+          );
+          if (asks) {
+            const what = [job.approval?.label ? i18n.t(`job.tool.${job.approval.label}`) : '', job.approval?.arg ?? '']
+              .filter(Boolean)
+              .join(' · ');
+            notify(i18n.t('job.approval.notifyTitle'), `${who}: ${what}`);
+          } else {
+            notify(i18n.t(`job.notify.${job.state === 'done' ? 'done' : 'failed'}`), who);
+          }
         }
       });
       core.on('quota.changed', ({ kind, quota }) => set((s) => ({ quota: { ...s.quota, [kind]: quota } })));

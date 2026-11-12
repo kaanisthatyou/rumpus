@@ -226,7 +226,7 @@
     },
     "notifications": "Notifications",
     "notificationsLabel": "System notifications",
-    "notificationsHint": "Shown while the app is in the background: a job waiting for approval, a request to join, another member's message.",
+    "notificationsHint": "Shown while the app is in the background: a job waiting for approval on this computer, the end of jobs of this computer's agents and of jobs asked for from here, a request to join, another member's message. Another member's agent is named together with its owner.",
     "agentFolder": "Default folder for agents",
     "agentFolderHint": "An agent added without a folder works here. When this is not set, the desktop is used.",
     "agentFolderDesktop": "Desktop",
@@ -421,6 +421,10 @@
       "undone_other": "{{count}} files taken back.",
       "skipped_one": "{{count}} file left as it is: changed since the job.",
       "skipped_other": "{{count}} files left as they are: changed since the job."
+    },
+    "notify": {
+      "done": "Job done",
+      "failed": "Job failed"
     }
   },
   "agentForm": {

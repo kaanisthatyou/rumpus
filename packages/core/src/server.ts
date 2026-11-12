@@ -1826,7 +1826,8 @@ export class Core {
             const channelName = store.channel(m.channelId)?.name ?? '';
             this.pushToPhones('message', {
               where: `#${channelName} · ${store.meta('name') ?? ''}`,
-              name: m.author.name,
+              // The name the workspace knows the device by, not the one the message carries.
+              name: this.memberName(store, m.author.id) ?? m.author.name,
               text: m.text,
               tag: m.channelId,
             });

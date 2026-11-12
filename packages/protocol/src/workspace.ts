@@ -300,6 +300,8 @@ export interface Job {
   agentId: string;
   /** The person's message that started it. */
   requestId: string;
+  /** The person (their device) whose request it is; for a handed-over part, whose request it continues. */
+  by?: string;
   state: JobState;
   steps: JobStep[];
   usage: Usage;
