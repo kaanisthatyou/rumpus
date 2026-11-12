@@ -54,7 +54,8 @@ purpose; never change roblox-factory for it.
    `e2e/fake-claude.mjs`, a stand-in for Claude Code that costs no quota; `e2e/specialists.mjs` (a specialist from a template, its lesson and RESULT, the overview, unread marks, a
    routine); `e2e/advisors.mjs` (providers, advisors)
    against `e2e/fake-provider.mjs`, a stand-in OpenAI-compatible server; `e2e/team.mjs` (two apps, invite, join,
-   sync) with `LONCA_PEER_HOST=127.0.0.1` instead of Tailscale; `e2e/phone.mjs` (pairing a narrow window as a
+   sync) and `e2e/profiles.mjs` (two apps: a profile with a picture, a workspace's look and roles, friends, the
+   invite card) with `LONCA_PEER_HOST=127.0.0.1` instead of Tailscale; `e2e/phone.mjs` (pairing a narrow window as a
    phone) with `LONCA_PHONE_PORT=0` instead of `tailscale serve`; `e2e/layout.mjs` (an agent without a folder,
    character presets, the look settings, the crew strip and the hidden channel list in a 960 px window) with
    `LONCA_DESKTOP_DIR=<folder>` instead of the real desktop. For a layout change also run `node e2e/tour.mjs`
@@ -85,6 +86,22 @@ purpose; never change roblox-factory for it.
   the containing block of anything `position: fixed` inside it. Dialogs and overlays are rendered from `App.tsx`,
   outside it; keep it that way. Lay a page out with `@container page (max-width: …)`, not with the window's width:
   the page's room depends on the channel list and the crew panel, not only on the window.
+- Nothing but the field's name goes inside a `<label>`: a character counter in it changed the field's accessible
+  name and the e2e scripts (and screen readers) no longer found "Alan adı". `TextField`'s `counted` puts it beside.
+- A form that keeps drafts follows each field's own saved value, never the settings object as a whole: saving
+  one field changes the object and wiped what was being typed in the next (Settings → Profile).
+- Class names are global: a new `.profile` took the launcher's `.profile { max-width: 440px }` (it is `.pform`
+  now). Grep for a class before naming one.
+- What other members' computers send is display data at best: clean every field where it is applied
+  (`cleanProfile`, `store.apply`), keep a picture only under the hash of its own bytes, and never let a role, a
+  color or a name decide what someone may do.
+- An address another computer names (an invite, a friend code, a member's endpoint) is never fetched as written:
+  every call to another person's app goes through `Core.peerClient` / `peerTarget` (an IP and port on Tailscale
+  only). A new `fetch` to a host that came from someone else is a request forgery waiting to happen.
+- The real-CLI probes (`e2e/real-claude.mjs`, `e2e/real-specialist.mjs`) are not part of `pnpm e2e` and go stale
+  when the UI they click through changes; run them before a release, not only after driver changes.
+- A notification, a sound and a "waiting" count are only for what is this person's (`agents/owner.ts`:
+  `runsHere`, `concernsMe`, `senderOf`); a job waiting on another member's computer once rang everywhere.
 - Two radios with the same label in one dialog break the e2e scripts' `choose(name)` (it happened with "Açık" for
   the light theme and a shown panel): give options distinct words.
 - An update test must never install what it downloaded: the local test feed turns off install-on-quit. If a test

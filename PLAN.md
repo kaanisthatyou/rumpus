@@ -2,7 +2,8 @@
 
 Status: **Phase 4 under way** (0.9.0-alpha.0, 2026-11-11; since then connectors sign in with OAuth, 4.20, the
 name is Rumpus, 4.21, a job's changes are listed and can be undone, 4.22, and the live view, the board, the
-taskbar and sounds show what happens, 4.23, and one task can be raced by several agents, 4.24). The product is called **Rumpus** since 2026-11-11 (it
+taskbar and sounds show what happens, 4.23, and one task can be raced by several agents, 4.24; on 2026-11-12
+people got profiles, workspaces a look and roles, invites a card, 4.26, and friends outside any workspace, 4.27). The product is called **Rumpus** since 2026-11-11 (it
 was Lonca until 2026-11-10 and Serai for a day; the code name `lonca` stays in package names and environment
 variables, see section 2). Built on
 2026-11-10/11: specialists (5.15), routines (5.16), the Overview page and unread counts (5.17), invite links with
@@ -126,7 +127,8 @@ From the Q&A on 2026-10-16.
 
 Discord-like, three columns plus a rail:
 
-- **Rail:** workspaces (loncas), a new-workspace button, the shortcuts panel.
+- **Rail:** workspaces (each with its icon), a new-workspace button, then the friends button and the conversations
+  with friends as round avatars (5.20), the shortcuts panel.
 - **Sidebar:** workspace name, storage and network state, search / command palette (`Ctrl K`), channels, **Pano**
   (Görevler, Hedefler), **Kayıtlar** (Fikirler, Referanslar, Komutlar, Bellek), "needs attention" inbox, own card
   (mic, settings).
@@ -302,6 +304,16 @@ portal on Wayland, and one searchable panel (`Ctrl /`). Defaults:
   for others (default *Oku*), "approve others' jobs first" (off by default), folders, connectors, time and token
   limits.
 - Presence, typing, OS notifications, phone push for needs-attention, an activity feed.
+- **A notification is about what is the person's own, and names who it is from** (2026-11-12; Fabrika announced
+  every bot as "Kaan's Claude", whoever it belonged to). A job that waits for approval rings and notifies only on
+  the computer its agent runs on, since only its owner can answer; it used to ring on every member's computer,
+  and counted among their waiting jobs. The end of a job is told for this computer's agents and for jobs this
+  person asked for (a job carries whose request it is, `by`). Another member's message is announced under the
+  name the workspace knows the device by, not the one the message carries; another member's agent or advisor
+  only when it names this person, and then with its owner ("Test (Arda)"). A person's own agents and advisors
+  never notify them as if someone else spoke.
+- The three **permission levels** above are what the UI calls "Yetki" / "Permission" since 2026-11-12; "role"
+  now means a workspace's own roles (5.19), which grant nothing.
 
 ### 5.12 Phone companion
 
@@ -408,6 +420,61 @@ changes, nothing is committed, and the worktrees go; or keeps none. The branches
 one request of one person to several agents, so it starts work as that person's message would (principle 3); an
 agent's mode is its owner's as always (an agent on Read only writes what it would do).
 
+### 5.19 Profiles, the look of a workspace, roles, invite cards
+
+Asked by Kaan on 2026-11-12: more of Discord's feel, with what Discord sells in Nitro simply there.
+
+- **Limits, counted.** What people name and write about themselves has a length (`LIMITS` in
+  `packages/protocol/src/profile.ts`: a person's name 40, pronouns 24, status 60, the lines about them 190, a
+  workspace's name 40 and description 240, a role's name 24, 24 roles per workspace and 6 per member, 2 MB per
+  picture), and the field shows how much is used ("12 / 40"), warning near the end.
+- **Profile** (Settings → Profile, with the card others see beside the form): name, pronouns, a status line, a
+  few lines about the person, an avatar, a banner, the color the name is written in, and a two-color theme that
+  draws the card's edge and, without a banner picture, the banner. Pictures may move (GIF, animated WebP): they
+  stand still until pointed at, play in an open profile, and never play with reduced motion. A still picture is
+  cut to its shape and made small before it is sent; one that moves goes as it is.
+- **The profile card** opens from a person's avatar or name anywhere (a message, the members list, the strip,
+  the person's own card under the channel list): banner, avatar with presence, the name in its color, status,
+  permission level and roles, the lines about them. On their own card: Edit profile.
+- **In a team workspace** a profile is the member's own word about themselves: `profile.saved`, written by their
+  own device and refused from anyone else. People are shown as the workspace knows them now (name, color,
+  picture), also on messages written under an earlier name. The name a member joined with is the fallback.
+- **Pictures travel between members on request**: content-addressed in one store per computer (`<data>/faces`),
+  named in events by the hash of their bytes, asked for from the owner first (`/v1/blob`, signed like the rest
+  and answered only for pictures that workspace shows), and kept only when the bytes hash to the name, are the
+  image type the name says and fit the limit.
+- **The look of a workspace** (admins; the chevron next to its name opens it for everyone): name (a rename
+  reaches every member's rail), a description under the name in the channel list, an icon in the rail, a banner
+  over the channel list. `look.saved`.
+- **Roles** in Discord's sense: a name and a color that admins give to members (`tag.saved`, `tagged.saved`;
+  given from the member's profile card). They color the name where the person picked no color of their own,
+  group the members list, and show on the card. **They grant nothing**: what a member may do is their
+  permission level (5.11), enforced by certificates as before. Principle 2 and the role table are untouched.
+- **An invite written in a message is a card**: the workspace's icon, name and description, how many members it
+  has and how many are there now, and one button: Join (sends the request; an admin approves as always), Open
+  when this computer already has the workspace, or why it cannot be used (used, no longer valid, the inviter's
+  computer out of reach, with Try again). The inviter's app is asked about the invite when the card shows
+  (`/v1/invite/peek`), answers only to whoever holds the code, and uses nothing up. A message that is only an
+  invite shows only its card. Only people's messages get cards, never an agent's or an advisor's.
+
+### 5.20 Friends
+
+People added outside any workspace (asked by Kaan on 2026-11-12). No account and no server: a friend is another
+person's computer, reached over Tailscale like a team member's.
+
+- **A friend code** (`RUMPUSF1.…`) names a computer: its device, its public key, its name and its address. It is
+  not a secret; it stands in the person's Friends window. Opening that window is what starts the app listening
+  for others (as a team workspace does), and from then on it listens at every start.
+- **A request** goes straight to the computer the code names, signed with the asker's key, and waits there for
+  that person's answer; at most 20 wait at once. Accepting makes the conversation.
+- **A conversation with a friend is a workspace of two**: started by the one who accepted, both certified as
+  admins (the asker with the key their request proved), one channel, synced, signed and checked like every team
+  workspace. So everything a workspace has works in it (agents, the board, records, profiles, the invite card),
+  with no second transport or store to keep right. It stands under the friends button in the rail as a round
+  avatar, not among the workspaces; nobody is invited into it.
+- Removing a friend takes the conversation off this computer's lists and stops its sync; its folder stays on
+  disk, and the other person is not told (their side simply stops hearing from this one).
+
 ## 6. Architecture
 
 ### 6.1 Stack
@@ -511,6 +578,15 @@ model list from `GET /models` with a tolerant parser, per-model limits. Keys in 
 - Per-run connector configs are temporary files removed after the run.
 - Phone and peer APIs listen only on loopback and the Tailscale address; a custom header on writes blocks
   cross-site posts.
+- What a member says about themselves (5.19) is display only: every field of a profile, a look and a role is
+  checked again on the receiving computer, a picture is kept only under the hash of its own bytes, and no role
+  or color changes what anyone may do.
+- The app calls another person's app only at an IP and a port in Tailscale's ranges (`peerTarget` in
+  `packages/core/src/peer.ts`, the one way out), whatever an invite, a friend code or a member's event names as
+  an address. What listens is restricted the same way.
+- Three peer routes answer without a certificate, each for one thing: the join request and its status (5.11),
+  what an invite's holder may see of the workspace (5.19), a friend request and its status (5.20). Each checks
+  its own body: the one-time token, or a proof by the asker's key.
 
 ## 7. Design
 
@@ -776,7 +852,7 @@ The details behind 5.11 and 6.5, decided before building.
   the last sync. A message from another member in a background lonca marks it in the rail; while Rumpus is in the
   background a message from another member gives an OS notification.
   0.5.0-alpha.0 (2026-10-18): the packaged app passes all e2e tests; `e2e/tailscale.mjs` (by hand, on a computer
-  with Tailscale) has one app listen on its real Tailscale address: the invite carried `100.76.173.48:47640` and the
+  with Tailscale) has one app listen on its real Tailscale address: the invite carried the computer's own `100.x.y.z:47640` and the
   second app joined and chatted through it.
   3.7. The phone companion: the core serves the built UI on 127.0.0.1:47620 with `tailscale serve` in front for
   HTTPS (`https://<pc>.<tailnet>.ts.net:47621`); requests are the same frames over POST, events a server-sent
@@ -929,6 +1005,85 @@ The details behind 5.11 and 6.5, decided before building.
   installation: the `rumpus://` handler (registered only by an installed app without `LONCA_HOME`) and the move of
   the former name's data folder.
 
+- 4.28 A look before going public (section 8, Phase 5's security review begun), 2026-11-12, asked by Kaan: the
+  app and the repository read once with Cloudflare's open-source `security-audit` skill as the method (its
+  guidance mode: a finding needs a lower-trust party, a boundary and a concrete result; its companions for
+  desktop apps and local IPC, protocols, AI and agents, supply chain and release), by one reader, without its
+  fleet of hunter and verifier agents. So this is a first pass with partial coverage, not that skill's full
+  audit, and it does not replace Phase 5's review.
+  **Found and fixed.** (1) *Where the app calls out was the writer's choice.* An address reached the app in an
+  invite, a friend code or a member's own `device.endpoint` event and was called as written: a name to resolve,
+  a host on the reader's home network, even a path. A viewer could point every member's app at such an address
+  (a request every 30 seconds, with the workspace's events in its body); an invite link on a web page, or an
+  invite card in a channel, did the same on sight. Now one client makes every call to another person's app and
+  calls only an IP and a port in Tailscale's ranges (`peerTarget`; loopback only when this app listens there
+  itself, in tests); an invite or a friend code that names anything else is `bad_code` / `bad_friend_code`
+  before anything is sent, and a member's address is kept only in the shape of an IP and a port.
+  (2) *A message from another member had no length.* The sender's own app refuses over 20 000 characters, but
+  another computer's event was applied as it came (up to the 4 MB of a request), enough to stall every
+  member's channel. Applied text is cut to the same length on every copy. (3) *A joining device that learned of
+  its certificate after it began to listen never said where it listens*, so nobody could call it (found as a
+  flaky e2e run: a friend shown offline, their picture never arriving): the address is published before every
+  sync round when it is missing. **Hardened** (no reachable attack shown): the bridge answers only the app's
+  own page in its top frame, not any `file://` page; the development server's address is ignored by an
+  installed app; the updater's "never install in a test" was undone by the line after it; names and status
+  lines are one line (no control characters or line breaks into a prompt or a notification); workflow actions
+  are pinned to commits. **Looked at and left as designed:** a paired phone has the desktop's full authority
+  (it can give agents work, which is the product); a member can read what their workspace shares; a person
+  with code running as them on their own computer is not a boundary.
+  **For publishing:** `SECURITY.md` (how to report, what is and is not trusted), `CONTRIBUTING.md`,
+  `THIRD-PARTY-NOTICES.txt` shipped with the app (`scripts/notices.mjs`: 167 packages, all MIT, ISC, OFL or
+  similar; nothing copyleft), the README brought up to date. No secret in the tree or in the history (78
+  commits searched for key shapes). **Real logins:** Claude Code 2.1.322 signed in on Kaan's computer answered
+  from a project's README, called a connector's tool through the gateway after an approval
+  (`REAL_QUICK=1 e2e/real-claude.mjs`) and reviewed code as a specialist, keeping a lesson
+  (`e2e/real-specialist.mjs`); both scripts had gone stale against the UI and were brought up to date.
+  **Left for the owners:** every commit carries Kaan's personal e-mail address as its author (it becomes
+  public with the repository unless the history is rewritten first); this plan itself is frank about names,
+  money and domains; the installer is unsigned until SignPath (which needs the public repository); the
+  version and the tag; Linux packages have never been built or run; Codex has never run logged in; and the
+  full audit (that skill's or another) before 1.0.
+- 4.27 Friends (5.20), 2026-11-12: `packages/core/src/friends.ts` (the code, the requests on their way in
+  `<app>/friends.json`), `friends.get` / `add` / `answer` / `cancel` / `remove`, `friends.changed`, two open peer
+  routes (`/v1/friend/ask` with a proof by the asker's key, `/v1/friend/status`), a `dm` mark on the
+  conversation's entry in `workspaces.json` and `friend` on its summary and state; the friend's name and avatar
+  follow their profile in the conversation. In the app: the friends button in the rail (marked while a request
+  waits), the Friends dialog (own code, a box for someone else's, requests received and sent, the friends with
+  Message and Remove), conversations as round avatars, a request heard and notified. Covered by
+  `friends.test.ts` (two cores: a bad code, one's own, a computer that does not answer, the wrong device, ask
+  twice, accept, messages both ways, the friend's new name, no invites into it, remove; a request turned down
+  and one withdrawn) and `e2e/profiles.mjs`. Not there: telling the other side about a removal, blocking, a
+  friend's presence before the conversation's first sync round, friends on the phone's layout looked at, and a
+  real run between two computers over Tailscale.
+- 4.26 Profiles, the look of a workspace, roles, invite cards (5.19) and whose a notification is (5.11),
+  2026-11-12. Protocol: `profile.ts` (`LIMITS`, `ProfileSchema`, `ImageRefSchema`, `cleanProfile`, `RoleTag`),
+  the profile inside settings (older files get the new fields from defaults; a patch of one field carries only
+  that field), `profile.picture`, `blobs.get`, `workspace.look`, `workspace.picture`, `roles.save` / `delete` /
+  `assign`, `blob.added`, `Job.by`, `findInvites`, and what `invites.check` learns from the inviter's app. Core:
+  five event types (`profile.saved`, `look.saved`, `tag.saved`, `tag.deleted`, `tagged.saved`) with their
+  owners in `Membership` and every field checked again when applied; pictures by what their bytes are, not by
+  what they are called; the profile written into each team workspace before a sync round when it differs.
+  In the app: `people/` (avatars, the profile card, color and picture pickers), Settings → Profile, the
+  workspace's dialog, the invite card, counters on the limited fields, members grouped by role. The permission
+  level is called "Yetki" / "Permission" in the UI; "role" is the new thing. Along the way: a job waiting for
+  approval on another member's computer no longer rings, notifies or counts as waiting here; a finished job
+  notifies; a counter inside a `<label>` changed the field's accessible name and broke `smoke.mjs`, so it
+  stands beside the label; the profile form followed the settings as a whole and wiped what was being typed
+  in the next field, so each field follows its own saved value. Covered by `profiles.test.ts` (pictures; two
+  cores: the profile and its pictures arriving, a rename, the look, roles, what an invite shows before, after
+  use and for a code nobody made; who may write which event; a hostile profile cleaned),
+  `packages/protocol/test/profile.test.ts`, `apps/desktop/test/owner.test.ts` (whose a job and a notification
+  are) and `e2e/profiles.mjs` (two apps: the profile with a picture, a color and a theme, the workspace's look
+  and a role, friends, the invite card in their conversation and the join from it, each as the other sees
+  them, a role given from the card, a new name reaching earlier messages). Not there: a profile per workspace,
+  cropping a picture by hand, custom emoji and reactions, a role's order by drag, pictures and the profile
+  card looked at on a real phone, reference images still do not travel between members (the same `/v1/blob`
+  would carry them), and a notification's click does not yet open what it is about. **Installed on Kaan's
+  computer the same day** (`Rumpus-Setup-0.9.0-alpha.0.exe` over the installation of 4.25, the data folder
+  copied to `Rumpus-yedek-2026-11-12` first). The packaged build passes `smoke`, `profiles`, `layout` and
+  `team`; its first `profiles` run found that the answer to one settings change took a later one back for a
+  moment (a color picked right after a text field was left): answers and `settings.changed` are now held back
+  while a later change of this window is on its way.
 - 4.25 The phone's page as an installable web app (5.12), 2026-11-11, asked by Kaan: two things a real phone
   needs were missing, and no test saw it because the test's "phone" was a narrow desktop window. The page had no
   viewport tag, so a phone's browser would have laid it out 980 px wide and drawn it tiny (the phone layout,
