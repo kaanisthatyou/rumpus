@@ -25,6 +25,7 @@ import {
   type CoreEvents,
   type CoreMethods,
   cleanTraits,
+  commandName,
   DEFAULT_ACCESS,
   type DeviceStatus,
   type EventName,
@@ -485,7 +486,7 @@ export class Core {
           id: newId(),
           channelId: channel.id,
           author: { kind: 'person', id: me.id, name: me.name },
-          text: `/özet ${hours}${handle ? ` @${handle}` : ''}`,
+          text: `${commandName('digest', this.settings.get().language)} ${hours}${handle ? ` @${handle}` : ''}`,
           created: Date.now(),
         };
         store.commit({ type: 'message.posted', data: message });
@@ -2255,7 +2256,7 @@ export class Core {
       id: newId(),
       channelId: channel.id,
       author: { kind: 'person', id: me.id, name: me.name },
-      text: subject ? `/meclis ${subject}` : '/meclis',
+      text: [commandName('council', this.settings.get().language), subject].filter(Boolean).join(' '),
       created: Date.now(),
     };
     store.commit({ type: 'message.posted', data: message });

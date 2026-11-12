@@ -1,5 +1,5 @@
 // Ctrl K: one box to reach channels, agents, views, actions and messages.
-import { BRAND, type Message, type ShortcutAction } from '@lonca/protocol';
+import { BRAND, commandName, type Message, type ShortcutAction } from '@lonca/protocol';
 import { Icon, IconButton, type IconName, Kbd } from '@lonca/ui';
 import { motion } from 'motion/react';
 import { useEffect, useMemo, useState } from 'react';
@@ -32,7 +32,7 @@ const VIEWS: { view: View; icon: IconName }[] = [
 const fold = (s: string) => s.toLocaleLowerCase('tr').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ı/g, 'i');
 
 export function Palette({ onSettings }: { onSettings: () => void }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const workspace = useApp((s) => s.workspace);
   const setPalette = useApp((s) => s.setPalette);
   const [query, setQuery] = useState('');
@@ -140,7 +140,7 @@ export function Palette({ onSettings }: { onSettings: () => void }) {
         group: 'actions',
         icon: 'terminal',
         label: t('status.title'),
-        detail: '/durum',
+        detail: commandName('status', i18n.language),
         run: () => useApp.setState({ statusOpen: true, statuses: [] }),
       },
       {
@@ -165,7 +165,7 @@ export function Palette({ onSettings }: { onSettings: () => void }) {
       });
     }
     return matched;
-  }, [workspace, query, found, t, onSettings]);
+  }, [workspace, query, found, t, i18n.language, onSettings]);
 
   const choose = (item: Item | undefined) => {
     if (!item) return;

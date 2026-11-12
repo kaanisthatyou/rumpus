@@ -40,6 +40,7 @@ import type {
 
 export * from './brand.js';
 export * from './catalog.js';
+export * from './commands.js';
 export * from './connectors.js';
 export * from './providers.js';
 export * from './registry.js';

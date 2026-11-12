@@ -1,4 +1,16 @@
-import { type Advisor, type Agent, BRAND, type Channel, handleOf, type Job, type Message } from '@lonca/protocol';
+import {
+  type Advisor,
+  type Agent,
+  BRAND,
+  type Channel,
+  type CommandKey,
+  commandName,
+  commandNames,
+  handleOf,
+  type Job,
+  type Message,
+  parseCommand,
+} from '@lonca/protocol';
 import { Avatar, Button, Chip, Icon, IconButton, Kbd } from '@lonca/ui';
 import { AnimatePresence, motion } from 'motion/react';
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -237,8 +249,6 @@ function MessageRow({
 }
 
 const NO_PEOPLE: Record<string, { name: string; at: number }> = {};
-/** The race command as it is offered; `/race` is taken too. */
-const RACE_COMMAND = '/yarış';
 
 function Typing({ channelId }: { channelId: string }) {
   const { t } = useTranslation();
@@ -290,7 +300,7 @@ interface Suggestion {
 }
 
 function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const send = useApp((s) => s.send);
   const createCard = useApp((s) => s.createCard);
   const newSession = useApp((s) => s.newSession);
@@ -319,36 +329,22 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
   // `@` at the caret lists agents; `/` at the start lists commands.
   const caret = ref.current?.selectionStart ?? text.length;
   const mention = /(^|\s)@([a-z0-9-]*)$/.exec(text.slice(0, caret));
-  const command = /^\/([a-z-]*)$/.exec(text.slice(0, caret));
+  const command = /^\/([a-zçğıöşü-]*)$/.exec(text.slice(0, caret));
+  // A command is offered under its name in the app's language and found by any of its names (`/özet`, `/summary`).
+  const offer = (key: CommandKey, icon: Suggestion['icon'], detail: string, takesText = true): Suggestion => {
+    const name = commandName(key, i18n.language);
+    return { key, insert: takesText ? `${name} ` : name, label: name, detail, icon };
+  };
   const commands: Suggestion[] = [
-    { key: 'todo', insert: '/todo ', label: '/todo', detail: t('commands.todo'), icon: 'chevronRight' },
-    { key: 'goal', insert: '/goal ', label: '/goal', detail: t('commands.goal'), icon: 'target' as const },
-    { key: 'race', insert: `${RACE_COMMAND} `, label: RACE_COMMAND, detail: t('commands.race'), icon: 'bolt' as const },
-    {
-      key: 'remember',
-      insert: '/hatırla ',
-      label: '/hatırla',
-      detail: t('commands.remember'),
-      icon: 'chevronRight' as const,
-    },
+    offer('todo', 'chevronRight', t('commands.todo')),
+    offer('goal', 'target', t('commands.goal')),
+    offer('race', 'bolt', t('commands.race')),
+    offer('remember', 'chevronRight', t('commands.remember')),
     ...(channel.kind === 'channel'
-      ? [
-          { key: 'meclis', insert: '/meclis ', label: '/meclis', detail: t('commands.council'), icon: 'chat' as const },
-          { key: 'digest', insert: '/özet ', label: '/özet', detail: t('commands.digest'), icon: 'chat' as const },
-        ]
+      ? [offer('council', 'chat', t('commands.council')), offer('digest', 'chat', t('commands.digest'))]
       : []),
-    { key: 'status', insert: '/durum', label: '/durum', detail: t('commands.status'), icon: 'terminal' as const },
-    ...(own
-      ? [
-          {
-            key: 'new',
-            insert: '/yeni-oturum',
-            label: '/yeni-oturum',
-            detail: t('commands.newSession'),
-            icon: 'chevronRight' as const,
-          },
-        ]
-      : []),
+    offer('status', 'terminal', t('commands.status'), false),
+    ...(own ? [offer('newSession', 'chevronRight', t('commands.newSession'), false)] : []),
   ];
   const options: Suggestion[] = mention
     ? [
@@ -373,11 +369,14 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
         .slice(0, 8)
         .map((x) => ({ key: x.key, insert: `@${x.handle} `, label: `@${x.handle}`, detail: x.detail, icon: x.icon }))
     : command
-      ? commands.filter((c) => c.label.startsWith(`/${command[1] ?? ''}`))
+      ? commands.filter((c) => commandNames(c.key as CommandKey).some((n) => n.startsWith(`/${command[1] ?? ''}`)))
       : [];
 
-  // A suggestion typed out in full: Enter sends instead of completing it again.
-  const exact = options.length === 1 && text.slice(0, caret).endsWith(options[0]?.insert.trim() ?? '\u0000');
+  // A suggestion typed out in full (a command under any of its names): Enter sends instead of completing it again.
+  const typed = text.slice(0, caret);
+  const exact =
+    options.length === 1 &&
+    (typed.endsWith(options[0]?.insert.trim() ?? '\u0000') || (!!command && parseCommand(typed) !== undefined));
 
   // A saved command put into the box from the records view.
   useEffect(() => {
@@ -417,8 +416,8 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
   });
 
   const insert = (s: Suggestion) => {
-    const typed = mention ? (mention[2]?.length ?? 0) + 1 : command ? (command[1]?.length ?? 0) + 1 : 0;
-    const start = caret - typed;
+    const length = mention ? (mention[2]?.length ?? 0) + 1 : command ? (command[1]?.length ?? 0) + 1 : 0;
+    const start = caret - length;
     const next = `${text.slice(0, start)}${s.insert}${text.slice(caret)}`;
     setText(next);
     setPick(0);
@@ -432,9 +431,10 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
   const submit = async () => {
     const value = text.trim();
     if (!value) return;
-    const todo = /^\/todo\s+([\s\S]+)$/.exec(value);
-    if (todo?.[1]) {
-      const body = todo[1];
+    // A command under its Turkish or its English name, whatever the app's language is.
+    const cmd = parseCommand(value);
+    if (cmd?.key === 'todo' && cmd.rest) {
+      const body = cmd.rest;
       const handle = /(^|\s)@([a-z0-9][a-z0-9-]*)/.exec(body)?.[2];
       const title = body.replace(/(^|\s)@[a-z0-9][a-z0-9-]*/g, ' ').trim() || body;
       if (
@@ -448,17 +448,15 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
       }
       return;
     }
-    const remember = /^\/hat[ıi]rla\s+([\s\S]+)$/i.exec(value);
-    if (remember?.[1]) {
-      if (await useApp.getState().remember(remember[1].trim())) {
+    if (cmd?.key === 'remember' && cmd.rest) {
+      if (await useApp.getState().remember(cmd.rest)) {
         setText('');
         flash(t('memory.remembered'));
       }
       return;
     }
-    const goalText = /^\/goal(?:\s+([\s\S]*))?$/.exec(value);
-    if (goalText) {
-      const body = goalText[1]?.trim() ?? '';
+    if (cmd?.key === 'goal') {
+      const body = cmd.rest;
       const handle = /(^|\s)@([a-z0-9][a-z0-9-]*)/.exec(body)?.[2];
       const named = handle ? agents.find((x) => x.handle === handle) : undefined;
       useApp.getState().openGoalDialog({
@@ -470,21 +468,19 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
       return;
     }
     // `/yarış` (`/race`): the same task for several agents at once, each in a worktree of its own.
-    const raceText = /^\/(?:yarış|yaris|race)(?:\s+([\s\S]*))?$/i.exec(value);
-    if (raceText) {
-      useApp.getState().openRaceDialog({ channelId: channel.id, text: raceText[1]?.trim() ?? '' });
+    if (cmd?.key === 'race') {
+      useApp.getState().openRaceDialog({ channelId: channel.id, text: cmd.rest });
       setText('');
       return;
     }
-    const meclis = /^\/meclis(?:\s+([\s\S]*))?$/.exec(value);
-    if (meclis && channel.kind === 'channel') {
-      if (await council(channel.id, meclis[1]?.trim() ?? '')) setText('');
+    // `/meclis` (`/council`): the channel's advisors discuss a topic in turn.
+    if (cmd?.key === 'council' && channel.kind === 'channel') {
+      if (await council(channel.id, cmd.rest)) setText('');
       return;
     }
-    // `/özet [hours | gün | hafta] [@advisor]`: a summary of the channel by one of its advisors.
-    const digest = /^\/(?:özet|ozet|summary)(?:\s+([\s\S]*))?$/i.exec(value);
-    if (digest && channel.kind === 'channel') {
-      const args = digest[1]?.trim() ?? '';
+    // `/özet` (`/summary`) `[hours | gün, day | hafta, week] [@advisor]`: a summary of the channel by an advisor.
+    if (cmd?.key === 'digest' && channel.kind === 'channel') {
+      const args = cmd.rest;
       const handle = /@([a-z0-9][a-z0-9-]*)/.exec(args)?.[1];
       const word = args
         .replace(/@[a-z0-9-]+/g, '')
@@ -494,12 +490,12 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
       if (await useApp.getState().digest(channel.id, hours, handle)) setText('');
       return;
     }
-    if (value === '/durum') {
+    if (cmd?.key === 'status' && !cmd.rest) {
       useApp.setState({ statusOpen: true, statuses: [] });
       setText('');
       return;
     }
-    if (value === '/yeni-oturum' && own) {
+    if (cmd?.key === 'newSession' && !cmd.rest && own) {
       await newSession(own.id, channel.id);
       setText('');
       return;

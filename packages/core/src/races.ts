@@ -9,6 +9,7 @@ import {
   type Agent,
   BRAND,
   CoreError,
+  commandName,
   type Job,
   type Language,
   type Message,
@@ -166,7 +167,7 @@ export class Races {
       id: newId(),
       channelId: channel.id,
       author: { kind: 'person', id: me.id, name: me.name },
-      text: `${me.language === 'tr' ? '/yarış' : '/race'} ${task}`,
+      text: `${commandName('race', me.language)} ${task}`,
       created: this.now(),
     };
     store.commit({ type: 'message.posted', data: request });
