@@ -76,7 +76,7 @@ export class Vapid {
     const body = enc({
       aud: new URL(endpoint).origin,
       exp: Math.floor(now / 1000) + 12 * 60 * 60,
-      sub: 'https://github.com/kaanisthatyou/lonca',
+      sub: 'https://github.com/kaanisthatyou/rumpus',
     });
     const sig = sign('sha256', Buffer.from(`${head}.${body}`), { key: this.key, dsaEncoding: 'ieee-p1363' });
     return `vapid t=${head}.${body}.${b64url(sig)}, k=${this.publicKey}`;

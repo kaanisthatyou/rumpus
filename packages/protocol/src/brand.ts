@@ -6,7 +6,7 @@ export const BRAND = {
   /** Lowercase, for identifiers people see: the MCP server agents call, git branch prefixes, link schemes. */
   slug: 'rumpus',
   appId: 'io.github.kaanisthatyou.rumpus',
-  repo: 'https://github.com/kaanisthatyou/lonca',
+  repo: 'https://github.com/kaanisthatyou/rumpus',
   /**
    * The names the product had before, latest first (Serai until 2026-11-11, Lonca until 2026-11-10); their data
    * folders, invite codes and links are still accepted.

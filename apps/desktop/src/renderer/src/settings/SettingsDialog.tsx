@@ -325,7 +325,7 @@ function About() {
       <div>
         <Button
           icon="external"
-          onClick={() => void window.lonca.shell.openExternal('https://github.com/kaanisthatyou/lonca')}
+          onClick={() => void window.lonca.shell.openExternal('https://github.com/kaanisthatyou/rumpus')}
         >
           {t('settings.source')}
         </Button>

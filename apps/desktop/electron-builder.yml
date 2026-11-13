@@ -49,5 +49,5 @@ linux:
 publish:
   provider: github
   owner: kaanisthatyou
-  repo: lonca
+  repo: rumpus
   releaseType: release

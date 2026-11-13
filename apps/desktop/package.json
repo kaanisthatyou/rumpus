@@ -6,7 +6,7 @@
   "description": "Open-source hub where people and their CLI coding agents work together",
   "license": "Apache-2.0",
   "author": "Rumpus contributors",
-  "homepage": "https://github.com/kaanisthatyou/lonca",
+  "homepage": "https://github.com/kaanisthatyou/rumpus",
   "type": "module",
   "main": "out/main/index.js",
   "scripts": {

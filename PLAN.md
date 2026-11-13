@@ -62,7 +62,7 @@ From the Q&A on 2026-10-16.
 | System prompts | Fabrika-like defaults for every role (worker, advisor, goal step, ...), editable by the people using them, in layers (5.14) |
 | Phase order | Team (Phase 3) before memory, voice and the connector store (Phase 4) |
 | Viewer role | Reads and posts messages; cannot task agents or edit the board and records |
-| Repo | `github.com/kaanisthatyou/lonca`, private until Phase 1 is done, set up as open source from the first commit |
+| Repo | `github.com/kaanisthatyou/rumpus` (called `lonca` until 2026-11-13), private until Phase 1 is done, set up as open source from the first commit |
 | Telemetry | None. Rumpus sends nothing |
 | v0.1 code | Removed from `main` when the v2 skeleton lands; tag `v0.1.0` kept |
 | Theme | **Grafit & tek vurgu** (direction 2 on the canvas) |
@@ -1304,4 +1304,4 @@ From 2026-11-11, for the owners:
   (specialist sets, connector bundles). Not decided; nothing in the code assumes any of them.
 - **Routines and principle 3.** Routines were added as a person's standing request. If the owners read "only a
   person starts work" more strictly, routines are one switch to remove.
-- **The repository** is still `kaanisthatyou/lonca` and private (the working branch is still called `serai`); renaming it and making it public are the owners'.
+- **The repository** is `kaanisthatyou/rumpus` since 2026-11-13 (renamed on GitHub, so the old address forwards) and still private; the working branch is still called `serai`, and the landing page is at rumpus.lol. Making it public is the owners'.
