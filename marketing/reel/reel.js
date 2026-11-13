@@ -2,11 +2,28 @@
 // clock. Opened in a browser it plays (reel.html?lang=tr|en; a click starts it again with the soundtrack);
 // render.mjs opens it with ?render, stops every animation and sets the clock frame by frame (`window.seek`).
 import { MARK, rumpusWindow } from '../../site/mock.js';
-import { AT, DURATION, HEIGHT, K, K_TEAM, SCENES, SHAKES, WIDTH } from './timeline.js';
+import {
+  AT,
+  DURATION,
+  HEIGHT,
+  K,
+  K_TEAM,
+  SCENES,
+  SHAKES,
+  TOKEN,
+  TOKEN_DURATION,
+  TOKEN_SHIFT,
+  WIDTH,
+} from './timeline.js';
+import { loadClip, tokenScene } from './token.js';
 
 const q = new URLSearchParams(location.search);
 const lang = q.get('lang') === 'en' ? 'en' : 'tr';
 const rendering = q.has('render');
+/** `?hook=token` opens with the game clip (token.js) instead of the two Discord scenes; the page plays it silent. */
+const token = q.get('hook') === 'token';
+/** That opening is longer, so the scenes after it start this much later. */
+const shift = token ? TOKEN_SHIFT : 0;
 document.documentElement.lang = lang;
 
 const TEXT = {
@@ -144,11 +161,11 @@ function burst({ x, y, d, n = 44, seed = 7, colors = ['#0a0b0d', '#e9ecf1'] }) {
 const win = (scene, { left, top, width, d, max, k = K }) =>
   `<div class="win" style="left:${left}px;top:${top}px;width:${width}px;--d:${d}s;--rw-max:${max}px"><div class="win__cam"><div style="--t0:calc(var(--t0s) + ${d}s);--k:${k}">${rumpusWindow({ lang, scenes: [scene], play: true, bare: true })}</div></div></div>`;
 
-// The commands as the app has them: only some have an English name, and the English reel shows only those.
+// The commands under their names in each language (packages/protocol/src/commands.ts).
 const TAPE =
   lang === 'tr'
     ? ['/todo', '/goal', '/yarış', '/meclis', '/özet', '/durum', '@claude', '@codex']
-    : ['/todo', '/goal', '/race', '@claude', '@codex', 'Ctrl K'];
+    : ['/todo', '/goal', '/race', '/council', '/summary', '/status', '@claude', '@codex'];
 const tape = (top, rot, dir) =>
   `<div class="tape" style="top:${top}px;--rot:${rot}deg;--dir:${dir}"><div>${[...TAPE, ...TAPE, ...TAPE, ...TAPE].map((w) => `<span>${w}</span>${MARK}`).join('')}</div></div>`;
 
@@ -156,7 +173,7 @@ const tape = (top, rot, dir) =>
 
 /** A scene: shown from its start until its end plus `hold` (while the next one comes in over it). */
 function scene(name, inner, { hold = 0, cls = '' } = {}) {
-  const [a, b] = SCENES[name];
+  const [a, b] = SCENES[name].map((s) => s + shift);
   return `<section class="sc sc--${name} ${cls}" style="--t0:${a}s;--t0s:${a}s;--t1:${b + hold}s;--len:${b - a}s"><div class="sc__in">${inner}</div></section>`;
 }
 
@@ -261,8 +278,11 @@ const end = scene(
 );
 
 const stage = document.getElementById('stage');
-const shakes = SHAKES.map((s) => `shake 0.45s linear ${s}s`).join(', ');
-stage.innerHTML = `<div id="cam" style="animation:${shakes}">${hookA}${hookB}${reveal}${demo}${race}${team}${handover}${more}${end}</div>`;
+const shakes = (token ? [TOKEN.burst + TOKEN.at.grow + 0.3, ...SHAKES.map((s) => s + shift)] : SHAKES)
+  .map((s) => `shake 0.45s linear ${s}s`)
+  .join(', ');
+const opening = token ? tokenScene({ lang, bub, burst }) : hookA + hookB;
+stage.innerHTML = `<div id="cam" style="animation:${shakes}">${opening}${reveal}${demo}${race}${team}${handover}${more}${end}</div>`;
 
 // ---------------------------------------------------------------- fit, clock
 
@@ -287,6 +307,7 @@ fitLines();
 scale();
 addEventListener('resize', scale);
 
+const drawClip = token ? await loadClip() : null;
 const all = document.getAnimations();
 
 /** Sets the reel's clock (milliseconds). Used by render.mjs; every animation is stopped at that time. */
@@ -295,12 +316,31 @@ window.seek = (ms) => {
     a.pause();
     a.currentTime = ms;
   }
+  return drawClip?.(ms);
 };
-window.DURATION = DURATION;
+window.DURATION = token ? TOKEN_DURATION : DURATION;
 
 if (rendering) {
   document.body.classList.add('rendering');
   window.seek(0);
+} else if (token) {
+  // No soundtrack: the clip follows a clock of its own, started together with the animations.
+  let started = 0;
+  const restart = () => {
+    for (const a of all) {
+      a.currentTime = 0;
+      a.play();
+    }
+    started = performance.now();
+  };
+  const tick = () => {
+    drawClip(performance.now() - started);
+    requestAnimationFrame(tick);
+  };
+  document.getElementById('hint').textContent = lang === 'tr' ? 'Baştan oynatmak için tıkla' : 'Click to play again';
+  addEventListener('click', restart);
+  restart();
+  tick();
 } else {
   const audio = new Audio(`../out/reel-audio.wav`);
   const hint = document.getElementById('hint');

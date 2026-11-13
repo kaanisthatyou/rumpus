@@ -38,6 +38,23 @@ export const AT = {
   end: { bub: 0.15, word: 0.5, line: 1.1, shout: 2.6 },
 };
 
+/**
+ * The other opening (reel.html?hook=token, token.js), in place of hookA and hookB: a game clip plays as somebody's
+ * post, with nothing over it (the player runs to a chest, the chest glows gold as it opens) until the game's gold
+ * burst (`burst`), and where the game's "you found" banner forms, ours says Rumpus.
+ * `at` holds what happens how long after the burst: the banner's parts come in, it turns from gold to lime
+ * (`lime`), and Bub leaves it for the middle of the picture (`grow`), where the next scene opens.
+ */
+export const TOKEN = {
+  span: [0, 13.7],
+  burst: 10,
+  at: { emblem: 0.1, title: 0.14, found: 0.24, name: 0.3, lime: 1.6, sub: 1.9, grow: 2.75 },
+};
+
+/** How much later the scenes after the opening start in that reel, and how long it is. */
+export const TOKEN_SHIFT = TOKEN.span[1] - SCENES.hookB[1];
+export const TOKEN_DURATION = DURATION + TOKEN_SHIFT;
+
 /** When the picture shakes: the reveal, the list of what else is in it, the last shout. */
 export const SHAKES = [SCENES.reveal[0], SCENES.more[0], SCENES.end[0] + AT.end.shout];
 

@@ -1,0 +1,271 @@
+/* The "token" opening (token.js). A game clip plays with nothing over it until the game's gold burst (`--burst`).
+   From there a blurred copy of the clip hides the game's own banner and ours stands in its place, first in the
+   game's gold; at `--to-lime` it turns lime, and at `--grow` Bub leaves the banner for the middle of the picture,
+   where the next scene opens. The banner's places are the game's, in the clip as token-frames.mjs cut it: the item
+   at 540 x 416, "you found" at 713, the name at 829. Another clip or another crop moves them. */
+
+.sc--token {
+  background: #000;
+}
+
+.tk__clip,
+.tk__haze {
+  position: absolute;
+  inset: 0;
+}
+
+.tk__clip canvas,
+.tk__haze canvas {
+  display: block;
+  width: 1080px;
+  height: 1920px;
+}
+
+/* wider than the picture, so the blur has something to take from at the sides */
+.tk__haze canvas {
+  transform: scale(1.14);
+}
+
+.tk__haze {
+  opacity: 0;
+  filter: blur(36px) saturate(1.25);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 180px, #000 290px, #000 930px, transparent 1040px);
+  mask-image: linear-gradient(to bottom, transparent 180px, #000 290px, #000 930px, transparent 1040px);
+  animation:
+    tk-fade 0.14s linear calc(var(--t0) + var(--burst) + 0.02s) forwards,
+    tk-haze-lime 0.9s ease-in-out calc(var(--t0) + var(--to-lime)) forwards;
+}
+
+@keyframes tk-haze-lime {
+  to {
+    filter: blur(36px) saturate(1.25) hue-rotate(30deg);
+  }
+}
+
+@keyframes tk-fade {
+  to {
+    opacity: 1;
+  }
+}
+
+/* ---------------------------------------------------------------- the banner */
+
+.tk__ban {
+  position: absolute;
+  inset: 0;
+  animation:
+    tk-ban-lime 0.9s ease-in-out calc(var(--t0) + var(--to-lime)) forwards,
+    tk-out 0.3s ease-in calc(var(--t0) + var(--grow)) forwards;
+}
+
+@keyframes tk-ban-lime {
+  to {
+    filter: hue-rotate(30deg) saturate(1.1);
+  }
+}
+
+@keyframes tk-out {
+  to {
+    opacity: 0;
+    transform: translateY(-50px);
+  }
+}
+
+.tk__title {
+  position: absolute;
+  left: -300px;
+  right: -300px;
+  top: 296px;
+  text-align: center;
+  font: 800 330px / 1 var(--display);
+  font-variation-settings: 'opsz' 96;
+  letter-spacing: -0.02em;
+  color: transparent;
+  background: linear-gradient(180deg, #fff0b4, #f0a030);
+  -webkit-background-clip: text;
+  background-clip: text;
+  opacity: 0;
+  animation: tk-title 0.5s var(--out) calc(var(--t0) + var(--d)) forwards;
+}
+
+@keyframes tk-title {
+  from {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+
+  to {
+    opacity: 0.5;
+    transform: none;
+  }
+}
+
+.tk__bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 754px;
+  height: 150px;
+  background: linear-gradient(
+    90deg,
+    rgb(255 208 56 / 0),
+    rgb(255 208 56 / 0.6) 22%,
+    rgb(255 208 56 / 0.6) 78%,
+    rgb(255 208 56 / 0)
+  );
+  filter: blur(22px);
+  opacity: 0;
+  animation: tk-fade 0.3s ease-out calc(var(--t0) + var(--d)) forwards;
+}
+
+.tk__plate {
+  position: absolute;
+  left: 400px;
+  top: 276px;
+  width: 280px;
+  height: 280px;
+  border-radius: 40px;
+  border: 9px solid #ffd84a;
+  background: linear-gradient(145deg, #3a3110, #0a0b0d 70%);
+  box-shadow:
+    0 0 70px rgb(255 216 74 / 0.75),
+    inset 0 0 40px rgb(255 216 74 / 0.25);
+  transform: rotate(-6deg);
+  animation: tk-plate 0.4s var(--spring) calc(var(--t0) + var(--d)) both;
+}
+
+@keyframes tk-plate {
+  from {
+    opacity: 0;
+    transform: rotate(20deg) scale(2.2);
+  }
+}
+
+.tk__found,
+.tk__name,
+.tk__sub {
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.tk__found {
+  top: 676px;
+  color: #fff;
+  font: 800 64px / 1 var(--display);
+  font-variation-settings: 'opsz' 96;
+  letter-spacing: 0.01em;
+  text-shadow: 0 5px 0 rgb(0 0 0 / 0.35);
+  animation: tk-name 0.3s var(--out) calc(var(--t0) + var(--d)) both;
+}
+
+.tk__name {
+  top: 761px;
+  color: #ffe45c;
+  font: 800 136px / 1 var(--display);
+  font-variation-settings: 'opsz' 96;
+  letter-spacing: 0.01em;
+  text-shadow:
+    0 0 36px rgb(255 196 40 / 0.9),
+    0 6px 0 rgb(110 64 0 / 0.55);
+  animation: tk-name 0.34s cubic-bezier(0.2, 0.9, 0.3, 1.25) calc(var(--t0) + var(--d)) both;
+}
+
+@keyframes tk-name {
+  from {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+}
+
+.tk__sub {
+  top: 930px;
+  color: #fff;
+  font: 600 42px / 1.15 var(--text);
+  letter-spacing: -0.01em;
+  text-shadow: 0 2px 12px rgb(0 0 0 / 0.7);
+  animation: rise 0.5s var(--out) calc(var(--t0) + var(--d)) both;
+}
+
+/* ---------------------------------------------------------------- Bub: the item in the banner, then the reel's */
+
+.tk__rise {
+  position: absolute;
+  inset: 0;
+  transform-origin: 560px 720px;
+  animation:
+    tk-item 0.42s var(--spring) calc(var(--t0) + var(--d)) both,
+    tk-grow 0.75s var(--spring) calc(var(--t0) + var(--grow)) forwards;
+}
+
+@keyframes tk-item {
+  from {
+    opacity: 0;
+    transform: translate(-20px, -304px) scale(1.2) rotate(30deg);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-20px, -304px) scale(0.36);
+  }
+}
+
+@keyframes tk-grow {
+  from {
+    transform: translate(-20px, -304px) scale(0.36);
+  }
+
+  to {
+    transform: none;
+  }
+}
+
+.sc--token .bub {
+  animation: none;
+}
+
+.tk__dim {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 38%, rgb(10 11 13 / 0.45), rgb(10 11 13 / 0.86) 70%);
+  opacity: 0;
+  animation: tk-fade 0.45s ease-out calc(var(--t0) + var(--grow)) forwards;
+}
+
+.tk__rays {
+  position: absolute;
+  left: 560px;
+  top: 720px;
+  width: 2400px;
+  height: 2400px;
+  margin: -1200px 0 0 -1200px;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, rgb(198 242 78 / 0.5) 0 6deg, rgb(198 242 78 / 0) 6deg 18deg);
+  -webkit-mask: radial-gradient(circle, #000 10%, rgb(0 0 0 / 0.45) 30%, transparent 60%);
+  mask: radial-gradient(circle, #000 10%, rgb(0 0 0 / 0.45) 30%, transparent 60%);
+  opacity: 0;
+  animation:
+    tk-fade 0.5s ease-out calc(var(--t0) + var(--grow) + 0.15s) forwards,
+    tk-spin 18s linear calc(var(--t0) + var(--grow)) infinite;
+}
+
+@keyframes tk-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.tk__glow {
+  position: absolute;
+  left: 560px;
+  top: 720px;
+  width: 1000px;
+  height: 1000px;
+  margin: -500px 0 0 -500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(198 242 78 / 0.5), rgb(198 242 78 / 0) 68%);
+  opacity: 0;
+  animation: tk-fade 0.5s ease-out calc(var(--t0) + var(--grow) + 0.15s) forwards;
+}

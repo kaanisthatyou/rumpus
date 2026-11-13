@@ -1,14 +1,20 @@
 // The reel's soundtrack, synthesized here so that nothing in it is anyone else's recording: a beat at 120 BPM
 // from the reveal on, and a sound for everything that happens on screen (timeline.js). Writes
-// marketing/out/reel-audio.wav (44.1 kHz, stereo, 16 bit). Usage: node marketing/reel/audio.mjs
+// marketing/out/reel-audio.wav (44.1 kHz, stereo, 16 bit). Usage: node marketing/reel/audio.mjs [--token]
+//   --token writes out/token-music.wav for the reel that opens with the game clip: only the beat, from that
+//           reel's reveal on, and no sound per event (the clip brings its own sound for the opening).
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { BPM, DURATION, events, SCENES } from './timeline.js';
+import { BPM, DURATION, events, SCENES, TOKEN_DURATION, TOKEN_SHIFT } from './timeline.js';
+
+const token = process.argv.includes('--token');
+/** In the token reel everything after the opening is this much later. */
+const shift = token ? TOKEN_SHIFT : 0;
 
 const RATE = 44100;
 const TAIL = 0.6;
-const N = Math.ceil((DURATION + TAIL) * RATE);
+const N = Math.ceil(((token ? TOKEN_DURATION : DURATION) + TAIL) * RATE);
 const L = new Float32Array(N);
 const R = new Float32Array(N);
 const TAU = Math.PI * 2;
@@ -138,26 +144,29 @@ const sounds = {
   },
 };
 
-// ---- what happens on screen
-for (const [at, kind] of events()) sounds[kind](at);
+if (!token) {
+  // ---- what happens on screen
+  for (const [at, kind] of events()) sounds[kind](at);
 
-// ---- a low drone under the hook
-add(0, SCENES.reveal[0], 0.1, 0, (t) => {
-  const env = Math.min(1, t / 1.5) * (0.75 + 0.25 * Math.sin(TAU * 0.5 * t));
-  return (Math.sin(TAU * 55 * t) + 0.5 * Math.sin(TAU * 82.4 * t)) * env;
-});
+  // ---- a low drone under the hook
+  add(0, SCENES.reveal[0], 0.1, 0, (t) => {
+    const env = Math.min(1, t / 1.5) * (0.75 + 0.25 * Math.sin(TAU * 0.5 * t));
+    return (Math.sin(TAU * 55 * t) + 0.5 * Math.sin(TAU * 82.4 * t)) * env;
+  });
+}
 
 // ---- the beat, from the reveal to the last shout
 const beat = 60 / BPM;
-const from = SCENES.reveal[0];
-const to = SCENES.end[0] + 2.6;
+const from = SCENES.reveal[0] + shift;
+const to = SCENES.end[0] + 2.6 + shift;
 const ROOTS = [33, 33, 29, 31]; // A, A, F, G: one per bar
 const ARP = [69, 72, 76, 79, 76, 72, 81, 76];
 for (let b = 0; from + b * beat < to - 0.01; b++) {
   const at = from + b * beat;
   const bar = Math.floor(b / 4) % ROOTS.length;
-  const quiet = at >= SCENES.more[0] && at < SCENES.more[0] + 0.5; // room for the second impact
-  if (b > 0 && !quiet) sounds.kick(at, 0.8);
+  // room for the two impacts, which only the reel with its own sounds has
+  const quiet = !token && (b === 0 || (at >= SCENES.more[0] && at < SCENES.more[0] + 0.5));
+  if (!quiet) sounds.kick(at, 0.8);
   sounds.hat(at + beat / 2, 0.12, 0.35);
   sounds.hat(at + beat / 4, 0.05, -0.35);
   sounds.hat(at + (3 * beat) / 4, 0.05, -0.35);
@@ -208,5 +217,6 @@ header.writeUInt32LE(pcm.length, 40);
 
 const out = join(dirname(fileURLToPath(import.meta.url)), '..', 'out');
 mkdirSync(out, { recursive: true });
-writeFileSync(join(out, 'reel-audio.wav'), Buffer.concat([header, pcm]));
-console.log(`out/reel-audio.wav  ${(N / RATE).toFixed(2)} s`);
+const file = token ? 'token-music.wav' : 'reel-audio.wav';
+writeFileSync(join(out, file), Buffer.concat([header, pcm]));
+console.log(`out/${file}  ${(N / RATE).toFixed(2)} s`);
