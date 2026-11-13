@@ -12,7 +12,7 @@ import {
   type Message,
   parseCommand,
 } from '@lonca/protocol';
-import { Avatar, Button, Chip, Icon, IconButton, Kbd } from '@lonca/ui';
+import { Avatar, Bub, Button, Chip, Icon, IconButton, Kbd } from '@lonca/ui';
 import { AnimatePresence, motion } from 'motion/react';
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -794,8 +794,8 @@ export function ChannelView({ channel }: { channel: Channel }) {
       >
         {messages.length === 0 ? (
           <div className="empty">
-            <span className="empty__icon">
-              <Icon name={own ? 'terminal' : 'hash'} size={22} />
+            <span className="empty__bub">
+              <Bub pose={own ? 'wink' : 'wave'} size={84} />
             </span>
             <p className="empty__title">{t('shell.empty.channel')}</p>
             <p className="empty__sub">

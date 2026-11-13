@@ -193,13 +193,18 @@ Discord-like, three columns plus a rail:
 |---|---|
 | `/todo <text> [@who]` | A board card; assigned to an agent it becomes a job on one click |
 | `/goal <goal> [@agent]` | Goal mode: plan, approval, step by step with a report each step, until done, the budget ends, or someone stops it |
-| `/meclis [topic]` | Advisors discuss a topic in turn and end with a short summary |
+| `/meclis [topic]` (`/council`) | Advisors discuss a topic in turn and end with a short summary |
 | `/yarış <task>` (`/race`) | The same task for several agents at once, each in its own worktree; one result is kept (5.18) |
 | `/kaydet` | Save the message, image or answer as an idea or a reference |
-| `/hatırla <fact>` | Add to personal or workspace memory |
-| `/özet [period]` | Summary of a channel |
-| `/durum` | Every agent's account, login and quota on every machine |
+| `/hatırla <fact>` (`/remember`) | Add to personal or workspace memory |
+| `/özet [period]` (`/summary`) | Summary of a channel |
+| `/durum` (`/status`) | Every agent's account, login and quota on every machine |
+| `/yeni-oturum` (`/new-session`) | In an agent's own channel: the agent leaves the conversation and starts the next one fresh |
 | `/<saved command>` | A saved prompt with variables |
+
+Every command has a Turkish and an English name (`packages/protocol/src/commands.ts`, 2026-11-12). The app offers
+the name of its language and writes it into the messages it posts for a command; each command answers to all of its
+names whatever the language, so members who use different languages can read and type each other's commands.
 
 **Goal mode:** the person sets the goal, the agent, an optional budget (steps, time, tokens) and a done check
 (e.g. a test command). The agent first writes a plan; the person approves it, with comments on any line
@@ -604,6 +609,10 @@ Chosen direction: **Grafit & tek vurgu** (artboard 2 on the canvas; the other tw
 - **Type:** Geist for UI, Geist Mono for code, tokens, timers, counts and job steps (both OFL, bundled, no font
   requests at runtime). Dense sizes (13.5 px body), slight negative tracking.
 - **Shape:** 6-10 px radii, 1 px hairlines instead of shadows, square-ish avatars.
+- **Mark and mascot** (2026-11-13, `brand/README.md`): the mark is a speech bubble whose face is a prompt and a
+  cursor, in the accent on dark and graphite on light; it is the app icon and stands in the title bar, the rail and
+  the launcher. Bub, the same bubble with a mouth, is only a picture on a page with nothing on it yet (an empty
+  channel, no job running, an unpaired phone): it never speaks and never moves on its own.
 - **Sound** (2026-11-11): a few short tones for what a person may want to hear without looking (a job ended, a
   job waits, someone asks to join, another member wrote); one switch turns them off. No voices, no music, nothing
   on idle screens.

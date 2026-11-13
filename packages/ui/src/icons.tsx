@@ -223,23 +223,3 @@ export function Icon({ name, size = 16, label }: { name: IconName; size?: number
     </svg>
   );
 }
-
-/**
- * The product's mark: a gate (an arch on its threshold) in a rounded square, in the accent. It was drawn as a
- * caravanserai's gate when the product was called Serai; it stands for the door of the room now.
- */
-export function Mark({ size = 32 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
-      <rect width="32" height="32" rx="8" fill="var(--accent)" />
-      <path
-        d="M10.5 23v-7.5a5.5 5.5 0 0 1 11 0V23M7.5 23h17"
-        fill="none"
-        stroke="var(--on-accent)"
-        strokeWidth="2.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}

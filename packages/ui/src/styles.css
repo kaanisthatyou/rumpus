@@ -28,6 +28,9 @@
   --bad: #ff9f70;
   --on-accent: #0a0b0d;
   --shadow: 0 24px 64px -24px rgb(0 0 0 / 80%);
+  /* The mark and Bub (mascot.tsx): an accent bubble with a graphite face on dark grounds. */
+  --mark-body: var(--accent);
+  --mark-face: var(--on-accent);
 }
 
 [data-theme='light'] {
@@ -53,6 +56,9 @@
   --bad: #c2410c;
   --on-accent: #0a0b0d;
   --shadow: 0 24px 64px -28px rgb(20 22 26 / 35%);
+  /* On light grounds a graphite bubble with an accent face: a light accent alone does not hold on white. */
+  --mark-body: var(--ink);
+  --mark-face: var(--accent);
 }
 
 /* One accent at a time. `--accent` fills; `--accent-ink` is the text-safe version of it. */

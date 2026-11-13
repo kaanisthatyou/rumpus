@@ -1,8 +1,17 @@
 # Rumpus brand
 
-A proposal (2026-11-12). The app still ships the earlier icon (`apps/desktop/build/icon.svg`, an arch left from
-the Serai name); `logo/app-icon.svg` is drawn to replace it once the owners agree: copy it over `icon.svg` and run
-`pnpm icon`. No trademark search has been made for the mark, as none has for the name (PLAN.md, section 10).
+Drawn 2026-11-12; in the app since 2026-11-13, when it replaced the arch left from the Serai name. No trademark
+search has been made for the mark, as none has for the name (PLAN.md, section 10).
+
+Where it lives in the app:
+
+- The app icon: `apps/desktop/build/icon.svg` is a copy of `logo/app-icon.svg`; `pnpm icon` renders the Windows
+  `.ico`, the Linux `.png` and the phone's web-app icons from it. A changed icon reaches an installed app only with
+  a new installer.
+- In the window: `Mark` and `Bub` in `packages/ui/src/mascot.tsx` (the title bar, the rail, the launcher, quick
+  entry, the loading screen; Bub on an empty channel, on the overview when nothing runs, and on an unpaired
+  phone). Their colors come from `--mark-body` and `--mark-face`: the accent bubble on the dark theme, graphite on
+  the light one, so the mark follows the accent a person picks.
 
 ## The mark
 
@@ -53,6 +62,10 @@ floods with lime where the app only marks what is live.
 The mascot is the mark come alive, so it has no legs: it hops on the bubble's tail. Arms appear only when it
 holds something. Poses: `wink` (the default), `shout`, `wave`, `sleep`, `placard` (it carries a sign that says NO,
 for the things Rumpus refuses). The name is a working name.
+
+In the app Bub only fills a page that has nothing on it yet (`wave` on an empty channel, `wink` on an agent's
+empty channel, `sleep` when no job runs). It never speaks, never moves on its own, and never carries the NO sign:
+the app's own voice stays impersonal (PLAN.md 7.1). The other poses are for marketing.
 
 ## Rules
 

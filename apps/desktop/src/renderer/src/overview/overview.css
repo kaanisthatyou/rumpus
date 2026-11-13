@@ -514,3 +514,9 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+/* Nothing running: Bub asleep beside the line. */
+.panel__none--idle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}

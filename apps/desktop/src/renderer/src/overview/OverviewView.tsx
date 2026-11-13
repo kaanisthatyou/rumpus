@@ -1,7 +1,7 @@
 // The workspace at a glance: what runs now, who is here with which agents, where the projects stand, what
 // finished lately, today's numbers, and (until it is done or hidden) the steps of setting a workspace up.
 import type { Agent, Job, Overview } from '@lonca/protocol';
-import { Avatar, Button, Chip, Icon, IconButton, type IconName, LiveDot, Track } from '@lonca/ui';
+import { Avatar, Bub, Button, Chip, Icon, IconButton, type IconName, LiveDot, Track } from '@lonca/ui';
 import { motion } from 'motion/react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -307,7 +307,10 @@ export function OverviewView({ onSettings }: { onSettings: () => void }) {
                 {running.length > 0 && <span className="badge-count">{running.length}</span>}
               </h3>
               {running.length === 0 ? (
-                <p className="panel__none">{t('overview.nowNone')}</p>
+                <p className="panel__none panel__none--idle">
+                  <Bub pose="sleep" size={40} />
+                  {t('overview.nowNone')}
+                </p>
               ) : (
                 <motion.ul className="panel__list" initial="hidden" animate="shown">
                   {running.map((j) => (

@@ -832,6 +832,12 @@
   border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line));
   margin-bottom: 12px;
 }
+/* Bub on an empty channel: a picture, without a frame, a little apart from the words. */
+.empty__bub {
+  display: grid;
+  place-items: center;
+  margin-bottom: 14px;
+}
 .empty__title {
   margin: 0;
   font-size: 15px;

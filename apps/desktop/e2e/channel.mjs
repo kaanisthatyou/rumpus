@@ -319,9 +319,10 @@ try {
   assert.deepEqual(await accountSelect.locator('option').allTextContents(), [L.accounts.default, 'İkinci hesap']);
   await editAgent.getByRole('button', { name: L.agentForm.cancel }).click();
 
-  // /durum: this computer's CLIs, the extra account and the quota.
+  // /durum: this computer's CLIs, the extra account and the quota. Typed under its English name (`/status`): a
+  // command answers to its names in both languages whatever the app's language is.
   await page.getByRole('button', { name: /^genel/ }).click();
-  await composer.fill('/durum');
+  await composer.fill('/status');
   await composer.press('Enter');
   const statusDialog = page.getByRole('dialog', { name: L.status.title });
   await statusDialog.getByText(L.status.thisComputer).waitFor();

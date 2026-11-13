@@ -39,10 +39,10 @@ const struck = (line) =>
 const win = (lang, scene, style, opts = {}) =>
   `<div class="win" style="${style}">${rumpusWindow({ lang, scenes: [scene], ...opts })}</div>`;
 const img = (src, style) => `<img src="${B}/${src}" alt="" style="${style}">`;
-// The commands as the app has them: only some have an English name, and English posters show only those.
+// The commands under their names in each language (packages/protocol/src/commands.ts).
 const COMMANDS = {
   tr: ['/todo', '/goal', '/yarış', '/meclis', '/özet', '/durum', '/hatırla', '@claude', '@codex'],
-  en: ['/todo', '/goal', '/race', '@claude', '@codex', 'Ctrl K'],
+  en: ['/todo', '/goal', '/race', '/council', '/summary', '/status', '/remember', '@claude', '@codex'],
 };
 const tape = (lang, style) => {
   const words = [...COMMANDS[lang], ...COMMANDS[lang]];

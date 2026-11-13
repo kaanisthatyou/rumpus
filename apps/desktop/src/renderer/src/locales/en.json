@@ -520,7 +520,7 @@
     "goal": "A goal for an agent: plan, approval, step by step",
     "remember": "Adds a line to the personal notes",
     "status": "CLIs, accounts and quota on every computer",
-    "digest": "An advisor sums up the channel's last 24 hours (/özet 6, /özet week, @advisor)",
+    "digest": "An advisor sums up the channel's last 24 hours (/summary 6, /summary week, @advisor)",
     "race": "The same task for several agents at once; the results side by side"
   },
   "palette": {
@@ -830,7 +830,7 @@
       "high": "Often"
     },
     "chatterHint": {
-      "off": "Writes only when called with @ and in /meclis.",
+      "off": "Writes only when called with @ and in /council.",
       "low": "Comments now and then on finished jobs and new ideas; drops in a few times a day.",
       "normal": "Comments often on finished jobs and new ideas; drops in every few hours.",
       "high": "Comments on most jobs and ideas; drops in at most once an hour."
@@ -1016,7 +1016,7 @@
     },
     "hints": {
       "profile": "Who the person is, what they do, how they like to work.",
-      "notes": "Personal things worth remembering. /hatırla adds here.",
+      "notes": "Personal things worth remembering. /remember adds here.",
       "decisions": "Decisions made, and why.",
       "conventions": "Rules for code, names and ways of working.",
       "glossary": "Terms special to the project."

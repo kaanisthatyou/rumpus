@@ -35,11 +35,15 @@ sizes.forEach((size, i) => {
 });
 const ico = Buffer.concat([header, ...images]);
 writeFileSync(join(build, 'icon.ico'), ico);
-// The web app: plain icons, and a maskable one (the ground to the edges, the mark inside the middle four fifths,
-// so a launcher that cuts icons to a circle cuts none of it).
+// The web app: plain icons, and a maskable one: the tile's color to the edges and the mark as drawn on the tile,
+// which keeps it inside the middle four fifths, so a launcher that cuts icons to a circle cuts none of it. The tile
+// is the drawing's first <rect>; everything after it is the mark (brand/logo/app-icon.svg).
 const web = join(build, '..', 'src', 'renderer', 'public');
-const inner = svg.slice(svg.indexOf('<rect x="152"'), svg.lastIndexOf('</svg>'));
-const maskable = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="#0a0b0d"/><g transform="translate(512 512) scale(0.88) translate(-512 -512)">${inner}</g></svg>`;
+const tile = /<rect\b[^>]*\/>/.exec(svg);
+const ground = tile && /fill="([^"]+)"/.exec(tile[0])?.[1];
+if (!tile || !ground) throw new Error('icon.svg: the tile (its first <rect> with a fill) was not found');
+const inner = svg.slice(tile.index + tile[0].length, svg.lastIndexOf('</svg>'));
+const maskable = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024"><rect width="1024" height="1024" fill="${ground}"/>${inner}</svg>`;
 writeFileSync(join(web, 'icon-192.png'), render(192));
 writeFileSync(join(web, 'icon-512.png'), render(512));
 writeFileSync(join(web, 'apple-touch-icon.png'), render(180));

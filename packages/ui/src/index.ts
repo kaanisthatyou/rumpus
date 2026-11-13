@@ -13,7 +13,8 @@ export {
   TextField,
   Track,
 } from './components.js';
-export { Icon, type IconName, Mark } from './icons.js';
+export { Icon, type IconName } from './icons.js';
+export { Bub, type BubPose, Mark } from './mascot.js';
 export { easeOut, popIn, slide, softSpring, spring, stagger } from './motion.js';
 
 /** Accent swatches as shown in pickers; the CSS tokens are the source of truth for the app itself. */
