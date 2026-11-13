@@ -50,8 +50,6 @@ const TR = {
   'no.4.w': '“Claude ile giriş yap”',
   'no.4.s':
     'Bir CLI’ın giriş dosyalarını asla okumaz, kopyalamaz, taşımaz. Resmî programı başlatır; o da kendi girişini kullanır.',
-  'no.5.w': 'Kendi kendine başlayan agentlar',
-  'no.5.s': 'İşi yalnızca bir insanın mesajı, kartı ya da hedefi başlatır. Agentlar birbirini sürdüremez.',
   'net.title': 'Tek başına ya da ekiple.',
   'net.solo.alt': 'Rumpus ve iki CLI agentı çalıştıran tek bir bilgisayar; bulut yok.',
   'net.cloud': 'bulut yok',
@@ -350,26 +348,31 @@ function rumpus() {
 
 bub.addEventListener('click', rumpus);
 
-// the face follows the pointer
+// Bub follows the pointer from where it stands: the face looks at it and the body leans a little that way
 if (!reduce) {
   addEventListener('pointermove', (e) => {
     const r = bub.getBoundingClientRect();
     const dx = e.clientX - (r.left + r.width / 2);
     const dy = e.clientY - (r.top + r.height / 2);
     const d = Math.hypot(dx, dy) || 1;
-    const pull = Math.min(1, d / 500) * 20;
-    bub.style.setProperty('--ex', `${(dx / d) * pull}px`);
-    bub.style.setProperty('--ey', `${(dy / d) * pull}px`);
+    const far = Math.min(1, d / 420);
+    const x = (dx / d) * far;
+    const y = (dy / d) * far;
+    bub.style.setProperty('--ex', `${x * 30}px`);
+    bub.style.setProperty('--ey', `${y * 26}px`);
+    bub.style.setProperty('--bx', `${x * 12}px`);
+    bub.style.setProperty('--by', `${y * 8}px`);
+    bub.style.setProperty('--br', `${x * 6}deg`);
   });
 }
 
 // ---------------------------------------------------------------- the tape
 
 const tape = $('#tape');
-// The commands as the app has them: only some have an English name, and the English page shows only those.
+// The commands under their names in each language (packages/protocol/src/commands.ts).
 const TAPE = {
   tr: ['/todo', '/goal', '/yarış', '/meclis', '/özet', '/durum', '/hatırla', '@claude', '@codex'],
-  en: ['/todo', '/goal', '/race', '@claude', '@codex', 'Ctrl K'],
+  en: ['/todo', '/goal', '/race', '/council', '/summary', '/status', '/remember', '@claude', '@codex'],
 };
 function buildTape() {
   const words = TAPE[lang];

@@ -248,12 +248,23 @@ h2 {
   cursor: pointer;
   border-radius: 30%;
   -webkit-tap-highlight-color: transparent;
+  /* Bub lands once, as the button: the hop and the shout are the picture's, and when one of them ended on the
+     same element, the landing started again. */
+  transform-origin: 30% 86%;
+  animation: bub-drop 0.9s var(--spring) 0.5s both;
 }
 
 .bub svg {
   overflow: visible;
   transform-origin: 30% 86%;
-  animation: bub-drop 0.9s var(--spring) 0.5s both;
+}
+
+/* Bub leans toward the pointer (app.js): the body a little, the face more */
+.bub__body {
+  transform-box: fill-box;
+  transform-origin: 40% 92%;
+  transform: translate(var(--bx, 0), var(--by, 0)) rotate(var(--br, 0deg));
+  transition: transform 0.3s var(--out);
 }
 
 .bub__shape {
