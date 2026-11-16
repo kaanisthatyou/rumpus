@@ -642,7 +642,8 @@ try {
     .first()
     .waitFor();
 
-  // Quick entry: a small window of its own (Ctrl Alt Space, or from the palette) writes to a channel.
+  // The island (quick entry): a see-through layer over the screen (Ctrl Alt Space, the title bar, or the palette)
+  // writes to a channel; the agent's answer comes back on it as a bubble, its tool calls never do.
   await page.keyboard.press('Control+k');
   await search.fill(L.quick.title);
   await search.press('Enter');
@@ -654,16 +655,71 @@ try {
   const quickTo = quickPage.getByLabel(L.quick.to);
   await until(async () => (await quickTo.locator('option').count()) > 0, 'channels in quick entry');
   await quickTo.selectOption({ label: '#genel' });
-  await quickPage.getByLabel(L.quick.message).fill('hızlı girişten not');
+  await quickPage.getByLabel(L.quick.message).fill('@claude hızlı girişten not');
+  await quickPage.getByLabel(L.quick.message).press('Enter');
+  await quickPage.getByText(L.quick.sent).waitFor();
+  const islandAnswer = quickPage.locator('.island__bubble--answer', { hasText: 'sahte proje' });
+  await islandAnswer.waitFor({ timeout: 20_000 });
+  const islandText = await quickPage.locator('.island__feed').innerText();
+  if (islandText.includes('npm test')) throw new Error(`a command reached the island: ${islandText}`);
+  if (islandText.includes('**')) throw new Error(`Markdown marks reached the island: ${islandText}`);
   const quickPng = await current.evaluate(async ({ BrowserWindow }) => {
     const w = BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().includes('#quick'));
     return w ? (await w.webContents.capturePage()).toPNG().toString('base64') : '';
   });
   if (quickPng) writeFileSync(join(shots, 'ch-quick-entry.png'), Buffer.from(quickPng, 'base64'));
-  await quickPage.getByLabel(L.quick.message).press('Enter');
-  await quickPage.getByText(L.quick.sent).waitFor();
+  // E2E_DESKTOP=1 (Windows, on a screen someone may watch; not part of `pnpm e2e`): with real clicks, the island
+  // lets a click on an empty part of it through to the window under it and takes a click on its text box.
+  if (process.env.E2E_DESKTOP === '1') {
+    const input = (...args) =>
+      execFileSync(
+        'powershell',
+        ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', join(here, 'desktop-input.ps1'), ...args],
+        { encoding: 'utf8' },
+      ).trim();
+    const pointer = input('-Action', 'where').split(' ');
+    const geo = await current.evaluate(async ({ BrowserWindow, screen }) => {
+      const island = BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().includes('#quick'));
+      const b = island.getBounds();
+      const under = new BrowserWindow({
+        x: b.x + 60,
+        y: b.y + 60,
+        width: 520,
+        height: 320,
+        backgroundColor: '#1d4ed8',
+      });
+      await under.loadURL(
+        'data:text/html,<body style="margin:0;height:100vh;background:%231d4ed8;color:white;font:28px sans-serif;display:grid;place-items:center" onclick="document.title=String(Number(document.title||0)+1)">under</body>',
+      );
+      return { island: b, under: under.getBounds(), id: under.id, scale: screen.getDisplayMatching(b).scaleFactor };
+    });
+    const clicks = () =>
+      current.evaluate(({ BrowserWindow }, id) => Number(BrowserWindow.fromId(id).webContents.getTitle()) || 0, geo.id);
+    const at = (x, y) => [String(Math.round(x * geo.scale)), String(Math.round(y * geo.scale))];
+    await quickPage.waitForTimeout(800);
+    input('-Action', 'capture', '-Out', join(shots, 'ch-island-desktop.png'));
+    const [ux, uy] = at(geo.under.x + geo.under.width / 2, geo.under.y + geo.under.height / 2);
+    input('-Action', 'click', '-X', ux, '-Y', uy);
+    await until(async () => (await clicks()) === 1, 'a click through the island reaching the window under it');
+    const box = await quickPage.locator('.island__text-in').boundingBox();
+    const [tx, ty] = at(geo.island.x + box.x + box.width / 2, geo.island.y + box.y + box.height / 2);
+    input('-Action', 'click', '-X', tx, '-Y', ty);
+    await until(
+      () =>
+        current.evaluate(({ BrowserWindow }) =>
+          BrowserWindow.getAllWindows()
+            .find((x) => x.webContents.getURL().includes('#quick'))
+            .isFocused(),
+        ),
+      'the island taking a click on its text box',
+    );
+    assert.equal(await clicks(), 1, 'a click on the text box went through the island');
+    await current.evaluate(({ BrowserWindow }, id) => BrowserWindow.fromId(id).destroy(), geo.id);
+    input('-Action', 'move', '-X', pointer[0], '-Y', pointer[1]);
+  }
+  await quickPage.getByLabel(L.quick.message).press('Escape');
   await page.getByRole('button', { name: /^genel/ }).click();
-  await page.getByText('hızlı girişten not').waitFor();
+  await page.getByText('@claude hızlı girişten not').first().waitFor();
 
   // Moving from Fabrika: the palette imports a roblox-factory-shaped folder (the folder picker answers with the project).
   mkdirSync(join(project, 'ideas'), { recursive: true });

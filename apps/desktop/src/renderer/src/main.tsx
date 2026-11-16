@@ -16,7 +16,7 @@ import './i18n';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
-import { QuickEntry } from './shell/QuickEntry';
+import { Island } from './shell/Island';
 import { Unpaired } from './shell/Unpaired';
 import { startWeb } from './web';
 
@@ -25,7 +25,7 @@ if (root && window.location.hash === '#quick') {
   document.documentElement.dataset.quick = '1';
   createRoot(root).render(
     <StrictMode>
-      <QuickEntry />
+      <Island />
     </StrictMode>,
   );
 } else if (root) {

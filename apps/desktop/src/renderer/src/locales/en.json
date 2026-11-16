@@ -571,7 +571,7 @@
     "needsModifier": "Pressed together with Ctrl or Alt.",
     "reset": "Default",
     "fixed": "Message box keys are fixed.",
-    "quickEntry": "Quick entry (from anywhere)",
+    "quickEntry": "Island (from anywhere)",
     "globalTaken": "Another app uses these keys; the previous keys stay.",
     "sidebar": "Hide or show the channel list",
     "crew": "Narrow or open the people panel"
@@ -1127,11 +1127,20 @@
     "teamHint": "Other members' computers are added within a few seconds when they are on and connected."
   },
   "quick": {
-    "title": "Quick entry",
+    "title": "Island",
+    "button": "Island · {{keys}}",
+    "tip": "A text box over the desktop with the agents’ answers · {{keys}}",
     "to": "To",
     "message": "Message",
     "placeholder": "Message or task · Enter sends",
-    "sent": "Sent."
+    "sent": "Sent.",
+    "feed": "Agents’ answers",
+    "send": "Send",
+    "clear": "Clear bubbles",
+    "openApp": "Open the {{app}} window",
+    "hide": "Hide the island",
+    "keys": "Enter sends · Esc hides",
+    "noKey": "The shortcut is held by another app. It can be changed in Settings → Shortcuts."
   },
   "fabrika": {
     "import": "Import from Fabrika (a roblox-factory folder)",

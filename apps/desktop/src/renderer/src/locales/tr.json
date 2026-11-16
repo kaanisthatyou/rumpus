@@ -571,7 +571,7 @@
     "needsModifier": "Ctrl ya da Alt ile birlikte basılır.",
     "reset": "Varsayılan",
     "fixed": "Mesaj kutusu tuşları sabittir.",
-    "quickEntry": "Hızlı giriş (her yerden)",
+    "quickEntry": "Ada (her yerden)",
     "globalTaken": "Bu tuşlar başka bir uygulamada kullanılıyor; önceki tuşlar kaldı.",
     "sidebar": "Kanal listesini gizle ya da göster",
     "crew": "Kişiler panelini daralt ya da aç"
@@ -1127,11 +1127,20 @@
     "teamHint": "Diğer üyelerin bilgisayarları açık ve bağlıysa birkaç saniye içinde listeye eklenir."
   },
   "quick": {
-    "title": "Hızlı giriş",
+    "title": "Ada",
+    "button": "Ada · {{keys}}",
+    "tip": "Masaüstünün üzerinde yazma kutusu ve agentların cevapları · {{keys}}",
     "to": "Nereye",
     "message": "Mesaj",
     "placeholder": "Mesaj ya da iş · Enter gönderir",
-    "sent": "Gönderildi."
+    "sent": "Gönderildi.",
+    "feed": "Agentların cevapları",
+    "send": "Gönder",
+    "clear": "Balonları temizle",
+    "openApp": "{{app}} penceresini aç",
+    "hide": "Adayı gizle",
+    "keys": "Enter gönderir · Esc gizler",
+    "noKey": "Kısayol başka bir uygulamada kayıtlı. Ayarlar → Kısayollar bölümünden değiştirilebilir."
   },
   "fabrika": {
     "import": "Fabrika'dan içe aktar (roblox-factory klasörü)",

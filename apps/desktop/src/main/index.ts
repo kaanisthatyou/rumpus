@@ -63,13 +63,17 @@ const devUrl = app.isPackaged ? undefined : process.env.ELECTRON_RENDERER_URL;
 const pageUrl = pathToFileURL(join(here, '../renderer/index.html')).href;
 
 let win: BrowserWindow | undefined;
-/** The quick-entry window (Ctrl Alt Space), made the first time it is asked for. */
+/**
+ * The island (Ctrl Alt Space), made the first time it is asked for: quick entry as a see-through layer over the
+ * whole screen. Clicks pass through it to the desktop except over its text box and bubbles.
+ */
 let quick: BrowserWindow | undefined;
 /** The global key that opens it, as an Electron accelerator; the person can change it in Settings. */
 let quickKey: string | undefined;
+/** The same key as Rumpus writes it (`Ctrl+Alt+Space`), for the page; undefined while another app holds it. */
+let quickCombo: string | undefined;
 /** The text size as a zoom factor; Chromium shares it between windows of one origin, so both follow it. */
 let zoom = 1;
-const QUICK_SIZE = { width: 600, height: 172 };
 const TITLE_BAR_HEIGHT = 36;
 
 function applyZoom(): void {
@@ -77,12 +81,7 @@ function applyZoom(): void {
     win.webContents.setZoomFactor(zoom);
     if (process.platform !== 'darwin') win.setTitleBarOverlay({ height: Math.round(TITLE_BAR_HEIGHT * zoom) });
   }
-  if (quick && !quick.isDestroyed()) {
-    quick.webContents.setZoomFactor(zoom);
-    quick.setResizable(true);
-    quick.setSize(Math.round(QUICK_SIZE.width * zoom), Math.round(QUICK_SIZE.height * zoom));
-    quick.setResizable(false);
-  }
+  if (quick && !quick.isDestroyed()) quick.webContents.setZoomFactor(zoom);
 }
 
 /** Rumpus's combo (`Ctrl+Alt+Space`, `Ctrl+Shift+ArrowUp`) as an Electron accelerator. */
@@ -104,6 +103,8 @@ function setQuickKey(combo: string): boolean {
   }
   if (quickKey) globalShortcut.unregister(quickKey);
   quickKey = next;
+  quickCombo = combo;
+  win?.webContents.send('quick:key', combo);
   return true;
 }
 /**
@@ -180,7 +181,6 @@ function hideToTray(event: Electron.Event): void {
   if (quitting || !background?.tray || !tray || !win) return;
   event.preventDefault();
   win.hide();
-  quick?.hide();
   const told = join(appDir, 'tray-told');
   if (existsSync(told) || !background.labels.hidden || !Notification.isSupported()) return;
   try {
@@ -379,8 +379,16 @@ function registerIpc(): void {
     return link;
   });
   handle('quick:hide', () => quick?.hide());
+  // The page says when the pointer is over something of its own (the text box, a bubble): only then does the
+  // island take the mouse; everywhere else clicks reach the desktop and the windows under it.
+  handle('quick:solid', (event, solid) => {
+    if (!quick || quick.isDestroyed() || event.sender !== quick.webContents) return;
+    quick.setIgnoreMouseEvents(solid !== true, { forward: true });
+  });
+  handle('quick:openApp', () => showWindow());
   handle('quick:open', () => toggleQuick());
   handle('quick:setKey', (_e, combo) => (typeof combo === 'string' && combo.length < 40 ? setQuickKey(combo) : false));
+  handle('quick:key', () => quickCombo ?? null);
   handle('update:state', () => updater.get());
   handle('update:check', () => updater.check());
   handle('update:install', () => updater.install());
@@ -446,18 +454,19 @@ function createWindow(): BrowserWindow {
 
 function createQuickWindow(): BrowserWindow {
   const q = new BrowserWindow({
-    width: Math.round(QUICK_SIZE.width * zoom),
-    height: Math.round(QUICK_SIZE.height * zoom),
     show: false,
     frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    hasShadow: false,
     resizable: false,
+    movable: false,
     minimizable: false,
     maximizable: false,
     fullscreenable: false,
     alwaysOnTop: true,
     skipTaskbar: true,
     title: BRAND.name,
-    backgroundColor: '#0a0b0d',
     webPreferences: {
       preload: join(here, '../preload/index.cjs'),
       sandbox: true,
@@ -466,11 +475,11 @@ function createQuickWindow(): BrowserWindow {
       spellcheck: false,
     },
   });
+  q.setIgnoreMouseEvents(true, { forward: true });
   q.webContents.on('did-finish-load', () => {
     q.webContents.setZoomFactor(zoom);
     connect(q);
   });
-  q.on('blur', () => q.hide());
   q.on('closed', () => {
     quick = undefined;
   });
@@ -479,17 +488,18 @@ function createQuickWindow(): BrowserWindow {
   return q;
 }
 
-/** Shows the quick-entry window on the screen the pointer is on, or hides it. */
+/**
+ * The key brings the island up over the screen the pointer is on, with its text box ready; pressed again while
+ * the island has the keyboard, it puts it away. Losing focus leaves it in place: answers keep arriving on it.
+ */
 function toggleQuick(): void {
-  if (quick?.isVisible()) {
+  if (quick?.isVisible() && quick.isFocused()) {
     quick.hide();
     return;
   }
   const q = quick ?? createQuickWindow();
   quick = q;
-  const area = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
-  const [width = QUICK_SIZE.width] = q.getSize();
-  q.setPosition(Math.round(area.x + (area.width - width) / 2), Math.round(area.y + area.height * 0.26));
+  if (!q.isVisible()) q.setBounds(screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea);
   const show = () => {
     q.show();
     q.focus();

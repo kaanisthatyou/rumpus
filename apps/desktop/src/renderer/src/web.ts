@@ -127,7 +127,15 @@ function webBridge(): LoncaBridge {
     // Invite links open the PC's app, never a phone's page.
     links: { pending: async () => null, onJoin: () => () => {} },
     // The quick-entry window is the PC's own.
-    quick: { open: async () => {}, hide: async () => {}, setKey: async () => true },
+    quick: {
+      open: async () => {},
+      hide: async () => {},
+      solid: async () => {},
+      openApp: async () => {},
+      setKey: async () => true,
+      key: async () => null,
+      onKey: () => () => {},
+    },
     providers: {
       // Keys stay on the PC's main process: providers are managed there.
       state: async () => ({ providers: [], protection: 'none' }),

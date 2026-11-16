@@ -63,12 +63,20 @@ export interface LoncaBridge {
     pending(): Promise<string | null>;
     onJoin(listener: (link: string) => void): () => void;
   };
-  /** The quick-entry window (Ctrl Alt Space from anywhere). */
+  /** The island: quick entry as a see-through layer over the screen (Ctrl Alt Space from anywhere). */
   quick: {
     open(): Promise<void>;
     hide(): Promise<void>;
+    /** From the island's page: the pointer is over its text box or a bubble (true), or over the desktop. */
+    solid(on: boolean): Promise<void>;
+    /** Brings the main window forward. */
+    openApp(): Promise<void>;
     /** Registers the global key (`Ctrl+Alt+Space`); false when another app holds it (the old key stays). */
     setKey(combo: string): Promise<boolean>;
+    /** The key that really opens the island now; null while another app holds it. */
+    key(): Promise<string | null>;
+    /** The key changed (registered after all, or set in Settings). */
+    onKey(listener: (combo: string) => void): () => void;
   };
   /** Model providers and their keys; keys go in and never come back out. Refusals reject with an error code. */
   providers: {

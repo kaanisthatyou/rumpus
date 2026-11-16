@@ -36,7 +36,15 @@ const bridge: LoncaBridge = {
   quick: {
     open: () => ipcRenderer.invoke('quick:open'),
     hide: () => ipcRenderer.invoke('quick:hide'),
+    solid: (on) => ipcRenderer.invoke('quick:solid', on),
+    openApp: () => ipcRenderer.invoke('quick:openApp'),
     setKey: (combo) => ipcRenderer.invoke('quick:setKey', combo),
+    key: () => ipcRenderer.invoke('quick:key'),
+    onKey: (listener) => {
+      const h = (_e: unknown, combo: string) => listener(combo);
+      ipcRenderer.on('quick:key', h);
+      return () => ipcRenderer.off('quick:key', h);
+    },
   },
   providers: {
     state: () => ipcRenderer.invoke('providers:state'),

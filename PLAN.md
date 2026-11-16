@@ -279,7 +279,7 @@ portal on Wayland, and one searchable panel (`Ctrl /`). Defaults:
 
 | Keys | Action |
 |---|---|
-| `Ctrl Alt Space` (global) | Quick entry: a small always-on-top window to message or task an agent from anywhere; remembers its monitor, hides on blur |
+| `Ctrl Alt Space` (global) | The island (quick entry, 2026-11-16): a see-through layer over the screen the pointer is on, with a floating text box to message or task an agent from anywhere; this person's agents' answers and the text they write while working arrive above it as translucent accent bubbles (never tool calls, commands or code blocks). Clicks pass through except over the box and the bubbles; it stays up when another window takes focus, the key again or Esc puts it away. The title bar names the key |
 | `Ctrl K` | Search and command palette |
 | `Ctrl Space` | Push to talk (inside Rumpus, toggle) |
 | `Alt ↑ / ↓` | Previous / next channel |
