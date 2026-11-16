@@ -2030,6 +2030,8 @@ export class Core {
   /** A passing update from a member: shown, never stored. */
   private liveIn(ws: Workspace, device: string, body: Record<string, unknown>): void {
     if (body.kind === 'statusAsk') {
+      // A keeper runs no agents: /durum lists the computers that do.
+      if (this.settings.get().profile.keeper) return;
       // At most every few seconds, however often someone opens /durum.
       if (Date.now() - this.statusSent < 3000) return;
       this.statusSent = Date.now();

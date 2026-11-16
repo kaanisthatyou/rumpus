@@ -45,7 +45,9 @@ function app(dir: string, port = 0) {
     }
     throw new Error(`no answer: ${method}`);
   };
-  return { core, call };
+  const events = (event: string) =>
+    sent.filter((f) => 'event' in f && f.event === event).map((f) => (f as { data: unknown }).data);
+  return { core, call, events };
 }
 
 function freePort(): Promise<number> {
@@ -94,7 +96,8 @@ describe('an always-on member', () => {
     const keeper = app(dirs.keeper);
     await kaan.call('settings.update', { profile: { name: 'Kaan' } });
     await arda.call('settings.update', { profile: { name: 'Arda' } });
-    await keeper.call('settings.update', { profile: { name: 'Sunucu' } });
+    // As `rumpus-keeper` sets it: shown as a device that keeps the workspace.
+    await keeper.call('settings.update', { profile: { name: 'Sunucu', keeper: true } });
 
     const team = await kaan.call<WorkspaceSummary>('workspaces.create', { name: 'Ekip' });
     const genel = (
@@ -120,6 +123,20 @@ describe('an always-on member', () => {
       return s.members?.length === 3 && s.channels.length ? s : undefined;
     }, 'arda sees all three');
 
+    // /durum lists the computers that run agents: Arda's answers, the keeper's does not.
+    // Asked again until Kaan's app has reached Arda's once (the question goes to members in reach).
+    await until(
+      async () => {
+        await kaan.call('status.get');
+        await new Promise((r) => setTimeout(r, 500));
+        return kaan.events('status.changed').some((d) => (d as { name?: string }).name === 'Arda');
+      },
+      'arda answers /durum',
+      45_000,
+    );
+    await new Promise((r) => setTimeout(r, 1000));
+    expect(kaan.events('status.changed').some((d) => (d as { name?: string }).name === 'Sunucu')).toBe(false);
+
     // Arda closes the app; Kaan writes; the keeper takes it; Kaan closes the app.
     arda.core.shutdown();
     await kaan.call('messages.send', { channelId: genel.id, text: 'Sen yokken yazdım' });
@@ -140,7 +157,7 @@ describe('an always-on member', () => {
     kaan = app(dirs.kaan);
     await kaan.call('workspaces.open', { id: team.id });
     await until(async () => (await texts(kaan, genel.id)).includes('Gördüm, sağ ol'), 'kaan caught up');
-  }, 60_000);
+  }, 120_000);
 });
 
 describe('a team nobody opened for more than a month', () => {
