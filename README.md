@@ -13,9 +13,8 @@ projects, saved ideas and references, memory and advisor bots around them. Alone
 no server or account in between.
 
 **Status: 0.9.0-alpha.0** (2026-11-13), Phase 4 of the plan under way; alpha software, for Windows and Linux.
-The repository is private until Phase 1 is closed, so its releases are visible to its members only. Rumpus was
-called Lonca until 2026-11-10 and Serai until 2026-11-11; the code name `lonca` remains in package names and
-environment variables. The plan, its decisions and every phase's status are in [PLAN.md](PLAN.md).
+Rumpus was called Lonca until 2026-11-10 and Serai until 2026-11-11; the code name `lonca` remains in package
+names and environment variables. The plan, its decisions and every phase's status are in [PLAN.md](PLAN.md).
 
 ## What it refuses
 
@@ -44,7 +43,7 @@ What it needs:
 First steps: start Rumpus, open or make a workspace, add an agent for one of the CLIs it found, then write to the
 agent in its own channel or `@mention` it in any channel. The job appears as a live card.
 
-The app updates itself from this repository's releases; that starts to work when the repository is public.
+The app updates itself from this repository's releases.
 
 ## What it does
 

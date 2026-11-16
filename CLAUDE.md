@@ -112,5 +112,6 @@ purpose; never change roblox-factory for it.
 - electron-builder's icon converter can fail for lack of memory; `pnpm icon` builds `icon.png` and `icon.ico`
   itself from `apps/desktop/build/icon.svg`.
 - Releases: tag `v<version>` (matching `apps/desktop/package.json`) and the Release workflow publishes the
-  installers. While the repo is private, installed apps cannot read the releases, so auto-update works only
-  after the repo goes public (planned after Phase 1).
+  installers; installed apps update from them (the repository is public since 2026-11-13).
+- Commits here carry GitHub's private address (`git config user.email` in this clone), not a personal one: the
+  history was rewritten once for that before the repository went public. A fresh clone needs the same setting.

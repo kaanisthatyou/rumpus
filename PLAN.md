@@ -62,7 +62,7 @@ From the Q&A on 2026-10-16.
 | System prompts | Fabrika-like defaults for every role (worker, advisor, goal step, ...), editable by the people using them, in layers (5.14) |
 | Phase order | Team (Phase 3) before memory, voice and the connector store (Phase 4) |
 | Viewer role | Reads and posts messages; cannot task agents or edit the board and records |
-| Repo | `github.com/kaanisthatyou/rumpus` (called `lonca` until 2026-11-13), private until Phase 1 is done, set up as open source from the first commit |
+| Repo | `github.com/kaanisthatyou/rumpus`, public since 2026-11-13 (private and called `lonca` until then), set up as open source from the first commit |
 | Telemetry | None. Rumpus sends nothing |
 | v0.1 code | Removed from `main` when the v2 skeleton lands; tag `v0.1.0` kept |
 | Theme | **Grafit & tek vurgu** (direction 2 on the canvas) |
@@ -743,8 +743,8 @@ Built and verified (unit tests, and the real app driven against a fake Claude Co
   and moves a board card through Rumpus's MCP tools; the packaged 0.3.0-alpha.0 passes `smoke.mjs` and
   `channel.mjs`.
 
-Left open from Phase 1: a logged-in Codex run (no Codex login on the dev machine), and making the repository
-public, which waits for the owners' go.
+Left open from Phase 1: a logged-in Codex run (no Codex login on the dev machine). The repository went public on
+2026-11-13 (section 10).
 
 
 ### Phase 2 status (built 2026-10-18)
@@ -1047,10 +1047,11 @@ The details behind 5.11 and 6.5, decided before building.
   from a project's README, called a connector's tool through the gateway after an approval
   (`REAL_QUICK=1 e2e/real-claude.mjs`) and reviewed code as a specialist, keeping a lesson
   (`e2e/real-specialist.mjs`); both scripts had gone stale against the UI and were brought up to date.
-  **Left for the owners:** every commit carries Kaan's personal e-mail address as its author (it becomes
-  public with the repository unless the history is rewritten first); this plan itself is frank about names,
-  money and domains; the installer is unsigned until SignPath (which needs the public repository); the
-  version and the tag; Linux packages have never been built or run; Codex has never run logged in; and the
+  **Left for the owners:** every commit carried Kaan's personal e-mail address as its author (rewritten to
+  GitHub's private address on 2026-11-13, before the repository went public: section 10); this plan itself is
+  frank about names, money and domains; the installer is unsigned until SignPath (which needs the public
+  repository); the version and the tag; Linux packages are built by the release workflow since 2026-11-13 and
+  have never been run; Codex has never run logged in; and the
   full audit (that skill's or another) before 1.0.
 - 4.27 Friends (5.20), 2026-11-12: `packages/core/src/friends.ts` (the code, the requests on their way in
   `<app>/friends.json`), `friends.get` / `add` / `answer` / `cancel` / `remove`, `friends.changed`, two open peer
@@ -1304,4 +1305,11 @@ From 2026-11-11, for the owners:
   (specialist sets, connector bundles). Not decided; nothing in the code assumes any of them.
 - **Routines and principle 3.** Routines were added as a person's standing request. If the owners read "only a
   person starts work" more strictly, routines are one switch to remove.
-- **The repository** is `kaanisthatyou/rumpus` since 2026-11-13 (renamed on GitHub, so the old address forwards) and still private; the working branch is still called `serai`, and the landing page is at rumpus.lol. Making it public is the owners'.
+- **The repository** is `kaanisthatyou/rumpus`, public since 2026-11-13 (Kaan's decision that day), and the
+  landing page is at rumpus.lol. Before it went public, every commit's author address was rewritten from Kaan's
+  personal one to GitHub's private one and the result pushed to a new repository, because GitHub keeps a rewritten
+  repository's old commits reachable (through its pull requests, for one). The repository before that, with its one
+  pull request and the first build of 0.9.0-alpha.0, stays private as `kaanisthatyou/lonca-archive`. The tag
+  `v0.1.0` (the Python prototype) was not pushed to the new one: its push would start the release workflow. The
+  working branch is still called `serai`. Still open: no trademark search for the name, and the installer is
+  unsigned.
