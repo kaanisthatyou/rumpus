@@ -384,8 +384,7 @@
       "progress": "Progress",
       "start": "Start the job",
       "connector": "Connector",
-      "budget": "Budget nearly used",
-      "start_late": "Start the job (asked while this computer was off)"
+      "budget": "Budget nearly used"
     },
     "denied": "Refused",
     "more_one": "{{count}} more step",

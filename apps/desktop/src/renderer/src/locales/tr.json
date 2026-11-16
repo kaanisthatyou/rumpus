@@ -384,8 +384,7 @@
       "progress": "İlerleme",
       "start": "İşe başlama",
       "connector": "Bağlayıcı",
-      "budget": "Bütçe dolmak üzere",
-      "start_late": "İşe başlama (bu bilgisayar kapalıyken istendi)"
+      "budget": "Bütçe dolmak üzere"
     },
     "denied": "Reddedildi",
     "more_one": "{{count}} adım daha",

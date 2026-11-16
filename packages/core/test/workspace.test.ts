@@ -353,25 +353,6 @@ describe('Jobs', () => {
     expect(jobs.readTranscript(job?.id ?? '').map((e) => e.t)).toEqual(['tool', 'result', 'end']);
   });
 
-  it("holds another member's request that arrives long after it was written, and starts it on a yes", async () => {
-    const { s: st, jobs, sessions, updates } = jobsWith();
-    const arda = { kind: 'person' as const, id: 'dev2', name: 'Arda' };
-    const old = msg({ text: '@claude dün geceki iş', author: arda, created: Date.now() - 8 * 60 * 60_000 });
-    st.commit({ type: 'message.posted', data: old });
-    await jobs.onMessage(old, channel());
-    expect(sessions).toHaveLength(0);
-    const held = st.jobsFor([old.id])[0];
-    expect(held).toMatchObject({ state: 'attention', by: 'dev2', approval: { label: 'start_late', arg: 'Arda' } });
-    expect(updates.some((u) => u.id === held?.id)).toBe(true);
-    // A fresh one from the same member starts at once; this person's own old message is never held.
-    const fresh = msg({ text: '@claude şimdi', author: arda });
-    await jobs.onMessage(fresh, channel());
-    expect(sessions).toHaveLength(1);
-    const { jobs: jobs2, sessions: sessions2 } = jobsWith();
-    await jobs2.onMessage(msg({ text: '@claude eski ama benim', created: Date.now() - 8 * 60 * 60_000 }), channel());
-    expect(sessions2).toHaveLength(1);
-  });
-
   it('ignores messages without a mention and messages from agents', async () => {
     const { jobs, sessions } = jobsWith();
     await jobs.onMessage(msg({ text: 'kimseye değil' }), channel());

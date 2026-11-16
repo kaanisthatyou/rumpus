@@ -1040,15 +1040,6 @@ The details behind 5.11 and 6.5, decided before building.
     another computer. A person's own message after it shows a small clock (in the header, or in the gutter of a
     message that follows closely) that fades in after three seconds, so a message that leaves at once never
     blinks one.
-  - **A catch-up is one notification:** messages that arrive together make one system notification and one
-    sound ("3 new messages", the channels, the workspace), and phones get one push per channel with the count
-    (`phonePushes`); a window hidden in the tray counts as away (`document.hasFocus` alone could say otherwise).
-  - **Late requests wait for the owner:** another member's request that reaches the agent's computer more than ten
-    minutes after it was written (that computer was off; a member's app or the keeper passed it on later) does not
-    start, or steer a running job, by itself: it is held like an approve-first job, labelled "starting work (asked
-    while this computer was off)", and starts on the owner's yes. The person's own messages are never held.
-    Without this, the keeper would have made a night's @mentions start at once when the owner's computer woke up,
-    possibly hidden in the tray. Covered by `workspace.test.ts`.
   - Two sync fixes found on the way: a round stopped while a peer was answering (the workspace closed, the data
     folder changed) wrote to the closed database, an unhandled rejection that can end the core process; and one
     exchange gave at most 500 events, so a member back after a long time away needed several rounds and the
