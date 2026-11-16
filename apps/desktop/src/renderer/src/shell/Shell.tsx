@@ -22,6 +22,7 @@ import { PHONE, useApp, type View, WIDE } from '../store';
 import { enablePush, pushState } from '../web';
 import { FriendAvatar } from './FriendsDialog';
 import { useTaskbar } from './taskbar';
+import { askDeleteWorkspace } from './WorkspaceDialog';
 
 const BOARD: { view: View; icon: IconName }[] = [
   { view: 'tasks', icon: 'tasks' },
@@ -128,8 +129,14 @@ function Rail({ onSettings }: { onSettings: () => void }) {
             aria-label={note}
             aria-current={w.id === current ? 'page' : undefined}
             title={note}
-            disabled={Boolean(w.state)}
-            onClick={() => void openWorkspace(w.id)}
+            // A join that was turned down can only be deleted; one still waiting can be neither opened nor deleted.
+            disabled={w.state === 'joining'}
+            onClick={() => (w.state === 'denied' ? askDeleteWorkspace(t, w) : void openWorkspace(w.id))}
+            onContextMenu={(e) => {
+              if (w.kind !== 'team' || w.state === 'joining') return;
+              e.preventDefault();
+              askDeleteWorkspace(t, w);
+            }}
           >
             <WorkspaceIcon name={name} icon={w.icon} />
             {fresh && <span className="ws__dot" aria-hidden="true" />}

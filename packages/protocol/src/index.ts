@@ -382,6 +382,11 @@ export interface CoreMethods {
   'workspaces.create': { params: { name: string }; result: WorkspaceSummary };
   /** Makes a workspace the open one; others keep running in the background. */
   'workspaces.open': { params: { id: string }; result: WorkspaceState };
+  /**
+   * Deletes a team workspace from this computer: it stops syncing and its folder is removed. Other members keep
+   * their own copies. The personal workspace and conversations with friends (`friends.remove`) are not deleted here.
+   */
+  'workspaces.delete': { params: { id: string }; result: { ok: true } };
   'memory.get': { params: undefined; result: MemoryState };
   'memory.save': { params: { section: MemorySection; text: string }; result: MemoryState };
   /** `/hatırla`: a line for the personal notes. */

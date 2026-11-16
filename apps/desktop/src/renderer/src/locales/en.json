@@ -358,7 +358,11 @@
     "unreadMention_one": "{{count}} unread message, with a mention",
     "unreadMention_other": "{{count}} unread messages, with a mention",
     "newMessages": "New",
-    "notDelivered": "On this computer only for now: no other member's computer has it yet"
+    "notDelivered": "On this computer only for now: no other member's computer has it yet",
+    "deleteChannel": "Delete #{{name}}",
+    "deleteTitle": "Delete #{{name}}?",
+    "deleteBody": "The channel and its messages are deleted. In a team workspace it goes for the other members too. This cannot be undone.",
+    "deleteAction": "Delete channel"
   },
   "job": {
     "state": {
@@ -1140,7 +1144,8 @@
     "openApp": "Open the {{app}} window",
     "hide": "Hide the island",
     "keys": "Enter sends · Esc hides",
-    "noKey": "The shortcut is held by another app. It can be changed in Settings → Shortcuts."
+    "noKey": "The shortcut is held by another app. It can be changed in Settings → Shortcuts.",
+    "server": "Workspace"
   },
   "fabrika": {
     "import": "Import from Fabrika (a roblox-factory folder)",
@@ -1482,7 +1487,11 @@
     "newRoleColor": "Color of the new role",
     "carried_one": "{{count}} member",
     "carried_other": "{{count}} members",
-    "assignHint": "A role is given from the member's profile card: a click on the name in the members list."
+    "assignHint": "A role is given from the member's profile card: a click on the name in the members list.",
+    "delete": "Delete workspace",
+    "deleteTitle": "Delete {{name}}?",
+    "deleteBody": "The workspace is deleted from this computer: its channels, messages, jobs and records. Other members keep their own copies. Coming back takes a new invite.",
+    "deleteAction": "Delete workspace"
   },
   "inviteCard": {
     "label": "Workspace invite",

@@ -2,12 +2,27 @@
 // roles (names with a color that admins give to members). Everyone sees it; admins change it.
 import { LIMITS, type RoleTag } from '@lonca/protocol';
 import { Button, Counter, IconButton, TextField } from '@lonca/ui';
+import type { TFunction } from 'i18next';
 import { motion } from 'motion/react';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ErrorLine } from '../parts';
 import { ColorPick, nameStyle, PicturePick, useFace, WorkspaceIcon } from '../people/people';
 import { useApp } from '../store';
+
+/** Asks before a team workspace leaves this computer with everything in it; other members keep their copies. */
+export function askDeleteWorkspace(t: TFunction, w: { id: string; name: string }): void {
+  useApp.setState({
+    workspaceDialog: false,
+    error: undefined,
+    confirm: {
+      title: t('wsForm.deleteTitle', { name: w.name }),
+      body: t('wsForm.deleteBody'),
+      action: t('wsForm.deleteAction'),
+      run: () => useApp.getState().deleteWorkspace(w.id),
+    },
+  });
+}
 
 function RoleRow({ role, admin }: { role: RoleTag; admin: boolean }) {
   const { t } = useTranslation();
@@ -267,6 +282,9 @@ export function WorkspaceDialog() {
               {t('shell.invite')}
             </Button>
           )}
+          <Button variant="quiet" icon="trash" onClick={() => askDeleteWorkspace(t, workspace)}>
+            {t('wsForm.delete')}
+          </Button>
           <span className="grow" />
           <Button variant="quiet" onClick={close}>
             {t('common.close')}

@@ -2,7 +2,7 @@
 // and later the phone and other members will reach the same methods over the network.
 import { spawn } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
-import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { connect } from 'node:net';
 import { homedir } from 'node:os';
 import { isAbsolute, join } from 'node:path';
@@ -497,6 +497,7 @@ export class Core {
       },
       'workspaces.create': async (p) => this.createWorkspace(p?.name),
       'workspaces.open': async (p) => this.openWorkspace(p?.id),
+      'workspaces.delete': async (p) => this.deleteWorkspace(p?.id),
       'invites.create': async (p) => this.createInvite(p?.role, p?.hours),
       'invites.join': async (p) => this.join(p?.code),
       'invites.check': async (p) => this.checkInvite(p?.code),
@@ -1937,6 +1938,8 @@ export class Core {
       } catch {
         // the inviter is offline: ask again later
       }
+      // Deleted while the answer was on its way: nothing to join any more.
+      if (!this.teams().some((t) => t.id === wsId && t.joining)) return;
       if (state === 'approved') {
         const { joining: _done, ...rest } = entry;
         this.saveTeams(this.teams().map((t) => (t.id === wsId ? rest : t)));
@@ -2403,8 +2406,16 @@ export class Core {
   private removeFriend(device: unknown): FriendsState {
     const entry = this.teams().find((t) => t.dm && t.dm.device === device);
     if (!entry) throw new CoreError('not_found');
-    const wasOpen = this.currentId() === entry.id;
-    const ws = this.open.get(entry.id);
+    this.dropWorkspace(entry.id);
+    return this.friendsChanged();
+  }
+
+  /** Closes a workspace and takes it off this computer's list; the open one falls back to the personal one. */
+  private dropWorkspace(id: string): void {
+    const wasOpen = this.currentId() === id;
+    clearTimeout(this.joinPolls.get(id));
+    this.joinPolls.delete(id);
+    const ws = this.open.get(id);
     if (ws) {
       ws.sync?.stop();
       clearInterval(ws.timer);
@@ -2413,14 +2424,26 @@ export class Core {
       ws.jobs.disposeAll();
       ws.gateway.close();
       ws.store.close();
-      this.open.delete(entry.id);
+      this.open.delete(id);
     }
-    this.saveTeams(this.teams().filter((t) => t.id !== entry.id));
+    this.saveTeams(this.teams().filter((t) => t.id !== id));
     if (wasOpen) {
       this.emit('settings.changed', this.settings.update({ workspace: 'personal' }));
       this.emit('workspace.changed', this.state());
     }
-    return this.friendsChanged();
+  }
+
+  /** A team workspace leaves this computer with its folder; the other members' copies stay with them. */
+  private deleteWorkspace(id: unknown): { ok: true } {
+    const entry = this.teams().find((t) => t.id === id);
+    if (!entry || entry.dm) throw new CoreError('not_found');
+    this.dropWorkspace(entry.id);
+    try {
+      rmSync(join(this.dataDir(), 'workspaces', entry.id), { recursive: true, force: true, maxRetries: 3 });
+    } catch {
+      // a file still held open: the folder stays, the workspace is already off the list
+    }
+    return { ok: true };
   }
 
   // ---------------------------------------------------------------- profiles, the workspace's look, roles (5.19)

@@ -14,6 +14,7 @@ import { ProjectDialog } from './projects/ProjectDialog';
 import { RaceDialog } from './races/RaceDialog';
 import { RoutineDialog } from './routines/RoutinesView';
 import { SettingsDialog } from './settings/SettingsDialog';
+import { ConfirmDialog } from './shell/ConfirmDialog';
 import { FriendsDialog } from './shell/FriendsDialog';
 import { InviteDialog } from './shell/InviteDialog';
 import { NewWorkspaceDialog } from './shell/NewWorkspaceDialog';
@@ -57,6 +58,7 @@ export function App() {
   const profileCard = useApp((s) => s.profileCard);
   const workspaceDialog = useApp((s) => s.workspaceDialog);
   const friendsOpen = useApp((s) => s.friendsOpen);
+  const confirm = useApp((s) => s.confirm);
   // "Edit profile" on the person's own card: the settings, on that tab.
   useEffect(() => {
     if (settingsTab) setSettingsOpen(true);
@@ -172,6 +174,7 @@ export function App() {
           {onboarded && paletteOpen && <Palette key="palette" onSettings={openSettings} />}
         </AnimatePresence>
         <AnimatePresence>{onboarded && shortcutsOpen && <ShortcutsDialog key="shortcuts" />}</AnimatePresence>
+        <AnimatePresence>{onboarded && confirm && <ConfirmDialog key="confirm" ask={confirm} />}</AnimatePresence>
       </div>
     </MotionConfig>
   );

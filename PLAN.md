@@ -279,7 +279,7 @@ portal on Wayland, and one searchable panel (`Ctrl /`). Defaults:
 
 | Keys | Action |
 |---|---|
-| `Ctrl Alt Space` (global) | The island (quick entry, 2026-11-16): a see-through layer over the screen the pointer is on, with a floating text box to message or task an agent from anywhere; this person's agents' answers and the text they write while working arrive above it as translucent accent bubbles (never tool calls, commands or code blocks). Clicks pass through except over the box and the bubbles; it stays up when another window takes focus, the key again or Esc puts it away. The title bar names the key |
+| `Ctrl Alt Space` (global) | The island (quick entry, 2026-11-16): a see-through layer over the screen the pointer is on, with a floating text box to message or task an agent from anywhere, in any workspace (choosing one there opens it in the app too, since the island hears the open workspace's agents); this person's agents' answers and the text they write while working arrive above it as translucent accent bubbles (never tool calls, commands or code blocks). Clicks pass through except over the box and the bubbles; it stays up when another window takes focus, the key again or Esc puts it away. The title bar names the key |
 | `Ctrl K` | Search and command palette |
 | `Ctrl Space` | Push to talk (inside Rumpus, toggle) |
 | `Alt ↑ / ↓` | Previous / next channel |
@@ -317,6 +317,12 @@ portal on Wayland, and one searchable panel (`Ctrl /`). Defaults:
   name the workspace knows the device by, not the one the message carries; another member's agent or advisor
   only when it names this person, and then with its owner ("Test (Arda)"). A person's own agents and advisors
   never notify them as if someone else spoke.
+- **Deleting asks first** (2026-11-16): a channel (Admins, from its header; the last one stays) and a workspace
+  (Settings of the workspace, or a right-click on its icon in the rail; a turned-down join is deleted with a click)
+  go only after a confirm dialog that says what is lost. Deleting a channel is an event every member receives.
+  Deleting a team workspace is this computer's own act: it stops syncing and its folder is removed; the other
+  members keep their copies, and coming back takes a new invite. The personal workspace cannot be deleted, and a
+  conversation with a friend leaves with the friend (5.20).
 - The three **permission levels** above are what the UI calls "Yetki" / "Permission" since 2026-11-12; "role"
   now means a workspace's own roles (5.19), which grant nothing.
 

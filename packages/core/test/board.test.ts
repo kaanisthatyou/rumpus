@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Card, Frame, Message, RecordItem, Response, WorkspaceState, WorkspaceSummary } from '@lonca/protocol';
@@ -213,6 +213,34 @@ describe('workspaces', () => {
     expect(page.messages.map((m) => m.text)).toContain('README bir proje anlatıyor.');
     await expect(call('workspaces.open', { id: 'nope' })).rejects.toThrow('not_found');
     await expect(call('workspaces.create', { name: '  ' })).rejects.toThrow('bad_request');
+    core.shutdown();
+  });
+
+  it('deletes a team workspace from this computer, never the personal one', async () => {
+    const { core, call } = setup();
+    const team = await call<WorkspaceSummary>('workspaces.create', { name: 'Silinecek' });
+    const folder = join(core.dataDir(), 'workspaces', team.id);
+    expect(existsSync(folder)).toBe(true);
+    expect((await call<WorkspaceState>('workspace.get')).id).toBe(team.id);
+
+    await call('workspaces.delete', { id: team.id });
+    expect((await call<WorkspaceSummary[]>('workspaces.list')).map((w) => w.id)).toEqual(['personal']);
+    // The open one was deleted: the personal workspace is open again.
+    expect((await call<WorkspaceState>('workspace.get')).id).toBe('personal');
+    expect(existsSync(folder)).toBe(false);
+
+    await expect(call('workspaces.delete', { id: 'personal' })).rejects.toThrow('not_found');
+    await expect(call('workspaces.delete', { id: team.id })).rejects.toThrow('not_found');
+    core.shutdown();
+  });
+
+  it('deletes a channel but keeps the last one', async () => {
+    const { core, call } = setup();
+    const first = (await call<WorkspaceState>('workspace.get')).channels[0]?.id ?? '';
+    const second = await call<{ id: string }>('channels.create', { name: 'ikinci' });
+    await call('channels.delete', { id: second.id });
+    expect((await call<WorkspaceState>('workspace.get')).channels.map((c) => c.id)).toEqual([first]);
+    await expect(call('channels.delete', { id: first })).rejects.toThrow('bad_request');
     core.shutdown();
   });
 });

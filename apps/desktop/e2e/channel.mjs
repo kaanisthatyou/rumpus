@@ -721,6 +721,60 @@ try {
   await page.getByRole('button', { name: /^genel/ }).click();
   await page.getByText('@claude hızlı girişten not').first().waitFor();
 
+  // Deleting a channel asks first, and "Vazgeç" leaves it.
+  await page.getByRole('button', { name: L.channel.create }).click();
+  await page.getByRole('textbox', { name: L.channel.create }).fill('silinecek');
+  await page.getByRole('textbox', { name: L.channel.create }).press('Enter');
+  await page.getByRole('heading', { name: 'silinecek' }).waitFor();
+  const dropChannel = page.getByRole('button', { name: L.channel.deleteChannel.replace('{{name}}', 'silinecek') });
+  await dropChannel.click();
+  let ask = page.getByRole('alertdialog', { name: L.channel.deleteTitle.replace('{{name}}', 'silinecek') });
+  await ask.getByText(L.channel.deleteBody).waitFor();
+  await shot(page, 'ch-confirm-channel');
+  await ask.getByRole('button', { name: L.common.cancel }).click();
+  await ask.waitFor({ state: 'detached' });
+  await page.getByRole('button', { name: /^silinecek/ }).waitFor();
+  await dropChannel.click();
+  await ask.getByRole('button', { name: L.channel.deleteAction }).click();
+  await ask.waitFor({ state: 'detached' });
+  await until(async () => (await page.getByRole('button', { name: /^silinecek/ }).count()) === 0, 'the channel gone');
+
+  // The island chooses the workspace too: choosing one opens it in the app as well.
+  await page.getByRole('button', { name: L.shell.newWorkspace }).click();
+  const made = page.getByRole('dialog', { name: L.shell.newWorkspace });
+  await made.getByLabel(L.workspaces.name, { exact: true }).fill('Geçici');
+  await made.getByRole('button', { name: L.workspaces.create }).click();
+  await page.getByRole('heading', { name: 'Geçici', exact: true }).waitFor();
+  await page.keyboard.press('Control+k');
+  await search.fill(L.quick.title);
+  await search.press('Enter');
+  const quickWs = quickPage.getByLabel(L.quick.server);
+  await quickWs.waitFor();
+  await quickWs.selectOption({ label: L.shell.workspace });
+  await page.getByRole('heading', { name: L.shell.workspace, exact: true }).waitFor();
+  await until(
+    async () => (await quickTo.locator('option', { hasText: '@claude' }).count()) > 0,
+    'the personal workspace channels in the island',
+  );
+  await quickWs.selectOption({ label: 'Geçici' });
+  await page.getByRole('heading', { name: 'Geçici', exact: true }).waitFor();
+  await until(
+    async () => (await quickTo.locator('option', { hasText: '@claude' }).count()) === 0,
+    'the team workspace channels in the island',
+  );
+  await quickPage.getByLabel(L.quick.message).press('Escape');
+
+  // Deleting a workspace asks first; the personal one opens in its place.
+  await page.getByRole('button', { name: L.wsForm.open }).click();
+  await page.getByRole('dialog', { name: L.wsForm.title }).getByRole('button', { name: L.wsForm.delete }).click();
+  ask = page.getByRole('alertdialog', { name: L.wsForm.deleteTitle.replace('{{name}}', 'Geçici') });
+  await ask.getByText(L.wsForm.deleteBody).waitFor();
+  await shot(page, 'ch-confirm-workspace');
+  await ask.getByRole('button', { name: L.wsForm.deleteAction }).click();
+  await ask.waitFor({ state: 'detached' });
+  await page.getByRole('heading', { name: L.shell.workspace, exact: true }).waitFor();
+  await until(async () => (await page.getByRole('button', { name: /^Geçici/ }).count()) === 0, 'the workspace gone');
+
   // Moving from Fabrika: the palette imports a roblox-factory-shaped folder (the folder picker answers with the project).
   mkdirSync(join(project, 'ideas'), { recursive: true });
   writeFileSync(

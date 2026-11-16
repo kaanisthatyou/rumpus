@@ -1,8 +1,9 @@
 // The island (PLAN.md 5.10): quick entry as a see-through layer over the whole screen, opened from anywhere with
-// Ctrl Alt Space. A floating text box writes to a channel or an agent; above it, what this person's agents say
+// Ctrl Alt Space. A floating text box writes to a channel or an agent of any workspace (choosing another workspace
+// opens it in the app too, as the rail does); above it, what this person's agents say
 // arrives as bubbles: their answers and the text they write while they work. Tool calls, commands and code never
 // appear on it. Clicks pass through to the desktop except over the text box and the bubbles.
-import type { Agent, Channel, Job, Message, Settings, WorkspaceState } from '@lonca/protocol';
+import type { Agent, Channel, Job, Message, Settings, WorkspaceState, WorkspaceSummary } from '@lonca/protocol';
 import { Icon, IconButton, Mark } from '@lonca/ui';
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -15,20 +16,37 @@ const LAST = 'lonca.quick.channel';
 /** Bubbles kept on the screen; older ones leave as new ones come. */
 const KEEP = 12;
 
-function remembered(): string | undefined {
+/** The channel last written to from the island, one per workspace. */
+function remembered(ws: string): string | undefined {
   try {
-    return localStorage.getItem(LAST) ?? undefined;
+    return localStorage.getItem(ws === 'personal' ? LAST : `${LAST}.${ws}`) ?? undefined;
   } catch {
     return undefined;
   }
 }
 
-function remember(id: string): void {
+function remember(ws: string, id: string): void {
   try {
-    localStorage.setItem(LAST, id);
+    localStorage.setItem(ws === 'personal' ? LAST : `${LAST}.${ws}`, id);
   } catch {
     // nothing to remember then
   }
+}
+
+/** The channel to show for a workspace: the one already chosen if it is there, else the remembered one, else the first. */
+function pick(w: WorkspaceState, current: string): string {
+  if (w.channels.some((x) => x.id === current)) return current;
+  const last = remembered(w.id);
+  return (w.channels.find((x) => x.id === last) ?? w.channels[0])?.id ?? '';
+}
+
+/** Where a bubble came from: the agent, and the channel when it is not the agent's own. Kept with the bubble, so
+ * it still reads right after another workspace is chosen. */
+function originOf(w: WorkspaceState | undefined, agentId: string | undefined, channelId: string): string {
+  const agent = w?.agents.find((a) => a.id === agentId);
+  const c = w?.channels.find((x) => x.id === channelId);
+  const where = c && c.kind !== 'agent' ? ` · #${c.name}` : '';
+  return `${agent?.name ?? ''}${where}`;
 }
 
 type BubbleKind = 'work' | 'live' | 'answer' | 'me';
@@ -39,6 +57,8 @@ interface Bubble {
   jobId?: string;
   agentId?: string;
   channelId: string;
+  /** Who and where, for the bubbles of agents. */
+  from?: string;
   text: string;
 }
 
@@ -55,6 +75,7 @@ function applyLook(settings: Settings): void {
 export function Island() {
   const { t } = useTranslation();
   const [workspace, setWorkspace] = useState<WorkspaceState>();
+  const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([]);
   const [channelId, setChannelId] = useState<string>('');
   const [text, setText] = useState('');
   const [note, setNote] = useState<string>();
@@ -100,6 +121,7 @@ export function Island() {
                   jobId,
                   agentId: job.agentId,
                   channelId: job.channelId,
+                  from: originOf(ws.current, job.agentId, job.channelId),
                   text,
                 })),
               );
@@ -121,10 +143,8 @@ export function Island() {
       const w = await core.call('workspace.get');
       ws.current = w;
       setWorkspace(w);
-      const last = remembered();
-      setChannelId((c) =>
-        w.channels.some((x) => x.id === c) ? c : ((w.channels.find((x) => x.id === last) ?? w.channels[0])?.id ?? ''),
-      );
+      setChannelId((c) => pick(w, c));
+      setWorkspaces(await core.call('workspaces.list'));
     };
     void load();
     const offs = [
@@ -136,7 +156,9 @@ export function Island() {
       core.on('workspace.changed', (w) => {
         ws.current = w;
         setWorkspace(w);
+        setChannelId((c) => pick(w, c));
       }),
+      core.on('workspaces.changed', (list) => setWorkspaces(list)),
       core.on('job.updated', (job) => {
         if (!concernsMe(job, ws.current)) return;
         jobs.current.set(job.id, job);
@@ -159,6 +181,7 @@ export function Island() {
             jobId: job.id,
             agentId: job.agentId,
             channelId: job.channelId,
+            from: originOf(ws.current, job.agentId, job.channelId),
             text: preview,
           };
           return [...rest, bubble].slice(-KEEP);
@@ -185,6 +208,7 @@ export function Island() {
             ...(m.jobId ? { jobId: m.jobId } : {}),
             agentId,
             channelId: m.channelId,
+            from: originOf(ws.current, agentId, m.channelId),
             text,
           };
           return [...rest, bubble].slice(-KEEP);
@@ -227,17 +251,21 @@ export function Island() {
   }, [readWork]);
 
   const agentOf = (id?: string): Agent | undefined => workspace?.agents.find((a) => a.id === id);
-  const channelOf = (id: string): Channel | undefined => workspace?.channels.find((c) => c.id === id);
   const label = (c: Channel) => {
     const agent = c.kind === 'agent' ? agentOf(c.agentId) : undefined;
     return agent ? `@${agent.handle}` : `#${c.name}`;
   };
-  /** Where a bubble came from: the agent, and the channel when it is not the agent's own. */
-  const origin = (b: Bubble) => {
-    const agent = agentOf(b.agentId);
-    const c = channelOf(b.channelId);
-    const where = c && c.kind !== 'agent' ? ` · #${c.name}` : '';
-    return `${agent?.name ?? ''}${where}`;
+  const spaceName = (w: WorkspaceSummary) =>
+    w.kind === 'personal' ? t('shell.workspace') : (w.friend?.name ?? w.name);
+  const choose = async (id: string) => {
+    if (id === workspace?.id) return;
+    try {
+      // The workspace opens in the app as well: the island hears the open one's agents.
+      await core.call('workspaces.open', { id });
+      input.current?.focus();
+    } catch (err) {
+      setNote(t(`errors.${(err as { code?: string }).code ?? 'internal'}`, t('errors.internal')));
+    }
   };
 
   const send = async (e?: FormEvent) => {
@@ -246,7 +274,7 @@ export function Island() {
     if (!value || !channelId) return;
     try {
       const m = await core.call('messages.send', { channelId, text: value });
-      remember(channelId);
+      if (workspace) remember(workspace.id, channelId);
       setText('');
       setNote(t('quick.sent'));
       setTimeout(() => setNote(undefined), 1600);
@@ -275,7 +303,7 @@ export function Island() {
             >
               {b.kind !== 'me' && (
                 <span className="island__from">
-                  {origin(b)}
+                  {b.from}
                   {b.kind === 'work' || b.kind === 'live' ? ` · ${t('job.state.running')}` : ''}
                 </span>
               )}
@@ -306,6 +334,22 @@ export function Island() {
         )}
         <form className="island__dock" data-solid onSubmit={send}>
           <Mark size={20} />
+          {workspaces.filter((w) => !w.state).length > 1 && (
+            <select
+              className="island__to island__ws"
+              aria-label={t('quick.server')}
+              value={workspace?.id ?? ''}
+              onChange={(e) => void choose(e.target.value)}
+            >
+              {workspaces
+                .filter((w) => !w.state)
+                .map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {spaceName(w)}
+                  </option>
+                ))}
+            </select>
+          )}
           <select
             className="island__to"
             aria-label={t('quick.to')}

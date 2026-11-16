@@ -731,6 +731,7 @@ export function ChannelView({ channel }: { channel: Channel }) {
   const jobs = useApp((s) => s.jobs);
   const newSession = useApp((s) => s.newSession);
   const openAgentDialog = useApp((s) => s.openAgentDialog);
+  const workspace = useApp((s) => s.workspace);
   const list = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
   // How many of the latest messages arrived while the channel was closed (as it was when it was opened).
@@ -783,6 +784,26 @@ export function ChannelView({ channel }: { channel: Channel }) {
           <span className="chat__topic">{t('channel.channelHint')}</span>
         )}
         <span className="grow" />
+        {!own &&
+          channel.kind === 'channel' &&
+          (workspace?.kind === 'personal' || workspace?.role === 'admin') &&
+          (workspace?.channels.filter((c) => c.kind === 'channel').length ?? 0) > 1 && (
+            <IconButton
+              icon="trash"
+              label={t('channel.deleteChannel', { name: channel.name })}
+              onClick={() =>
+                useApp.setState({
+                  confirm: {
+                    title: t('channel.deleteTitle', { name: channel.name }),
+                    body: t('channel.deleteBody'),
+                    action: t('channel.deleteAction'),
+                    run: () => useApp.getState().deleteChannel(channel.id),
+                  },
+                  error: undefined,
+                })
+              }
+            />
+          )}
         {own && (
           <>
             <Button

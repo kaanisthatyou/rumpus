@@ -66,6 +66,14 @@ export type View =
 type Unread = Record<string, { count: number; mention?: boolean }>;
 const NO_UNREAD: Unread = {};
 
+/** What the confirm dialog asks: its title, what will be lost, the button that does it, and the deed. */
+export interface Confirm {
+  title: string;
+  body: string;
+  action: string;
+  run: () => Promise<boolean>;
+}
+
 export interface AppState {
   settings?: Settings;
   clis?: CliInfo[];
@@ -147,6 +155,8 @@ export interface AppState {
    * what was clicked, `left` where its right edge stands when it goes to the left instead).
    */
   profileCard?: { id: string; x: number; left: number; y: number; name?: string } | undefined;
+  /** A question before something that cannot be undone (deleting a channel or a workspace). */
+  confirm?: Confirm | undefined;
   /** The open team workspace's own dialog: its look and its roles. */
   workspaceDialog?: boolean;
   /** Friends and the requests on their way (PLAN.md 5.20); the dialog that shows them. */
@@ -186,6 +196,8 @@ export interface AppState {
   editMessage(id: string, text: string): Promise<boolean>;
   deleteMessage(id: string): Promise<void>;
   createChannel(name: string): Promise<boolean>;
+  deleteChannel(id: string): Promise<boolean>;
+  deleteWorkspace(id: string): Promise<boolean>;
   saveAgent(input: AgentInput): Promise<boolean>;
   deleteAgent(id: string): Promise<void>;
   newSession(agentId: string, channelId: string): Promise<void>;
@@ -846,6 +858,30 @@ export const useApp = create<AppState>((set, get) => {
       if (!channel) return false;
       await get().loadWorkspace();
       await get().openChannel(channel.id);
+      return true;
+    },
+
+    async deleteChannel(id) {
+      const done = await attempt(() => core.call('channels.delete', { id }));
+      if (!done) return false;
+      if (get().channelId === id) set({ channelId: undefined });
+      await get().loadWorkspace();
+      return true;
+    },
+
+    async deleteWorkspace(id) {
+      const wasOpen = get().workspace?.id === id;
+      const done = await attempt(() => core.call('workspaces.delete', { id }));
+      if (!done) return false;
+      set((s) => {
+        const { [id]: _gone, ...activity } = s.activity;
+        return {
+          workspaceDialog: false,
+          activity,
+          ...(wasOpen ? { channelId: undefined, view: 'channel' as const, jobs: {}, watching: undefined } : {}),
+        };
+      });
+      if (wasOpen) await get().loadWorkspace();
       return true;
     },
 

@@ -358,7 +358,11 @@
     "unreadMention_one": "{{count}} okunmamış mesaj, bahsetme var",
     "unreadMention_other": "{{count}} okunmamış mesaj, bahsetme var",
     "newMessages": "Yeni",
-    "notDelivered": "Şimdilik yalnızca bu bilgisayarda: başka bir üyenin bilgisayarına henüz ulaşmadı"
+    "notDelivered": "Şimdilik yalnızca bu bilgisayarda: başka bir üyenin bilgisayarına henüz ulaşmadı",
+    "deleteChannel": "#{{name}} kanalını sil",
+    "deleteTitle": "#{{name}} silinsin mi?",
+    "deleteBody": "Kanal ve içindeki mesajlar silinir. Ekip çalışma alanında diğer üyelerden de kalkar. Bu geri alınamaz.",
+    "deleteAction": "Kanalı sil"
   },
   "job": {
     "state": {
@@ -1140,7 +1144,8 @@
     "openApp": "{{app}} penceresini aç",
     "hide": "Adayı gizle",
     "keys": "Enter gönderir · Esc gizler",
-    "noKey": "Kısayol başka bir uygulamada kayıtlı. Ayarlar → Kısayollar bölümünden değiştirilebilir."
+    "noKey": "Kısayol başka bir uygulamada kayıtlı. Ayarlar → Kısayollar bölümünden değiştirilebilir.",
+    "server": "Sunucu"
   },
   "fabrika": {
     "import": "Fabrika'dan içe aktar (roblox-factory klasörü)",
@@ -1482,7 +1487,11 @@
     "newRoleColor": "Yeni rolün rengi",
     "carried_one": "{{count}} üye",
     "carried_other": "{{count}} üye",
-    "assignHint": "Rol, üyenin profil kartından verilir: üye listesinde ada tıklanır."
+    "assignHint": "Rol, üyenin profil kartından verilir: üye listesinde ada tıklanır.",
+    "delete": "Sunucuyu sil",
+    "deleteTitle": "{{name}} silinsin mi?",
+    "deleteBody": "Sunucu bu bilgisayardan silinir: kanalları, mesajları, işleri ve kayıtları. Diğer üyelerin kopyaları onlarda kalır. Geri dönmek için yeni bir davet gerekir.",
+    "deleteAction": "Sunucuyu sil"
   },
   "inviteCard": {
     "label": "Çalışma alanı daveti",
