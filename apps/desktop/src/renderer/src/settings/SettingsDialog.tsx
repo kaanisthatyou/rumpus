@@ -154,6 +154,17 @@ function General() {
   );
 }
 
+/** Members who are rarely online together: the always-on member that runs on a machine that stays up. */
+function KeeperNote() {
+  const { t } = useTranslation();
+  return (
+    <section className="set">
+      <h4>{t('settings.keeper.title')}</h4>
+      <p className="muted">{t('settings.keeper.body', { command: `${BRAND.slug}-keeper` })}</p>
+    </section>
+  );
+}
+
 /** Where an agent works when its form names no folder: a folder picked here, else the desktop. */
 function AgentFolder() {
   const { t } = useTranslation();
@@ -424,7 +435,12 @@ export function SettingsDialog({ onClose, initialTab }: { onClose: () => void; i
             {tab === 'connectors' && <ConnectorsPanel />}
             {tab === 'instructions' && <InstructionsPanel />}
             {tab === 'shortcuts' && <ShortcutsPanel />}
-            {tab === 'team' && <TailscaleRow />}
+            {tab === 'team' && (
+              <div className="stack">
+                <TailscaleRow />
+                <KeeperNote />
+              </div>
+            )}
             {tab === 'phone' && <PhonePanel />}
             {tab === 'updates' && <Updates />}
             {tab === 'about' && <About />}

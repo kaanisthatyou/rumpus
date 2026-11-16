@@ -236,7 +236,11 @@
     "trayLabel": "Pencere kapanınca tepside açık kalır",
     "trayHint": "Pencere kapalıyken ajanlar çalışmayı sürdürür, başka üyelerin mesajları gelmeye devam eder; bir sonraki açılış beklenmez. Çık, tepsi simgesinin menüsündedir.",
     "startAtLoginLabel": "Sistemle birlikte, tepside başlar",
-    "startAtLoginHint": "Yalnızca kurulu uygulamada."
+    "startAtLoginHint": "Yalnızca kurulu uygulamada.",
+    "keeper": {
+      "title": "Hep açık üye",
+      "body": "Üyeler nadiren aynı anda açıksa, hep açık bir makinede (ev sunucusu, küçük bir bulut makinesi) çalışan {{command}} alanın tamamını tutar ve uygulamayı sonradan açana verir. Davetle katılır, bir yönetici onaylar; İzleyici yetkisi yeter. Kurulumu deponun apps/keeper klasöründe anlatılır."
+    }
   },
   "theme": {
     "dark": "Koyu",

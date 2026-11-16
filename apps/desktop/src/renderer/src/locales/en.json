@@ -236,7 +236,11 @@
     "trayLabel": "Stays open in the tray when the window closes",
     "trayHint": "With the window closed, agents keep working and other members' messages keep arriving, instead of waiting for the next start. Quit is in the tray icon's menu.",
     "startAtLoginLabel": "Starts with the system, in the tray",
-    "startAtLoginHint": "The installed app only."
+    "startAtLoginHint": "The installed app only.",
+    "keeper": {
+      "title": "Always-on member",
+      "body": "When members are rarely online at the same time, {{command}} on a machine that stays up (a home server, a small cloud machine) keeps the whole workspace and gives it to whoever opens the app later. It joins with an invite and an admin approves it; Viewer is enough. Setting it up is described in apps/keeper in the repository."
+    }
   },
   "theme": {
     "dark": "Dark",
