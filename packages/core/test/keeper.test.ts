@@ -2,10 +2,11 @@
 // for members who are rarely online together. Here Arda's app is closed while Kaan writes, then Kaan's is closed
 // before Arda's opens again: Arda gets the message from the keeper alone, and the other way round.
 import { mkdtempSync } from 'node:fs';
+import { type AddressInfo, createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Channel, Frame, Message, Response, WorkspaceState, WorkspaceSummary } from '@lonca/protocol';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import { FileSigner } from '../src/identity.js';
 import { Core } from '../src/server.js';
 
@@ -16,7 +17,7 @@ afterAll(() => {
 });
 
 /** One app (or the keeper) on its own folder; opening it again on the same folder is a restart. */
-function app(dir: string) {
+function app(dir: string, port = 0) {
   const core = new Core({
     appDir: dir,
     language: 'tr',
@@ -24,7 +25,7 @@ function app(dir: string) {
     platform: 'linux',
     runner: async () => ({ code: 1, stdout: '', stderr: '', timedOut: false, failed: true }),
     signer: new FileSigner(join(dir, 'identity.json')),
-    peer: { host: '127.0.0.1', port: 0 },
+    peer: { host: '127.0.0.1', port },
   });
   cores.push(core);
   let listener: (f: unknown) => void = () => {};
@@ -45,6 +46,15 @@ function app(dir: string) {
     throw new Error(`no answer: ${method}`);
   };
   return { core, call };
+}
+
+function freePort(): Promise<number> {
+  return new Promise((resolve) => {
+    const s = createServer().listen(0, '127.0.0.1', () => {
+      const { port } = s.address() as AddressInfo;
+      s.close(() => resolve(port));
+    });
+  });
 }
 
 async function until<T>(fn: () => Promise<T | undefined | false>, what: string, ms = 20_000): Promise<T> {
@@ -130,5 +140,44 @@ describe('an always-on member', () => {
     kaan = app(dirs.kaan);
     await kaan.call('workspaces.open', { id: team.id });
     await until(async () => (await texts(kaan, genel.id)).includes('Gördüm, sağ ol'), 'kaan caught up');
+  }, 60_000);
+});
+
+describe('a team nobody opened for more than a month', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("renews the members' certificates that ran out, and they sync once more", async () => {
+    const dirs = { kaan: tmp('lonca-r-kaan-'), arda: tmp('lonca-r-arda-') };
+    // Fixed ports, as installed apps have (47640): two apps that both restart find each other again.
+    const ports = { kaan: await freePort(), arda: await freePort() };
+    let kaan = app(dirs.kaan, ports.kaan);
+    let arda = app(dirs.arda, ports.arda);
+    await kaan.call('settings.update', { profile: { name: 'Kaan' } });
+    await arda.call('settings.update', { profile: { name: 'Arda' } });
+    const team = await kaan.call<WorkspaceSummary>('workspaces.create', { name: 'Uzun' });
+    const genel = (
+      await until(async () => {
+        const s = await kaan.call<WorkspaceState>('workspace.get');
+        return s.address ? s : undefined;
+      }, 'kaan listens')
+    ).channels[0] as Channel;
+    await admit(kaan, arda, 'editor', 'Arda', team.id);
+    await arda.call('workspaces.open', { id: team.id });
+    kaan.core.shutdown();
+    arda.core.shutdown();
+
+    // Forty days later (only the clock moves; timers keep running).
+    vi.useFakeTimers({ toFake: ['Date'], now: Date.now() + 40 * 24 * 60 * 60 * 1000, shouldAdvanceTime: true });
+    kaan = app(dirs.kaan, ports.kaan);
+    await kaan.call('workspaces.open', { id: team.id });
+    // Arda's certificate ran out meanwhile; the creator's own does not (it is the workspace's root).
+    expect((await kaan.call<WorkspaceState>('workspace.get')).role).toBe('admin');
+    await kaan.call('messages.send', { channelId: genel.id, text: 'Döndüm' });
+    arda = app(dirs.arda, ports.arda);
+    expect((await arda.call<WorkspaceState>('workspaces.open', { id: team.id })).role).toBeUndefined();
+    await until(async () => (await texts(arda, genel.id)).includes('Döndüm'), 'arda gets it');
+    await until(async () => (await arda.call<WorkspaceState>('workspace.get')).role === 'editor', 'arda renewed');
+    await arda.call('messages.send', { channelId: genel.id, text: 'Hoş geldin' });
+    await until(async () => (await texts(kaan, genel.id)).includes('Hoş geldin'), 'kaan gets the answer');
   }, 60_000);
 });

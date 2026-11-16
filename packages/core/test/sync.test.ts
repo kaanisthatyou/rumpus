@@ -219,3 +219,31 @@ describe('one exchange', () => {
     expect(new Set(pushed.map((e) => e.n)).size).toBe(701);
   });
 });
+
+describe('taking a batch', () => {
+  it('lets in events of a member whose certificate had run out when its renewal comes later in the same batch', () => {
+    const ingested: string[] = [];
+    let renewed = false;
+    const ev = (id: string) => ({ id, author: 'B', n: 1, at: '', type: 'x', data: {}, sig: 's' }) as SignedEvent;
+    const sync = new Sync({
+      ws: 'ws1',
+      deviceId: 'A',
+      store: {
+        ingest: (e: SignedEvent) => {
+          ingested.push(e.id);
+          if (e.id === 'renewal') renewed = true;
+          return true;
+        },
+      } as unknown as WorkspaceStore,
+      membership: { verify: (e: SignedEvent) => (e.id === 'old' && !renewed ? 'expired' : 'ok') } as never,
+      signer: { publicKey: () => undefined, sign: async () => '' },
+      peers: { call: async () => ({}) },
+      onIngested: () => {},
+    });
+    expect(sync.receive([ev('old'), ev('renewal')]).map((e) => e.id)).toEqual(['renewal', 'old']);
+    expect(sync.refused.expired ?? 0).toBe(0);
+    renewed = false;
+    expect(sync.receive([ev('old')])).toEqual([]);
+    expect(sync.refused.expired).toBe(1);
+  });
+});

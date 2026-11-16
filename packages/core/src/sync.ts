@@ -78,7 +78,8 @@ export class Sync {
     const { store, membership } = this.deps;
     let left = events.filter((e) => e && typeof e.id === 'string' && typeof e.sig === 'string');
     const applied: SignedEvent[] = [];
-    // Certificates may come after the events they allow: go round until nothing more can be taken.
+    // Certificates may come after the events they allow, and a renewal after events of a member whose certificate
+    // had run out (an admin back after weeks away): go round until nothing more can be taken.
     for (let progress = true; progress && left.length > 0; ) {
       progress = false;
       const next: SignedEvent[] = [];
@@ -87,7 +88,7 @@ export class Sync {
         if (verdict === 'ok') {
           if (store.ingest(e)) applied.push(e);
           progress = true;
-        } else if (verdict === 'unknown_author') {
+        } else if (verdict === 'unknown_author' || verdict === 'expired') {
           next.push(e);
         } else {
           this.refused[verdict] = (this.refused[verdict] ?? 0) + 1;
@@ -95,6 +96,9 @@ export class Sync {
       }
       left = next;
     }
+    // Still expired after the whole batch: refused for now; the author's app offers them again on a later sync.
+    for (const e of left)
+      if (membership.verify(e) === 'expired') this.refused.expired = (this.refused.expired ?? 0) + 1;
     if (applied.length) this.deps.onIngested(applied);
     return applied;
   }
