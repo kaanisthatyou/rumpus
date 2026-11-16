@@ -945,7 +945,9 @@ function Crew({ over = false }: { over?: boolean }) {
                         {m.name}
                         {m.me && <span className="muted"> · {t('members.me')}</span>}
                       </b>
-                      <span>{m.profile?.status || t(`shell.role.${m.role}`)}</span>
+                      <span>
+                        {m.profile?.keeper ? t('members.keeper') : m.profile?.status || t(`shell.role.${m.role}`)}
+                      </span>
                     </span>
                   </PersonButton>
                   {workspace.role === 'admin' && !m.me && !workspace.friend && (

@@ -43,6 +43,7 @@ describe('the profile in settings', () => {
       theme: [],
       avatar: null,
       banner: null,
+      keeper: false,
     });
   });
 
@@ -68,6 +69,10 @@ describe('the profile in settings', () => {
 
   it('a profile from anywhere keeps only what checks out', () => {
     expect(cleanProfile(undefined)).toMatchObject({ name: '', color: '', theme: [], avatar: null });
+    // The keeper's mark is a plain true or nothing: a string or a number from another computer is not it.
+    expect(cleanProfile({ keeper: true }).keeper).toBe(true);
+    expect(cleanProfile({ keeper: 'true' }).keeper).toBe(false);
+    expect(cleanProfile({ keeper: 1 }).keeper).toBe(false);
     expect(
       cleanProfile({ name: '  Arda  ', color: '#AB4ABA', theme: ['#112233', '#445566', '#778899'], status: 7 }),
     ).toMatchObject({ name: 'Arda', color: '', theme: ['#112233', '#445566'], status: '' });

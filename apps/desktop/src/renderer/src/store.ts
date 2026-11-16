@@ -43,7 +43,7 @@ import type {
   WorkspaceState,
   WorkspaceSummary,
 } from '@lonca/protocol';
-import { ERROR_CODES, handleOf } from '@lonca/protocol';
+import { BRAND, ERROR_CODES, handleOf } from '@lonca/protocol';
 import { create } from 'zustand';
 import type { AppInfo, UpdateState } from '../../shared/bridge';
 import { agentLabel, concernsMe, runsHere, senderOf } from './agents/owner';
@@ -312,6 +312,9 @@ function upsert(list: Message[], m: Message): Message[] {
   return [...list, m].sort((a, b) => a.created - b.created);
 }
 
+/** The window is on screen (not hidden in the tray); the main process says when it changes. */
+let windowShown = true;
+
 export const useApp = create<AppState>((set, get) => {
   /** Runs an RPC call; a refusal becomes the error line and returns undefined. */
   async function attempt<T>(fn: () => Promise<T>): Promise<T | undefined> {
@@ -364,6 +367,20 @@ export const useApp = create<AppState>((set, get) => {
     shortcutsOpen: false,
 
     async init() {
+      // The window comes back from the tray: what arrived in the channel on screen meanwhile is read now, under the
+      // line that marks it new.
+      window.lonca.shell.onShown((shown) => {
+        windowShown = shown;
+        if (!shown) return;
+        const { view, channelId, unread } = get();
+        const missed = channelId ? unread[channelId] : undefined;
+        if (view !== 'channel' || !channelId || !missed) return;
+        set((st) => {
+          const { [channelId]: _read, ...rest } = st.unread;
+          return { unread: rest, fresh: { ...st.fresh, [channelId]: { count: missed.count, at: Date.now() } } };
+        });
+        void core.call('channels.read', { channelId }).catch(() => {});
+      });
       // An invite link the app was opened with (or handed by a second copy of it): the join dialog, filled in.
       const join = (link: string | null) => link && set({ newWorkspaceOpen: true, joinCode: link, error: undefined });
       window.lonca.links.onJoin(join);
@@ -404,7 +421,8 @@ export const useApp = create<AppState>((set, get) => {
           // In a channel that is not on screen it counts as unread; a mention of this person is marked.
           const me = s.workspace?.me;
           const mine = m.author.kind === 'person' && m.author.id === me?.id;
-          const seen = s.view === 'channel' && s.channelId === m.channelId;
+          // The channel on screen, while the window is: one hidden in the tray sees nothing.
+          const seen = s.view === 'channel' && s.channelId === m.channelId && windowShown;
           const handle = handleOf(me?.name ?? '');
           const before = s.unread[m.channelId];
           const fresh =
@@ -429,7 +447,7 @@ export const useApp = create<AppState>((set, get) => {
           };
         });
         // What arrives in the channel on screen is read as it comes.
-        if (get().view === 'channel' && get().channelId === m.channelId && m.author.kind !== 'person') {
+        if (get().view === 'channel' && get().channelId === m.channelId && m.author.kind !== 'person' && windowShown) {
           void core.call('channels.read', { channelId: m.channelId }).catch(() => {});
         }
         // Another member writes, or another member's agent or advisor names this person, while Rumpus is in the
@@ -580,6 +598,29 @@ export const useApp = create<AppState>((set, get) => {
       // The quick-entry key lives in settings; the main process registers it for the whole system.
       const quickKey = settings.shortcuts.quickEntry;
       if (quickKey) void window.lonca.quick.setKey(quickKey);
+      // Running without a window: the main process hears it now and whenever these settings or the language change.
+      let sentBackground = '';
+      const sendBackground = (s: Settings | undefined) => {
+        if (!s) return;
+        const background = {
+          tray: s.tray,
+          startAtLogin: s.startAtLogin,
+          labels: {
+            tip: BRAND.name,
+            open: i18n.t('tray.open', { app: BRAND.name }),
+            quit: i18n.t('tray.quit'),
+            hidden: i18n.t('tray.hidden', { app: BRAND.name }),
+          },
+        };
+        const key = JSON.stringify(background);
+        if (key === sentBackground) return;
+        sentBackground = key;
+        void window.lonca.shell.setBackground(background);
+      };
+      sendBackground(settings);
+      useApp.subscribe((s, prev) => {
+        if (s.settings !== prev.settings) sendBackground(s.settings);
+      });
       void get().refreshSystem();
       void get().scan();
       void get().loadAccounts();

@@ -116,6 +116,10 @@ function MessageRow({
   const [draft, setDraft] = useState(message.text);
   const a = message.author;
   const own = a.kind === 'person' && a.id === me;
+  // In a team workspace, a message of this person's that no other member's computer has yet (PLAN.md 6.5).
+  const pending = useApp(
+    (s) => own && s.workspace?.kind === 'team' && message.created > (s.workspace.delivered ?? Number.POSITIVE_INFINITY),
+  );
   const mentioned = !own && Boolean(myHandle) && message.text.toLowerCase().includes(`@${myHandle}`);
   // An advisor's suggested task (`/todo …`) is already a board card: shown as a line of its own.
   const { body, todos } = useMemo(() => {
@@ -144,7 +148,12 @@ function MessageRow({
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0, transition: { type: 'spring', stiffness: 420, damping: 32 } }}
     >
-      {compact ? (
+      {compact && pending ? (
+        // A message that follows closely has no header: the mark takes the time's place in the gutter.
+        <span className="msg__gutter msg__pending" title={t('channel.notDelivered')}>
+          <Icon name="clock" size={11} label={t('channel.notDelivered')} />
+        </span>
+      ) : compact ? (
         <time className="msg__gutter l-mono">{clock(message.created, true)}</time>
       ) : a.kind === 'person' ? (
         <PersonButton id={a.id} name={name} className="msg__face">
@@ -184,6 +193,11 @@ function MessageRow({
           )}
           <time className="l-mono">{clock(message.created)}</time>
           {message.edited && <span className="msg__edited">{t('channel.edited')}</span>}
+          {pending && !compact && (
+            <span className="msg__pending" title={t('channel.notDelivered')}>
+              <Icon name="clock" size={11} label={t('channel.notDelivered')} />
+            </span>
+          )}
           {!editing && (
             <span className="msg__actions">
               <IconButton size="sm" icon="idea" label={t('records.saveMessage')} onClick={() => void saveIdea()} />

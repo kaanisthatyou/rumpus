@@ -126,6 +126,22 @@
   font-size: 11px;
   color: var(--meta);
 }
+/* A message no other member's computer has yet: shown only if it stays so for a few seconds, so a message that
+   leaves at once never blinks a mark. */
+.msg__pending {
+  display: inline-flex;
+  justify-content: flex-end;
+  color: var(--meta);
+  animation: msg-pending-in 160ms ease-out 3s both;
+}
+@keyframes msg-pending-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
 .msg__actions {
   margin-left: auto;
   display: flex;

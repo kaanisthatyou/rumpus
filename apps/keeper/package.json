@@ -1,0 +1,22 @@
+{
+  "name": "@lonca/keeper",
+  "private": true,
+  "version": "0.1.0",
+  "description": "An always-on member for team workspaces: the core without a window, for a machine that stays up",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "rumpus-keeper": "dist/keeper.mjs"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@lonca/core": "workspace:*",
+    "@lonca/protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
+  }
+}

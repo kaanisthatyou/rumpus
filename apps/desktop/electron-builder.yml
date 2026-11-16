@@ -12,6 +12,11 @@ asar: true
 extraResources:
   - from: build/THIRD-PARTY-NOTICES.txt
     to: THIRD-PARTY-NOTICES.txt
+# The tray icon (the window keeps running there after it is closed).
+  - from: build/icon.ico
+    to: icon.ico
+  - from: build/icon.png
+    to: icon.png
 # The workspace package is "@lonca/desktop"; inside the app it is plain "rumpus", which names the install folder
 # (%LOCALAPPDATA%\Programs\rumpus) and the updater cache.
 extraMetadata:

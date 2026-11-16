@@ -231,7 +231,12 @@
     "agentFolderHint": "Klasör seçilmeden eklenen agent burada çalışır. Ayarlanmadıysa masaüstü kullanılır.",
     "agentFolderDesktop": "Masaüstü",
     "soundsLabel": "Uygulama sesleri",
-    "soundsHint": "Bir iş bittiğinde ya da onay beklediğinde, katılma isteğinde ve başka üyelerin mesajında kısa bir ses çalınır."
+    "soundsHint": "Bir iş bittiğinde ya da onay beklediğinde, katılma isteğinde ve başka üyelerin mesajında kısa bir ses çalınır.",
+    "background": "Arka planda",
+    "trayLabel": "Pencere kapanınca tepside açık kalır",
+    "trayHint": "Pencere kapalıyken ajanlar çalışmayı sürdürür, başka üyelerin mesajları gelmeye devam eder; bir sonraki açılış beklenmez. Çık, tepsi simgesinin menüsündedir.",
+    "startAtLoginLabel": "Sistemle birlikte, tepside başlar",
+    "startAtLoginHint": "Yalnızca kurulu uygulamada."
   },
   "theme": {
     "dark": "Koyu",
@@ -347,7 +352,8 @@
     "unread_other": "{{count}} okunmamış mesaj",
     "unreadMention_one": "{{count}} okunmamış mesaj, bahsetme var",
     "unreadMention_other": "{{count}} okunmamış mesaj, bahsetme var",
-    "newMessages": "Yeni"
+    "newMessages": "Yeni",
+    "notDelivered": "Şimdilik yalnızca bu bilgisayarda: başka bir üyenin bilgisayarına henüz ulaşmadı"
   },
   "job": {
     "state": {
@@ -959,7 +965,8 @@
   "members": {
     "me": "bu cihaz",
     "role": "{{name}} için yetki",
-    "remove": "{{name}} alandan çıkarılsın"
+    "remove": "{{name}} alandan çıkarılsın",
+    "keeper": "Hep açık, uzaktaki üyeler için mesajları saklar"
   },
   "phone": {
     "intro": "Bu bilgisayardaki {{app}}, eşleştirilmiş telefonlarda da açılır. Her şey bu bilgisayarda çalışır; telefon yalnızca ekrandır. Bağlantı Tailscale üzerinden gider.",
@@ -1500,5 +1507,10 @@
     "requestCount_other": "{{count}} istek",
     "notifyTitle": "Arkadaşlık isteği",
     "wants": "{{name}} arkadaş olarak eklemek istiyor."
+  },
+  "tray": {
+    "open": "Aç",
+    "quit": "Çık",
+    "hidden": "{{app}} tepside çalışmaya devam ediyor. Çık, tepsi simgesinin menüsündedir."
   }
 }

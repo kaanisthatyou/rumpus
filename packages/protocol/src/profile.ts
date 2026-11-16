@@ -60,6 +60,11 @@ export const PROFILE_FIELDS = {
   theme: z.array(z.string().regex(HEX)).max(2),
   avatar: ImageRefSchema.nullable(),
   banner: ImageRefSchema.nullable(),
+  /**
+   * An always-on member without a window (the keeper, PLAN.md 6.5): shown as a device that keeps the workspace,
+   * not as a person. Display only, like everything in a profile: it grants nothing.
+   */
+  keeper: z.boolean(),
 };
 
 export const ProfileSchema = z.object({
@@ -71,6 +76,7 @@ export const ProfileSchema = z.object({
   theme: PROFILE_FIELDS.theme.default([]),
   avatar: PROFILE_FIELDS.avatar.default(null),
   banner: PROFILE_FIELDS.banner.default(null),
+  keeper: PROFILE_FIELDS.keeper.default(false),
 });
 export type Profile = z.infer<typeof ProfileSchema>;
 
@@ -83,6 +89,7 @@ export const EMPTY_PROFILE: Profile = {
   theme: [],
   avatar: null,
   banner: null,
+  keeper: false,
 };
 
 /** Text as one line: control characters and line breaks become spaces, runs of spaces one. */
@@ -113,6 +120,7 @@ export function cleanProfile(raw: unknown): Profile {
     theme: theme.length === 2 ? theme : [],
     avatar: image(r.avatar),
     banner: image(r.banner),
+    keeper: r.keeper === true,
   };
 }
 

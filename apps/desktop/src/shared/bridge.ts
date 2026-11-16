@@ -17,6 +17,20 @@ export interface AppInfo {
   packaged: boolean;
 }
 
+/** What the main process needs to run without a window (Settings → General), with the tray's words. */
+export interface BackgroundSettings {
+  tray: boolean;
+  startAtLogin: boolean;
+  labels: {
+    /** The tray icon's tooltip. */
+    tip: string;
+    open: string;
+    quit: string;
+    /** Said once, the first time closing the window leaves the app in the tray. */
+    hidden: string;
+  };
+}
+
 export interface LoncaBridge {
   shell: {
     pickFolder(): Promise<string | null>;
@@ -35,6 +49,13 @@ export interface LoncaBridge {
      * (a small picture drawn by the page, as a PNG data URL) while jobs wait for approval.
      */
     setActivity(activity: { running: number; waiting: number; badge?: string }): Promise<void>;
+    /**
+     * Running without a window: whether closing it leaves the app in the tray, whether it starts with the system,
+     * and the tray's words in the person's language.
+     */
+    setBackground(background: BackgroundSettings): Promise<void>;
+    /** The window was hidden in the tray (false) or shown again (true). */
+    onShown(listener: (shown: boolean) => void): () => void;
   };
   /** Invite links (`rumpus://join/<code>`) the app was opened with. */
   links: {

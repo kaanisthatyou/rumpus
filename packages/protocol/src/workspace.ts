@@ -423,6 +423,11 @@ export interface WorkspaceState {
   unread?: Record<string, { count: number; mention?: boolean }>;
   /** This app's address for other members, once it listens. */
   address?: string;
+  /**
+   * A team workspace: until when (this computer's clock, ms) what this person wrote is on at least one other
+   * member's computer. Their own messages after it are on this computer only, for now.
+   */
+  delivered?: number;
 }
 
 /**

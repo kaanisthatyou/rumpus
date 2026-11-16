@@ -1,4 +1,4 @@
-import { existsSync, renameSync, rmdirSync, statSync } from 'node:fs';
+import { existsSync, renameSync, rmdirSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { BRAND } from '@lonca/protocol';
@@ -10,16 +10,18 @@ import {
   globalShortcut,
   type IpcMainInvokeEvent,
   ipcMain,
+  Menu,
   MessageChannelMain,
   Notification,
   nativeImage,
   screen,
   session,
   shell,
+  Tray,
   type UtilityProcess,
   utilityProcess,
 } from 'electron';
-import type { UpdateState } from '../shared/bridge.js';
+import type { BackgroundSettings, UpdateState } from '../shared/bridge.js';
 import { Identity } from './identity.js';
 import { errorCode, Providers } from './providers.js';
 import { attachSecrets } from './secrets.js';
@@ -125,15 +127,76 @@ let coreRestarts = 0;
 const updater = new Updater();
 let providers: Providers | undefined;
 let identity: Identity | undefined;
+/** Running without a window (Settings → General); the page sends it, with the tray's words, once it has settings. */
+let background: BackgroundSettings | undefined;
+let tray: Tray | undefined;
+/** Started with the system: the window waits in the tray until it is asked for. */
+const startHidden = process.argv.includes('--hidden');
+
+function showWindow(): void {
+  if (!win || win.isDestroyed()) return;
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
+}
+
+function trayIcon(): Electron.NativeImage {
+  // Windows draws an .ico at the tray's own size; elsewhere a PNG made small.
+  const name = process.platform === 'win32' ? 'icon.ico' : 'icon.png';
+  const file = app.isPackaged ? join(process.resourcesPath, name) : join(here, '../../build', name);
+  const image = nativeImage.createFromPath(file);
+  return process.platform === 'win32' || image.isEmpty() ? image : image.resize({ width: 22, height: 22 });
+}
+
+function applyBackground(): void {
+  const b = background;
+  if (!b) return;
+  if (b.tray) {
+    if (!tray) {
+      tray = new Tray(trayIcon());
+      tray.on('click', showWindow);
+    }
+    tray.setToolTip(b.labels.tip);
+    tray.setContextMenu(
+      Menu.buildFromTemplate([
+        { label: b.labels.open, click: showWindow },
+        { type: 'separator' },
+        { label: b.labels.quit, click: () => app.quit() },
+      ]),
+    );
+  } else {
+    tray?.destroy();
+    tray = undefined;
+    // Nothing would bring a hidden window back.
+    if (win && !win.isDestroyed() && !win.isVisible()) showWindow();
+  }
+  // Only the installed app registers itself with the system; a development run or a test leaves it alone.
+  if (app.isPackaged && !process.env.LONCA_HOME)
+    app.setLoginItemSettings({ openAtLogin: b.startAtLogin, args: ['--hidden'] });
+}
+
+/** Closing the window while the tray is on hides it; the first time, a notification says where the app went. */
+function hideToTray(event: Electron.Event): void {
+  if (quitting || !background?.tray || !tray || !win) return;
+  event.preventDefault();
+  win.hide();
+  quick?.hide();
+  const told = join(appDir, 'tray-told');
+  if (existsSync(told) || !background.labels.hidden || !Notification.isSupported()) return;
+  try {
+    writeFileSync(told, '');
+  } catch {
+    return;
+  }
+  new Notification({ title: BRAND.name, body: background.labels.hidden, silent: true }).show();
+}
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   app.on('second-instance', (_event, argv) => {
     takeLink(argv);
-    if (!win) return;
-    if (win.isMinimized()) win.restore();
-    win.focus();
+    showWindow();
   });
   app.whenReady().then(start);
 }
@@ -251,6 +314,24 @@ function registerIpc(): void {
     }
     waitingBefore = waiting;
   });
+  handle('shell:setBackground', (event, value) => {
+    if (!win || win.isDestroyed() || event.sender !== win.webContents) return;
+    const v = value as { tray?: unknown; startAtLogin?: unknown; labels?: Record<string, unknown> } | undefined;
+    const word = (x: unknown) => (typeof x === 'string' ? x.slice(0, 200) : '');
+    if (typeof v?.tray !== 'boolean' || typeof v.startAtLogin !== 'boolean' || typeof v.labels !== 'object') return;
+    const l = v.labels ?? {};
+    background = {
+      tray: v.tray,
+      startAtLogin: v.startAtLogin,
+      labels: {
+        tip: word(l.tip) || BRAND.name,
+        open: word(l.open) || BRAND.name,
+        quit: word(l.quit) || 'Quit',
+        hidden: word(l.hidden),
+      },
+    };
+    applyBackground();
+  });
   handle('shell:notify', (_e, title, body, silent) => {
     if (typeof title !== 'string' || typeof body !== 'string' || !Notification.isSupported()) return;
     const n = new Notification({ title: title.slice(0, 120), body: body.slice(0, 300), silent: silent === true });
@@ -347,7 +428,10 @@ function createWindow(): BrowserWindow {
   });
   if (state.maximized) w.maximize();
   trackWindowState(w, appDir);
-  w.once('ready-to-show', () => w.show());
+  // Started with the system and the tray on: the window stays hidden until the tray icon is clicked.
+  w.once('ready-to-show', () => {
+    if (!startHidden) w.show();
+  });
   w.webContents.on('did-finish-load', () => connect(w));
   if (devUrl) void w.loadURL(devUrl);
   else void w.loadFile(join(here, '../renderer/index.html'));
@@ -426,6 +510,10 @@ function start(): void {
   registerIpc();
   startCore();
   win = createWindow();
+  win.on('close', hideToTray);
+  // The page counts what arrives while the window is in the tray as unread, even in the channel it shows.
+  win.on('hide', () => win?.webContents.send('window:shown', false));
+  win.on('show', () => win?.webContents.send('window:shown', true));
   win.on('closed', () => {
     win = undefined;
     quick?.destroy();
@@ -441,6 +529,8 @@ app.on('before-quit', () => {
   quitting = true;
   core?.kill();
 });
+
+app.on('activate', showWindow);
 
 app.on('window-all-closed', () => {
   app.quit();

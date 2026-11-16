@@ -123,6 +123,29 @@ function General() {
       )}
       {!onPhone && (
         <section className="set">
+          <h4>{t('settings.background')}</h4>
+          <div className="row-field">
+            <Switch
+              checked={settings?.tray !== false}
+              onChange={(tray) => void patch({ tray })}
+              label={t('settings.trayLabel')}
+            />
+            <span>{t('settings.trayLabel')}</span>
+          </div>
+          <p className="muted">{t('settings.trayHint')}</p>
+          <div className="row-field">
+            <Switch
+              checked={settings?.startAtLogin === true}
+              onChange={(startAtLogin) => void patch({ startAtLogin })}
+              label={t('settings.startAtLoginLabel')}
+            />
+            <span>{t('settings.startAtLoginLabel')}</span>
+          </div>
+          <p className="muted">{t('settings.startAtLoginHint')}</p>
+        </section>
+      )}
+      {!onPhone && (
+        <section className="set">
           <h4>{t('settings.agentFolder')}</h4>
           <AgentFolder />
         </section>

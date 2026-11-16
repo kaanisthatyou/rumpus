@@ -201,6 +201,8 @@ interface Workspace {
   ended: Set<string>;
   /** Connector tools a person allowed once for a job (`once` policy), by job. */
   allowedOnce: Map<string, Set<string>>;
+  /** When this person last posted here (a team workspace): the mark of an undelivered message follows it. */
+  sent?: number;
   timer: NodeJS.Timeout;
 }
 
@@ -1390,6 +1392,14 @@ export class Core {
               inWs(() => this.changed());
             }
           },
+          onDelivered: (at) => {
+            const before = Number(store.meta('delivered') ?? 0);
+            if (at <= before) return;
+            store.setMeta('delivered', String(at));
+            // The window marks its own messages that are on this computer only: tell it when some just left.
+            const sent = ref.ws.sent ?? 0;
+            if (sent > before && sent <= at) inWs(() => this.changed());
+          },
           seeds: () => this.teams().find((t) => t.id === id)?.seeds ?? [],
           beforeRound: () =>
             inWs(() => {
@@ -1499,6 +1509,7 @@ export class Core {
           }
         : {}),
       ...(this.peerAddress ? { address: this.peerAddress } : {}),
+      delivered: Number(ws.store.meta('delivered') ?? 0),
       ...(this.dmOf(ws.id) ? { friend: this.dmOf(ws.id)?.device } : {}),
     };
   }
@@ -2737,6 +2748,7 @@ export class Core {
       ...(refIds.length ? { refs: refIds } : {}),
     };
     store.commit({ type: 'message.posted', data: message });
+    this.workspace().sent = message.created;
     // Writing in a channel is having read it.
     store.setMeta(`read.${channel.id}`, String(message.created));
     this.emit('message.added', message);

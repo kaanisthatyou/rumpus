@@ -6,6 +6,7 @@ export type { AgentSession, DriverEvent, OpenSession, SessionOptions } from './d
 export {
   canonical,
   eventPayload,
+  FileSigner,
   LocalSigner,
   PortSigner,
   type SignedEvent,

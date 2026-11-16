@@ -231,7 +231,12 @@
     "agentFolderHint": "An agent added without a folder works here. When this is not set, the desktop is used.",
     "agentFolderDesktop": "Desktop",
     "soundsLabel": "App sounds",
-    "soundsHint": "A short sound when a job ends or waits for approval, on a request to join, and on another member's message."
+    "soundsHint": "A short sound when a job ends or waits for approval, on a request to join, and on another member's message.",
+    "background": "In the background",
+    "trayLabel": "Stays open in the tray when the window closes",
+    "trayHint": "With the window closed, agents keep working and other members' messages keep arriving, instead of waiting for the next start. Quit is in the tray icon's menu.",
+    "startAtLoginLabel": "Starts with the system, in the tray",
+    "startAtLoginHint": "The installed app only."
   },
   "theme": {
     "dark": "Dark",
@@ -347,7 +352,8 @@
     "unread_other": "{{count}} unread messages",
     "unreadMention_one": "{{count}} unread message, with a mention",
     "unreadMention_other": "{{count}} unread messages, with a mention",
-    "newMessages": "New"
+    "newMessages": "New",
+    "notDelivered": "On this computer only for now: no other member's computer has it yet"
   },
   "job": {
     "state": {
@@ -959,7 +965,8 @@
   "members": {
     "me": "this device",
     "role": "Permission for {{name}}",
-    "remove": "Remove {{name}} from the workspace"
+    "remove": "Remove {{name}} from the workspace",
+    "keeper": "Always on, keeps messages for members who are away"
   },
   "phone": {
     "intro": "{{app}} on this computer opens on paired phones too. Everything runs on this computer; the phone is only a screen. The connection goes over Tailscale.",
@@ -1500,5 +1507,10 @@
     "requestCount_other": "{{count}} requests",
     "notifyTitle": "Friend request",
     "wants": "{{name}} wants to be added as a friend."
+  },
+  "tray": {
+    "open": "Open",
+    "quit": "Quit",
+    "hidden": "{{app}} is still running in the tray. Quit is in the tray icon's menu."
   }
 }

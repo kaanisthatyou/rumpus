@@ -18,6 +18,12 @@ const bridge: LoncaBridge = {
     setZoom: (factor) => ipcRenderer.invoke('shell:setZoom', factor),
     notify: (title, body, silent) => ipcRenderer.invoke('shell:notify', title, body, silent === true),
     setActivity: (activity) => ipcRenderer.invoke('shell:setActivity', activity),
+    setBackground: (background) => ipcRenderer.invoke('shell:setBackground', background),
+    onShown: (listener) => {
+      const h = (_e: unknown, shown: boolean) => listener(shown === true);
+      ipcRenderer.on('window:shown', h);
+      return () => ipcRenderer.off('window:shown', h);
+    },
   },
   links: {
     pending: () => ipcRenderer.invoke('link:pending'),

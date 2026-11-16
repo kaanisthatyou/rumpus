@@ -1,6 +1,15 @@
 // Device identity and signed events (PLAN.md, Phase 3 design). The private key stays in Electron's main process,
 // which signs for the core; public keys are not secret, so the core checks signatures itself.
-import { createPublicKey, sign as edSign, verify as edVerify, generateKeyPairSync, type KeyObject } from 'node:crypto';
+import {
+  createPrivateKey,
+  createPublicKey,
+  sign as edSign,
+  verify as edVerify,
+  generateKeyPairSync,
+  type KeyObject,
+} from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 
 /** An event as it travels between peers. `at` is the hybrid logical clock, `n` the author's count. */
 export interface SignedEvent {
@@ -61,6 +70,49 @@ export class LocalSigner implements Signer {
   }
   async sign(payload: string): Promise<string> {
     return edSign(null, Buffer.from(payload), this.keys.privateKey).toString('base64');
+  }
+}
+
+/**
+ * A signer whose key lives in a file readable only by its user: the keeper (an always-on member without a window,
+ * on a machine with no keychain to seal it with). The key is made on first use and kept across restarts.
+ */
+export class FileSigner implements Signer {
+  private readonly key: KeyObject;
+  private readonly spki: string;
+
+  constructor(file: string) {
+    let loaded: { key: KeyObject; spki: string } | undefined;
+    if (existsSync(file)) {
+      const data = JSON.parse(readFileSync(file, 'utf8')) as { publicKey?: unknown; plain?: unknown };
+      if (typeof data.publicKey !== 'string' || typeof data.plain !== 'string')
+        throw new Error(`unreadable key: ${file}`);
+      loaded = {
+        spki: data.publicKey,
+        key: createPrivateKey({ key: Buffer.from(data.plain, 'base64'), format: 'der', type: 'pkcs8' }),
+      };
+    }
+    if (!loaded) {
+      const pair = generateKeyPairSync('ed25519');
+      loaded = {
+        key: pair.privateKey,
+        spki: pair.publicKey.export({ format: 'der', type: 'spki' }).toString('base64'),
+      };
+      const plain = pair.privateKey.export({ format: 'der', type: 'pkcs8' }).toString('base64');
+      mkdirSync(dirname(file), { recursive: true });
+      writeFileSync(`${file}.tmp`, JSON.stringify({ v: 1, publicKey: loaded.spki, plain }), { mode: 0o600 });
+      renameSync(`${file}.tmp`, file);
+    }
+    this.key = loaded.key;
+    this.spki = loaded.spki;
+  }
+
+  publicKey(): string {
+    return this.spki;
+  }
+
+  async sign(payload: string): Promise<string> {
+    return edSign(null, Buffer.from(payload), this.key).toString('base64');
   }
 }
 

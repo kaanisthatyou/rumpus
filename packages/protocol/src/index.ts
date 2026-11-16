@@ -110,6 +110,13 @@ const SETTINGS_FIELDS = {
   sounds: z.boolean(),
   /** The folder a new agent works in when none is picked. Empty means the desktop. */
   agentFolder: z.string().max(1024),
+  /**
+   * Closing the window leaves the app running in the tray: agents keep working, other members can still reach this
+   * computer, and what they write arrives (PLAN.md 6.5). Quitting is in the tray's menu.
+   */
+  tray: z.boolean(),
+  /** The app starts with the system, in the tray (the installed app only). */
+  startAtLogin: z.boolean(),
 };
 
 export const SettingsSchema = z.object({
@@ -128,6 +135,8 @@ export const SettingsSchema = z.object({
   notifications: SETTINGS_FIELDS.notifications.default(true),
   sounds: SETTINGS_FIELDS.sounds.default(true),
   agentFolder: SETTINGS_FIELDS.agentFolder.default(''),
+  tray: SETTINGS_FIELDS.tray.default(true),
+  startAtLogin: SETTINGS_FIELDS.startAtLogin.default(false),
 });
 export type Settings = z.infer<typeof SettingsSchema>;
 export type Language = Settings['language'];
@@ -172,7 +181,17 @@ export function defaultSettings(language: Language = 'en'): Settings {
     theme: 'dark',
     accent: 'lime',
     motion: 'system',
-    profile: { name: '', pronouns: '', status: '', bio: '', color: '', theme: [], avatar: null, banner: null },
+    profile: {
+      name: '',
+      pronouns: '',
+      status: '',
+      bio: '',
+      color: '',
+      theme: [],
+      avatar: null,
+      banner: null,
+      keeper: false,
+    },
     dataDir: '',
     onboarded: false,
     quietHours: { from: '23:00', to: '08:00' },
@@ -188,6 +207,8 @@ export function defaultSettings(language: Language = 'en'): Settings {
     notifications: true,
     sounds: true,
     agentFolder: '',
+    tray: true,
+    startAtLogin: false,
   };
 }
 
