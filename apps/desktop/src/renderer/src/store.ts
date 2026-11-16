@@ -314,6 +314,8 @@ function upsert(list: Message[], m: Message): Message[] {
 
 /** The window is on screen (not hidden in the tray); the main process says when it changes. */
 let windowShown = true;
+/** Nobody is looking: the window is in the tray, or another app is in front. */
+const away = () => !windowShown || !document.hasFocus();
 
 export const useApp = create<AppState>((set, get) => {
   /** Runs an RPC call; a refusal becomes the error line and returns undefined. */
@@ -332,6 +334,33 @@ export const useApp = create<AppState>((set, get) => {
   function notify(title: string, body: string): void {
     if (get().settings?.notifications === false) return;
     void window.lonca.shell.notify(title, body, get().settings?.sounds !== false);
+  }
+
+  /**
+   * Other people's messages while the app is in the background: one notification and one sound for what arrives
+   * together (a catch-up after a night away brings many at once), each on its own when it comes alone.
+   */
+  let notices: { title: string; body: string; channel: string; ws: string }[] = [];
+  let noticeTimer: ReturnType<typeof setTimeout> | undefined;
+  function noticeMessage(n: { title: string; body: string; channel: string; ws: string }): void {
+    notices.push(n);
+    clearTimeout(noticeTimer);
+    noticeTimer = setTimeout(() => {
+      const batch = notices;
+      notices = [];
+      const first = batch[0];
+      if (!first) return;
+      sound('message');
+      if (batch.length === 1) {
+        notify(first.title, first.body);
+        return;
+      }
+      const channels = [...new Set(batch.map((b) => `#${b.channel}`))];
+      notify(
+        i18n.t('notice.many', { count: batch.length }),
+        `${channels.slice(0, 4).join(', ')}${channels.length > 4 ? ' …' : ''} · ${first.ws}`,
+      );
+    }, 800);
   }
 
   /** One of the app's sounds, unless they are turned off in Settings. */
@@ -398,7 +427,7 @@ export const useApp = create<AppState>((set, get) => {
         // Someone asks to join while Rumpus is in the background: an OS notification for the admin.
         const fresh = (workspace.joins ?? []).filter((j) => !(before?.joins ?? []).some((b) => b.id === j.id));
         if (fresh.length && before?.id === workspace.id) sound('join');
-        if (fresh.length && before?.id === workspace.id && !document.hasFocus()) {
+        if (fresh.length && before?.id === workspace.id && away()) {
           notify(
             i18n.t('invite.notifyTitle'),
             i18n.t('invite.wants', {
@@ -454,10 +483,14 @@ export const useApp = create<AppState>((set, get) => {
         // background: an OS notification under the sender's own name (a bot's with its owner's).
         const ws = get().workspace;
         const from = ws ? senderOf(m, ws) : undefined;
-        if (ws && from && !document.hasFocus()) {
-          sound('message');
-          const channel = ws.channels.find((c) => c.id === m.channelId);
-          notify(`#${channel?.name ?? ''} · ${ws.name}`, `${from}: ${m.text.slice(0, 200)}`);
+        if (ws && from && away()) {
+          const channel = ws.channels.find((c) => c.id === m.channelId)?.name ?? '';
+          noticeMessage({
+            title: `#${channel} · ${ws.name}`,
+            body: `${from}: ${m.text.slice(0, 200)}`,
+            channel,
+            ws: ws.name,
+          });
         }
       });
       core.on('memory.changed', (memory) => set({ memory }));
@@ -469,7 +502,7 @@ export const useApp = create<AppState>((set, get) => {
         const fresh = friends.requests.filter((r) => !(before?.requests ?? []).some((b) => b.id === r.id));
         if (!before || fresh.length === 0) return;
         sound('join');
-        if (!document.hasFocus()) {
+        if (away()) {
           notify(i18n.t('friends.notifyTitle'), i18n.t('friends.wants', { name: fresh[0]?.name ?? '' }));
         }
       });
@@ -509,7 +542,7 @@ export const useApp = create<AppState>((set, get) => {
         const ended = worked && (job.state === 'done' || job.state === 'failed') && concernsMe(job, ws);
         if (asks) sound('attention');
         else if (ended) sound(job.state === 'done' ? 'done' : 'failed');
-        if ((asks || ended) && !document.hasFocus()) {
+        if ((asks || ended) && away()) {
           // An agent of another member is announced with its owner's name.
           const who = agentLabel(
             ws?.agents.find((a) => a.id === job.agentId),

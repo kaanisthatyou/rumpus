@@ -1512,5 +1512,9 @@
     "open": "Open",
     "quit": "Quit",
     "hidden": "{{app}} is still running in the tray. Quit is in the tray icon's menu."
+  },
+  "notice": {
+    "many_one": "{{count}} new message",
+    "many_other": "{{count}} new messages"
   }
 }

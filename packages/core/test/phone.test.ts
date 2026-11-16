@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Frame, PhoneState, Response } from '@lonca/protocol';
 import { afterAll, describe, expect, it } from 'vitest';
-import { Core } from '../src/server.js';
+import { Core, phonePushes } from '../src/server.js';
 
 const tmp = (p: string) => mkdtempSync(join(tmpdir(), p));
 let step = 0;
@@ -191,5 +191,19 @@ describe('phone pushes', () => {
     expect(server.phones()[0]?.push).toBe(false);
     server.close();
     service.close();
+  });
+});
+
+describe('pushes for messages that came in together', () => {
+  const m = (channelId: string, name: string, text: string) => ({ channelId, name, text });
+  it('pushes one or two on their own, a catch-up as one per channel with the count', () => {
+    expect(phonePushes([m('a', 'Arda', 'selam')], true)).toEqual([m('a', 'Arda', 'selam')]);
+    expect(phonePushes([m('a', 'Arda', '1'), m('b', 'Ece', '2')], false)).toHaveLength(2);
+    expect(
+      phonePushes([m('a', 'Arda', '1'), m('a', 'Ece', '2'), m('b', 'Arda', '3'), m('a', 'Arda', 'son')], true),
+    ).toEqual([m('a', 'Arda', '3 yeni mesaj · son'), m('b', 'Arda', '3')]);
+    expect(phonePushes([m('a', 'A', '1'), m('a', 'A', '2'), m('a', 'B', 'x')], false)).toEqual([
+      m('a', 'B', '3 new messages · x'),
+    ]);
   });
 });

@@ -199,16 +199,34 @@ try {
   await p.locator('.job', { hasText: L.agent.on.replace('{{name}}', 'Kaan') }).waitFor();
   await arda.shot('remote-job');
 
-  // Arda closes the window: the app stays in the tray, and what Kaan writes still arrives.
+  // Arda closes the window: the app stays in the tray, and what Kaan writes still arrives. The system's
+  // notifications are recorded instead of shown.
+  await arda.app.evaluate(({ Notification }) => {
+    globalThis.shownNotes = [];
+    Notification.prototype.show = function show() {
+      globalThis.shownNotes.push(`${this.title}|${this.body}`);
+    };
+  });
+  const notes = () => arda.app.evaluate(() => globalThis.shownNotes);
   const shown = (a) => a.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.isVisible());
   await arda.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.close());
   await arda.page.waitForTimeout(300);
   assert.equal(await shown(arda), false, 'the window hides instead of quitting');
-  await kaanBox.fill('Pencere kapalıyken yazdım');
-  await kaanBox.press('Enter');
-  await arda.page
-    .locator('.msg', { hasText: 'Pencere kapalıyken yazdım' })
-    .waitFor({ state: 'attached', timeout: 30_000 });
+  // The first time, a notification says where the app went.
+  assert.ok(
+    (await notes()).some((n) => n.includes(L.tray.hidden.replace('{{app}}', 'Rumpus'))),
+    String(await notes()),
+  );
+  for (const text of ['Pencere kapalıyken yazdım', 'ikinci', 'üçüncü']) {
+    await kaanBox.fill(text);
+    await kaanBox.press('Enter');
+  }
+  await arda.page.locator('.msg', { hasText: 'üçüncü' }).waitFor({ state: 'attached', timeout: 30_000 });
+  await arda.page.waitForTimeout(1500);
+  // Messages that came in together make one notification (or a few, as they arrived), never one each and more.
+  const messageNotes = (await notes()).filter((n) => n.includes('Ekip'));
+  console.log('notifications while in the tray:', messageNotes);
+  assert.ok(messageNotes.length >= 1 && messageNotes.length <= 3, String(messageNotes));
   // In the tray it counts as unread, also in the channel that was on screen; back on screen, it is under the line
   // that marks what is new, and read.
   const genelUnread = arda.page.locator('.nav.is-unread', { hasText: 'genel' });

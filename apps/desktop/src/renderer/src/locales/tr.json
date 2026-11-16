@@ -1512,5 +1512,9 @@
     "open": "Aç",
     "quit": "Çık",
     "hidden": "{{app}} tepside çalışmaya devam ediyor. Çık, tepsi simgesinin menüsündedir."
+  },
+  "notice": {
+    "many_one": "{{count}} yeni mesaj",
+    "many_other": "{{count}} yeni mesaj"
   }
 }

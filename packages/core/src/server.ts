@@ -279,6 +279,28 @@ function text(value: unknown): string {
   return t;
 }
 
+/** Another member's message as a phone push will tell it. */
+export interface PhoneMessage {
+  channelId: string;
+  name: string;
+  text: string;
+}
+
+/**
+ * Other members' messages that came in together, as phone pushes: each on its own when there are one or two, else
+ * one per channel with how many there are (the app catching up after a night away brings many at once).
+ */
+export function phonePushes(list: PhoneMessage[], tr: boolean): PhoneMessage[] {
+  if (list.length <= 2) return list;
+  const byChannel = new Map<string, PhoneMessage[]>();
+  for (const m of list) byChannel.set(m.channelId, [...(byChannel.get(m.channelId) ?? []), m]);
+  return [...byChannel.values()].map((some) => {
+    const last = some[some.length - 1] as PhoneMessage;
+    if (some.length === 1) return last;
+    return { ...last, text: `${tr ? `${some.length} yeni mesaj` : `${some.length} new messages`} · ${last.text}` };
+  });
+}
+
 export class Core {
   private readonly settings: SettingsStore;
   private readonly peers = new Set<Peer>();
@@ -910,6 +932,18 @@ export class Core {
       this.changedPhones();
     });
     return this.phoneStarting;
+  }
+
+  /**
+   * Other members' messages to the phones: each on its own, but a batch that came in together (the app catching up
+   * after a night away) as one push per channel with how many there are.
+   */
+  private pushMessages(store: WorkspaceStore, list: PhoneMessage[]): void {
+    if (list.length === 0 || !this.phone?.running) return;
+    const where = (channelId: string) => `#${store.channel(channelId)?.name ?? ''} · ${store.meta('name') ?? ''}`;
+    for (const p of phonePushes(list, this.settings.get().language === 'tr')) {
+      this.pushToPhones('message', { where: where(p.channelId), name: p.name, text: p.text, tag: p.channelId });
+    }
   }
 
   /** A push to the phones that are not looking at the app; nothing when phones are off. */
@@ -2022,6 +2056,8 @@ export class Core {
   private afterIngest(ws: Workspace, events: SignedEvent[]): void {
     const { store } = ws;
     let structure = false;
+    /** Other members' messages in this batch, for the phones. */
+    const forPhones: PhoneMessage[] = [];
     for (const e of events) {
       const id = String((e.data as { id?: unknown })?.id ?? '');
       switch (e.type) {
@@ -2031,13 +2067,11 @@ export class Core {
           this.emit('message.added', m);
           if (ws.id !== this.currentId()) this.within(ws, () => this.emitGlobal('workspace.activity', { id: ws.id }));
           if (m.author.kind === 'person' && m.author.id !== this.deviceId) {
-            const channelName = store.channel(m.channelId)?.name ?? '';
-            this.pushToPhones('message', {
-              where: `#${channelName} · ${store.meta('name') ?? ''}`,
-              // The name the workspace knows the device by, not the one the message carries.
+            // The name the workspace knows the device by, not the one the message carries.
+            forPhones.push({
+              channelId: m.channelId,
               name: this.memberName(store, m.author.id) ?? m.author.name,
               text: m.text,
-              tag: m.channelId,
             });
           }
           // Another member called one of this device's agents: the access rules decide.
@@ -2105,6 +2139,7 @@ export class Core {
           structure = true;
       }
     }
+    this.pushMessages(store, forPhones);
     // A picture is asked for when it is first named, and again when a member says where their app listens (the
     // address may arrive after the profile).
     if (events.some((e) => e.type === 'profile.saved' || e.type === 'look.saved' || e.type === 'device.endpoint')) {
