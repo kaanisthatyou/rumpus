@@ -43,7 +43,7 @@ function start(home: string): Keeper {
  * Logs the workspaces and who is reachable, when it changes. While a join waits: says when it is approved and the
  * workspace has arrived, and stops the process when it is turned down.
  */
-function watch(k: Keeper, waitingFor?: string): void {
+function watch(k: Keeper, waitingFor?: string, untilJoined = false): void {
   let last: string | undefined;
   let welcomed = false;
   const report = async () => {
@@ -59,6 +59,13 @@ function watch(k: Keeper, waitingFor?: string): void {
       if (asked && !asked.state && !welcomed && asked.members.length > 1) {
         welcomed = true;
         log(`joined ${asked.name}; this process keeps it while it runs, and "run" (or a service) after`);
+        if (untilJoined) {
+          // A moment for the first exchanges to finish, then the service takes over.
+          setTimeout(() => {
+            k.stop();
+            process.exit(0);
+          }, 3000);
+        }
       }
       if (asked?.state === 'denied') {
         log(`the request to join ${asked.name} was turned down`);
@@ -111,7 +118,7 @@ async function main(): Promise<void> {
       if (!check.reachable) log(`warning: the inviter's computer does not answer now; trying anyway`);
       const joined = await k.call<WorkspaceSummary>('invites.join', { code: command.code });
       log(`asked to join ${joined.name} as "${name}"; an admin approves it in the app (members, requests to join)`);
-      watch(k, joined.id);
+      watch(k, joined.id, command.untilJoined === true);
       return;
     }
   }

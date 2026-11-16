@@ -167,7 +167,7 @@ export function readStatus(home: string): {
 }
 
 export type Command =
-  | { kind: 'join'; code: string; name?: string }
+  | { kind: 'join'; code: string; name?: string; untilJoined?: boolean }
   | { kind: 'run' }
   | { kind: 'status' }
   | { kind: 'help' }
@@ -178,6 +178,7 @@ export function parseArgs(argv: string[]): Command {
   switch (verb) {
     case 'join': {
       let name: string | undefined;
+      let untilJoined = false;
       const words: string[] = [];
       for (let i = 0; i < rest.length; i++) {
         const a = rest[i] as string;
@@ -185,10 +186,16 @@ export function parseArgs(argv: string[]): Command {
           name = rest[++i];
           if (!name) throw new KeeperError('usage', '--name needs a value');
         } else if (a.startsWith('--name=')) name = a.slice('--name='.length);
+        else if (a === '--until-joined') untilJoined = true;
         else words.push(a);
       }
       if (words.length !== 1) throw new KeeperError('usage', 'join takes one invite code or link');
-      return { kind: 'join', code: words[0] as string, ...(name ? { name } : {}) };
+      return {
+        kind: 'join',
+        code: words[0] as string,
+        ...(name ? { name } : {}),
+        ...(untilJoined ? { untilJoined: true } : {}),
+      };
     }
     case 'run':
     case undefined:
@@ -215,7 +222,8 @@ It holds the workspace on a machine that stays up and syncs with whoever is onli
 online together still get each other's messages. It runs no agents and has no window.
 
 Usage:
-  ${BRAND.slug}-keeper join <invite code or link> [--name <name>]   ask to join, then keep running
+  ${BRAND.slug}-keeper join <invite code or link> [--name <name>] [--until-joined]
+                                    ask to join, then keep running (or stop once joined)
   ${BRAND.slug}-keeper run                                          keep the workspaces it is in
   ${BRAND.slug}-keeper status                                       what it is in (reads files only)
 

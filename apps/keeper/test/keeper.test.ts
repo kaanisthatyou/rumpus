@@ -95,6 +95,11 @@ describe('the keeper command line', () => {
       code: 'rumpus://join/RUMPUS1.x',
       name: 'Ev',
     });
+    expect(parseArgs(['join', 'RUMPUS1.x', '--until-joined'])).toEqual({
+      kind: 'join',
+      code: 'RUMPUS1.x',
+      untilJoined: true,
+    });
     expect(() => parseArgs(['join'])).toThrow('one invite code');
     expect(() => parseArgs(['join', 'a', 'b'])).toThrow('one invite code');
     expect(() => parseArgs(['join', 'a', '--name'])).toThrow('--name');
