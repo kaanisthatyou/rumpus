@@ -112,7 +112,9 @@ purpose; never change roblox-factory for it.
 - Playwright's `page.screenshot` can hang on Electron windows; the e2e scripts use `webContents.capturePage()`.
 - electron-builder's icon converter can fail for lack of memory; `pnpm icon` builds `icon.png` and `icon.ico`
   itself from `apps/desktop/build/icon.svg`.
-- Releases: tag `v<version>` (matching `apps/desktop/package.json`) and the Release workflow publishes the
-  installers; installed apps update from them (the repository is public since 2026-11-13).
+- Releases: tag `v<version>` (matching `apps/desktop/package.json`) and the Release workflow builds the
+  installers into a draft and publishes it only once every installer and update file is in it (an installed app
+  once checked a release that had no `latest.yml` yet); installed apps update from them (the repository is public
+  since 2026-11-13).
 - Commits here carry GitHub's private address (`git config user.email` in this clone), not a personal one: the
   history was rewritten once for that before the repository went public. A fresh clone needs the same setting.

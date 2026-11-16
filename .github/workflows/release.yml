@@ -29,8 +29,35 @@ jobs:
         shell: bash
         run: test "v$(node -p "require('./apps/desktop/package.json').version")" = "$GITHUB_REF_NAME"
       - run: pnpm check
-      - name: Build and publish
+      # Every build uploads into one draft: a published release without its update files made installed apps
+      # find a release with no latest.yml for the minutes between the Linux and the Windows build (v0.9.0-alpha.1).
+      - name: Build and upload to the draft
         working-directory: apps/desktop
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EP_DRAFT: 'true'
         run: node ../../scripts/notices.mjs && pnpm exec electron-vite build && pnpm exec electron-builder --config electron-builder.yml --publish always
+
+  # Only when every installer and update file is in the draft does it become the release the apps see.
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish the draft
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          drafts=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=50" \
+            --jq "[.[] | select(.draft and .tag_name == \"$GITHUB_REF_NAME\")]")
+          count=$(jq length <<<"$drafts")
+          test "$count" = 1 || { echo "expected one draft for $GITHUB_REF_NAME, found $count"; exit 1; }
+          id=$(jq -r '.[0].id' <<<"$drafts")
+          assets=$(jq -r '.[0].assets[].name' <<<"$drafts")
+          for f in latest.yml latest-linux.yml; do
+            grep -qx "$f" <<<"$assets" || { echo "missing $f"; exit 1; }
+          done
+          grep -q '\.exe$' <<<"$assets" || { echo "missing the Windows installer"; exit 1; }
+          gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/$id" -F draft=false -f make_latest=true >/dev/null
+          echo "published $GITHUB_REF_NAME"
