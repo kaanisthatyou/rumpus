@@ -9,6 +9,8 @@ export type AgentMode = (typeof AGENT_MODES)[number];
 
 /** Most of a channel's latest messages a specialist reads before a job. */
 export const SPECIALIST_HISTORY_MAX = 200;
+/** The channel's latest messages an agent with fresh sessions reads before each job. */
+export const FRESH_HISTORY = 12;
 /** Characters of lessons a specialist keeps; the oldest lines go first. */
 export const LESSONS_LIMIT = 6000;
 
@@ -79,6 +81,16 @@ export const AgentInputSchema = z.object({
   traits: z.array(z.string().max(40)).max(8).default([]),
   /** One of this computer's extra logins of the CLI (Settings → Agents → Accounts); none means the default one. */
   account: z.string().max(64).optional(),
+  /**
+   * Another login it runs on while its own is out of quota: an extra account's id, or '' for the default login.
+   * The agent stays the same (name, instructions, folder); only the subscription that pays for the job changes.
+   */
+  spare: z.string().max(64).optional(),
+  /**
+   * Every job starts in a fresh session that gets only the request and the channel's latest messages, instead of
+   * resuming one conversation that grows (and costs more of the quota) with every job.
+   */
+  fresh: z.boolean().default(false),
   /** In a team workspace: who besides the owner may give it jobs, and how far (PLAN.md 5.11). */
   access: z
     .object({
@@ -111,6 +123,10 @@ export interface Agent {
   owner?: string;
   /** The owner's extra login of the CLI it runs on, when not the default one. */
   account?: string;
+  /** The login it runs on while its own is out of quota ('' is the default login). */
+  spare?: string;
+  /** Every job in a fresh session (`FRESH_HISTORY` messages of context) instead of one growing conversation. */
+  fresh?: boolean;
   access?: AgentAccess;
   specialty?: Specialty;
   created: number;

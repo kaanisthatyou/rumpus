@@ -1018,6 +1018,22 @@ The details behind 5.11 and 6.5, decided before building.
   installation: the `rumpus://` handler (registered only by an installed app without `LONCA_HOME`) and the move of
   the former name's data folder.
 
+- 4.30 Two subscriptions for one crew, 2026-11-16, asked by Kaan: he runs two Claude logins (the second through a
+  shell alias on `~/.claude2`) and wants to work through Rumpus instead of a terminal, without a long conversation
+  eating the quota and without work stopping when one login is out of quota. Built:
+  - **An account on an existing config folder** (`accounts.add` with `folder`): a folder the CLI already signed in
+    to is used where it is, so nobody signs in again. Rumpus still never reads it; the CLI's status command does.
+  - **Every job in a new session** (`Agent.fresh`): like a specialist's jobs, each job starts a fresh CLI session
+    that gets the request and the channel's latest `FRESH_HISTORY` (12) messages, the agent's own answers among
+    them, instead of resuming one conversation that grows with every job. Off by default.
+  - **A spare login** (`Agent.spare`: an extra account, or '' for the default login): while the agent's own login is
+    out of quota (a rejected rate-limit event, or a job that ended on the limit, held until the window resets or an
+    hour), its jobs run on the spare. A job that stops on the limit starts again on the spare once, as the same job
+    (a "continues on the spare login" step), told that an earlier try may have left changes. A session on the spare
+    is not kept: another login cannot resume it. The agent stays the same; only who pays changes.
+  - Tests: `accounts.test.ts` (existing folder, fresh sessions, the move at the limit, the next job straight on the
+    spare); `e2e/layout.mjs` (the account from a picked folder, the spare and the switch in the agent form).
+
 - 4.29 Members who are rarely online together (6.5), 2026-11-16, asked by Kaan: when the app is closed and the
   others keep writing, opening it should bring everything. Sync already caught up with whoever was online; what
   was missing was someone online. Built:

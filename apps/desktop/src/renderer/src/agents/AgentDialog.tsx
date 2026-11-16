@@ -12,7 +12,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ErrorLine } from '../parts';
 import { useApp } from '../store';
-import { FolderField, TraitPicker } from './fields';
+import { FolderField, SpareField, spareOf, TraitPicker } from './fields';
 
 /** CLIs Rumpus can run jobs with today. */
 export const RUNNABLE: CliKind[] = ['claude-code', 'codex'];
@@ -58,6 +58,8 @@ export function AgentDialog() {
   const [traits, setTraits] = useState<string[]>(existing?.traits ?? []);
   const [access, setAccess] = useState<AgentAccess>(existing?.access ?? DEFAULT_ACCESS);
   const [account, setAccount] = useState(existing?.account ?? '');
+  const [spare, setSpare] = useState<string | undefined>(existing?.spare);
+  const [fresh, setFresh] = useState(existing?.fresh ?? false);
   const allAccounts = useApp((s) => s.accounts);
   const accounts = useMemo(() => allAccounts.filter((a) => a.kind === kind), [allAccounts, kind]);
   const team = useApp((s) => s.workspace?.kind === 'team');
@@ -98,6 +100,8 @@ export function AgentDialog() {
             mode,
             ...(model.trim() ? { model: model.trim() } : {}),
             ...(account && accounts.some((a) => a.id === account) ? { account } : {}),
+            ...spareOf(spare, accounts.some((a) => a.id === account) ? account : '', accounts),
+            fresh,
             instructions,
             traits,
             ...(team ? { access } : {}),
@@ -225,6 +229,14 @@ export function AgentDialog() {
                   <span className="l-field__hint">{t('accounts.agentHint')}</span>
                 </div>
               )}
+              <SpareField id="agent-spare" account={account} accounts={accounts} value={spare} onChange={setSpare} />
+              <div className="l-field">
+                <div className="row-field">
+                  <Switch checked={fresh} onChange={setFresh} label={t('agentForm.fresh')} />
+                  <span>{t('agentForm.fresh')}</span>
+                </div>
+                <span className="l-field__hint">{t('agentForm.freshHint')}</span>
+              </div>
               <TextField
                 label={t('agentForm.model')}
                 value={model}

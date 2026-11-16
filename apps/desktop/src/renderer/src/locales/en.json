@@ -334,7 +334,8 @@
     "bad_friend_code": "The friend code could not be read.",
     "already_friend": "This person is already among the friends.",
     "friend_self": "This is this computer's own friend code.",
-    "friend_refused": "The request was not taken: the code belongs to another device, or too many requests wait there."
+    "friend_refused": "The request was not taken: the code belongs to another device, or too many requests wait there.",
+    "account_taken": "An account already uses this folder."
   },
   "channel": {
     "newSession": "New session",
@@ -384,7 +385,8 @@
       "progress": "Progress",
       "start": "Start the job",
       "connector": "Connector",
-      "budget": "Budget nearly used"
+      "budget": "Budget nearly used",
+      "spare": "Out of quota: continues on the spare login"
     },
     "denied": "Refused",
     "more_one": "{{count}} more step",
@@ -485,7 +487,9 @@
         "members": "Editors and admins can give it jobs; they run on this computer, on this computer's CLI login."
       }
     },
-    "folderDefault": "Default"
+    "folderDefault": "Default",
+    "fresh": "Every job in a new session",
+    "freshHint": "Earlier jobs' conversation is not carried over; the agent reads the request and the channel's latest 12 messages. The context does not grow, so the quota lasts longer."
   },
   "crew": {
     "addAgent": "Add agent",
@@ -1101,7 +1105,7 @@
   },
   "accounts": {
     "title": "Accounts",
-    "hint": "Extra logins of the same CLI on this computer, for example a second account for when a subscription's quota runs out. Each account is the CLI's own config folder and is signed in with the CLI's own login; {{app}} does not read the login files.",
+    "hint": "Extra logins of the same CLI on this computer, for example a second account for when a subscription's quota runs out. Each account is the CLI's own config folder and is signed in with the CLI's own login; {{app}} does not read the login files. A config folder the CLI already signed in to (such as .claude2) can be used where it is.",
     "kind": "CLI",
     "name": "Account name",
     "namePlaceholder": "For example Second account",
@@ -1109,7 +1113,12 @@
     "remove": "Remove account {{name}}",
     "agentField": "Account",
     "default": "Default login",
-    "agentHint": "This agent's jobs run on the chosen login and its quota."
+    "agentHint": "This agent's jobs run on the chosen login and its quota.",
+    "existing": "Existing folder",
+    "existingClear": "New folder",
+    "spareField": "Out of quota",
+    "noSpare": "No spare",
+    "spareHint": "While its own login is out of quota, jobs run on this one; the agent's name, instructions and folder stay the same."
   },
   "status": {
     "title": "Status",

@@ -22,7 +22,7 @@ import { ErrorLine } from '../parts';
 import { RefImage } from '../records/RecordsView';
 import { useApp } from '../store';
 import { RUNNABLE, slug } from './AgentDialog';
-import { FolderField, TraitPicker } from './fields';
+import { FolderField, SpareField, spareOf, TraitPicker } from './fields';
 
 type Tab = 'who' | 'playbook' | 'context' | 'lessons';
 
@@ -169,6 +169,7 @@ export function SpecialistDialog() {
   const [mode, setMode] = useState<AgentMode>(existing?.mode ?? 'read');
   const [model, setModel] = useState(existing?.model ?? '');
   const [account, setAccount] = useState(existing?.account ?? '');
+  const [spare, setSpare] = useState<string | undefined>(existing?.spare);
   const [access, setAccess] = useState<AgentAccess>(existing?.access ?? DEFAULT_ACCESS);
   const [playbook, setPlaybook] = useState(spec?.playbook ?? '');
   const [traits, setTraits] = useState<string[]>(existing?.traits ?? []);
@@ -297,6 +298,7 @@ export function SpecialistDialog() {
             mode,
             ...(model.trim() ? { model: model.trim() } : {}),
             ...(account && accounts.some((a) => a.id === account) ? { account } : {}),
+            ...spareOf(spare, accounts.some((a) => a.id === account) ? account : '', accounts),
             instructions: existing?.instructions ?? '',
             traits,
             ...(team ? { access } : {}),
@@ -515,6 +517,7 @@ export function SpecialistDialog() {
                       </div>
                     )}
                   </div>
+                  <SpareField id="spec-spare" account={account} accounts={accounts} value={spare} onChange={setSpare} />
                 </>
               ) : tab === 'playbook' ? (
                 <>

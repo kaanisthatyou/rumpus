@@ -1,9 +1,10 @@
 // Several logins per CLI on one computer (Fabrika's second worker on another Claude login, made general): an account
 // is a config folder of the CLI's own that Rumpus points it at (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`). The CLI signs in
 // there with its own login command and keeps its own files; Rumpus never reads, copies or moves them (principle 5).
-// Accounts belong to this computer: they are kept in `<app>/accounts.json`, never in a workspace.
+// The folder is a new one under Rumpus's data, or one the CLI already signed in to (`~/.claude2` of a shell alias),
+// used where it is. Accounts belong to this computer: they are kept in `<app>/accounts.json`, never in a workspace.
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import type { CliKind } from '@lonca/protocol';
 import { newId } from './ids.js';
 
@@ -17,8 +18,12 @@ export interface AccountEntry {
   id: string;
   kind: CliKind;
   name: string;
+  /** A config folder outside Rumpus's data that the CLI already uses; missing for one Rumpus made. */
+  folder?: string;
   created: number;
 }
+
+const same = (a: string, b: string) => resolve(a).toLowerCase() === resolve(b).toLowerCase();
 
 export class Accounts {
   constructor(
@@ -31,7 +36,11 @@ export class Accounts {
       const data = JSON.parse(readFileSync(this.file, 'utf8')) as { accounts?: unknown };
       return Array.isArray(data.accounts)
         ? (data.accounts as AccountEntry[]).filter(
-            (a) => typeof a?.id === 'string' && /^[\w-]{4,64}$/.test(a.id) && ACCOUNT_ENV[a.kind] !== undefined,
+            (a) =>
+              typeof a?.id === 'string' &&
+              /^[\w-]{4,64}$/.test(a.id) &&
+              ACCOUNT_ENV[a.kind] !== undefined &&
+              (a.folder === undefined || typeof a.folder === 'string'),
           )
         : [];
     } catch {
@@ -45,12 +54,24 @@ export class Accounts {
 
   /** The folder the CLI keeps this account's config and login in. */
   folder(id: string): string {
-    return join(this.root, id);
+    return this.get(id)?.folder ?? join(this.root, id);
   }
 
-  add(kind: CliKind, name: string): AccountEntry {
-    const entry: AccountEntry = { id: newId(), kind, name, created: Date.now() };
-    mkdirSync(this.folder(entry.id), { recursive: true });
+  /** Whether an account of this CLI already uses the folder. */
+  uses(kind: CliKind, folder: string): boolean {
+    return this.list().some((a) => a.kind === kind && same(this.folder(a.id), folder));
+  }
+
+  /** A new account in a folder of its own, or in `folder`, an existing one, used where it is. */
+  add(kind: CliKind, name: string, folder?: string): AccountEntry {
+    const entry: AccountEntry = {
+      id: newId(),
+      kind,
+      name,
+      ...(folder ? { folder: resolve(folder) } : {}),
+      created: Date.now(),
+    };
+    if (!folder) mkdirSync(this.folder(entry.id), { recursive: true });
     this.write([...this.list(), entry]);
     return entry;
   }

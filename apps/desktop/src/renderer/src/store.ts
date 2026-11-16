@@ -169,7 +169,7 @@ export interface AppState {
   login(kind: CliKind, account?: string): Promise<void>;
   loadAccounts(refresh?: boolean): Promise<void>;
   loadStatus(): Promise<void>;
-  addAccount(kind: CliKind, name: string): Promise<boolean>;
+  addAccount(kind: CliKind, name: string, folder?: string): Promise<boolean>;
   removeAccount(id: string): Promise<void>;
   refreshTailscale(): Promise<void>;
   refreshSystem(): Promise<void>;
@@ -723,8 +723,8 @@ export const useApp = create<AppState>((set, get) => {
       if (statuses) set({ statuses });
     },
 
-    async addAccount(kind, name) {
-      const accounts = await attempt(() => core.call('accounts.add', { kind, name }));
+    async addAccount(kind, name, folder) {
+      const accounts = await attempt(() => core.call('accounts.add', { kind, name, ...(folder ? { folder } : {}) }));
       if (accounts) set({ accounts });
       return Boolean(accounts);
     },

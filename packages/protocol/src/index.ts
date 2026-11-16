@@ -335,7 +335,8 @@ export interface CoreMethods {
   'accounts.list': { params: { refresh?: boolean }; result: CliAccount[] };
   /** `/durum`: this computer, then the members of the open team workspace that answered lately (more arrive as events). */
   'status.get': { params: undefined; result: DeviceStatus[] };
-  'accounts.add': { params: { kind: CliKind; name: string }; result: CliAccount[] };
+  /** With `folder`, a config folder the CLI already signed in to (e.g. `~/.claude2`), used where it is. */
+  'accounts.add': { params: { kind: CliKind; name: string; folder?: string }; result: CliAccount[] };
   /** Forgets an account; its folder stays (the CLI's own files). */
   'accounts.remove': { params: { id: string }; result: CliAccount[] };
   'tailscale.status': { params: undefined; result: TailscaleInfo };
@@ -592,6 +593,7 @@ export const ERROR_CODES = [
   'invalid_agent',
   'handle_taken',
   'folder_missing',
+  'account_taken',
   'cli_missing',
   'busy',
   'invalid_advisor',

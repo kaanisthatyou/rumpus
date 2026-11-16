@@ -195,6 +195,29 @@ try {
   await second.getByRole('button', { name: L.agentForm.cancel }).click();
   await second.waitFor({ state: 'detached' });
 
+  // A second subscription: an account on a config folder the CLI already signed in to (the picker returns
+  // `other`), then the agent moves to it when its own login is out of quota, and starts every job fresh.
+  await page.keyboard.press('Control+Comma');
+  const prefs2 = page.getByRole('dialog', { name: L.settings.title });
+  await prefs2.getByRole('button', { name: L.settings.tabs.agents }).click();
+  const accounts = prefs2.getByRole('region', { name: L.accounts.title });
+  await accounts.getByLabel(L.accounts.name, { exact: true }).fill('Felix');
+  await accounts.getByRole('button', { name: L.accounts.existing, exact: true }).click();
+  await accounts.getByText(other).waitFor();
+  await accounts.getByRole('button', { name: L.accounts.add, exact: true }).click();
+  await accounts.locator('.agent', { hasText: 'Felix' }).waitFor();
+  await shot(page, 'accounts-existing');
+  await page.keyboard.press('Escape');
+  await prefs2.waitFor({ state: 'detached' });
+  await page.locator('.who', { hasText: '@claude' }).getByRole('button', { name: L.agentForm.edit }).click();
+  const edit = page.getByRole('dialog', { name: L.agentForm.edit });
+  await edit.getByLabel(L.accounts.spareField).selectOption({ label: 'Felix' });
+  await edit.getByRole('switch', { name: L.agentForm.fresh }).click();
+  await edit.getByText(L.agentForm.freshHint).waitFor();
+  await shot(page, 'agent-spare');
+  await edit.getByRole('button', { name: L.agentForm.save }).click();
+  await edit.waitFor({ state: 'detached' });
+
   // The board in a wide window: four columns side by side, nothing cut off.
   await composer.fill('/todo Sürüm notlarını yaz');
   await composer.press('Enter');

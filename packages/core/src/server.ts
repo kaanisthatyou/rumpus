@@ -5,7 +5,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { connect } from 'node:net';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { isAbsolute, join } from 'node:path';
 import {
   type Advisor,
   AdvisorInputSchema,
@@ -432,7 +432,12 @@ export class Core {
       'accounts.add': async (p) => {
         const name = typeof p?.name === 'string' ? p.name.trim().slice(0, 40) : '';
         if (!name || (p?.kind !== 'claude-code' && p?.kind !== 'codex')) throw new CoreError('bad_request');
-        this.accounts.add(p.kind, name);
+        const folder = typeof p.folder === 'string' && p.folder.trim() ? p.folder.trim() : undefined;
+        if (folder !== undefined) {
+          if (!isAbsolute(folder) || !isDir(folder)) throw new CoreError('folder_missing');
+          if (this.accounts.uses(p.kind, folder)) throw new CoreError('account_taken');
+        }
+        this.accounts.add(p.kind, name, folder);
         return this.accountList(true);
       },
       'accounts.remove': async (p) => {
@@ -1348,6 +1353,7 @@ export class Core {
       emitMessage: (message) => inWs(() => this.emit('message.added', message)),
       emitQuota: (kind, quota) => this.emit('quota.changed', { kind, quota }),
       accountEnv: (agent) => this.accounts.env(agent.account),
+      hasAccount: (id) => this.accounts.get(id) !== undefined,
       toolset: (agent) => this.connectors.fingerprint(agent.id),
       ...(this.opts.drivers ? { drivers: this.opts.drivers } : {}),
       ...(this.opts.launch ? { launch: this.opts.launch } : {}),
@@ -2843,6 +2849,9 @@ export class Core {
     const folder = p.folder.trim() || this.agentFolder();
     if (!isDir(folder)) throw new CoreError('folder_missing');
     if (p.account && this.accounts.get(p.account)?.kind !== p.kind) throw new CoreError('invalid_agent', 'account');
+    if (p.spare && this.accounts.get(p.spare)?.kind !== p.kind) throw new CoreError('invalid_agent', 'spare');
+    // A spare is another login than its own: the default one ('') only for an agent on an extra account.
+    const spare = p.spare !== undefined && p.spare !== (p.account ?? '') ? p.spare : undefined;
     const traits = cleanTraits(p.traits);
     // A specialist's references are records of this workspace; ones that are gone drop out.
     const specialty = p.specialty
@@ -2857,6 +2866,8 @@ export class Core {
       mode: p.mode,
       ...(p.model ? { model: p.model } : {}),
       ...(p.account ? { account: p.account } : {}),
+      ...(spare !== undefined ? { spare } : {}),
+      ...(p.fresh ? { fresh: true } : {}),
       instructions: p.instructions,
       ...(traits.length > 0 ? { traits } : {}),
       owner: existing?.owner ?? this.deviceId,

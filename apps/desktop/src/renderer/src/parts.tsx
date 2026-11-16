@@ -272,6 +272,8 @@ function Accounts() {
     .map((c) => c.kind);
   const [kind, setKind] = useState<CliKind | ''>('');
   const [name, setName] = useState('');
+  /** A config folder the CLI already signed in to, used where it is; empty makes a new one. */
+  const [folder, setFolder] = useState('');
   const chosen = kind || kinds[0];
   if (kinds.length === 0 && accounts.length === 0) return null;
   return (
@@ -314,7 +316,10 @@ function Accounts() {
           className="accounts__add"
           onSubmit={async (e) => {
             e.preventDefault();
-            if (name.trim() && (await addAccount(chosen, name.trim()))) setName('');
+            if (name.trim() && (await addAccount(chosen, name.trim(), folder || undefined))) {
+              setName('');
+              setFolder('');
+            }
           }}
         >
           <select
@@ -337,9 +342,23 @@ function Accounts() {
             aria-label={t('accounts.name')}
             onChange={(e) => setName(e.target.value)}
           />
+          <Button
+            size="sm"
+            icon="folder"
+            variant="quiet"
+            title={folder || undefined}
+            onClick={async () => {
+              if (folder) return setFolder('');
+              const dir = await window.lonca.shell.pickFolder();
+              if (dir) setFolder(dir);
+            }}
+          >
+            {folder ? t('accounts.existingClear') : t('accounts.existing')}
+          </Button>
           <Button size="sm" icon="plus" type="submit" disabled={!name.trim()}>
             {t('accounts.add')}
           </Button>
+          {folder && <span className="l-mono accounts__folder">{folder}</span>}
         </form>
       )}
     </section>

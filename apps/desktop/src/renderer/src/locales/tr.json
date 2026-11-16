@@ -334,7 +334,8 @@
     "bad_friend_code": "Arkadaş kodu okunamadı.",
     "already_friend": "Bu kişi zaten arkadaş listesinde.",
     "friend_self": "Bu, bu bilgisayarın kendi arkadaş kodu.",
-    "friend_refused": "İstek kabul edilmedi: kod başka bir cihaza ait ya da karşı tarafta bekleyen istek sınırı dolu."
+    "friend_refused": "İstek kabul edilmedi: kod başka bir cihaza ait ya da karşı tarafta bekleyen istek sınırı dolu.",
+    "account_taken": "Bu klasörü zaten bir hesap kullanıyor."
   },
   "channel": {
     "newSession": "Yeni oturum",
@@ -384,7 +385,8 @@
       "progress": "İlerleme",
       "start": "İşe başlama",
       "connector": "Bağlayıcı",
-      "budget": "Bütçe dolmak üzere"
+      "budget": "Bütçe dolmak üzere",
+      "spare": "Kota bitti, yedek girişle sürüyor"
     },
     "denied": "Reddedildi",
     "more_one": "{{count}} adım daha",
@@ -485,7 +487,9 @@
         "members": "Düzenleyici ve yöneticiler iş verebilir; işler bu bilgisayarda, bu bilgisayarın CLI girişiyle çalışır."
       }
     },
-    "folderDefault": "Varsayılan"
+    "folderDefault": "Varsayılan",
+    "fresh": "Her iş yeni oturumda",
+    "freshHint": "Önceki işlerin konuşması taşınmaz; agent isteği ve kanalın son 12 mesajını okur. Bağlam büyümediği için kota daha yavaş biter."
   },
   "crew": {
     "addAgent": "Agent ekle",
@@ -1101,7 +1105,7 @@
   },
   "accounts": {
     "title": "Hesaplar",
-    "hint": "Aynı CLI'nin bu bilgisayardaki ek girişleri; örneğin bir aboneliğin kotası bitince ikinci bir hesap. Her hesap CLI'nin kendi ayar klasöründe tutulur ve CLI'nin kendi girişiyle açılır; {{app}} giriş dosyalarını okumaz.",
+    "hint": "Aynı CLI'nin bu bilgisayardaki ek girişleri; örneğin bir aboneliğin kotası bitince ikinci bir hesap. Her hesap CLI'nin kendi ayar klasöründe tutulur ve CLI'nin kendi girişiyle açılır; {{app}} giriş dosyalarını okumaz. CLI'nin zaten giriş yaptığı bir ayar klasörü de (örneğin .claude2) olduğu yerde kullanılabilir.",
     "kind": "CLI",
     "name": "Hesap adı",
     "namePlaceholder": "Örneğin İkinci hesap",
@@ -1109,7 +1113,12 @@
     "remove": "{{name}} hesabını kaldır",
     "agentField": "Hesap",
     "default": "Varsayılan giriş",
-    "agentHint": "Bu ajanın işleri seçilen girişle ve onun kotasıyla çalışır."
+    "agentHint": "Bu ajanın işleri seçilen girişle ve onun kotasıyla çalışır.",
+    "existing": "Var olan klasör",
+    "existingClear": "Yeni klasör",
+    "spareField": "Kota bitince",
+    "noSpare": "Yedek yok",
+    "spareHint": "Kendi girişinin kotası bitince işler bu girişle sürer; agentın adı, talimatları ve klasörü aynı kalır."
   },
   "status": {
     "title": "Durum",

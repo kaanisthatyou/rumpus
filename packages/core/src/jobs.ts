@@ -1,5 +1,7 @@
 // Turns people's messages into jobs for agents and keeps every job's card current.
-// One CLI session per (agent, channel), kept across jobs so the agent remembers the conversation.
+// One CLI session per (agent, channel), kept across jobs so the agent remembers the conversation; an agent with
+// fresh sessions (and a specialist) starts every job in a new one. An agent with a spare login moves to it while its
+// own is out of quota.
 import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import {
@@ -10,6 +12,7 @@ import {
   type CliInfo,
   type CliKind,
   CoreError,
+  FRESH_HISTORY,
   type Job,
   type JobChanges,
   type JobStep,
@@ -44,6 +47,8 @@ export interface JobsDeps {
   emitQuota: (key: string, quota: Quota) => void;
   /** The environment of the agent's account (its CLI config folder), when it runs on an extra login. */
   accountEnv?(agent: Agent): Record<string, string> | undefined;
+  /** Whether this computer still has the extra login (an agent's spare may have been removed since). */
+  hasAccount?(id: string): boolean;
   drivers?: Partial<Record<CliKind, OpenSession>>;
   launch?: (path: string) => Launch;
   /** The records a message refers to: their notes for the prompt, their images as attachments. */
@@ -84,6 +89,16 @@ interface Live {
   layers?: string;
   toolset?: string;
   token?: string;
+  /** Running on the agent's spare login: its session is not kept (another login cannot resume it). */
+  spare?: boolean;
+  /** What started the current job, to start it again on the spare login when this one runs out of quota. */
+  again?: {
+    base: Agent;
+    channel: Channel;
+    request: Message;
+    prompt?: string;
+    opts: { folder?: string; scope?: string };
+  };
 }
 
 /** A connector call waiting for a person (asked by the gateway, shown on the job card like a CLI's approval). */
@@ -108,6 +123,10 @@ const slotOf = (channelId: string, scope?: string) => (scope ? `${channelId}#${s
 const PART = 'part-';
 /** The scope a specialist's job runs in: every job a fresh session, so only its playbook and lessons carry over. */
 const SPEC = 'spec-';
+/** How long a login counts as out of quota after a job hit its limit, when the CLI did not say when it resets. */
+const LIMIT_HOLD_MS = 60 * 60_000;
+/** How the CLIs word a job that stopped on the subscription's limit. */
+const LIMIT_TEXT = /usage limit|hit your (?:usage )?limit|limit reached|out of (?:extra )?usage|rate[ _-]?limit/i;
 /** How much of a specialist's budget may pass before it is told to wrap up. */
 const BUDGET_SOFT = 0.75;
 /** Parts one person's request may be split into. */
@@ -119,10 +138,25 @@ export function mentions(text: string): string[] {
   return [...new Set([...text.matchAll(MENTION)].map((m) => m[2] ?? ''))];
 }
 
+/** Agents whose every job runs in a session of its own. */
+const ownSessions = (agent: Agent) => Boolean(agent.specialty || agent.fresh);
+
+const quotaKey = (kind: CliKind, account?: string) => (account ? `${kind}:${account}` : kind);
+
+/** When the latest of a quota's windows resets (ms), if the CLI said. */
+function resetsAt(quota: Quota | undefined): number | undefined {
+  const at = Math.max(0, ...Object.values(quota?.windows ?? {}).map((w) => (w.resets ?? 0) * 1000));
+  return at > 0 ? at : undefined;
+}
+
 export class Jobs {
   private readonly live = new Map<string, Live>();
   private readonly timers = new Map<string, NodeJS.Timeout>();
   readonly quotas: Record<string, Quota> = {};
+  /** Logins out of quota (`quotaKey`) until then (ms), from jobs that stopped on the limit. */
+  private readonly limited = new Map<string, number>();
+  /** Jobs already moved to a spare login once. */
+  private readonly moved = new Set<string>();
 
   constructor(private readonly deps: JobsDeps) {
     mkdirSync(join(deps.dir, 'jobs'), { recursive: true });
@@ -188,7 +222,7 @@ export class Jobs {
       if (!rule.allow) continue;
       const agent = rule.mode ? { ...target, mode: rule.mode } : target;
       // A specialist's jobs each run in a session of their own; a message to one that is working steers that job.
-      const live = agent.specialty
+      const live = ownSessions(agent)
         ? [...this.live.values()].find(
             (l) =>
               l.agent.id === agent.id &&
@@ -209,7 +243,7 @@ export class Jobs {
   /** Where a job runs: a handed-over part and a specialist's job each get a session of their own. */
   private scopeFor(agent: Agent, message: Message): { scope?: string } {
     if (message.handover) return { scope: `${PART}${message.id}` };
-    return agent.specialty ? { scope: `${SPEC}${message.id}` } : {};
+    return ownSessions(agent) ? { scope: `${SPEC}${message.id}` } : {};
   }
 
   private now(): number {
@@ -318,6 +352,26 @@ export class Jobs {
     return job?.state === 'running' || job?.state === 'attention';
   }
 
+  /** Whether a login is out of quota now: the CLI said so (a rejected rate-limit event), or a job hit the limit. */
+  outOfQuota(kind: CliKind, account?: string): boolean {
+    const key = quotaKey(kind, account);
+    const now = this.now();
+    if ((this.limited.get(key) ?? 0) > now) return true;
+    const quota = this.quotas[key];
+    if (quota?.status !== 'rejected') return false;
+    const resets = resetsAt(quota);
+    return resets ? resets > now : now - quota.at < LIMIT_HOLD_MS;
+  }
+
+  /** The agent on the login its job runs on: its spare while its own is out of quota and the spare is not. */
+  private onLogin(agent: Agent): Agent {
+    if (agent.spare === undefined || !this.outOfQuota(agent.kind, agent.account)) return agent;
+    if (agent.spare && !this.deps.hasAccount?.(agent.spare)) return agent;
+    if (this.outOfQuota(agent.kind, agent.spare || undefined)) return agent;
+    const { account: _own, ...rest } = agent;
+    return agent.spare ? { ...rest, account: agent.spare } : rest;
+  }
+
   private async start(
     base: Agent,
     channel: Channel,
@@ -327,7 +381,8 @@ export class Jobs {
     /** A job that already exists (one the owner just approved) continues instead of a new one. */
     existing?: Job,
   ): Promise<Job> {
-    const agent = opts.folder ? { ...base, folder: opts.folder } : base;
+    const agent = this.onLogin(opts.folder ? { ...base, folder: opts.folder } : base);
+    const spare = (agent.account ?? '') !== (base.account ?? '');
     const slot = slotOf(channel.id, opts.scope);
     const job: Job = existing
       ? (({ approval: _a, ...rest }) => ({ ...rest, state: 'running' as const }))(existing)
@@ -368,6 +423,7 @@ export class Jobs {
         live.agent.model !== agent.model ||
         live.agent.folder !== agent.folder ||
         live.agent.account !== agent.account ||
+        live.agent.fresh !== agent.fresh ||
         live.agent.instructions !== agent.instructions ||
         (live.agent.traits ?? []).join() !== (agent.traits ?? []).join() ||
         JSON.stringify(live.agent.specialty) !== JSON.stringify(agent.specialty))
@@ -377,7 +433,7 @@ export class Jobs {
     }
     if (!live) {
       const me = this.deps.me();
-      const resume = this.deps.store.session(agent.id, slot);
+      const resume = spare ? undefined : this.deps.store.session(agent.id, slot);
       const env = this.deps.accountEnv?.(agent);
       const mcpUrl = this.deps.gateway ? await this.deps.gateway.ready() : undefined;
       const token = mcpUrl
@@ -391,6 +447,7 @@ export class Jobs {
         job: undefined,
         queue: [],
         lastText: '',
+        ...(spare ? { spare: true } : {}),
       };
       created.session = open(
         {
@@ -415,16 +472,23 @@ export class Jobs {
     live.job = job;
     live.lastText = '';
     live.queue = [];
+    live.again = { base, channel, request, ...(prompt !== undefined ? { prompt } : {}), opts };
     this.watchBudget(job);
+    if (spare && !existing) this.mark(live, 'spare');
+    // A job moved from a login that ran out of quota: the first try may have left work behind.
+    const resumed = this.moved.has(job.id)
+      ? `\n\n[${BRAND.name}] An earlier try at this request on another login stopped at that login's usage limit. Files may already be partly changed: look before redoing work.`
+      : '';
     await taken;
     // Stopped while the snapshot was taken: there is nothing to send.
     if (live.job?.id !== job.id || live.job.state !== 'running') return live.job ?? job;
     if (prompt !== undefined) {
-      live.session.send(prompt);
+      live.session.send(prompt + resumed);
       return job;
     }
-    // A specialist reads the channel's latest messages, whoever wrote them, and always gets its own references.
-    const history = agent.specialty?.history;
+    // A specialist (and an agent with fresh sessions) reads the channel's latest messages, whoever wrote them; a
+    // specialist always gets its own references.
+    const history = agent.specialty?.history ?? (agent.fresh ? FRESH_HISTORY : undefined);
     const context =
       history === undefined
         ? this.contextFor(agent, channel, request)
@@ -436,7 +500,7 @@ export class Jobs {
     const refIds = [...new Set([...(agent.specialty?.refs ?? []), ...(request.refs ?? [])])];
     const refs = refIds.length && this.deps.refs ? this.deps.refs(refIds) : { notes: [], images: [] };
     const notes = refs.notes.length ? `\n\n<references>\n${refs.notes.join('\n')}\n</references>` : '';
-    live.session.send(turnPrompt(request, context, channel.name, history || 20) + notes, refs.images);
+    live.session.send(turnPrompt(request, context, channel.name, history || 20) + notes + resumed, refs.images);
     return job;
   }
 
@@ -789,7 +853,7 @@ export class Jobs {
 
   private onEvent(live: Live, e: DriverEvent): void {
     if (e.type === 'session') {
-      this.deps.store.setSession(live.agent.id, live.slot, e.id);
+      if (!live.spare) this.deps.store.setSession(live.agent.id, live.slot, e.id);
       return;
     }
     if (e.type === 'quota') {
@@ -887,6 +951,7 @@ export class Jobs {
           this.save(live.job, true);
           return;
         }
+        if (!e.ok && this.moveToSpare(live, job, e.error)) return;
         const { approval: _done, ...settled } = job;
         const ended: Job = {
           ...settled,
@@ -907,6 +972,7 @@ export class Jobs {
         return;
       }
       case 'exit': {
+        if (this.moveToSpare(live, job, e.stderr)) return;
         const failed = this.fail(job, job.error ?? (e.stderr ? `exited: ${e.stderr.slice(-400)}` : 'exited'));
         live.job = failed;
         this.settleChanges(job.id);
@@ -917,6 +983,41 @@ export class Jobs {
     live.job = next;
     this.save(next);
     if (e.type === 'usage') this.checkTokens(next);
+  }
+
+  /** A step on the job's card and in its transcript: a notice the live view shows in words (`job.tool.<code>`). */
+  private mark(live: Live, code: string): void {
+    const job = live.job;
+    if (!job) return;
+    const at = this.now();
+    live.job = { ...job, steps: [...job.steps, { id: newId(), kind: 'notice', label: code, at }] };
+    this.transcript(job.id, { t: 'notice', text: code, at });
+    this.save(live.job, true);
+  }
+
+  /**
+   * A job that stopped on its login's usage limit: the login counts as out of quota until it resets, and the job
+   * starts again on the agent's spare login, once. False when it was another failure or there is nowhere to go.
+   */
+  private moveToSpare(live: Live, job: Job, error: string | undefined): boolean {
+    const key = quotaKey(live.agent.kind, live.agent.account);
+    const quota = this.quotas[key];
+    const hit = LIMIT_TEXT.test(error ?? '') || (quota?.status === 'rejected' && quota.at >= job.started);
+    if (!hit) return false;
+    this.limited.set(key, resetsAt(quota) ?? this.now() + LIMIT_HOLD_MS);
+    const again = live.again;
+    if (!again || live.spare || this.moved.has(job.id)) return false;
+    const next = this.onLogin(again.base);
+    if ((next.account ?? '') === (live.agent.account ?? '')) return false;
+    this.moved.add(job.id);
+    this.mark(live, 'spare');
+    const moving = live.job ?? job;
+    setTimeout(() => {
+      void this.start(again.base, again.channel, again.request, again.prompt, again.opts, moving).catch(() => {
+        this.fail(moving, 'failed');
+      });
+    }, 0);
+    return true;
   }
 
   /** A handed-over part's session ends with its job: the next part starts fresh. */
