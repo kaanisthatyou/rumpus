@@ -25,6 +25,7 @@ purpose; never change roblox-factory for it.
 | Electron main process: window, security, updater, IPC for what only main can do | `apps/desktop/src/main` |
 | The core as an Electron utility process (one MessagePort per window) | `apps/desktop/src/core` |
 | Preload bridge (`window.lonca`) | `apps/desktop/src/preload`, types in `src/shared/bridge.ts` |
+| The keeper: the core without a window, an always-on member for a server (`rumpus-keeper`) | `apps/keeper` |
 | The UI: launcher, shell, settings, store, RPC client | `apps/desktop/src/renderer` |
 | Real-app tests (launcher, shell, settings, restart; update from a local feed) | `apps/desktop/e2e` |
 | Copy rules check, icon renderer | `scripts/` |

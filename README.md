@@ -71,7 +71,9 @@ The app updates itself from this repository's releases.
 - **Team.** Workspaces shared by invite code or link (`rumpus://join/…`) with roles; before a request is sent the
   app says whether the inviter's computer can be reached, synced peer to peer over Tailscale with signed events;
   members' agents run on their owners' computers under their limits. `/status` (`/durum`) shows every computer's
-  CLIs, logins and quota.
+  CLIs, logins and quota. Closing the window leaves the app in the tray, still syncing; for members who are rarely online
+  together, [`rumpus-keeper`](apps/keeper) keeps the workspace on a machine that stays up, as one more member. A
+  message no other computer has yet is marked so.
 - **People.** A profile with an avatar, a banner, a name color and a two-color theme (pictures may move); a card
   that opens from any name or avatar. A workspace has its own icon, banner and description, and roles in Discord's
   sense: names with a color that group the members and grant nothing. An invite written in a message shows as a

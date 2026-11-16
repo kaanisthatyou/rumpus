@@ -541,7 +541,11 @@ become TypeScript test cases for the same security rules.
   member passes on what the other two missed. Nobody is "the server", so a closed PC only means its own agents are
   offline. Rumpus never runs or depends on a relay or hosted service.
 - A member who wants the workspace always reachable can leave Rumpus running in the tray on an always-on machine;
-  it is just another peer.
+  it is just another peer. Closing the window leaves the app in the tray by default (4.29), so a computer that is
+  on keeps syncing. For a machine without a desktop there is the **keeper** (`apps/keeper`, 4.29): the core
+  without a window or agents, joined with an invite like a person (Viewer is enough) and approved by an admin. It
+  is a member on a member's own machine, not a relay: it sees what its certificate allows, and every event it
+  passes on is checked against its author's signature by whoever takes it.
 - Tailscale is detected and guided as in Fabrika: not installed (winget / download), signed out, wrong tailnet.
   Joining a workspace means being in the same tailnet, or the inviter sharing their device with the joiner
   (Tailscale node sharing); the invite screen walks through both.
@@ -1014,6 +1018,39 @@ The details behind 5.11 and 6.5, decided before building.
   installation: the `rumpus://` handler (registered only by an installed app without `LONCA_HOME`) and the move of
   the former name's data folder.
 
+- 4.29 Members who are rarely online together (6.5), 2026-11-16, asked by Kaan: when the app is closed and the
+  others keep writing, opening it should bring everything. Sync already caught up with whoever was online; what
+  was missing was someone online. Built:
+  - **The keeper** (`apps/keeper`, `rumpus-keeper join <code> | run | status`): `Core` in plain Node with a
+    `FileSigner` (an Ed25519 key in a file only its user reads; a server has no keychain), bundled by esbuild into
+    one file for Node 22.13+ on any architecture. It sets a display-only `keeper` mark in its profile
+    (`cleanProfile` keeps only a plain `true`) and the crew list says "always on, keeps messages for members who
+    are away" instead of a status. One keeper per data folder (`keeper.pid`): `join` while the service runs
+    stops at once. It logs who is reachable when that changes. Not done: a keeper on Kaan's server (it needs an
+    invite and an approval; `apps/keeper/README.md` has the steps and a systemd unit), pictures and files beyond
+    profile pictures (messages are text; nothing else travels between peers yet).
+  - **The tray** (settings `tray`, default on, and `startAtLogin`, default off): closing the window hides it;
+    agents keep working and messages keep arriving; the tray menu has Open and Quit; the first time, a
+    notification says where the app went. Starting with the system passes `--hidden` and only the installed app
+    registers itself. The page hears from the main process when the window hides and shows (`window:shown`):
+    what arrives while it is hidden is unread also in the channel it showed, and on return it is read under the
+    New line (it used to count as seen).
+  - **The undelivered mark:** each sync round that reached at least one member records when it started
+    (`onDelivered`, meta `delivered`, `WorkspaceState.delivered`): everything this device wrote before then is on
+    another computer. A person's own message after it shows a small clock (in the header, or in the gutter of a
+    message that follows closely) that fades in after three seconds, so a message that leaves at once never
+    blinks one.
+  - Two sync fixes found on the way: a round stopped while a peer was answering (the workspace closed, the data
+    folder changed) wrote to the closed database, an unhandled rejection that can end the core process; and one
+    exchange gave at most 500 events, so a member back after a long time away needed several rounds and the
+    undelivered mark would have been wrong.
+  Covered by `packages/core/test/keeper.test.ts` (Arda's app closed while Kaan writes, Kaan's closed before
+  Arda's opens: Arda gets it from the keeper alone, and the answer goes back the same way; the delivered mark),
+  `apps/keeper/test` (the built bundle as a process: join, approval, a restart, a second keeper refused, the
+  arguments), `sync.test.ts` (a stopped round, paging what is given) and `e2e/team.mjs` (the window hides to
+  the tray and still receives, the New line on return, the clock while Arda's app is closed and its end when it
+  starts again).
+
 - 4.28 A look before going public (section 8, Phase 5's security review begun), 2026-11-12, asked by Kaan: the
   app and the repository read once with Cloudflare's open-source `security-audit` skill as the method (its
   guidance mode: a finding needs a lower-trust party, a boundary and a concrete result; its companions for
@@ -1238,8 +1275,9 @@ The details behind 5.11 and 6.5, decided before building.
 - **CLI output formats change:** contract tests on pinned versions, capability detection, version warnings.
 - **Tailscale is a hurdle for non-technical people:** a guided flow (install, sign in, invite to the tailnet or
   share the device); an embedded Tailscale (tsnet sidecar) only if it is still the main drop-off. No relay.
-- **Members who are rarely online together** sync late; an always-on peer in the tray solves it for teams that
-  need it.
+- **Members who are rarely online together** sync late; an always-on peer solves it for teams that need it: the
+  app in the tray, or the keeper on a machine that stays up (4.29). Without either, a message waits on its
+  author's computer, and the author sees that it does (the clock mark).
 - **Advisor cost runaway:** budgets, bot-turn caps, free providers by default, spend per bot.
 - **Prompt injection through chat and records:** untrusted marking, others capped at read, scans on memory.
 - **Scope:** this is a lot; phases ship on their own and each one is used before the next starts.
