@@ -95,6 +95,8 @@ interface Ask {
   resolve(allow: boolean): void;
 }
 
+/** A request older than this when it reaches the agent's computer waits for its owner (`Jobs.late`). */
+const LATE_MS = 10 * 60_000;
 /** Approval ids of gateway asks; the CLI's own ids never start with it. */
 const ASK = 'lonca-ask-';
 /** How long a connector call waits for a person before it counts as denied. */
@@ -166,10 +168,21 @@ export class Jobs {
       .some((j) => j.agentId === h.agentId && j.started > this.now() - PART_WINDOW_MS);
   }
 
+  /**
+   * Another member's request that reaches this computer long after it was written (the computer was off, and a
+   * member's app or the keeper passed it on later): it waits for the owner instead of starting, or steering a job,
+   * by itself hours later while nobody here is watching.
+   */
+  private late(message: Message): boolean {
+    const by = this.askedBy(message).by;
+    return by !== undefined && by !== this.deps.me().id && this.now() - message.created > LATE_MS;
+  }
+
   private async route(message: Message, channel: Channel): Promise<void> {
     // Only a person's message starts work, or a part of a person's job that its agent handed over.
     const part = message.author.kind === 'agent' && this.isPart(message);
     if (message.author.kind !== 'person' && !part) return;
+    const late = this.late(message);
     if (part) {
       // A part names its agent with @, in any channel (also the handing agent's own one).
       const handles = mentions(message.text);
@@ -179,7 +192,7 @@ export class Jobs {
       const rule = this.deps.access?.(target, message) ?? { allow: true };
       if (!rule.allow) return;
       const agent = rule.mode ? { ...target, mode: rule.mode } : target;
-      if (rule.approveFirst) this.hold(agent, channel, message);
+      if (rule.approveFirst || late) this.hold(agent, channel, message, late);
       else await this.start(agent, channel, message, undefined, this.scopeFor(agent, message));
       return;
     }
@@ -196,7 +209,9 @@ export class Jobs {
               (l.job?.state === 'running' || l.job?.state === 'attention'),
           )
         : this.live.get(this.key(agent.id, channel.id));
-      if (live?.job && (live.job.state === 'running' || live.job.state === 'attention')) {
+      if (late) {
+        this.hold(agent, channel, message, true);
+      } else if (live?.job && (live.job.state === 'running' || live.job.state === 'attention')) {
         this.steerLive(live, message.text);
       } else if (rule.approveFirst) {
         this.hold(agent, channel, message);
@@ -226,7 +241,7 @@ export class Jobs {
   /** Jobs another member asked for that wait for the owner's yes before they start. */
   private readonly held = new Map<string, { agent: Agent; channel: Channel; message: Message }>();
 
-  private hold(agent: Agent, channel: Channel, message: Message): void {
+  private hold(agent: Agent, channel: Channel, message: Message, late = false): void {
     const job: Job = {
       id: newId(),
       channelId: channel.id,
@@ -236,7 +251,11 @@ export class Jobs {
       state: 'attention',
       steps: [],
       usage: { in: 0, cached: 0, out: 0 },
-      approval: { id: 'start', label: 'start', arg: message.author.kind === 'person' ? message.author.name : '' },
+      approval: {
+        id: 'start',
+        label: late ? 'start_late' : 'start',
+        arg: message.author.kind === 'person' ? message.author.name : '',
+      },
       started: this.now(),
     };
     this.held.set(job.id, { agent, channel, message });
