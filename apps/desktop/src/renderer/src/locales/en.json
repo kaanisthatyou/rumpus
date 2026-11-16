@@ -1138,14 +1138,17 @@
     "message": "Message",
     "placeholder": "Message or task · Enter sends",
     "sent": "Sent.",
-    "feed": "Agents’ answers",
+    "feed": "Island conversation",
     "send": "Send",
-    "clear": "Clear bubbles",
+    "clear": "Clear the conversation",
     "openApp": "Open the {{app}} window",
     "hide": "Hide the island",
     "keys": "Enter sends · Esc hides",
     "noKey": "The shortcut is held by another app. It can be changed in Settings → Shortcuts.",
-    "server": "Workspace"
+    "server": "Workspace",
+    "notes_one": "{{count}} note written while working",
+    "notes_other": "{{count}} notes written while working",
+    "newer": "Newer lines"
   },
   "fabrika": {
     "import": "Import from Fabrika (a roblox-factory folder)",

@@ -1138,14 +1138,17 @@
     "message": "Mesaj",
     "placeholder": "Mesaj ya da iş · Enter gönderir",
     "sent": "Gönderildi.",
-    "feed": "Agentların cevapları",
+    "feed": "Ada konuşması",
     "send": "Gönder",
-    "clear": "Balonları temizle",
+    "clear": "Konuşmayı temizle",
     "openApp": "{{app}} penceresini aç",
     "hide": "Adayı gizle",
     "keys": "Enter gönderir · Esc gizler",
     "noKey": "Kısayol başka bir uygulamada kayıtlı. Ayarlar → Kısayollar bölümünden değiştirilebilir.",
-    "server": "Sunucu"
+    "server": "Sunucu",
+    "notes_one": "Çalışırken yazdığı {{count}} not",
+    "notes_other": "Çalışırken yazdığı {{count}} not",
+    "newer": "Yeni satırlar"
   },
   "fabrika": {
     "import": "Fabrika'dan içe aktar (roblox-factory klasörü)",

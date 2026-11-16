@@ -658,16 +658,74 @@ try {
   await quickPage.getByLabel(L.quick.message).fill('@claude hızlı girişten not');
   await quickPage.getByLabel(L.quick.message).press('Enter');
   await quickPage.getByText(L.quick.sent).waitFor();
-  const islandAnswer = quickPage.locator('.island__bubble--answer', { hasText: 'sahte proje' });
+  const islandAnswer = quickPage.locator('.isle-turn--agent.is-answer', { hasText: 'sahte proje' });
   await islandAnswer.waitFor({ timeout: 20_000 });
   const islandText = await quickPage.locator('.island__feed').innerText();
   if (islandText.includes('npm test')) throw new Error(`a command reached the island: ${islandText}`);
   if (islandText.includes('**')) throw new Error(`Markdown marks reached the island: ${islandText}`);
-  const quickPng = await current.evaluate(async ({ BrowserWindow }) => {
-    const w = BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().includes('#quick'));
-    return w ? (await w.webContents.capturePage()).toPNG().toString('base64') : '';
+  const islandShot = async (name) => {
+    const png = await current.evaluate(async ({ BrowserWindow }) => {
+      const w = BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().includes('#quick'));
+      return w ? (await w.webContents.capturePage()).toPNG().toString('base64') : '';
+    });
+    if (png) writeFileSync(join(shots, `${name}.png`), Buffer.from(png, 'base64'));
+  };
+  await islandShot('ch-quick-entry');
+  const islandSend = async (value) => {
+    await quickPage.getByLabel(L.quick.message).fill(value);
+    await quickPage.getByLabel(L.quick.message).press('Enter');
+  };
+  const turnList = () =>
+    quickPage
+      .locator('.isle-turn')
+      .evaluateAll((els) =>
+        els.map((e) => ({ agent: e.classList.contains('isle-turn--agent'), text: e.textContent ?? '' })),
+      );
+  // Two agents at once: a job keeps the place it started in while a later one ends before it.
+  await islandSend('@claude yavaş bir bakış');
+  const slowCard = quickPage.locator('.isle-turn--agent', { hasText: 'Claude' }).last();
+  await slowCard.locator('.isle-ring').waitFor();
+  await islandSend('@kod kısa bir bakış');
+  // @kod answers with what its other work left in the channel, not with the request: count its answers.
+  await until(
+    async () => (await quickPage.locator('.isle-turn--agent.is-answer', { hasText: 'Kod' }).count()) === 1,
+    "@kod's answer on the island",
+  );
+  assert.equal(await slowCard.locator('.isle-ring').count(), 1, 'the slow job still runs');
+  await islandShot('ch-island-running');
+  await quickPage.locator('.isle-turn--agent.is-answer', { hasText: 'yavaş bir bakış' }).waitFor({ timeout: 30_000 });
+  const order = await turnList();
+  const slowAt = order.findIndex((x) => x.agent && x.text.includes('yavaş bir bakış'));
+  const kodAt = order.findIndex((x) => x.agent && x.text.startsWith('Kod'));
+  assert.ok(slowAt >= 0 && slowAt < kodAt, `turns keep their order: ${JSON.stringify(order)}`);
+  // More than the feed holds: it scrolls and keeps to its newest line.
+  for (const i of [1, 2, 3, 4]) {
+    await islandSend(`@claude soru ${i}`);
+    await quickPage.locator('.isle-turn--agent.is-answer', { hasText: `soru ${i}` }).waitFor({ timeout: 20_000 });
+  }
+  const box = quickPage.locator('.island__feed');
+  const metrics = () => box.evaluate((el) => ({ h: el.scrollHeight, c: el.clientHeight, top: el.scrollTop }));
+  let m = await metrics();
+  assert.ok(m.h > m.c, `the feed overflows and scrolls: ${JSON.stringify(m)}`);
+  assert.ok(m.h - m.top - m.c < 4, `the feed shows its newest line: ${JSON.stringify(m)}`);
+  await islandShot('ch-island-feed');
+  // Writing goes back to the newest line; scrolled up while an answer comes, the feed stays where it was and a
+  // button says that newer lines are there.
+  await islandSend('@claude yavaş soru 5');
+  await quickPage.locator('.isle-turn--agent', { hasText: 'Claude' }).last().locator('.isle-ring').waitFor();
+  m = await metrics();
+  assert.ok(m.h - m.top - m.c < 4, `sending showed the newest line: ${JSON.stringify(m)}`);
+  await box.evaluate((el) => {
+    el.scrollTop = 0;
   });
-  if (quickPng) writeFileSync(join(shots, 'ch-quick-entry.png'), Buffer.from(quickPng, 'base64'));
+  await quickPage.getByRole('button', { name: L.quick.newer }).waitFor({ timeout: 20_000 });
+  assert.equal((await metrics()).top, 0, 'a new line moved a feed that was scrolled up');
+  await islandShot('ch-island-scrolled');
+  await quickPage.getByRole('button', { name: L.quick.newer }).click();
+  await until(async () => {
+    m = await metrics();
+    return m.h - m.top - m.c < 4;
+  }, 'the feed back at its newest line');
   // E2E_DESKTOP=1 (Windows, on a screen someone may watch; not part of `pnpm e2e`): with real clicks, the island
   // lets a click on an empty part of it through to the window under it and takes a click on its text box.
   if (process.env.E2E_DESKTOP === '1') {

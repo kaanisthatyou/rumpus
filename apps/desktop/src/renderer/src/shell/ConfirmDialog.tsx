@@ -59,7 +59,6 @@ export function ConfirmDialog({ ask }: { ask: Confirm }) {
           <Button variant="quiet" onClick={close} disabled={busy}>
             {t('common.cancel')}
           </Button>
-          {/* biome-ignore lint/a11y/noAutofocus: the dialog asks one thing; Enter answers it, Esc leaves */}
           <Button variant="danger" icon="trash" busy={busy} onClick={() => void go()} autoFocus>
             {ask.action}
           </Button>
