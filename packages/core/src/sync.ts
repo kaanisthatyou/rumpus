@@ -20,6 +20,11 @@ export interface SyncDeps {
   onIngested(events: SignedEvent[]): void;
   /** Peers answered or not: who is reachable now. */
   onReach?(device: string, ok: boolean): void;
+  /**
+   * Everything this device wrote before `at` (its own clock) is now on at least one other member's computer: it
+   * survives this one being closed, and travels on from there.
+   */
+  onDelivered?(at: number): void;
   /** Addresses to try when no member has one yet: the inviter's, for a device that just joined. */
   seeds?(): string[];
   /** Runs before each round (an admin renews certificates there). */
@@ -107,12 +112,14 @@ export class Sync {
         events?: SignedEvent[];
         heads?: Record<string, number>;
       };
+      if (this.stopped) return;
       const events = Array.isArray(answer?.events) ? answer.events : [];
       this.receive(events);
       const theirs = answer?.heads ?? {};
       const give = store.eventsAfter(theirs, PAGE);
       if (give.length) await peers.call(address, '/v1/push', ws, { events: give });
-      if (events.length < PAGE) return;
+      // Either side may have more than a page to pass on (a member back after a long time away).
+      if (events.length < PAGE && give.length < PAGE) return;
     }
   }
 
@@ -122,6 +129,8 @@ export class Sync {
     if (this.running) return this.running;
     this.running = (async () => {
       try {
+        // What exists now is signed and given to every peer this round reaches.
+        const started = Date.now();
         this.deps.beforeRound?.();
         await this.signPending();
         const { store, deviceId } = this.deps;
@@ -132,20 +141,27 @@ export class Sync {
           if (m.device === deviceId || (m.removed !== undefined && Date.now() - m.removed > 24 * 60 * 60 * 1000))
             continue;
           for (const address of endpoints[m.device] ?? []) {
+            // Stopped while waiting on a peer (the workspace closed): its store is gone, nothing more is touched.
+            if (this.stopped) return;
             try {
               await this.syncWith(address);
+              if (this.stopped) return;
               this.deps.onReach?.(m.device, true);
               reached += 1;
               break;
             } catch {
+              if (this.stopped) return;
               this.deps.onReach?.(m.device, false);
             }
           }
         }
         if (reached === 0) {
           for (const address of this.deps.seeds?.() ?? []) {
+            if (this.stopped) return;
             try {
               await this.syncWith(address);
+              if (this.stopped) return;
+              reached += 1;
               // What came in may give members' addresses: one more round with them, soon.
               if (Object.keys(store.endpoints()).length > Object.keys(endpoints).length) this.kick(50);
               break;
@@ -154,6 +170,7 @@ export class Sync {
             }
           }
         }
+        if (reached > 0) this.deps.onDelivered?.(started);
       } finally {
         this.running = undefined;
       }

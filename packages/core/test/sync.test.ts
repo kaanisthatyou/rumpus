@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { canonical, eventPayload, LocalSigner, type SignedEvent, verifySignature } from '../src/identity.js';
 import { Clock } from '../src/ids.js';
 import { WorkspaceStore } from '../src/store.js';
+import { Sync } from '../src/sync.js';
 
 const tmp = (p: string) => mkdtempSync(join(tmpdir(), p));
 const storeOf = (device: string) => new WorkspaceStore(join(tmp('lonca-sync-'), 'lonca.db'), device);
@@ -159,5 +160,62 @@ describe('signed log', () => {
       [2, 'channel.renamed'],
       [3, 'message.posted'],
     ]);
+  });
+});
+
+describe('a sync round', () => {
+  it('touches nothing once stopped while a peer was answering (the workspace closed meanwhile)', async () => {
+    let answer: (v: unknown) => void = () => {};
+    const reached: boolean[] = [];
+    const store = {
+      heads: () => ({}),
+      eventsAfter: () => [],
+      members: () => [{ device: 'A' }, { device: 'B' }],
+      endpoints: () => ({ B: ['100.64.0.2:47640'] }),
+    };
+    const sync = new Sync({
+      ws: 'ws1',
+      deviceId: 'A',
+      store: store as unknown as WorkspaceStore,
+      membership: {} as never,
+      signer: { publicKey: () => undefined, sign: async () => '' },
+      peers: { call: () => new Promise((resolve) => (answer = resolve)) },
+      onIngested: () => {},
+      onReach: (_d, ok) => reached.push(ok),
+    });
+    const round = sync.round();
+    await new Promise((r) => setTimeout(r, 10));
+    sync.stop();
+    answer({ events: [], heads: {} });
+    await round;
+    expect(reached).toEqual([]);
+  });
+});
+
+describe('one exchange', () => {
+  it('gives more than a page when the peer lacks more (a member back after a long time away)', async () => {
+    const store = storeOf('A');
+    store.commit({ type: 'channel.created', data: channel });
+    for (let i = 0; i < 700; i++) store.commit({ type: 'message.posted', data: msg(`m${i}`, `#${i}`) });
+    const pushed: SignedEvent[] = [];
+    const sync = new Sync({
+      ws: 'ws1',
+      deviceId: 'A',
+      store,
+      membership: { verify: () => 'ok' } as never,
+      signer: new LocalSigner(),
+      peers: {
+        call: async (_address, path, _ws, body) => {
+          if (path === '/v1/push') pushed.push(...(body as { events: SignedEvent[] }).events);
+          // The peer has nothing of A's yet, then what it was given so far.
+          return { events: [], heads: { A: pushed.length } };
+        },
+      },
+      onIngested: () => {},
+    });
+    await sync.signPending();
+    await sync.syncWith('100.64.0.2:47640');
+    expect(pushed.length).toBe(701);
+    expect(new Set(pushed.map((e) => e.n)).size).toBe(701);
   });
 });
