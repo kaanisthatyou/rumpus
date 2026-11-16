@@ -426,12 +426,18 @@ function createWindow(): BrowserWindow {
       spellcheck: false,
     },
   });
-  if (state.maximized) w.maximize();
+  // Maximizing shows a hidden window: one started with the system is maximized when it is first shown.
+  if (state.maximized) {
+    if (startHidden) w.once('show', () => w.maximize());
+    else w.maximize();
+  }
   trackWindowState(w, appDir);
-  // Started with the system and the tray on: the window stays hidden until the tray icon is clicked.
+  // Started with the system and the tray on: the window stays hidden until the tray icon is clicked. If the page
+  // never says how it runs in the background (it failed to load), nothing could bring it back: it is shown.
   w.once('ready-to-show', () => {
     if (!startHidden) w.show();
   });
+  if (startHidden) setTimeout(() => !background?.tray && showWindow(), 20_000).unref?.();
   w.webContents.on('did-finish-load', () => connect(w));
   if (devUrl) void w.loadURL(devUrl);
   else void w.loadFile(join(here, '../renderer/index.html'));

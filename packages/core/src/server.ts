@@ -203,6 +203,8 @@ interface Workspace {
   allowedOnce: Map<string, Set<string>>;
   /** When this person last posted here (a team workspace): the mark of an undelivered message follows it. */
   sent?: number;
+  /** A sync round has reached someone since the workspace was opened (the marks from before need a refresh). */
+  delivering?: boolean;
   timer: NodeJS.Timeout;
 }
 
@@ -1432,7 +1434,9 @@ export class Core {
             store.setMeta('delivered', String(at));
             // The window marks its own messages that are on this computer only: tell it when some just left.
             const sent = ref.ws.sent ?? 0;
-            if (sent > before && sent <= at) inWs(() => this.changed());
+            const first = !ref.ws.delivering;
+            ref.ws.delivering = true;
+            if (first || (sent > before && sent <= at)) inWs(() => this.changed());
           },
           seeds: () => this.teams().find((t) => t.id === id)?.seeds ?? [],
           beforeRound: () =>
