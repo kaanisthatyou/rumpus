@@ -156,8 +156,9 @@ function who(m: Message): string {
 
 /** One turn: what others said in the channel (the latest `keep` messages at most), then the request. */
 export function turnPrompt(request: Message, context: Message[], channelName: string, keep = 20): string {
-  // A long history gets shorter lines, so a specialist reading 200 messages still fits in one prompt.
-  const cut = keep > 40 ? 600 : 2000;
+  // Long messages are cut (the agent can search for the rest), a long history's even shorter, so a specialist reading
+  // 200 messages still fits in one prompt.
+  const cut = keep > 40 ? 600 : 800;
   const lines = context
     .filter((m) => m.id !== request.id && m.text.trim())
     .slice(-keep)

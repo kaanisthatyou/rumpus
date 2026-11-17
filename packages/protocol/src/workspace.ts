@@ -10,7 +10,7 @@ export type AgentMode = (typeof AGENT_MODES)[number];
 /** Most of a channel's latest messages a specialist reads before a job. */
 export const SPECIALIST_HISTORY_MAX = 200;
 /** The channel's latest messages an agent with fresh sessions reads before each job. */
-export const FRESH_HISTORY = 12;
+export const FRESH_HISTORY = 8;
 /** Characters of lessons a specialist keeps; the oldest lines go first. */
 export const LESSONS_LIMIT = 6000;
 

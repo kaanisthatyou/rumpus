@@ -392,7 +392,7 @@
       "plan": "Plan",
       "subagent": "Subagent",
       "tool": "Tool",
-      "steer": "Steer",
+      "steer": "Written while it worked",
       "untrusted_folder": "Folder not trusted in Claude Code",
       "compacted": "Context compacted",
       "progress": "Progress",
@@ -400,16 +400,19 @@
       "connector": "Connector",
       "budget": "Budget nearly used",
       "spare": "Out of quota: continues on the spare login",
-      "wait_quota": "Out of quota: continues once it resets"
+      "wait_quota": "Out of quota: continues once it resets",
+      "follow": "Goes on in the earlier job's session"
     },
     "denied": "Refused",
     "more_one": "{{count}} more step",
     "more_other": "{{count}} more steps",
     "usage": "{{in}} new · {{cached}} cached · {{out}} output",
     "watch": "Watch live",
-    "steer": "Steer",
+    "steer": "Write while it works",
+    "follow": "Go on",
+    "followPlaceholder": "Goes on in this job's session · sent with Enter",
     "stop": "Stop",
-    "steerPlaceholder": "Steer · sent with Enter",
+    "steerPlaceholder": "Delivered while it works · sent with Enter",
     "answer": "Answer of the job",
     "live": "Live view",
     "noTranscript": "No transcript.",
@@ -511,7 +514,7 @@
     },
     "folderDefault": "Default",
     "fresh": "Every job in a new session",
-    "freshHint": "Earlier jobs' conversation is not carried over; the agent reads the request and the channel's latest 12 messages. The context does not grow, so the quota lasts longer."
+    "freshHint": "Earlier jobs' conversation is not carried over; the agent reads the request and the channel's latest 8 messages. The context does not grow, so the quota lasts longer. A message written on a job's card goes on in that job's session."
   },
   "crew": {
     "addAgent": "Add agent",

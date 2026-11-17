@@ -3988,11 +3988,22 @@ export class Core {
     this.saveCard({ ...card, status: state === 'done' ? 'review' : 'todo', updated: Date.now() });
   }
 
-  private steer(id: unknown, value: unknown): { ok: true } {
+  /**
+   * Writing on a job's card: a running job is steered; a finished one goes on in its conversation as a new job
+   * (only on the computer that runs its agent).
+   */
+  private async steer(id: unknown, value: unknown): Promise<{ ok: true }> {
     const { store, jobs } = this.workspace();
     const job = typeof id === 'string' ? store.job(id) : undefined;
-    if (!job) throw new CoreError('not_found');
+    const channel = job ? store.channel(job.channelId) : undefined;
+    if (!job || !channel) throw new CoreError('not_found');
     const t = text(value);
+    const running = job.state === 'running' || job.state === 'attention';
+    if (!running) {
+      this.requireOwnAgent(job.agentId);
+      // A handed-over part's conversation ends with it.
+      if (store.message(job.requestId)?.handover) throw new CoreError('not_found');
+    }
     // The steer is also a message, so the channel keeps the whole conversation.
     const me = this.me();
     const message: Message = {
@@ -4004,7 +4015,7 @@ export class Core {
     };
     store.commit({ type: 'message.posted', data: message });
     this.emit('message.added', message);
-    if (!jobs.steer(job.id, t)) throw new CoreError('busy');
+    if (!jobs.steer(job.id, t)) await jobs.follow(job.id, message, channel);
     return { ok: true };
   }
 }

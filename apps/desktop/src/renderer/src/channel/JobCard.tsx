@@ -63,6 +63,8 @@ export function JobCard({ job, agent }: { job: Job; agent: Agent | undefined }) 
   const running = job.state === 'running' || job.state === 'attention';
   // Another member's agent: the job runs on their computer; only they steer, stop, approve or watch it live.
   const owner = useApp((s) => remoteOwner(agent, s.workspace));
+  // Writing on a finished job's card goes on in its conversation (a new job of the same agent).
+  const follows = !running && !owner && Boolean(agent);
   const watched = useApp((s) => s.watching === job.id);
   const now = useNow(running);
   const hidden = Math.max(0, job.steps.length - SHOWN);
@@ -169,6 +171,11 @@ export function JobCard({ job, agent }: { job: Job; agent: Agent | undefined }) 
             {t('job.watch')}
           </Button>
         )}
+        {follows && (
+          <Button size="sm" icon="chevronRight" onClick={() => setSteering((v) => !v)}>
+            {t('job.follow')}
+          </Button>
+        )}
         {running && !owner && (
           <>
             <Button size="sm" icon="chevronRight" onClick={() => setSteering((v) => !v)}>
@@ -181,7 +188,7 @@ export function JobCard({ job, agent }: { job: Job; agent: Agent | undefined }) 
         )}
       </div>
       <AnimatePresence>
-        {running && steering && (
+        {steering && (running || follows) && (
           <motion.form
             className="job__steer"
             initial={{ opacity: 0, height: 0 }}
@@ -200,8 +207,8 @@ export function JobCard({ job, agent }: { job: Job; agent: Agent | undefined }) 
               // biome-ignore lint/a11y/noAutofocus: the steer field opens on request and typing is the next step
               autoFocus
               value={draft}
-              placeholder={t('job.steerPlaceholder')}
-              aria-label={t('job.steer')}
+              placeholder={t(running ? 'job.steerPlaceholder' : 'job.followPlaceholder')}
+              aria-label={t(running ? 'job.steer' : 'job.follow')}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => e.key === 'Escape' && setSteering(false)}
             />

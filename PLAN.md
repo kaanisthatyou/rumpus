@@ -157,7 +157,8 @@ Discord-like, three columns plus a rail:
   approval), done, failed, stopped. Needs-attention items get a sidebar inbox, inline approve/deny, and a push to
   the phone (Antigravity's best idea).
 - **Steering:** a message sent to a running job is queued and delivered at the next safe break (Claude Code takes it
-  mid-turn; Codex through its app server later; others get it as the next turn).
+  mid-turn; Codex through its app server later; others get it as the next turn). Written on a finished job's card,
+  it goes on in that job's conversation as a new job (4.31).
 - **Autonomy ladder**, the same three words everywhere: *Oku* (read), *Düzenle* (edit), *Tam* (full, warned).
   Mapped per CLI (Claude Code `plan` / `acceptEdits` / `bypassPermissions`; Codex `read-only` / `workspace-write` /
   `danger-full-access`; Gemini/agy `plan` / `auto_edit` / `yolo`). Command allow/deny lists where the CLI has them;
@@ -1024,13 +1025,27 @@ The details behind 5.11 and 6.5, decided before building.
   installation: the `rumpus://` handler (registered only by an installed app without `LONCA_HOME`) and the move of
   the former name's data folder.
 
+- 4.31 Writing on a job's card, 2026-11-17, asked by Kaan (two things he liked in Fabrika's job drawer): the card's
+  field is "Çalışırken yaz" while the job runs (it was "Yönlendir"; same steering), and "Devam et" once it ended.
+  What is written on a finished card is a message in the channel, like a steer, and starts a new job of the same
+  agent that goes on in that job's conversation (`Jobs.follow`, through `jobs.steer`): an agent with fresh sessions
+  (and a specialist) resumes the earlier job's CLI session, which is now kept when the job ends (its process still
+  closes; a handed-over part's session is still dropped), and gets only the new message, not the channel again
+  (a "goes on in the earlier job's session" step). An agent with one session per channel simply goes on in it, and
+  steers its running job there. An `@agent` message still starts a new session, as before. Only the agent's owner
+  goes on from a card; another member's request is refused (`not_allowed`) rather than held for approval. Also:
+  `FRESH_HISTORY` 12 to 8, and a message in the channel context is cut at 800 characters (2000 before; 600 when
+  more than 40 are read), so a turn's prompt stays small.
+  - Tests: `accounts.test.ts` (a fresh agent's job written on after it ended: resumed session, no channel context);
+    `e2e/channel.mjs` ("Devam et" on a stopped job's card).
+
 - 4.30 Two subscriptions for one crew, 2026-11-16, asked by Kaan: he runs two Claude logins (the second through a
   shell alias on `~/.claude2`) and wants to work through Rumpus instead of a terminal, without a long conversation
   eating the quota and without work stopping when one login is out of quota. Built:
   - **An account on an existing config folder** (`accounts.add` with `folder`): a folder the CLI already signed in
     to is used where it is, so nobody signs in again. Rumpus still never reads it; the CLI's status command does.
   - **Every job in a new session** (`Agent.fresh`): like a specialist's jobs, each job starts a fresh CLI session
-    that gets the request and the channel's latest `FRESH_HISTORY` (12) messages, the agent's own answers among
+    that gets the request and the channel's latest `FRESH_HISTORY` (8 since 2026-11-17, 12 before) messages, the agent's own answers among
     them, instead of resuming one conversation that grows with every job. Off by default.
   - **A spare login** (`Agent.spare`: an extra account, or '' for the default login): while the agent's own login is
     out of quota (a rejected rate-limit event, or a job that ended on the limit, held until the window resets or an

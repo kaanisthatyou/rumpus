@@ -484,6 +484,7 @@ export interface CoreMethods {
   /** `/özet [hours]`: an advisor of the channel (the one named, else the first) sums up its last hours. */
   'advisors.digest': { params: { channelId: string; hours?: number; handle?: string }; result: Message };
   'jobs.stop': { params: { id: string }; result: { ok: true } };
+  /** Writing on a job's card: steers it while it runs; a finished one goes on in its conversation as a new job. */
   'jobs.steer': { params: { id: string; text: string }; result: { ok: true } };
   'jobs.answer': { params: { id: string; allow: boolean }; result: { ok: true } };
   'jobs.transcript': { params: { id: string }; result: TranscriptEntry[] };

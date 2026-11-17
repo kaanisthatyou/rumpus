@@ -114,7 +114,7 @@ describe('several logins per CLI', () => {
 });
 
 describe('two subscriptions for one crew', () => {
-  it('uses a config folder the CLI already signed in to, starts every job fresh, and moves to the spare login at the limit', async () => {
+  it('uses a config folder the CLI already signed in to, starts every job fresh, goes on in a job written on, and moves to the spare login at the limit', async () => {
     const bin = tmp('lonca-bin-');
     writeFileSync(join(bin, 'claude'), '');
     const sessions: { opts: SessionOptions; emit: (e: DriverEvent) => void; sent: string[] }[] = [];
@@ -200,9 +200,23 @@ describe('two subscriptions for one crew', () => {
     first.emit({ type: 'session', id: 'session-1' });
     first.emit({ type: 'end', ok: true, final: 'first done' });
 
+    // Written on the first job's card after it ended: a new job goes on in that job's session, without re-reading
+    // the channel.
+    const firstJob = await lastJob();
+    await call('jobs.steer', { id: firstJob.id, text: 'one more thing' });
+    const followed = await nth(2);
+    expect(followed.opts.resume).toBe('session-1');
+    expect(followed.sent[0]).not.toContain('channel_context');
+    expect(followed.sent[0]).toContain('one more thing');
+    const follow = await lastJob();
+    expect(follow.id).not.toBe(firstJob.id);
+    expect(follow.steps.some((s) => s.kind === 'notice' && s.label === 'follow')).toBe(true);
+    followed.emit({ type: 'end', ok: true, final: 'followed done' });
+    for (let i = 0; i < 100 && (await lastJob()).state !== 'done'; i++) await new Promise((r) => setTimeout(r, 10));
+
     // The next job does not resume the first one's conversation; it reads the channel instead.
     await call('messages.send', { channelId: genel, text: '@nora second task' });
-    const second = await nth(2);
+    const second = await nth(3);
     expect(second.opts.resume).toBeUndefined();
     expect(second.sent[0]).toContain('first done');
     expect(second.sent[0]).toContain('second task');
@@ -210,7 +224,7 @@ describe('two subscriptions for one crew', () => {
     // The default login hits its limit mid-job: the same job goes on with Felix's login.
     second.emit({ type: 'quota', quota: { windows: { five_hour: { used: 1 } }, status: 'rejected', at: Date.now() } });
     second.emit({ type: 'end', ok: false, error: "You've hit your limit · resets 5am" });
-    const third = await nth(3);
+    const third = await nth(4);
     expect(third.opts.env).toEqual({ CLAUDE_CONFIG_DIR: claude2 });
     expect(third.sent[0]).toContain('second task');
     expect(third.sent[0]).toContain('usage limit');
@@ -224,7 +238,7 @@ describe('two subscriptions for one crew', () => {
 
     // While the default login is out, new jobs start on the spare one straight away.
     await call('messages.send', { channelId: genel, text: '@nora third task' });
-    const fourth = await nth(4);
+    const fourth = await nth(5);
     expect(fourth.opts.env).toEqual({ CLAUDE_CONFIG_DIR: claude2 });
 
     // The spare runs out too: the job waits on its card for the first quota to reset, then goes on with what was
@@ -243,10 +257,10 @@ describe('two subscriptions for one crew', () => {
       expect(waiting.steps.filter((s) => s.kind === 'notice' && s.label === 'wait_quota')).toHaveLength(1);
       await call('messages.send', { channelId: genel, text: '@nora also check the logs' });
       expect(fourth.sent.join('\n')).not.toContain('also check the logs');
-      expect(sessions).toHaveLength(4);
+      expect(sessions).toHaveLength(5);
 
       vi.advanceTimersByTime(13 * 60_000);
-      const fifth = await nth(5);
+      const fifth = await nth(6);
       expect(fifth.opts.env).toEqual({ CLAUDE_CONFIG_DIR: claude2 });
       expect(fifth.sent[0]).toContain('third task');
       expect(fifth.sent[0]).toContain('waited for the quota');

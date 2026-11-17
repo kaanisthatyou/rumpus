@@ -392,7 +392,7 @@
       "plan": "Plan",
       "subagent": "Alt agent",
       "tool": "Araç",
-      "steer": "Yönlendirme",
+      "steer": "Çalışırken yazıldı",
       "untrusted_folder": "Klasör Claude Code'da güvenilir değil",
       "compacted": "Bağlam sıkıştırıldı",
       "progress": "İlerleme",
@@ -400,16 +400,19 @@
       "connector": "Bağlayıcı",
       "budget": "Bütçe dolmak üzere",
       "spare": "Kota bitti, yedek girişle sürüyor",
-      "wait_quota": "Kota bitti, yenilenince sürecek"
+      "wait_quota": "Kota bitti, yenilenince sürecek",
+      "follow": "Önceki işin oturumunda sürüyor"
     },
     "denied": "Reddedildi",
     "more_one": "{{count}} adım daha",
     "more_other": "{{count}} adım daha",
     "usage": "{{in}} yeni · {{cached}} önbellek · {{out}} çıktı",
     "watch": "Canlı izle",
-    "steer": "Yönlendir",
+    "steer": "Çalışırken yaz",
+    "follow": "Devam et",
+    "followPlaceholder": "Bu işin oturumunda sürer · Enter ile gönderilir",
     "stop": "Durdur",
-    "steerPlaceholder": "Yönlendirme · Enter ile gönderilir",
+    "steerPlaceholder": "Çalışırken iletilir · Enter ile gönderilir",
     "answer": "İşin yanıtı",
     "live": "Canlı izleme",
     "noTranscript": "Kayıt yok.",
@@ -511,7 +514,7 @@
     },
     "folderDefault": "Varsayılan",
     "fresh": "Her iş yeni oturumda",
-    "freshHint": "Önceki işlerin konuşması taşınmaz; agent isteği ve kanalın son 12 mesajını okur. Bağlam büyümediği için kota daha yavaş biter."
+    "freshHint": "Önceki işlerin konuşması taşınmaz; agent isteği ve kanalın son 8 mesajını okur. Bağlam büyümediği için kota daha yavaş biter. Bir işin kartına yazılan mesaj o işin oturumunda sürer."
   },
   "crew": {
     "addAgent": "Agent ekle",

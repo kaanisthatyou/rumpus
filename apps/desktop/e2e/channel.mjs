@@ -535,6 +535,13 @@ try {
   await page.getByRole('button', { name: L.job.stop }).click();
   await page.getByText(L.job.state.stopped).first().waitFor();
   await shot(page, 'job-stopped');
+  // Written on the stopped job's card: a new job goes on in that job's conversation.
+  await page.locator('.job').last().getByRole('button', { name: L.job.follow, exact: true }).click();
+  const follow = page.getByRole('textbox', { name: L.job.follow });
+  await follow.fill('kaldığın yerden devam et');
+  await follow.press('Enter');
+  await page.locator('em', { hasText: 'kaldığın yerden devam et' }).waitFor();
+  await shot(page, 'job-followed');
 
   // Goal mode: /goal opens the dialog, the plan waits for approval, a step comment travels with every step,
   // the done check runs after each step, and the goal ends when the agent says so and the check passes.

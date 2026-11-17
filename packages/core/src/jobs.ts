@@ -1,7 +1,8 @@
 // Turns people's messages into jobs for agents and keeps every job's card current.
 // One CLI session per (agent, channel), kept across jobs so the agent remembers the conversation; an agent with
 // fresh sessions (and a specialist) starts every job in a new one. An agent with a spare login moves to it while its
-// own is out of quota; a job with nowhere to move waits for the quota to reset and then goes on.
+// own is out of quota; a job with nowhere to move waits for the quota to reset and then goes on. Writing on a finished
+// job's card goes on in that job's conversation.
 import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import {
@@ -97,8 +98,15 @@ interface Live {
     channel: Channel;
     request: Message;
     prompt?: string;
-    opts: { folder?: string; scope?: string };
+    opts: StartOpts;
   };
+}
+
+/** Where a job runs; `follow`: it goes on in an earlier job's conversation (written on that job's card). */
+interface StartOpts {
+  folder?: string;
+  scope?: string;
+  follow?: boolean;
 }
 
 /** A connector call waiting for a person (asked by the gateway, shown on the job card like a CLI's approval). */
@@ -389,7 +397,7 @@ export class Jobs {
     channel: Channel,
     request: Message,
     prompt?: string,
-    opts: { folder?: string; scope?: string } = {},
+    opts: StartOpts = {},
     /** A job that already exists (one the owner just approved) continues instead of a new one. */
     existing?: Job,
   ): Promise<Job> {
@@ -424,6 +432,7 @@ export class Jobs {
 
     const key = this.key(agent.id, slot);
     let live = this.live.get(key);
+    let resumed = false;
     const layerSet = this.deps.layers?.(base) ?? {};
     const layers = JSON.stringify(layerSet);
     const toolset = this.deps.toolset?.(base) ?? '';
@@ -446,6 +455,7 @@ export class Jobs {
     if (!live) {
       const me = this.deps.me();
       const resume = spare ? undefined : this.deps.store.session(agent.id, slot);
+      resumed = resume !== undefined;
       const env = this.deps.accountEnv?.(agent);
       const mcpUrl = this.deps.gateway ? await this.deps.gateway.ready() : undefined;
       const token = mcpUrl
@@ -487,11 +497,12 @@ export class Jobs {
     live.again = { base, channel, request, ...(prompt !== undefined ? { prompt } : {}), opts };
     this.watchBudget(job);
     if (spare && !existing) this.mark(live, 'spare');
+    if (opts.follow && resumed && !existing) this.mark(live, 'follow');
     // A job moved from a login that ran out of quota, or one that waited for it: the first try may have left work
     // behind.
     const held = this.meanwhile.get(job.id) ?? [];
     this.meanwhile.delete(job.id);
-    const resumed =
+    const retried =
       (this.waited.has(job.id)
         ? `\n\n[${BRAND.name}] An earlier try at this request stopped at the usage limit and waited for the quota to reset. Files may already be partly changed: look before redoing work.`
         : this.moved.has(job.id)
@@ -504,12 +515,15 @@ export class Jobs {
     // Stopped while the snapshot was taken: there is nothing to send.
     if (live.job?.id !== job.id || live.job.state !== 'running') return live.job ?? job;
     if (prompt !== undefined) {
-      live.session.send(prompt + resumed);
+      live.session.send(prompt + retried);
       return job;
     }
     // A specialist (and an agent with fresh sessions) reads the channel's latest messages, whoever wrote them; a
-    // specialist always gets its own references.
-    const history = agent.specialty?.history ?? (agent.fresh ? FRESH_HISTORY : undefined);
+    // specialist always gets its own references. A job that goes on in an earlier job's conversation already has it.
+    const history =
+      opts.follow && resumed && ownSessions(agent)
+        ? 0
+        : (agent.specialty?.history ?? (agent.fresh ? FRESH_HISTORY : undefined));
     const context =
       history === undefined
         ? this.contextFor(agent, channel, request)
@@ -521,7 +535,7 @@ export class Jobs {
     const refIds = [...new Set([...(agent.specialty?.refs ?? []), ...(request.refs ?? [])])];
     const refs = refIds.length && this.deps.refs ? this.deps.refs(refIds) : { notes: [], images: [] };
     const notes = refs.notes.length ? `\n\n<references>\n${refs.notes.join('\n')}\n</references>` : '';
-    live.session.send(turnPrompt(request, context, channel.name, history || 20) + notes + resumed, refs.images);
+    live.session.send(turnPrompt(request, context, channel.name, history || 20) + notes + retried, refs.images);
     return job;
   }
 
@@ -611,6 +625,34 @@ export class Jobs {
     if (!live?.job || (live.job.state !== 'running' && live.job.state !== 'attention')) return false;
     this.steerLive(live, text);
     return true;
+  }
+
+  /**
+   * A person wrote on a finished job's card: the agent goes on in that job's conversation, as a new job under
+   * `request`. An agent with a session per job resumes the earlier job's session (kept when it ended); one with a
+   * session per channel goes on in that one, and a message while it works there steers the running job.
+   */
+  async follow(jobId: string, request: Message, channel: Channel): Promise<Job | undefined> {
+    const earlier = this.deps.store.job(jobId);
+    const target = earlier ? this.deps.store.agents().find((a) => a.id === earlier.agentId) : undefined;
+    if (!earlier || !target || earlier.channelId !== channel.id) throw new CoreError('not_found');
+    // A handed-over part's session ends with it: there is nothing to go on in.
+    if (this.deps.store.message(earlier.requestId)?.handover) throw new CoreError('not_found');
+    const rule = this.deps.access?.(target, request) ?? { allow: true };
+    if (!rule.allow || rule.approveFirst) throw new CoreError('not_allowed');
+    const agent = rule.mode ? { ...target, mode: rule.mode } : target;
+    if (!ownSessions(agent)) {
+      const live = this.live.get(this.key(agent.id, channel.id));
+      if (live?.job && (live.job.state === 'running' || live.job.state === 'attention')) {
+        this.steerLive(live, request.text);
+        return live.job;
+      }
+      return this.start(agent, channel, request, undefined, { follow: true });
+    }
+    const scope = `${SPEC}${request.id}`;
+    const session = this.deps.store.session(agent.id, slotOf(channel.id, `${SPEC}${earlier.requestId}`));
+    if (session) this.deps.store.setSession(agent.id, slotOf(channel.id, scope), session);
+    return this.start(agent, channel, request, undefined, { scope, follow: true });
   }
 
   /** A person's answer to the approval a job waits on. */
@@ -1093,15 +1135,20 @@ export class Jobs {
     return true;
   }
 
-  /** A handed-over part's session ends with its job: the next part starts fresh. */
+  /**
+   * A handed-over part's session ends with its job: the next part starts fresh. A job in a session of its own (a
+   * specialist's, or an agent's with fresh sessions) lets go of its CLI too, but its conversation is kept, so
+   * writing on its card later goes on in it (`follow`).
+   */
   private endPart(live: Live): void {
-    if (!live.slot.includes(`#${PART}`) && !live.slot.includes(`#${SPEC}`)) return;
+    const part = live.slot.includes(`#${PART}`);
+    if (!part && !live.slot.includes(`#${SPEC}`)) return;
     setTimeout(() => {
       const key = this.key(live.agent.id, live.slot);
       if (this.live.get(key) !== live) return;
       this.close(live);
       this.live.delete(key);
-      this.deps.store.setSession(live.agent.id, live.slot, undefined);
+      if (part) this.deps.store.setSession(live.agent.id, live.slot, undefined);
     }, 0);
   }
 
