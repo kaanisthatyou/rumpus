@@ -3586,6 +3586,133 @@ export class Core {
           return text(ok ? 'Posted.' : 'No running job to post on.');
         },
       },
+      ...this.routineTools(text, str),
+    ];
+  }
+
+  /**
+   * Routines through an agent (PLAN.md 5.16): a routine is its owner's standing request, so an agent changes one only
+   * while it works on that person's own message (typed by them on this computer, not posted by a routine, not a
+   * handed-over part), only with full access, and only that person's routines.
+   */
+  private routineTools(
+    text: (t: string) => ToolContent[],
+    str: (v: unknown, max?: number) => string | undefined,
+  ): Tool[] {
+    const DAY_NAMES = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+    const line = (r: Routine, names: Map<string, string>) => {
+      const days = r.days.length === 0 ? 'every day' : r.days.map((d) => DAY_NAMES[d]).join(',');
+      return `${r.id} · ${r.enabled ? 'on' : 'off'} · ${r.at} · ${days} · #${names.get(r.channelId) ?? '?'} · ${r.text.replace(/\s+/g, ' ').slice(0, 300)}`;
+    };
+    /** Why this agent may not change routines now; undefined when it may. */
+    const refusal = (ctx: ToolContext): string | undefined => {
+      const ws = this.workspace();
+      const agent = ws.store.agent(ctx.agentId);
+      if (!agent) return 'Refused: unknown agent.';
+      if (ws.kind === 'team' && this.agentOwner(ws.store, agent.id) !== this.deviceId)
+        return "Refused: only an agent on its owner's computer changes that person's routines.";
+      if (agent.mode !== 'full') return 'Refused: changing routines needs full access.';
+      const job = ws.jobs.current(ctx.agentId, ctx.channelId, ctx.slot);
+      const request = job ? ws.store.message(job.requestId) : undefined;
+      if (!request) return 'Refused: no running job.';
+      if (
+        request.author.kind !== 'person' ||
+        request.author.id !== this.deviceId ||
+        request.handover ||
+        request.routine
+      )
+        return "Refused: only a job its owner asked for in their own message changes their routines (not a routine's job, not a handed-over part).";
+      return undefined;
+    };
+    const channelOf = (v: unknown, fallback: string): string | undefined => {
+      const { store } = this.workspace();
+      const name = (str(v, 80) ?? '').replace(/^#/, '').trim().toLowerCase();
+      if (!name) return fallback;
+      return store.channels().find((c) => c.id === name || c.name.toLowerCase() === name)?.id;
+    };
+    const daysOf = (v: unknown): number[] | undefined => {
+      if (v === undefined) return undefined;
+      if (!Array.isArray(v)) return [];
+      return v
+        .map((d) => (typeof d === 'number' ? d : DAY_NAMES.indexOf(String(d).slice(0, 3).toLowerCase())))
+        .filter((d) => Number.isInteger(d) && d >= 0 && d <= 6);
+    };
+    return [
+      {
+        name: 'list_routines',
+        description:
+          "Lists the workspace's routines: messages posted for a person at a set local time on set days (id, on/off, time, days, channel, text). Only the person's own computer posts them.",
+        inputSchema: { type: 'object', properties: {} },
+        run: () => {
+          const { store } = this.workspace();
+          const names = new Map(store.channels().map((c) => [c.id, c.name]));
+          const rows = store
+            .routines()
+            .map((r) => `${line(r, names)}${r.owner === this.deviceId ? '' : ' · (another member)'}`);
+          return text(rows.length ? rows.join('\n') : 'No routines.');
+        },
+      },
+      {
+        name: 'save_routine',
+        description:
+          'Adds or changes one of your owner\'s routines, when they asked for it in this request: a message posted in their name at `at` (local time, HH:MM) on `days` (sun..sat or 0-6; empty or left out means every day), in `channel` (name; this channel when left out). Mention an agent in the text ("@nora morning summary") for it to take the work. Give `id` to change an existing one; fields left out stay as they were. `enabled: false` pauses it.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            text: { type: 'string' },
+            at: { type: 'string', description: 'HH:MM, local time' },
+            days: { type: 'array', items: { type: ['string', 'number'] } },
+            channel: { type: 'string' },
+            enabled: { type: 'boolean' },
+          },
+        },
+        run: (a, ctx) => {
+          const no = refusal(ctx);
+          if (no) return text(no);
+          const { store } = this.workspace();
+          const id = str(a.id, 64);
+          const existing = id ? store.routine(id) : undefined;
+          if (id && !existing) return text('No routine with this id.');
+          if (existing && existing.owner !== this.deviceId) return text("Refused: another member's routine.");
+          const channelId = channelOf(a.channel, existing?.channelId ?? ctx.channelId);
+          if (!channelId) return text('No channel with this name.');
+          const days = daysOf(a.days);
+          try {
+            const r = this.saveRoutine({
+              ...(existing ? { id: existing.id } : {}),
+              channelId,
+              text: str(a.text, 4000) ?? existing?.text ?? '',
+              at: str(a.at, 5) ?? existing?.at ?? '',
+              days: days ?? existing?.days ?? [],
+              enabled: typeof a.enabled === 'boolean' ? a.enabled : (existing?.enabled ?? true),
+            });
+            const names = new Map(store.channels().map((c) => [c.id, c.name]));
+            return text(`Saved: ${line(r, names)}`);
+          } catch (err) {
+            const code = err instanceof CoreError ? err.code : 'error';
+            return text(
+              `Not saved: ${code}. A text (up to 4000 characters) and a time as HH:MM are needed; at most 40 routines.`,
+            );
+          }
+        },
+      },
+      {
+        name: 'delete_routine',
+        description: "Deletes one of your owner's routines by id, when they asked for it in this request.",
+        inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] },
+        run: (a, ctx) => {
+          const no = refusal(ctx);
+          if (no) return text(no);
+          const { store } = this.workspace();
+          const routine = store.routine(str(a.id, 64) ?? '');
+          if (!routine) return text('No routine with this id.');
+          if (routine.owner !== this.deviceId) return text("Refused: another member's routine.");
+          store.commit({ type: 'routine.deleted', data: { id: routine.id } });
+          this.changed();
+          return text('Deleted.');
+        },
+      },
     ];
   }
 

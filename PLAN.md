@@ -412,6 +412,11 @@ Shared with the workspace; only its owner changes or runs it, and only its owner
 runs there (a missed time is caught up within an hour, an older one is let go). The message is the person's own, so
 agents' access rules treat it as theirs. "Run now" posts it at once.
 
+Agents see routines through Rumpus's tools (2026-11-17): `list_routines` for anyone; `save_routine` and
+`delete_routine` only for an agent with full access, on its owner's computer, while it works on that person's own
+message (not a routine's job, not a handed-over part), and only on that person's routines. So a routine an agent
+sets is still the person's standing request, made on their word ("set my morning summary for 08:30").
+
 ### 5.17 Overview and unread
 
 - **Overview**: what runs now (with the current step and budget), people and the agents on their computers,

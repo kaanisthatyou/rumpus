@@ -123,7 +123,7 @@ export class Gateway {
           capabilities: { tools: {} },
           serverInfo: SERVER_INFO,
           instructions:
-            'Rumpus workspace tools: channel history, records, the task board, progress notes; and the connectors this agent may use.',
+            'Rumpus workspace tools: channel history, records, the task board, progress notes, routines; and the connectors this agent may use.',
         });
       case 'ping':
         return reply({});
