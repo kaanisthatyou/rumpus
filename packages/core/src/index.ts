@@ -17,6 +17,7 @@ export { Clock, newId } from './ids.js';
 export { Jobs, mentions } from './jobs.js';
 export { type Llm, LlmError, noLlm, PortLlm } from './llm.js';
 export { connectorEnv, McpClient, McpError } from './mcp.js';
+export { listModels, parseClaudeModels, parseCodexModels } from './models.js';
 export { type Launch, openConsole, type Runner, type RunResult, resolveLaunch, run, which } from './proc.js';
 export { systemPrompt, turnPrompt } from './prompts.js';
 export { Core, type CoreOptions, type Peer } from './server.js';

@@ -12,7 +12,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ErrorLine } from '../parts';
 import { useApp } from '../store';
-import { FolderField, SpareField, spareOf, TraitPicker } from './fields';
+import { FolderField, ModelField, SpareField, spareOf, TraitPicker } from './fields';
 
 /** CLIs Rumpus can run jobs with today. */
 export const RUNNABLE: CliKind[] = ['claude-code', 'codex'];
@@ -237,12 +237,12 @@ export function AgentDialog() {
                 </div>
                 <span className="l-field__hint">{t('agentForm.freshHint')}</span>
               </div>
-              <TextField
-                label={t('agentForm.model')}
+              <ModelField
+                id="agent-model"
+                kind={kind}
+                account={accounts.some((a) => a.id === account) ? account : ''}
                 value={model}
-                maxLength={80}
-                hint={t('agentForm.modelHint')}
-                onChange={(e) => setModel(e.target.value)}
+                onChange={setModel}
               />
               <TraitPicker value={traits} onChange={setTraits} />
               <div className="l-field">

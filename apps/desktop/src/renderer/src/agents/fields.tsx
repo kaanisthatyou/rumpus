@@ -1,10 +1,117 @@
 // Fields the agent and specialist forms share: the folder (optional, with this computer's default), the character
-// presets, and the login to move to when the agent's own one is out of quota.
-import { AGENT_TRAITS, type CliAccount, TRAITS_MAX, toggleTrait } from '@lonca/protocol';
-import { Button, Chip, Icon } from '@lonca/ui';
-import { useState } from 'react';
+// presets, the login to move to when the agent's own one is out of quota, and the model from the CLI's own list.
+import { AGENT_TRAITS, type CliAccount, type CliKind, type CliModels, TRAITS_MAX, toggleTrait } from '@lonca/protocol';
+import { Button, Chip, Icon, IconButton } from '@lonca/ui';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { core } from '../rpc';
 import { useApp } from '../store';
+
+/** The select's value for "type a name" (model ids never start with a space). */
+const OTHER_MODEL = ' other';
+
+/**
+ * The model an agent runs on: the CLI's default, one of the models the CLI lists for the agent's login (read from the
+ * CLI, no tokens), or a name typed by hand when the list lacks it or the CLI cannot give one.
+ */
+export function ModelField({
+  id,
+  kind,
+  account,
+  value,
+  onChange,
+}: {
+  id: string;
+  kind: CliKind;
+  /** The agent's own login ('' for the default one). */
+  account: string;
+  value: string;
+  onChange: (model: string) => void;
+}) {
+  const { t } = useTranslation();
+  const [list, setList] = useState<CliModels>();
+  const [typing, setTyping] = useState(false);
+  const [round, setRound] = useState(0);
+  useEffect(() => {
+    let live = true;
+    setList(undefined);
+    void core
+      .call('clis.models', { kind, ...(account ? { account } : {}), ...(round > 0 ? { refresh: true } : {}) })
+      .catch((): CliModels => ({ models: [] }))
+      .then((l) => live && setList(l));
+    return () => {
+      live = false;
+    };
+  }, [kind, account, round]);
+
+  const models = list?.models ?? [];
+  const known = models.some((m) => m.id === value);
+  // Before the list arrives a saved name stays in the select; once it is in, a name the list lacks is typed.
+  const custom = typing || (list !== undefined && value !== '' && !known);
+  const options = list === undefined && value ? [{ id: value, name: value }] : models;
+  const hint =
+    list === undefined
+      ? t('agentForm.modelLoading')
+      : models.length === 0
+        ? t('agentForm.modelNoList')
+        : custom
+          ? t('agentForm.modelTyped')
+          : t('agentForm.modelHint');
+  return (
+    <div className="l-field">
+      <label className="l-field__label" htmlFor={id}>
+        {t('agentForm.model')}
+      </label>
+      <div className="modelpick">
+        <select
+          id={id}
+          className="l-input"
+          value={custom ? OTHER_MODEL : value}
+          aria-describedby={`${id}-note`}
+          onChange={(e) => {
+            if (e.target.value === OTHER_MODEL) {
+              setTyping(true);
+              return;
+            }
+            setTyping(false);
+            onChange(e.target.value);
+          }}
+        >
+          <option value="">
+            {list?.defaultName
+              ? t('agentForm.modelDefaultNamed', { name: list.defaultName })
+              : t('agentForm.modelDefault')}
+          </option>
+          {options.map((m) => (
+            <option key={m.id} value={m.id} title={'description' in m ? m.description : undefined}>
+              {m.name === m.id ? m.id : `${m.name} · ${m.id}`}
+            </option>
+          ))}
+          <option value={OTHER_MODEL}>{t('agentForm.modelOther')}</option>
+        </select>
+        <IconButton
+          icon="refresh"
+          label={t('agentForm.modelRefresh')}
+          disabled={list === undefined}
+          onClick={() => setRound((r) => r + 1)}
+        />
+      </div>
+      {custom && (
+        <input
+          className="l-input"
+          aria-label={t('agentForm.modelName')}
+          value={value}
+          maxLength={80}
+          placeholder={kind === 'codex' ? 'gpt-6-sol' : 'claude-opus-5-5'}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      )}
+      <span id={`${id}-note`} className="l-field__hint">
+        {hint}
+      </span>
+    </div>
+  );
+}
 
 /** The select's value for "no spare" (account ids are longer, and '' is the default login). */
 const NO_SPARE = '-';

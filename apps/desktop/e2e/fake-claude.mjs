@@ -83,6 +83,25 @@ function ask(toolUseId, input) {
 
 createInterface({ input: process.stdin }).on('line', (line) => {
   const msg = JSON.parse(line);
+  // The model menu, as Claude Code gives it in its answer to `initialize`.
+  if (msg.type === 'control_request' && msg.request?.subtype === 'initialize') {
+    out({
+      type: 'control_response',
+      response: {
+        subtype: 'success',
+        request_id: msg.request_id,
+        response: {
+          models: [
+            { value: 'default', resolvedModel: 'fake-large-2', displayName: 'Default', description: 'Large 2' },
+            { value: 'large', resolvedModel: 'fake-large-2', displayName: 'Large 2', description: 'Most capable' },
+            { value: 'small', resolvedModel: 'fake-small-2', displayName: 'Small 2', description: 'Fastest' },
+            { value: 'fake-large-1', resolvedModel: 'fake-large-1', displayName: 'Large 1' },
+          ],
+        },
+      },
+    });
+    return;
+  }
   if (msg.type === 'control_response') {
     const id = msg.response?.request_id;
     waiting.get(id)?.(msg.response?.response?.behavior === 'allow');

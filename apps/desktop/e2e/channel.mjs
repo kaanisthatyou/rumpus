@@ -165,6 +165,19 @@ try {
   await page.getByRole('dialog', { name: L.agentForm.new }).waitFor();
   await page.getByRole('button', { name: L.agentForm.pick, exact: true }).click();
   await page.getByText(project).waitFor();
+  // The model comes from the CLI's own list (the fake's answer to `initialize`), with its default named.
+  const modelSelect = page
+    .getByRole('dialog', { name: L.agentForm.new })
+    .getByLabel(L.agentForm.model, { exact: true });
+  await until(async () => (await modelSelect.locator('option').count()) > 2, 'the model list');
+  assert.deepEqual(await modelSelect.locator('option').allTextContents(), [
+    L.agentForm.modelDefaultNamed.replace('{{name}}', 'Large 2'),
+    'Large 2 · large',
+    'Small 2 · small',
+    'Large 1 · fake-large-1',
+    L.agentForm.modelOther,
+  ]);
+  await modelSelect.selectOption('small');
   await shot(page, 'agent-form');
   await page.getByRole('button', { name: L.agentForm.save }).click();
   await page.getByRole('dialog').waitFor({ state: 'detached' });
@@ -372,6 +385,7 @@ try {
   const editAgent = page.getByRole('dialog', { name: L.agentForm.edit });
   const accountSelect = editAgent.getByLabel(L.accounts.agentField);
   assert.deepEqual(await accountSelect.locator('option').allTextContents(), [L.accounts.default, 'İkinci hesap']);
+  assert.equal(await editAgent.getByLabel(L.agentForm.model, { exact: true }).inputValue(), 'small');
   await editAgent.getByRole('button', { name: L.agentForm.cancel }).click();
 
   // /durum: this computer's CLIs, the extra account and the quota. Typed under its English name (`/status`): a

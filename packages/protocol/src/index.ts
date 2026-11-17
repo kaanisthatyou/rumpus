@@ -242,6 +242,21 @@ export interface CliInfo {
   install: { windows: string; linux: string; docs: string };
 }
 
+/** A model a CLI offers, as the CLI itself lists it (PLAN.md 5.2). */
+export interface CliModel {
+  /** What the CLI takes as its model flag (`opus`, `claude-opus-4-8`, `gpt-6-sol`). */
+  id: string;
+  /** The CLI's own name for it (`Opus 5.5`). */
+  name: string;
+  description?: string;
+}
+
+/** The models a CLI offers, and the name of the one it uses when none is set. Empty when the CLI cannot say. */
+export interface CliModels {
+  models: CliModel[];
+  defaultName?: string;
+}
+
 /** An extra login of a CLI on this computer: its own config folder, signed in with the CLI's own login. */
 export interface CliAccount {
   id: string;
@@ -331,6 +346,8 @@ export interface CoreMethods {
   'settings.update': { params: SettingsPatch; result: Settings };
   'clis.list': { params: { refresh?: boolean }; result: CliInfo[] };
   'clis.login': { params: { kind: CliKind; account?: string }; result: { opened: boolean } };
+  /** The models a CLI offers for one of its logins, read from the CLI without spending tokens (kept for a while). */
+  'clis.models': { params: { kind: CliKind; account?: string; refresh?: boolean }; result: CliModels };
   /** This computer's extra CLI logins with their state (read with each CLI's status command, no tokens). */
   'accounts.list': { params: { refresh?: boolean }; result: CliAccount[] };
   /** `/durum`: this computer, then the members of the open team workspace that answered lately (more arrive as events). */

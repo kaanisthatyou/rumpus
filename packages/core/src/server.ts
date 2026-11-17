@@ -20,6 +20,7 @@ import {
   type CliAccount,
   type CliInfo,
   type CliKind,
+  type CliModels,
   type CliState,
   CoreError,
   type CoreEvents,
@@ -97,9 +98,10 @@ import {
   PersonalMemory,
   scanSuggestion,
 } from './memory.js';
+import { listModels } from './models.js';
 import { PEER_PORT, PeerClient, PeerError, type PeerRequest, PeerServer, peerTarget } from './peer.js';
 import { PHONE_PORT, PhoneServer } from './phone.js';
-import { killTree, type Launch, openConsole, type Runner, run } from './proc.js';
+import { killTree, type Launch, openConsole, type Runner, resolveLaunch, run } from './proc.js';
 import { EMPTY_STATUS, ProjectGit, progressMarkdown, projectOf, projectPrompt, readProgressFile } from './projects.js';
 import { CORE_RULES, rosterPrompt, systemPrompt } from './prompts.js';
 import { Races } from './races.js';
@@ -419,6 +421,7 @@ export class Core {
       'friends.remove': async (p) => this.removeFriend(p?.device),
       'clis.list': async (params) => this.listClis(params?.refresh === true),
       'clis.login': async (params) => this.login(params?.kind, params?.account),
+      'clis.models': async (p) => this.cliModels(p?.kind, p?.account, p?.refresh === true),
       'accounts.list': async (p) => this.accountList(p?.refresh === true),
       'status.get': async () => {
         const ws = this.workspace();
@@ -1010,6 +1013,26 @@ export class Core {
     const opened = (this.opts.openConsole ?? openConsole)(cli.path, args, this.opts.platform, env);
     if (!opened) throw new CoreError('login_unavailable', kind);
     return { opened };
+  }
+
+  /** Each CLI login's models, as its CLI listed them, and when (the list changes with the CLI's updates only). */
+  private readonly modelCache = new Map<string, { at: number; list: Promise<CliModels> }>();
+
+  private async cliModels(kind: unknown, account: unknown, refresh: boolean): Promise<CliModels> {
+    if (kind !== 'claude-code' && kind !== 'codex') throw new CoreError('bad_request', 'kind');
+    const entry = typeof account === 'string' && account ? this.accounts.get(account) : undefined;
+    if (typeof account === 'string' && account && entry?.kind !== kind) throw new CoreError('not_found', 'account');
+    const key = `${kind}:${entry?.id ?? ''}`;
+    const cached = this.modelCache.get(key);
+    if (cached && !refresh && Date.now() - cached.at < 30 * 60_000) return cached.list;
+    const cli = (await this.listClis(false)).find((c) => c.kind === kind);
+    if (!cli?.path || cli.state === 'missing') throw new CoreError('not_installed', kind);
+    const list = listModels(kind, (this.opts.launch ?? resolveLaunch)(cli.path), this.accounts.env(entry?.id));
+    this.modelCache.set(key, { at: Date.now(), list });
+    const result = await list;
+    // A CLI that could not say is asked again next time, not after half an hour.
+    if (result.models.length === 0 && this.modelCache.get(key)?.list === list) this.modelCache.delete(key);
+    return result;
   }
 
   private accountCache: CliAccount[] | undefined;

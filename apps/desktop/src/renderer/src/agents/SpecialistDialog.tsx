@@ -22,7 +22,7 @@ import { ErrorLine } from '../parts';
 import { RefImage } from '../records/RecordsView';
 import { useApp } from '../store';
 import { RUNNABLE, slug } from './AgentDialog';
-import { FolderField, SpareField, spareOf, TraitPicker } from './fields';
+import { FolderField, ModelField, SpareField, spareOf, TraitPicker } from './fields';
 
 type Tab = 'who' | 'playbook' | 'context' | 'lessons';
 
@@ -489,12 +489,12 @@ export function SpecialistDialog() {
                     </fieldset>
                   )}
                   <div className="agentform__pair">
-                    <TextField
-                      label={t('agentForm.model')}
+                    <ModelField
+                      id="spec-model"
+                      kind={kind}
+                      account={accounts.some((a) => a.id === account) ? account : ''}
                       value={model}
-                      maxLength={80}
-                      hint={t('agentForm.modelHint')}
-                      onChange={(e) => setModel(e.target.value)}
+                      onChange={setModel}
                     />
                     {accounts.length > 0 && (
                       <div className="l-field">
