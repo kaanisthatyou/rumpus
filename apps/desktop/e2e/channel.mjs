@@ -197,8 +197,36 @@ try {
   // The finished job was heard.
   assert.match(await sound(), /^done:/);
 
-  // The quota from the CLI's rate-limit events.
+  // The quota from the CLI's rate-limit events; bookkeeping windows get no bar.
   await page.getByText(L.quota.window.five_hour).waitFor();
+  assert.equal(await page.getByText('seven_day_overage_included').count(), 0);
+
+  // A right click on an agent in the crew opens its card: its login and that login's quota.
+  const crew = page.getByRole('complementary', { name: L.shell.crew });
+  await crew.locator('.who__open', { hasText: '@claude' }).click({ button: 'right' });
+  const agentCard = page.locator('.pcard-pop');
+  await agentCard.getByText(`${L.profile.login}: ${L.profile.defaultLogin}`).waitFor();
+  await agentCard.getByText(L.quota.window.five_hour).waitFor();
+  await agentCard.getByRole('button', { name: L.profile.openChannel }).waitFor();
+  await shot(page, 'agent-card');
+  await page.keyboard.press('Escape');
+  await agentCard.waitFor({ state: 'detached' });
+  // A right click on a person opens their profile card, here one's own with this computer's quota.
+  await crew.locator('.who__open', { hasText: 'Kaan' }).last().click({ button: 'right' });
+  await agentCard.getByRole('button', { name: L.profile.edit }).waitFor();
+  await agentCard.getByRole('heading', { name: L.profile.quota }).waitFor();
+  await page.keyboard.press('Escape');
+  await agentCard.waitFor({ state: 'detached' });
+
+  // What was typed and not sent waits in the box while another channel is open.
+  await composer.fill('yarım kalan taslak');
+  await page
+    .getByRole('complementary', { name: L.shell.channels })
+    .getByRole('button', { name: /^@claude/ })
+    .click();
+  await page.getByRole('button', { name: /^genel/ }).click();
+  assert.equal(await composer.inputValue(), 'yarım kalan taslak');
+  await composer.fill('');
 
   // /todo puts a card on the board; the palette opens the board; the card runs as a job and moves to review.
   await composer.fill('/todo README dosyasını güncelle @claude');

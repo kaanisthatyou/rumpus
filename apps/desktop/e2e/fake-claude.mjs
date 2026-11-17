@@ -308,6 +308,11 @@ async function run() {
       type: 'rate_limit_event',
       rate_limit_info: { status: 'allowed', rateLimitType: 'seven_day', utilization: 0.18 },
     });
+    // A bookkeeping window Claude Code also reports: it is not shown as a bar.
+    out({
+      type: 'rate_limit_event',
+      rate_limit_info: { status: 'allowed', rateLimitType: 'seven_day_overage_included', utilization: 0.44 },
+    });
     out({
       type: 'stream_event',
       event: {

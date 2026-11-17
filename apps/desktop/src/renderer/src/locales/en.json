@@ -268,9 +268,18 @@
     "downloading": "Downloading · {{percent}}%",
     "ready": "Version {{version}} ready",
     "none": "Up to date.",
-    "error": "The update check failed.",
-    "check": "Check",
-    "restart": "Restart"
+    "error": "The update could not be pulled. Press again.",
+    "check": "Pull update",
+    "restart": "Install and restart",
+    "pulling": "Pulling {{version}}",
+    "stampNone": "FRESH",
+    "stampError": "BUSTED",
+    "scan": [
+      "Knocking on GitHub's door…",
+      "Rifling through release tags…",
+      "Sniffing for anything new…",
+      "Almost there, hang on…"
+    ]
   },
   "errors": {
     "bad_request": "Invalid request.",
@@ -1441,6 +1450,12 @@
     "closedNote": "Nothing was kept. The branches stay in the repository."
   },
   "profile": {
+    "quota": "Quota",
+    "login": "Login",
+    "defaultLogin": "Default login",
+    "spare": "Spare",
+    "noQuota": "No quota reported yet; it shows after the first job.",
+    "openChannel": "Open channel",
     "intro": "The profile shows to members of the same workspace: the name, the color and the pictures appear on messages and in the members list.",
     "name": "Display name",
     "pronouns": "Pronouns",

@@ -1,5 +1,5 @@
-import { type CliKind, type Job, MEMBER_ROLES, type MemberRole, type Quota } from '@lonca/protocol';
-import { Avatar, Button, Icon, IconButton, type IconName, Kbd, Mark, popIn, stagger, Track } from '@lonca/ui';
+import { type Job, MEMBER_ROLES, type MemberRole } from '@lonca/protocol';
+import { Avatar, Button, Icon, IconButton, type IconName, Kbd, Mark, popIn, stagger } from '@lonca/ui';
 import type { TFunction } from 'i18next';
 import { AnimatePresence, motion } from 'motion/react';
 import { type CSSProperties, useEffect, useMemo, useState } from 'react';
@@ -14,13 +14,22 @@ import { GoalsView } from '../goals/GoalsView';
 import { useMedia } from '../media';
 import { MemoryView } from '../memory/MemoryView';
 import { OverviewView } from '../overview/OverviewView';
-import { nameStyle, PersonAvatar, PersonButton, personOf, useFace, WorkspaceIcon } from '../people/people';
+import {
+  nameStyle,
+  openAgentCard,
+  PersonAvatar,
+  PersonButton,
+  personOf,
+  useFace,
+  WorkspaceIcon,
+} from '../people/people';
 import { ProjectPage } from '../projects/ProjectView';
 import { RecordsView } from '../records/RecordsView';
 import { RoutinesView } from '../routines/RoutinesView';
 import { PHONE, useApp, type View, WIDE } from '../store';
 import { enablePush, pushState } from '../web';
 import { FriendAvatar } from './FriendsDialog';
+import { QuotaBlock, quotaWindows } from './quota';
 import { useTaskbar } from './taskbar';
 import { askDeleteWorkspace } from './WorkspaceDialog';
 
@@ -425,28 +434,6 @@ function Placeholder({ view }: { view: View }) {
   );
 }
 
-function QuotaBlock({ id, quota }: { id: string; quota: Quota }) {
-  const { t } = useTranslation();
-  // `claude-code` or `claude-code:<account>`: an extra login is named after its account.
-  const [kind, accountId] = id.split(':') as [CliKind, string | undefined];
-  const account = useApp((s) => (accountId ? s.accounts.find((a) => a.id === accountId) : undefined));
-  const windows = Object.entries(quota.windows).sort(([a], [b]) => a.localeCompare(b));
-  if (windows.length === 0) return null;
-  const cli = t(`agent.kind.${kind}`);
-  return (
-    <div className="quota">
-      <b>{t('quota.title', { cli: account ? `${cli} · ${account.name}` : cli })}</b>
-      {windows.map(([name, w]) => (
-        <div key={name} className="quota__row">
-          <span className="quota__name">{t(`quota.window.${name}`, name)}</span>
-          <Track value={w.used} />
-          <span className="quota__pct l-mono">%{Math.round(w.used * 100)}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 /** On a phone with notifications not yet allowed: one tap turns pushes on. */
 function PushBanner() {
   const { t } = useTranslation();
@@ -639,7 +626,7 @@ function CrewStrip({ covered }: { covered: boolean }) {
       </ul>
       <span className="grow" />
       {Object.entries(quota).map(([id, q]) => {
-        const windows = Object.entries(q?.windows ?? {}).sort(([a], [b]) => a.localeCompare(b));
+        const windows = quotaWindows(q);
         if (windows.length === 0) return null;
         const top = Math.min(1, Math.max(...windows.map(([, w]) => w.used)));
         const label = `${t('quota.title', { cli: t(`agent.kind.${id.split(':')[0]}`) })} · ${windows
@@ -758,7 +745,15 @@ function Crew({ over = false }: { over?: boolean }) {
                 : t('crew.idle');
           return (
             <motion.li key={a.id} variants={popIn} className={`who ${missing ? 'is-off' : ''}`}>
-              <button type="button" className="who__open" onClick={() => channel && void openChannel(channel.id)}>
+              <button
+                type="button"
+                className="who__open"
+                onClick={() => channel && void openChannel(channel.id)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  openAgentCard(a.id, e);
+                }}
+              >
                 <Avatar name="" icon="terminal" size={28} presence={missing ? 'off' : busy.has(a.id) ? 'busy' : 'on'} />
                 <div className="who__text">
                   <b>
@@ -820,6 +815,10 @@ function Crew({ over = false }: { over?: boolean }) {
                   className="who__open"
                   title={a.specialty?.role}
                   onClick={() => channel && void openChannel(channel.id)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    openAgentCard(a.id, e);
+                  }}
                 >
                   <Avatar
                     name=""

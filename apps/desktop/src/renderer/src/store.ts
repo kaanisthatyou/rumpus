@@ -154,7 +154,8 @@ export interface AppState {
    * The profile card over the page: whose, and where it was opened from (`x` is where it stands to the right of
    * what was clicked, `left` where its right edge stands when it goes to the left instead).
    */
-  profileCard?: { id: string; x: number; left: number; y: number; name?: string } | undefined;
+  /** A profile card over the page: a person's by device id, or with `agent` set an agent's by its id. */
+  profileCard?: { id: string; x: number; left: number; y: number; name?: string; agent?: boolean } | undefined;
   /** A question before something that cannot be undone (deleting a channel or a workspace). */
   confirm?: Confirm | undefined;
   /** The open team workspace's own dialog: its look and its roles. */

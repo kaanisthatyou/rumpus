@@ -1348,15 +1348,245 @@ html[data-quick] #root {
   font-weight: 500;
   color: var(--mute);
 }
+/* The update card: one loud button that pulls the whole update. A radar sweeps and a scanline runs over the card
+   while it checks; the verdict lands as a stamp. */
 .upd {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 14px;
+  gap: 14px;
+  padding: 14px 14px 14px 12px;
+  overflow: hidden;
+  border-left: 3px solid var(--line-3);
+  transition: border-color 0.2s;
 }
 .upd b {
   font-weight: 600;
+}
+.upd__body {
+  flex: 1;
+  min-width: 0;
+}
+.upd__text {
+  margin: 2px 0 0;
+  overflow: hidden;
+  color: var(--mute);
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.upd--scan,
+.upd--pull {
+  border-left-color: var(--accent);
+}
+.upd--scan .upd__text,
+.upd--pull .upd__text {
+  color: var(--accent-ink);
+}
+.upd--none {
+  border-left-color: var(--ok);
+}
+.upd--error {
+  border-left-color: var(--bad);
+}
+.upd--ready {
+  border-left-color: var(--accent);
+}
+.upd--scan::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--accent) 14%, transparent) 46%,
+    color-mix(in srgb, var(--accent) 34%, transparent) 50%,
+    transparent 52%
+  );
+  content: '';
+  pointer-events: none;
+  animation: upd-scan 1.1s cubic-bezier(0.6, 0, 0.4, 1) infinite;
+}
+@keyframes upd-scan {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+.upd__radar {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--line-3);
+  border-radius: 50%;
+  color: var(--mute);
+}
+.upd__sweep {
+  position: absolute;
+  inset: -1px;
+  border-radius: 50%;
+  opacity: 0;
+}
+.upd--scan .upd__radar,
+.upd--pull .upd__radar,
+.upd--ready .upd__radar {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  color: var(--accent-ink);
+}
+.upd--scan .upd__sweep {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg 270deg,
+    color-mix(in srgb, var(--accent) 70%, transparent) 360deg
+  );
+  mask: radial-gradient(circle, transparent 54%, #000 56%);
+  opacity: 1;
+  animation: upd-spin 0.7s linear infinite;
+}
+.upd--scan .upd__radar svg {
+  animation: upd-jolt 0.45s steps(2, end) infinite;
+}
+@keyframes upd-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes upd-jolt {
+  50% {
+    transform: translate(1px, -1px) rotate(-8deg);
+  }
+}
+.upd--none .upd__radar {
+  border-color: color-mix(in srgb, var(--ok) 50%, transparent);
+  color: var(--ok);
+}
+.upd--error .upd__radar {
+  border-color: color-mix(in srgb, var(--bad) 50%, transparent);
+  color: var(--bad);
+}
+.upd--error[data-stamp] {
+  animation: upd-shake 0.38s;
+}
+@keyframes upd-shake {
+  20%,
+  60% {
+    transform: translateX(-4px);
+  }
+  40%,
+  80% {
+    transform: translateX(4px);
+  }
+}
+.upd__bar {
+  display: block;
+  height: 3px;
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--line-2);
+}
+.upd__bar > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s;
+}
+.upd__bar[data-unknown] > span {
+  width: 30%;
+  animation: upd-indeterminate 0.9s ease-in-out infinite alternate;
+}
+@keyframes upd-indeterminate {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(330%);
+  }
+}
+.upd__stamp {
+  position: absolute;
+  top: 50%;
+  right: 168px;
+  padding: 2px 8px;
+  border: 2px solid currentColor;
+  border-radius: 4px;
+  color: var(--ok);
+  font-family: var(--font-mono, 'Geist Mono Variable', monospace);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  pointer-events: none;
+  transform: translateY(-50%) rotate(-9deg);
+  animation: upd-stamp 0.32s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+.upd--error .upd__stamp {
+  color: var(--bad);
+}
+@keyframes upd-stamp {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) rotate(-24deg) scale(2.4);
+  }
+}
+.upd__go {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--accent);
+  box-shadow: 3px 3px 0 var(--ink);
+  color: var(--on-accent);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    transform 0.08s,
+    box-shadow 0.08s;
+}
+.upd__go:hover:not(:disabled) {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 var(--ink);
+}
+.upd__go:active:not(:disabled) {
+  transform: translate(3px, 3px);
+  box-shadow: 0 0 0 var(--ink);
+}
+.upd__go:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+.upd__go:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+.upd__go[aria-busy] {
+  opacity: 1;
+  transform: translate(3px, 3px);
+  box-shadow: 0 0 0 var(--ink);
+}
+.upd__go[aria-busy] svg {
+  animation: upd-spin 0.6s linear infinite;
+}
+.upd__go--ready {
+  animation: upd-throb 1.4s ease-in-out infinite;
+}
+@keyframes upd-throb {
+  50% {
+    box-shadow:
+      3px 3px 0 var(--ink),
+      0 0 0 6px color-mix(in srgb, var(--accent) 22%, transparent);
+  }
 }
 
 /* ------------------------------------------------------------------ settings: instructions */

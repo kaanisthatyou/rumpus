@@ -743,12 +743,17 @@ button.jobfile__path:hover {
 .quota__name {
   width: 92px;
   flex: none;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 .quota__row .l-track {
   flex: 1;
+  min-width: 24px;
 }
 .quota__pct {
   width: 36px;
+  flex: none;
   text-align: right;
 }
 

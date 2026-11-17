@@ -268,9 +268,18 @@
     "downloading": "İndiriliyor · %{{percent}}",
     "ready": "Sürüm {{version}} hazır",
     "none": "Sürüm güncel.",
-    "error": "Güncelleme denetlenemedi.",
-    "check": "Denetle",
-    "restart": "Yeniden başlat"
+    "error": "Güncelleme çekilemedi. Bir daha bas.",
+    "check": "Güncel çek",
+    "restart": "Kur ve yeniden başlat",
+    "pulling": "{{version}} çekiliyor",
+    "stampNone": "GÜNCEL",
+    "stampError": "PATLADI",
+    "scan": [
+      "GitHub'ın kapısı çalınıyor…",
+      "Sürüm etiketleri didikleniyor…",
+      "Yeni bir şey var mı bakılıyor…",
+      "Neredeyse, sıkma canını…"
+    ]
   },
   "errors": {
     "bad_request": "Geçersiz istek.",
@@ -1441,6 +1450,12 @@
     "closedNote": "Hiçbir şey tutulmadı. Dallar depoda kalır."
   },
   "profile": {
+    "quota": "Kota",
+    "login": "Giriş",
+    "defaultLogin": "Varsayılan giriş",
+    "spare": "Yedek",
+    "noQuota": "Kota bilgisi henüz yok; ilk işten sonra görünür.",
+    "openChannel": "Kanalı aç",
     "intro": "Profil, aynı çalışma alanındaki üyelere görünür: ad, renk ve resimler mesajlarda ve üye listesinde yer alır.",
     "name": "Görünen ad",
     "pronouns": "Zamirler",

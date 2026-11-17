@@ -336,6 +336,24 @@ interface Suggestion {
   icon: 'terminal' | 'chevronRight' | 'chat' | 'target' | 'users' | 'bolt';
 }
 
+/** What was typed in a channel's box and not sent: it waits there when another channel is opened, and over a restart. */
+const DRAFT = 'lonca.draft.';
+function readDraft(channelId: string): string {
+  try {
+    return localStorage.getItem(DRAFT + channelId) ?? '';
+  } catch {
+    return '';
+  }
+}
+function writeDraft(channelId: string, text: string): void {
+  try {
+    if (text.trim()) localStorage.setItem(DRAFT + channelId, text);
+    else localStorage.removeItem(DRAFT + channelId);
+  } catch {
+    // Storage full or off: the draft only lives while the box is open.
+  }
+}
+
 function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
   const { t, i18n } = useTranslation();
   const send = useApp((s) => s.send);
@@ -358,8 +376,9 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
   const me = useApp((s) => s.workspace?.me);
   const tiles = records.filter((r) => r.kind === 'command' && r.pinned);
   const [pickQuery, setPickQuery] = useState('');
-  const [text, setText] = useState('');
+  const [text, setText] = useState(() => readDraft(channel.id));
   const [pick, setPick] = useState(0);
+  useEffect(() => writeDraft(channel.id, text), [channel.id, text]);
   const ref = useRef<HTMLTextAreaElement>(null);
   const own = channel.kind === 'agent' ? agents.find((a) => a.id === channel.agentId) : undefined;
 

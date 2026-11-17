@@ -307,39 +307,80 @@ function Appearance() {
   );
 }
 
+const SCAN_LINES = 4;
+
 function Updates() {
   const { t } = useTranslation();
   const update = useApp((s) => s.update);
   const app = useApp((s) => s.app);
   const [busy, setBusy] = useState(false);
-  const text =
-    update.status === 'downloading'
-      ? t('update.downloading', { percent: update.percent ?? 0 })
+  const [line, setLine] = useState(0);
+  // The verdict of a press gets a stamp; a state the card opened on does not.
+  const [pressed, setPressed] = useState(false);
+  const scanning = busy || update.status === 'checking';
+  const pulling = update.status === 'downloading' || update.status === 'available';
+  useEffect(() => {
+    if (!scanning) return;
+    setLine(0);
+    const id = setInterval(() => setLine((n) => (n + 1) % SCAN_LINES), 900);
+    return () => clearInterval(id);
+  }, [scanning]);
+  const phase = scanning ? 'scan' : pulling ? 'pull' : update.status;
+  const text = scanning
+    ? t(`update.scan.${line}`)
+    : pulling
+      ? update.percent
+        ? t('update.downloading', { percent: update.percent })
+        : t('update.pulling', { version: update.version ?? '' })
       : t(`update.${update.status}`, { version: update.version ?? '' });
+  const stamp = pressed && !scanning && (update.status === 'none' || update.status === 'error');
   return (
     <div className="stack">
-      <div className="upd l-card">
-        <div>
-          <b>{t('settings.version', { version: app?.version ?? '' })}</b>
-          <p className="muted">{text}</p>
+      <div className={`upd l-card upd--${phase}`} data-stamp={stamp || undefined}>
+        <div className="upd__radar" aria-hidden="true">
+          <span className="upd__sweep" />
+          <Icon name={update.status === 'ready' ? 'download' : update.status === 'none' ? 'check' : 'bolt'} size={18} />
         </div>
+        <div className="upd__body">
+          <b>{t('settings.version', { version: app?.version ?? '' })}</b>
+          <p className="upd__text l-mono" aria-live="polite">
+            {text}
+          </p>
+          {pulling && (
+            <span className="upd__bar" data-unknown={!update.percent || undefined}>
+              <span style={update.percent ? { width: `${update.percent}%` } : undefined} />
+            </span>
+          )}
+        </div>
+        {stamp && (
+          <span key={update.status} className="upd__stamp" aria-hidden="true">
+            {t(update.status === 'none' ? 'update.stampNone' : 'update.stampError')}
+          </span>
+        )}
         {update.status === 'ready' ? (
-          <Button variant="primary" icon="download" onClick={() => void window.lonca.updates.install()}>
+          <button type="button" className="upd__go upd__go--ready" onClick={() => void window.lonca.updates.install()}>
+            <Icon name="download" size={16} />
             {t('update.restart')}
-          </Button>
+          </button>
         ) : (
-          <Button
-            icon="refresh"
-            busy={busy || update.status === 'checking'}
-            disabled={update.status === 'disabled'}
+          <button
+            type="button"
+            className="upd__go"
+            aria-busy={scanning || pulling || undefined}
+            disabled={update.status === 'disabled' || scanning || pulling}
             onClick={async () => {
+              setPressed(true);
               setBusy(true);
-              await window.lonca.updates.check();
-              setBusy(false);
+              try {
+                await window.lonca.updates.check();
+              } finally {
+                setBusy(false);
+              }
             }}
           >
+            <Icon name="refresh" size={16} />
             {t('update.check')}
-          </Button>
+          </button>
         )}
       </div>
     </div>

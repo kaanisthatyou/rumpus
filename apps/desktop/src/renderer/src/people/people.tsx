@@ -172,6 +172,12 @@ export function openProfile(id: string, e: MouseEvent<HTMLElement>, name?: strin
   });
 }
 
+/** An agent's card (who it is, the login it runs on and that login's quota), next to what was clicked. */
+export function openAgentCard(id: string, e: MouseEvent<HTMLElement>): void {
+  const r = e.currentTarget.getBoundingClientRect();
+  useApp.setState({ profileCard: { id, x: r.right + 10, left: r.left - 10, y: r.top, agent: true } });
+}
+
 /** A button around a person's avatar or name that opens their profile card. */
 export function PersonButton({
   id,
@@ -192,6 +198,10 @@ export function PersonButton({
       aria-label={t('profile.open', { name })}
       title={t('profile.open', { name })}
       onClick={(e) => openProfile(id, e, name)}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        openProfile(id, e, name);
+      }}
     >
       {children}
     </button>

@@ -1,11 +1,12 @@
 // `/durum` (PLAN.md 5.5): every computer's CLIs, extra logins and quota, this one first. Other members' computers
 // answer over the team link; their answers arrive one by one.
 import type { DeviceStatus } from '@lonca/protocol';
-import { Avatar, Chip, IconButton, Track } from '@lonca/ui';
+import { Avatar, Chip, IconButton } from '@lonca/ui';
 import { motion } from 'motion/react';
 import { useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../store';
+import { QuotaBars } from './quota';
 
 const tone = (state: string) =>
   state === 'ready' ? 'ok' : state === 'signed-out' || state === 'needs-key' ? 'warn' : undefined;
@@ -50,22 +51,13 @@ function Device({ s }: { s: DeviceStatus }) {
         </ul>
       )}
       {s.quotas.map((q) => (
-        <div key={`${q.kind}-${q.account ?? ''}`} className="quota">
-          <b>
-            {t('quota.title', {
-              cli: q.account ? `${t(`agent.kind.${q.kind}`)} · ${q.account}` : t(`agent.kind.${q.kind}`),
-            })}
-          </b>
-          {Object.entries(q.quota.windows)
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([name, w]) => (
-              <div key={name} className="quota__row">
-                <span className="quota__name">{t(`quota.window.${name}`, name)}</span>
-                <Track value={w.used} />
-                <span className="quota__pct l-mono">%{Math.round(w.used * 100)}</span>
-              </div>
-            ))}
-        </div>
+        <QuotaBars
+          key={`${q.kind}-${q.account ?? ''}`}
+          title={t('quota.title', {
+            cli: q.account ? `${t(`agent.kind.${q.kind}`)} · ${q.account}` : t(`agent.kind.${q.kind}`),
+          })}
+          quota={q.quota}
+        />
       ))}
     </motion.section>
   );
