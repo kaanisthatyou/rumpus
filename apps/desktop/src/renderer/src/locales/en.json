@@ -913,7 +913,7 @@
     "checkOk": "Done check passed",
     "checkFailed": "Done check failed",
     "used": "step {{steps}}/{{maxSteps}} · {{minutes}}/{{maxMinutes}} min",
-    "tokens": "{{used}}k/{{max}}k tokens",
+    "tokens": "{{used}}/{{max}} tokens",
     "pause": {
       "budget_steps": "Step budget used up.",
       "budget_time": "Time budget used up.",

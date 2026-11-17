@@ -5,6 +5,7 @@ import { Button, Chip, Icon, IconButton, LiveDot } from '@lonca/ui';
 import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { tokens as count } from '../channel/format';
 import { useApp } from '../store';
 
 const OPEN = new Set(['planning', 'review', 'running']);
@@ -17,7 +18,7 @@ function StepIcon({ step }: { step: GoalStep }) {
 }
 
 export function GoalCard({ goal, agent }: { goal: Goal; agent: Agent | undefined }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const approveGoal = useApp((s) => s.approveGoal);
   const stopGoal = useApp((s) => s.stopGoal);
   const resumeGoal = useApp((s) => s.resumeGoal);
@@ -31,7 +32,7 @@ export function GoalCard({ goal, agent }: { goal: Goal; agent: Agent | undefined
     .filter(([, text]) => text.trim())
     .map(([key, text]) => ({ ...(key === 'plan' ? {} : { stepId: key }), text: text.trim() }));
   const minutes = Math.floor(goal.used.ms / 60_000);
-  const tokens = Math.round(goal.used.tokens / 1000);
+  const tokens = count(goal.used.tokens, i18n.language);
 
   const commentBox = (key: string, label: string) => (
     <motion.div
@@ -186,8 +187,8 @@ export function GoalCard({ goal, agent }: { goal: Goal; agent: Agent | undefined
             maxMinutes: goal.budget.minutes,
           })}
           {goal.budget.tokens
-            ? ` · ${t('goal.tokens', { used: tokens, max: Math.round(goal.budget.tokens / 1000) })}`
-            : ` · ${tokens}k token`}
+            ? ` · ${t('goal.tokens', { used: tokens, max: count(goal.budget.tokens, i18n.language) })}`
+            : ` · ${tokens} token`}
         </span>
         <span className="grow" />
         {review && (

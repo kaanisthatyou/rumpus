@@ -913,7 +913,7 @@
     "checkOk": "Bitti kontrolü geçti",
     "checkFailed": "Bitti kontrolü geçmedi",
     "used": "adım {{steps}}/{{maxSteps}} · {{minutes}}/{{maxMinutes}} dk",
-    "tokens": "{{used}}k/{{max}}k token",
+    "tokens": "{{used}}/{{max}} token",
     "pause": {
       "budget_steps": "Adım bütçesi doldu.",
       "budget_time": "Süre bütçesi doldu.",

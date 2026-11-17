@@ -240,7 +240,8 @@ try {
   assert.equal(await cols.evaluate((el) => el.scrollWidth > el.clientWidth), true, 'the narrow board does not scroll');
   await shot(page, 'board-narrow');
 
-  // The panel opens over the page from the strip and closes on Escape; an agent on the strip opens its channel.
+  // The panel opens over the page from the strip and closes on Escape; an agent on the strip opens its card,
+  // beside the strip, and the card leads to its channel.
   await strip.getByRole('button', { name: L.shell.expandCrew, exact: true }).click();
   const over = page.locator('aside.crew--over');
   await over.getByText('@claude').waitFor();
@@ -249,6 +250,13 @@ try {
   await page.keyboard.press('Escape');
   await over.waitFor({ state: 'detached' });
   await strip.getByRole('button', { name: /^Claude · / }).click();
+  const card = page.locator('.pcard-pop');
+  await card.getByRole('button', { name: L.profile.openChannel }).waitFor();
+  const cardBox = await card.boundingBox();
+  const stripBox = await strip.boundingBox();
+  assert.equal(cardBox.x + cardBox.width <= stripBox.x, true, 'the card lies over the strip');
+  await shot(page, 'strip-card');
+  await card.getByRole('button', { name: L.profile.openChannel }).click();
   await page.getByRole('textbox', { name: 'Mesaj · @claude' }).waitFor();
   await fits(page, 'the narrow channel');
 

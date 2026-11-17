@@ -1,6 +1,7 @@
 // A person's profile as a card: banner, avatar, name in its color, status, roles and the lines about them.
 // It opens next to the avatar or name that was clicked (or right-clicked), and stands as the preview in
-// Settings → Profile. An agent's card shows who it is, the login it runs on and that login's quota.
+// Settings → Profile. An agent's card shows who it is, the login it runs on and that login's quota, and
+// leads to its channel. The card is no modal: the page under it stays in use.
 import type { Agent, RoleTag } from '@lonca/protocol';
 import { Avatar, Button, Chip } from '@lonca/ui';
 import { motion } from 'motion/react';
@@ -137,7 +138,7 @@ export function ProfilePopover() {
     if (team && other) void useApp.getState().loadStatus();
   }, [team, other]);
   const box = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ left: number; top: number }>();
+  const [pos, setPos] = useState<{ left: number; top: number; origin: string }>();
   const close = () => useApp.setState({ profileCard: undefined });
 
   useLayoutEffect(() => {
@@ -149,64 +150,66 @@ export function ProfilePopover() {
     const fitsLeft = at.left - width >= GAP;
     const left = fitsRight ? at.x : fitsLeft ? at.left - width : Math.max(GAP, window.innerWidth - width - GAP);
     const top = Math.max(GAP + 36, Math.min(at.y, window.innerHeight - height - GAP));
-    setPos({ left, top });
+    setPos({ left, top, origin: fitsRight ? 'top left' : 'top right' });
   }, [at]);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && useApp.setState({ profileCard: undefined });
+    const shut = () => useApp.setState({ profileCard: undefined });
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && shut();
+    // The card is no modal: a press anywhere else closes it and still does what it was meant to do. A press
+    // on an opener (`data-card`) is left to the opener, which moves the card or closes it.
+    const onDown = (e: PointerEvent) => {
+      const target = e.target instanceof Element ? e.target : null;
+      if (target && (box.current?.contains(target) || target.closest('[data-card]'))) return;
+      shut();
+    };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onDown, true);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onDown, true);
+    };
   }, []);
 
   if (!at || (at.agent && !agent)) return null;
   const admin = workspace?.kind === 'team' && workspace.role === 'admin' && person.role !== undefined;
   return (
-    <>
-      <motion.button
-        type="button"
-        className="pcard-scrim"
-        aria-label={t('common.close')}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={close}
-      />
-      <motion.div
-        ref={box}
-        className="pcard-pop"
-        role="dialog"
-        aria-label={t('profile.of', { name: agent ? agent.name : person.name })}
-        style={{
-          left: pos?.left ?? at.x,
-          top: pos?.top ?? at.y,
-          // Never wider than the window (a phone).
-          width: Math.min(WIDTH, window.innerWidth - GAP * 2),
-          visibility: pos ? 'visible' : 'hidden',
-        }}
-        initial={{ opacity: 0, scale: 0.96, y: 6 }}
-        animate={{ opacity: 1, scale: 1, y: 0, transition: { type: 'spring', stiffness: 520, damping: 36 } }}
-        exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.1 } }}
-      >
-        {agent ? (
-          <AgentView agent={agent} onClose={close} />
-        ) : (
-          <ProfileView
-            person={person}
-            extra={<PersonQuota id={person.id} me={person.me} />}
-            {...(person.me
-              ? {
-                  onEdit: () => {
-                    close();
-                    useApp.setState({ settingsTab: 'profile' });
-                  },
-                }
-              : {})}
-            {...(admin ? { onAssign: (roles: string[]) => void assignRoles(person.id, roles) } : {})}
-            {...(workspace?.roles ? { allRoles: workspace.roles } : {})}
-          />
-        )}
-      </motion.div>
-    </>
+    <motion.div
+      ref={box}
+      className="pcard-pop"
+      role="dialog"
+      aria-label={t('profile.of', { name: agent ? agent.name : person.name })}
+      style={{
+        left: pos?.left ?? at.x,
+        top: pos?.top ?? at.y,
+        // Never wider than the window (a phone).
+        width: Math.min(WIDTH, window.innerWidth - GAP * 2),
+        visibility: pos ? 'visible' : 'hidden',
+        transformOrigin: pos?.origin ?? 'top left',
+      }}
+      initial={{ opacity: 0, scale: 0.96, y: 6 }}
+      animate={{ opacity: 1, scale: 1, y: 0, transition: { type: 'spring', stiffness: 520, damping: 36 } }}
+      exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.1 } }}
+    >
+      {agent ? (
+        <AgentView agent={agent} onClose={close} />
+      ) : (
+        <ProfileView
+          person={person}
+          extra={<PersonQuota id={person.id} me={person.me} />}
+          {...(person.me
+            ? {
+                onEdit: () => {
+                  close();
+                  useApp.setState({ settingsTab: 'profile' });
+                },
+              }
+            : {})}
+          {...(admin ? { onAssign: (roles: string[]) => void assignRoles(person.id, roles) } : {})}
+          {...(workspace?.roles ? { allRoles: workspace.roles } : {})}
+        />
+      )}
+    </motion.div>
   );
 }
 
@@ -301,6 +304,7 @@ function AgentView({ agent, onClose }: { agent: Agent; onClose: () => void }) {
           {channel && (
             <Button
               size="sm"
+              variant="primary"
               icon="chat"
               onClick={() => {
                 onClose();

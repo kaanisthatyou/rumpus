@@ -164,18 +164,31 @@ export function nameStyle(color: string): CSSProperties | undefined {
   return color ? ({ '--name': color } as CSSProperties) : undefined;
 }
 
+/**
+ * Where a card stands for what was clicked: beside it, or beside the whole crew panel (or strip) when the click
+ * was in there, so the card never lies over the panel it was opened from.
+ */
+function cardAnchor(el: HTMLElement): { x: number; left: number; y: number } {
+  const r = el.getBoundingClientRect();
+  const edge = el.closest('.crew, .strip')?.getBoundingClientRect() ?? r;
+  return { x: edge.right + 10, left: edge.left - 10, y: r.top };
+}
+
+/** Opens a card, or closes it when the click is on what opened it. Openers carry `data-card` (ProfilePopover). */
+function toggleCard(card: NonNullable<ReturnType<typeof useApp.getState>['profileCard']>): void {
+  const open = useApp.getState().profileCard;
+  const same = open && open.id === card.id && open.x === card.x && open.y === card.y;
+  useApp.setState({ profileCard: same ? undefined : card });
+}
+
 /** Opens a person's profile card next to what was clicked. */
 export function openProfile(id: string, e: MouseEvent<HTMLElement>, name?: string): void {
-  const r = e.currentTarget.getBoundingClientRect();
-  useApp.setState({
-    profileCard: { id, x: r.right + 10, left: r.left - 10, y: r.top, ...(name ? { name } : {}) },
-  });
+  toggleCard({ id, ...cardAnchor(e.currentTarget), ...(name ? { name } : {}) });
 }
 
 /** An agent's card (who it is, the login it runs on and that login's quota), next to what was clicked. */
 export function openAgentCard(id: string, e: MouseEvent<HTMLElement>): void {
-  const r = e.currentTarget.getBoundingClientRect();
-  useApp.setState({ profileCard: { id, x: r.right + 10, left: r.left - 10, y: r.top, agent: true } });
+  toggleCard({ id, ...cardAnchor(e.currentTarget), agent: true });
 }
 
 /** A button around a person's avatar or name that opens their profile card. */
@@ -197,6 +210,7 @@ export function PersonButton({
       className={`person ${className ?? ''}`}
       aria-label={t('profile.open', { name })}
       title={t('profile.open', { name })}
+      data-card={id}
       onClick={(e) => openProfile(id, e, name)}
       onContextMenu={(e) => {
         e.preventDefault();

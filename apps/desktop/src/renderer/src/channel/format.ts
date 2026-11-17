@@ -21,8 +21,12 @@ export function elapsed(from: number, to: number): string {
     : `${m}:${String(s % 60).padStart(2, '0')}`;
 }
 
+/** A token count in short: `850`, `8.8k`, `420k`, `1.14M` (never `1,144k`, which reads as a decimal in Turkish). */
 export function tokens(n: number, lang: string): string {
   if (n < 1000) return String(n);
+  if (n >= 999_500) {
+    return `${(Math.round(n / 10_000) / 100).toLocaleString(lang, { maximumFractionDigits: 2 })}M`;
+  }
   const v = n >= 100_000 ? Math.round(n / 1000) : Math.round(n / 100) / 10;
   return `${v.toLocaleString(lang, { maximumFractionDigits: 1 })}k`;
 }

@@ -558,7 +558,6 @@ function CrewStrip({ covered }: { covered: boolean }) {
             const owner = remoteOwner(a, workspace);
             const cli = clis?.find((c) => c.kind === a.kind);
             const missing = !owner && (!cli || cli.state === 'missing');
-            const channel = workspace?.channels.find((c) => c.kind === 'agent' && c.agentId === a.id);
             const state = missing
               ? t('crew.cliMissing')
               : asking.has(a.id)
@@ -576,7 +575,12 @@ function CrewStrip({ covered }: { covered: boolean }) {
                   className={`strip__who ${busy.has(a.id) ? 'is-busy' : ''} ${asking.has(a.id) ? 'is-asking' : ''} ${missing ? 'is-off' : ''}`}
                   aria-label={label}
                   title={label}
-                  onClick={() => channel && void openChannel(channel.id)}
+                  data-card={a.id}
+                  onClick={(e) => openAgentCard(a.id, e)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    openAgentCard(a.id, e);
+                  }}
                 >
                   <Avatar
                     name=""
@@ -735,7 +739,6 @@ function Crew({ over = false }: { over?: boolean }) {
           const owner = remoteOwner(a, workspace);
           // Another member's agent runs on their computer: this computer's CLIs do not matter for it.
           const missing = !owner && (!cli || cli.state === 'missing');
-          const channel = workspace?.channels.find((c) => c.kind === 'agent' && c.agentId === a.id);
           const state = missing
             ? t('crew.cliMissing')
             : asking.has(a.id)
@@ -748,7 +751,8 @@ function Crew({ over = false }: { over?: boolean }) {
               <button
                 type="button"
                 className="who__open"
-                onClick={() => channel && void openChannel(channel.id)}
+                data-card={a.id}
+                onClick={(e) => openAgentCard(a.id, e)}
                 onContextMenu={(e) => {
                   e.preventDefault();
                   openAgentCard(a.id, e);
@@ -805,7 +809,6 @@ function Crew({ over = false }: { over?: boolean }) {
             const cli = clis?.find((c) => c.kind === a.kind);
             const owner = remoteOwner(a, workspace);
             const missing = !owner && (!cli || cli.state === 'missing');
-            const channel = workspace?.channels.find((c) => c.kind === 'agent' && c.agentId === a.id);
             const learned = (a.specialty?.lessons ?? '').split('\n').filter((l) => l.trim()).length;
             const waiting = lessonsWaiting.filter((l) => l.agentId === a.id).length;
             return (
@@ -814,7 +817,8 @@ function Crew({ over = false }: { over?: boolean }) {
                   type="button"
                   className="who__open"
                   title={a.specialty?.role}
-                  onClick={() => channel && void openChannel(channel.id)}
+                  data-card={a.id}
+                  onClick={(e) => openAgentCard(a.id, e)}
                   onContextMenu={(e) => {
                     e.preventDefault();
                     openAgentCard(a.id, e);

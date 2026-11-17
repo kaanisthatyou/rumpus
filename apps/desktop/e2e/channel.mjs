@@ -201,20 +201,47 @@ try {
   await page.getByText(L.quota.window.five_hour).waitFor();
   assert.equal(await page.getByText('seven_day_overage_included').count(), 0);
 
-  // A right click on an agent in the crew opens its card: its login and that login's quota.
+  // A click on an agent in the crew opens its card, beside the panel and never over it: its login and that
+  // login's quota.
   const crew = page.getByRole('complementary', { name: L.shell.crew });
-  await crew.locator('.who__open', { hasText: '@claude' }).click({ button: 'right' });
+  const claudeRow = crew.locator('.who__open', { hasText: '@claude' });
+  await claudeRow.click();
   const agentCard = page.locator('.pcard-pop');
   await agentCard.getByText(`${L.profile.login}: ${L.profile.defaultLogin}`).waitFor();
   await agentCard.getByText(L.quota.window.five_hour).waitFor();
   await agentCard.getByRole('button', { name: L.profile.openChannel }).waitFor();
   await shot(page, 'agent-card');
+  const cardBox = await agentCard.boundingBox();
+  const crewBox = await crew.boundingBox();
+  assert.equal(cardBox.x + cardBox.width <= crewBox.x, true, 'the card lies over the crew panel');
+  // The card is no modal: a click elsewhere does its work and takes the card away.
+  await composer.click();
+  await agentCard.waitFor({ state: 'detached' });
+  assert.equal(await composer.evaluate((el) => el === document.activeElement), true, 'the click went to the box');
+  // A second click on the agent closes its card; Escape does too.
+  await claudeRow.click();
+  await agentCard.waitFor();
+  await claudeRow.click();
+  await agentCard.waitFor({ state: 'detached' });
+  await claudeRow.click({ button: 'right' });
+  await agentCard.waitFor();
   await page.keyboard.press('Escape');
   await agentCard.waitFor({ state: 'detached' });
-  // A right click on a person opens their profile card, here one's own with this computer's quota.
-  await crew.locator('.who__open', { hasText: 'Kaan' }).last().click({ button: 'right' });
+  // The card leads to the agent's channel.
+  await claudeRow.click();
+  await agentCard.getByRole('button', { name: L.profile.openChannel }).click();
+  await agentCard.waitFor({ state: 'detached' });
+  await page.getByRole('textbox', { name: 'Mesaj · @claude' }).waitFor();
+  await page.getByRole('button', { name: /^genel/ }).click();
+  await composer.waitFor();
+  // A click on a person opens their profile card, here one's own with this computer's quota; a click on the
+  // agent while it is open puts the agent's card in its place.
+  await crew.locator('.who__open', { hasText: 'Kaan' }).last().click();
   await agentCard.getByRole('button', { name: L.profile.edit }).waitFor();
   await agentCard.getByRole('heading', { name: L.profile.quota }).waitFor();
+  await claudeRow.click();
+  await agentCard.getByRole('button', { name: L.profile.openChannel }).waitFor();
+  assert.equal(await agentCard.count(), 1);
   await page.keyboard.press('Escape');
   await agentCard.waitFor({ state: 'detached' });
 
