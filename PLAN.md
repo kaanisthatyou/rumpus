@@ -1037,8 +1037,14 @@ The details behind 5.11 and 6.5, decided before building.
     hour), its jobs run on the spare. A job that stops on the limit starts again on the spare once, as the same job
     (a "continues on the spare login" step), told that an earlier try may have left changes. A session on the spare
     is not kept: another login cannot resume it. The agent stays the same; only who pays changes.
+  - **Waiting for the quota** (2026-11-16): a job that stops on the limit with no login to move to (no spare, the
+    spare out too, or already moved) stays running on its card with a "continues once it resets" step, and starts
+    again as the same job two minutes after the first of the agent's logins resets (an hour when the CLI did not
+    say), on the same conversation where it can. Messages to it meanwhile are held and sent along; stopping it
+    cancels the wait. At most three waits per job; the wait is in memory, so closing the app ends it. A routine's
+    job at night thus finishes after the window resets instead of failing.
   - Tests: `accounts.test.ts` (existing folder, fresh sessions, the move at the limit, the next job straight on the
-    spare); `e2e/layout.mjs` (the account from a picked folder, the spare and the switch in the agent form).
+    spare, the wait when the spare runs out too); `e2e/layout.mjs` (the account from a picked folder, the spare and the switch in the agent form).
 
 - 4.29 Members who are rarely online together (6.5), 2026-11-16, asked by Kaan: when the app is closed and the
   others keep writing, opening it should bring everything. Sync already caught up with whoever was online; what

@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Channel, CliAccount, Frame, Job, Quota, Response, WorkspaceState } from '@lonca/protocol';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { AgentSession, DriverEvent, OpenSession, SessionOptions } from '../src/drivers/types.js';
 import { Core } from '../src/server.js';
 
@@ -226,6 +226,38 @@ describe('two subscriptions for one crew', () => {
     await call('messages.send', { channelId: genel, text: '@nora third task' });
     const fourth = await nth(4);
     expect(fourth.opts.env).toEqual({ CLAUDE_CONFIG_DIR: claude2 });
+
+    // The spare runs out too: the job waits on its card for the first quota to reset, then goes on with what was
+    // said to it meanwhile.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'], shouldAdvanceTime: true });
+    try {
+      const resets = Math.floor(Date.now() / 1000) + 10 * 60;
+      fourth.emit({
+        type: 'quota',
+        quota: { windows: { five_hour: { used: 1, resets } }, status: 'rejected', at: Date.now() },
+      });
+      fourth.emit({ type: 'end', ok: false, error: "You've hit your limit · resets 5am" });
+      fourth.emit({ type: 'exit', code: 1, stderr: '' });
+      const waiting = await lastJob();
+      expect(waiting.state).toBe('running');
+      expect(waiting.steps.filter((s) => s.kind === 'notice' && s.label === 'wait_quota')).toHaveLength(1);
+      await call('messages.send', { channelId: genel, text: '@nora also check the logs' });
+      expect(fourth.sent.join('\n')).not.toContain('also check the logs');
+      expect(sessions).toHaveLength(4);
+
+      vi.advanceTimersByTime(13 * 60_000);
+      const fifth = await nth(5);
+      expect(fifth.opts.env).toEqual({ CLAUDE_CONFIG_DIR: claude2 });
+      expect(fifth.sent[0]).toContain('third task');
+      expect(fifth.sent[0]).toContain('waited for the quota');
+      expect(fifth.sent[0]).toContain('also check the logs');
+      expect((await lastJob()).id).toBe(waiting.id);
+      fifth.emit({ type: 'end', ok: true, final: 'third done' });
+      for (let i = 0; i < 100 && (await lastJob()).state !== 'done'; i++) await new Promise((r) => setTimeout(r, 10));
+      expect((await lastJob()).state).toBe('done');
+    } finally {
+      vi.useRealTimers();
+    }
     core.shutdown();
   });
 });

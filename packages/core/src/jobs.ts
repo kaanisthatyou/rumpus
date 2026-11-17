@@ -1,7 +1,7 @@
 // Turns people's messages into jobs for agents and keeps every job's card current.
 // One CLI session per (agent, channel), kept across jobs so the agent remembers the conversation; an agent with
 // fresh sessions (and a specialist) starts every job in a new one. An agent with a spare login moves to it while its
-// own is out of quota.
+// own is out of quota; a job with nowhere to move waits for the quota to reset and then goes on.
 import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import {
@@ -127,6 +127,12 @@ const SPEC = 'spec-';
 const LIMIT_HOLD_MS = 60 * 60_000;
 /** How the CLIs word a job that stopped on the subscription's limit. */
 const LIMIT_TEXT = /usage limit|hit your (?:usage )?limit|limit reached|out of (?:extra )?usage|rate[ _-]?limit/i;
+/** How long after a quota resets a waiting job starts again (the CLI's clock and ours may differ a little). */
+const WAIT_MARGIN_MS = 2 * 60_000;
+/** How many times one job waits for a quota to reset before it fails. */
+const MAX_WAITS = 3;
+/** The longest a timer can be set for. */
+const MAX_TIMER_MS = 2 ** 31 - 1;
 /** How much of a specialist's budget may pass before it is told to wrap up. */
 const BUDGET_SOFT = 0.75;
 /** Parts one person's request may be split into. */
@@ -157,6 +163,12 @@ export class Jobs {
   private readonly limited = new Map<string, number>();
   /** Jobs already moved to a spare login once. */
   private readonly moved = new Set<string>();
+  /** Jobs waiting for their login's quota to reset, and when each starts again. */
+  private readonly waits = new Map<string, NodeJS.Timeout>();
+  /** How many times each job has waited for a quota. */
+  private readonly waited = new Map<string, number>();
+  /** Messages for a job that came while it waited: sent along when it starts again. */
+  private readonly meanwhile = new Map<string, string[]>();
 
   constructor(private readonly deps: JobsDeps) {
     mkdirSync(join(deps.dir, 'jobs'), { recursive: true });
@@ -475,10 +487,19 @@ export class Jobs {
     live.again = { base, channel, request, ...(prompt !== undefined ? { prompt } : {}), opts };
     this.watchBudget(job);
     if (spare && !existing) this.mark(live, 'spare');
-    // A job moved from a login that ran out of quota: the first try may have left work behind.
-    const resumed = this.moved.has(job.id)
-      ? `\n\n[${BRAND.name}] An earlier try at this request on another login stopped at that login's usage limit. Files may already be partly changed: look before redoing work.`
-      : '';
+    // A job moved from a login that ran out of quota, or one that waited for it: the first try may have left work
+    // behind.
+    const held = this.meanwhile.get(job.id) ?? [];
+    this.meanwhile.delete(job.id);
+    const resumed =
+      (this.waited.has(job.id)
+        ? `\n\n[${BRAND.name}] An earlier try at this request stopped at the usage limit and waited for the quota to reset. Files may already be partly changed: look before redoing work.`
+        : this.moved.has(job.id)
+          ? `\n\n[${BRAND.name}] An earlier try at this request on another login stopped at that login's usage limit. Files may already be partly changed: look before redoing work.`
+          : '') +
+      (held.length > 0
+        ? `\n\n[${BRAND.name}] Messages about this request that came while it waited:\n\n${held.join('\n\n')}`
+        : '');
     await taken;
     // Stopped while the snapshot was taken: there is nothing to send.
     if (live.job?.id !== job.id || live.job.state !== 'running') return live.job ?? job;
@@ -579,7 +600,8 @@ export class Jobs {
     const step: JobStep = { id: newId(), kind: 'steer', label: 'steer', arg: oneLine(text), at: this.now() };
     live.job = { ...job, steps: [...job.steps, step] };
     this.transcript(job.id, { t: 'steer', text, at: this.now() });
-    if (live.session.steering === 'live') live.session.send(text);
+    if (this.waits.has(job.id)) this.meanwhile.set(job.id, [...(this.meanwhile.get(job.id) ?? []), text]);
+    else if (live.session.steering === 'live') live.session.send(text);
     else live.queue.push(text);
     this.save(live.job, true);
   }
@@ -725,6 +747,9 @@ export class Jobs {
     const live = [...this.live.values()].find((l) => l.job?.id === jobId);
     if (!live?.job || (live.job.state !== 'running' && live.job.state !== 'attention')) return false;
     const job: Job = { ...live.job, state: 'stopped', ...(error ? { error } : {}), ended: this.now() };
+    clearTimeout(this.waits.get(jobId));
+    this.waits.delete(jobId);
+    this.meanwhile.delete(jobId);
     live.job = job;
     live.queue = [];
     live.session.stop();
@@ -997,18 +1022,21 @@ export class Jobs {
 
   /**
    * A job that stopped on its login's usage limit: the login counts as out of quota until it resets, and the job
-   * starts again on the agent's spare login, once. False when it was another failure or there is nowhere to go.
+   * starts again on the agent's spare login, once; with nowhere to move it waits for a quota to reset. False when
+   * it was another failure, or it already waited as often as it may.
    */
   private moveToSpare(live: Live, job: Job, error: string | undefined): boolean {
+    if (this.waits.has(job.id)) return true; // already waiting (the CLI's exit after its last turn)
     const key = quotaKey(live.agent.kind, live.agent.account);
     const quota = this.quotas[key];
     const hit = LIMIT_TEXT.test(error ?? '') || (quota?.status === 'rejected' && quota.at >= job.started);
     if (!hit) return false;
     this.limited.set(key, resetsAt(quota) ?? this.now() + LIMIT_HOLD_MS);
     const again = live.again;
-    if (!again || live.spare || this.moved.has(job.id)) return false;
+    if (!again) return false;
+    if (live.spare || this.moved.has(job.id)) return this.waitForQuota(live, job);
     const next = this.onLogin(again.base);
-    if ((next.account ?? '') === (live.agent.account ?? '')) return false;
+    if ((next.account ?? '') === (live.agent.account ?? '')) return this.waitForQuota(live, job);
     this.moved.add(job.id);
     this.mark(live, 'spare');
     const moving = live.job ?? job;
@@ -1017,6 +1045,51 @@ export class Jobs {
         this.fail(moving, 'failed');
       });
     }, 0);
+    return true;
+  }
+
+  /** When the first of an agent's logins (its own, or its spare) has quota again. */
+  private freeAt(agent: Agent): number {
+    const logins = [agent.account, ...(agent.spare !== undefined ? [agent.spare || undefined] : [])];
+    return Math.min(
+      ...logins.map((account) => {
+        const key = quotaKey(agent.kind, account);
+        const limited = this.limited.get(key) ?? 0;
+        return this.outOfQuota(agent.kind, account) ? Math.max(limited, resetsAt(this.quotas[key]) ?? 0) : 0;
+      }),
+    );
+  }
+
+  /**
+   * A job out of quota with no login to move to: it stays on its card, waits until a quota resets and then starts
+   * again on whichever login has quota (the same conversation where it can), with what was said to it meanwhile.
+   */
+  private waitForQuota(live: Live, job: Job): boolean {
+    const again = live.again;
+    const tries = this.waited.get(job.id) ?? 0;
+    if (!again || tries >= MAX_WAITS) return false;
+    this.waited.set(job.id, tries + 1);
+    const at = Math.max(this.freeAt(again.base), this.now()) + WAIT_MARGIN_MS;
+    this.mark(live, 'wait_quota');
+    const timer = setTimeout(
+      () => {
+        this.waits.delete(job.id);
+        const current = live.job;
+        if (current?.id !== job.id || current.state !== 'running') return;
+        // The old CLI process stopped at the limit: a new one starts (and resumes the conversation where it can).
+        const key = this.key(live.agent.id, live.slot);
+        if (this.live.get(key) === live) {
+          this.close(live);
+          this.live.delete(key);
+        }
+        void this.start(again.base, again.channel, again.request, again.prompt, again.opts, current).catch(() => {
+          this.fail(current, 'failed');
+        });
+      },
+      Math.min(at - this.now(), MAX_TIMER_MS),
+    );
+    timer.unref?.();
+    this.waits.set(job.id, timer);
     return true;
   }
 

@@ -399,7 +399,8 @@
       "start": "İşe başlama",
       "connector": "Bağlayıcı",
       "budget": "Bütçe dolmak üzere",
-      "spare": "Kota bitti, yedek girişle sürüyor"
+      "spare": "Kota bitti, yedek girişle sürüyor",
+      "wait_quota": "Kota bitti, yenilenince sürecek"
     },
     "denied": "Reddedildi",
     "more_one": "{{count}} adım daha",

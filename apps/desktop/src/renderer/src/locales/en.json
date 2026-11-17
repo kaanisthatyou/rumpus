@@ -399,7 +399,8 @@
       "start": "Start the job",
       "connector": "Connector",
       "budget": "Budget nearly used",
-      "spare": "Out of quota: continues on the spare login"
+      "spare": "Out of quota: continues on the spare login",
+      "wait_quota": "Out of quota: continues once it resets"
     },
     "denied": "Refused",
     "more_one": "{{count}} more step",
