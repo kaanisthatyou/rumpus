@@ -432,6 +432,8 @@ export interface CoreMethods {
   'channels.delete': { params: { id: string }; result: { ok: true } };
   /** A person is typing in a channel (team workspaces tell the others; nothing is stored). */
   'channels.typing': { params: { channelId: string }; result: { ok: true } };
+  /** The button under an agent's reminder: that agent stops reminding of what waits now (PLAN.md 5.23). */
+  'nudges.stop': { params: { id: string }; result: { ok: true } };
   /** The person has the channel open: what is in it now counts as read. */
   'channels.read': { params: { channelId: string }; result: { ok: true } };
   'overview.get': { params: undefined; result: Overview };
@@ -623,6 +625,8 @@ export interface CoreEvents {
   /** An advisor is writing (or stopped writing) in a channel. */
   'advisor.typing': { advisorId: string; channelId: string; on: boolean };
   'advisor.spend': Record<string, number>;
+  /** An agent is writing (or stopped writing) a reminder in a channel (PLAN.md 5.23). */
+  'agent.typing': { agentId: string; channelId: string; on: boolean };
   /** An advisor could not answer a mention: over budget, provider error. Not stored. */
   'advisor.failed': { advisorId: string; channelId: string; code: string };
 }

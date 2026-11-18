@@ -519,6 +519,8 @@
       }
     },
     "folderDefault": "Varsayılan",
+    "nudges": "Bekleyen işleri hatırlatır",
+    "nudgesHint": "Bir onay ya da raporda cevapsız bir soru bekledikçe agent birkaç dakikada bir kanalına yazar. Mesajın altındaki düğme hatırlatmaları durdurur; sessiz saatlerde yazmaz. Jeton harcamaz.",
     "fresh": "Her iş yeni oturumda",
     "freshHint": "Önceki işlerin konuşması taşınmaz; agent isteği ve kanalın son 8 mesajını okur. Bağlam büyümediği için kota daha yavaş biter. Bir işin kartına yazılan mesaj o işin oturumunda sürer."
   },

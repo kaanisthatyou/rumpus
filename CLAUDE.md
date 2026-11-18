@@ -54,7 +54,8 @@ purpose; never change roblox-factory for it.
    and `e2e/channel.mjs` (agents, jobs, live view, steer and stop, a background command that wakes the agent, board, palette, projects, a job's changes and undo, a race, restart) against
    `e2e/fake-claude.mjs`, a stand-in for Claude Code that costs no quota; `e2e/specialists.mjs` (a specialist from a template, its lesson and RESULT, the overview, unread marks, a
    routine); `e2e/reports.mjs` (the board's Reports page, a routine's report cards with images, the toast, a pin, answering a report and its decisions, the dashboard);
-   `e2e/advisors.mjs` (providers, advisors)
+   `e2e/nudges.mjs` (an agent's reminders of a waiting approval, typing first, the button that stops them, the setting, with
+   `LONCA_NUDGE_SCALE` shortening the minutes); `e2e/advisors.mjs` (providers, advisors)
    against `e2e/fake-provider.mjs`, a stand-in OpenAI-compatible server; `e2e/team.mjs` (two apps, invite, join,
    sync) and `e2e/profiles.mjs` (two apps: a profile with a picture, a workspace's look and roles, friends, the
    invite card) with `LONCA_PEER_HOST=127.0.0.1` instead of Tailscale; `e2e/phone.mjs` (pairing a narrow window as a

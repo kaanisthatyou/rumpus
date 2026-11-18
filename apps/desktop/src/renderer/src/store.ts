@@ -242,6 +242,8 @@ export interface AppState {
   deleteAgent(id: string): Promise<void>;
   newSession(agentId: string, channelId: string): Promise<void>;
   stopJob(id: string): Promise<void>;
+  /** The button under an agent's reminder: it stops reminding of what waits now. */
+  stopNudge(id: string): Promise<void>;
   steerJob(id: string, text: string): Promise<boolean>;
   answerJob(id: string, allow: boolean): Promise<void>;
   watch(jobId: string | undefined): void;
@@ -735,6 +737,13 @@ export const useApp = create<AppState>((set, get) => {
           return { typing: { ...s.typing, [channelId]: on ? [...now, advisorId] : now } };
         }),
       );
+      // An agent writing a reminder shows like an advisor writing: its id in the channel's typing list.
+      core.on('agent.typing', ({ agentId, channelId, on }) =>
+        set((s) => {
+          const now = (s.typing[channelId] ?? []).filter((id) => id !== agentId);
+          return { typing: { ...s.typing, [channelId]: on ? [...now, agentId] : now } };
+        }),
+      );
       core.on('goal.changed', (goal) =>
         set((s) => ({
           goals: s.goals.some((g) => g.id === goal.id)
@@ -1115,6 +1124,9 @@ export const useApp = create<AppState>((set, get) => {
       await attempt(() => core.call('agents.newSession', { agentId, channelId }));
     },
 
+    async stopNudge(id) {
+      await attempt(() => core.call('nudges.stop', { id }));
+    },
     async stopJob(id) {
       await attempt(() => core.call('jobs.stop', { id }));
     },

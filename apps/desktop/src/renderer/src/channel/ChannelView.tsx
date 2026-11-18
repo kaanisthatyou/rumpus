@@ -31,6 +31,7 @@ import { CiteChip, MessageImages } from './Reports';
 
 const EMPTY: Message[] = [];
 const NO_ADVISORS: Advisor[] = [];
+const NO_AGENTS: Agent[] = [];
 const NO_REFS: string[] = [];
 
 /** A record attached to a message or to the message being written. */
@@ -257,6 +258,13 @@ function MessageRow({
               <InviteCard key={code} code={code} />
             ))}
             {message.result && <ResultBlock result={message.result} />}
+            {message.nudge && message.nudge.for === me && !message.nudge.done && (
+              <div className="msg__nudge">
+                <Button size="sm" icon="check" onClick={() => void useApp.getState().stopNudge(message.id)}>
+                  {message.nudge.button}
+                </Button>
+              </div>
+            )}
             {todos.map((task) => (
               <div key={task} className="msg__todo">
                 <Icon name="tasks" size={13} />
@@ -294,6 +302,7 @@ function Typing({ channelId }: { channelId: string }) {
   const { t } = useTranslation();
   const ids = useApp((s) => s.typing[channelId] ?? NO_REFS);
   const advisors = useApp((s) => s.workspace?.advisors ?? NO_ADVISORS);
+  const crew = useApp((s) => s.workspace?.agents ?? NO_AGENTS);
   const people = useApp((s) => s.peopleTyping[channelId] ?? NO_PEOPLE);
   // People's typing lines fade after a few seconds without news.
   const [now, setNow] = useState(Date.now());
@@ -307,7 +316,7 @@ function Typing({ channelId }: { channelId: string }) {
     ...Object.values(people)
       .filter((p) => now - p.at < 5000)
       .map((p) => p.name),
-    ...ids.map((id) => advisors.find((a) => a.id === id)?.name).filter(Boolean),
+    ...ids.map((id) => advisors.find((a) => a.id === id)?.name ?? crew.find((a) => a.id === id)?.name).filter(Boolean),
   ];
   return (
     <AnimatePresence>
@@ -758,7 +767,16 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
 export function ChannelView({ channel }: { channel: Channel }) {
   const { t, i18n } = useTranslation();
   const agents = useApp((s) => s.workspace?.agents ?? []);
-  const messages = useApp((s) => s.messages[channel.id] ?? EMPTY);
+  const stored = useApp((s) => s.messages[channel.id] ?? EMPTY);
+  const meId = useApp((s) => s.workspace?.me.id);
+  // An agent's reminders (PLAN.md 5.23) are for one person: other members do not see them.
+  const messages = useMemo(
+    () =>
+      stored.some((m) => m.nudge && m.nudge.for !== meId)
+        ? stored.filter((m) => !m.nudge || m.nudge.for === meId)
+        : stored,
+    [stored, meId],
+  );
   const jobs = useApp((s) => s.jobs);
   const newSession = useApp((s) => s.newSession);
   const openAgentDialog = useApp((s) => s.openAgentDialog);

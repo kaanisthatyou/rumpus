@@ -91,6 +91,11 @@ export const AgentInputSchema = z.object({
    * resuming one conversation that grows (and costs more of the quota) with every job.
    */
   fresh: z.boolean().default(false),
+  /**
+   * Reminds the person of what waits on them (an approval, a report's questions) with a line in its channel every
+   * few minutes, until they press the line's button (PLAN.md 5.23).
+   */
+  nudges: z.boolean().default(true),
   /** In a team workspace: who besides the owner may give it jobs, and how far (PLAN.md 5.11). */
   access: z
     .object({
@@ -127,6 +132,8 @@ export interface Agent {
   spare?: string;
   /** Every job in a fresh session (`FRESH_HISTORY` messages of context) instead of one growing conversation. */
   fresh?: boolean;
+  /** False when it does not remind the person of what waits on them; missing means it does. */
+  nudges?: boolean;
   access?: AgentAccess;
   specialty?: Specialty;
   created: number;
@@ -289,6 +296,11 @@ export interface Message {
    * channel as it came, like a message the agent typed there.
    */
   during?: string;
+  /**
+   * A reminder of what waits on a person (PLAN.md 5.23), for that person's device only: the label of the button
+   * that stops the reminders, and whether it was pressed (on that computer).
+   */
+  nudge?: { for: string; button: string; done?: boolean };
 }
 
 /**

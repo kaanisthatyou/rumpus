@@ -224,7 +224,9 @@ const short = (v: unknown, max: number) => (typeof v === 'string' ? v.slice(0, m
  * What a message carries beside its text (a report's title, its images, the report it answers), cleaned: it may
  * come from another member's computer, so it is display data only and held to the same limits everywhere.
  */
-export function messageExtra(m: Partial<Message>): Pick<Message, 'title' | 'images' | 'cite' | 'during' | 'decisions'> {
+export function messageExtra(
+  m: Partial<Message>,
+): Pick<Message, 'title' | 'images' | 'cite' | 'during' | 'decisions' | 'nudge'> {
   const title = short(m.title, 200).trim();
   const images: MessageImage[] = (Array.isArray(m.images) ? m.images : [])
     .filter(
@@ -262,12 +264,20 @@ export function messageExtra(m: Partial<Message>): Pick<Message, 'title' | 'imag
     .filter((d) => d.question)
     .slice(0, REPORT_DECISIONS_MAX)
     .map((d) => ({ question: d.question, ...(d.options.length ? { options: d.options } : {}) }));
+  // A reminder (PLAN.md 5.23) names the device it is for; whether its button was pressed is that device's own mark
+  // (`markNudged`), never taken from a message.
+  const n = m.nudge;
+  const nudge =
+    n && typeof n.for === 'string' && n.for && typeof n.button === 'string'
+      ? { for: n.for.slice(0, 64), button: short(n.button, 60).trim() || 'OK' }
+      : undefined;
   return {
     ...(decisions.length ? { decisions } : {}),
     ...(title ? { title } : {}),
     ...(images.length ? { images } : {}),
     ...(cite ? { cite } : {}),
     ...(during ? { during } : {}),
+    ...(nudge ? { nudge } : {}),
   };
 }
 
@@ -284,7 +294,7 @@ function toMessage(r: Row): Message {
     ...(r.handover ? { handover: json<{ requestId: string; agentId: string }>(r.handover) } : {}),
     ...(r.result ? { result: json<Record<string, unknown>>(r.result) } : {}),
     ...(r.routine ? { routine: String(r.routine) } : {}),
-    ...(r.extra ? json<Pick<Message, 'title' | 'images' | 'cite' | 'during' | 'decisions'>>(r.extra) : {}),
+    ...(r.extra ? json<Pick<Message, 'title' | 'images' | 'cite' | 'during' | 'decisions' | 'nudge'>>(r.extra) : {}),
   };
 }
 
@@ -919,6 +929,43 @@ export class WorkspaceStore {
       )
       .all(channelId, opts.before ?? Number.MAX_SAFE_INTEGER, opts.limit ?? 100) as Row[];
     return rows.map(toMessage).reverse();
+  }
+
+  /**
+   * An agent's messages since `since` with questions for a person (`decisions`) that nobody answered yet: no
+   * person's message cites them, and, outside the reports, no person wrote in their channel after them.
+   */
+  openDecisions(agentId: string, since: number): Message[] {
+    const rows = this.db
+      .prepare(
+        `SELECT m.* FROM messages m JOIN channels c ON c.id = m.channel_id
+         WHERE m.deleted = 0 AND c.deleted = 0 AND m.created >= ? AND m.extra IS NOT NULL
+           AND json_extract(m.author, '$.kind') = 'agent' AND json_extract(m.author, '$.id') = ?
+           AND json_extract(m.extra, '$.decisions') IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM messages p WHERE p.deleted = 0 AND p.extra IS NOT NULL
+             AND json_extract(p.author, '$.kind') = 'person' AND json_extract(p.extra, '$.cite.id') = m.id)
+           AND (c.kind = 'reports' OR NOT EXISTS (SELECT 1 FROM messages p WHERE p.deleted = 0
+             AND p.channel_id = m.channel_id AND p.created > m.created AND json_extract(p.author, '$.kind') = 'person'))
+         ORDER BY m.created LIMIT 20`,
+      )
+      .all(since, agentId) as Row[];
+    return rows.map(toMessage);
+  }
+
+  /**
+   * The button under one of an agent's reminders was pressed on this computer: every reminder of that agent's for
+   * this device counts as answered. A mark of this computer's, not a logged change. Returns the ones it changed.
+   */
+  markNudged(agentId: string, deviceId: string): Message[] {
+    const where =
+      "deleted = 0 AND extra IS NOT NULL AND json_extract(author, '$.kind') = 'agent' AND json_extract(author, '$.id') = ? AND json_extract(extra, '$.nudge.for') = ? AND json_extract(extra, '$.nudge.done') IS NULL";
+    const ids = (this.db.prepare(`SELECT id FROM messages WHERE ${where}`).all(agentId, deviceId) as Row[]).map((r) =>
+      String(r.id),
+    );
+    this.db
+      .prepare(`UPDATE messages SET extra = json_set(extra, '$.nudge.done', json('true')) WHERE ${where}`)
+      .run(agentId, deviceId);
+    return ids.flatMap((id) => this.message(id) ?? []);
   }
 
   /** The report feed's messages (every report channel's), newest last, like `messages`. */

@@ -555,7 +555,7 @@ export class Jobs {
           ? []
           : this.deps.store
               .messages(channel.id, { before: request.created + 1, limit: history })
-              .filter((m) => m.id !== request.id);
+              .filter((m) => m.id !== request.id && !m.nudge);
     const refIds = [...new Set([...(agent.specialty?.refs ?? []), ...(request.refs ?? [])])];
     const refs = refIds.length && this.deps.refs ? this.deps.refs(refIds) : { notes: [], images: [] };
     const notes = refs.notes.length ? `\n\n<references>\n${refs.notes.join('\n')}\n</references>` : '';
@@ -636,7 +636,11 @@ export class Jobs {
 
   /** Messages since the agent last answered in this channel (others' words, marked as context). */
   private contextFor(agent: Agent, channel: Channel, request: Message): Message[] {
-    const recent = this.deps.store.messages(channel.id, { before: request.created + 1, limit: 40 });
+    // Reminders (PLAN.md 5.23) are not part of the conversation: they neither count as the agent's last word nor
+    // reach it as context.
+    const recent = this.deps.store
+      .messages(channel.id, { before: request.created + 1, limit: 40 })
+      .filter((m) => !m.nudge);
     const lastOwn = recent.map((m) => m.author.kind === 'agent' && m.author.id === agent.id).lastIndexOf(true);
     return recent.slice(lastOwn + 1).filter((m) => m.id !== request.id);
   }
@@ -918,6 +922,16 @@ export class Jobs {
       this.close(live);
       this.live.delete(key);
     }
+  }
+
+  /** Jobs that wait for this computer's person: an approval asked while working, or one before they start. */
+  waiting(): Job[] {
+    const out = this.active().filter((j) => j.state === 'attention');
+    for (const id of this.held.keys()) {
+      const job = this.deps.store.job(id);
+      if (job?.state === 'attention' && !out.some((j) => j.id === id)) out.push(job);
+    }
+    return out;
   }
 
   active(): Job[] {

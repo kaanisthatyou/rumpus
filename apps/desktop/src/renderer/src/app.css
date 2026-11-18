@@ -2078,6 +2078,11 @@ html[data-quick] #root {
   color: var(--ink);
   font-weight: 500;
 }
+/* An agent's reminder (PLAN.md 5.23): one button under it, which stops the reminders. */
+.msg__nudge {
+  display: flex;
+  margin-top: 6px;
+}
 
 /* Teams: invites, join requests, members */
 .invite__code {

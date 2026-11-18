@@ -108,6 +108,7 @@ import {
   scanSuggestion,
 } from './memory.js';
 import { listModels } from './models.js';
+import { type NudgeLanguage, Nudger, type Waiting } from './nudges.js';
 import { PEER_PORT, PeerClient, PeerError, type PeerRequest, PeerServer, peerTarget } from './peer.js';
 import { PHONE_PORT, PhoneServer } from './phone.js';
 import { killTree, type Launch, openConsole, type Runner, resolveLaunch, run } from './proc.js';
@@ -131,6 +132,8 @@ export interface Peer {
 export interface CoreOptions {
   /** Rumpus's own folder for settings (Electron's userData, or LONCA_HOME). */
   appDir: string;
+  /** Shortens the reminders' gaps (tests): 0.01 makes minutes into fractions of a second. */
+  nudgeScale?: number;
   /** The person's desktop folder, as the system reports it (it can be moved, to OneDrive for one). */
   desktopDir?: string;
   language: Language;
@@ -208,6 +211,7 @@ interface Workspace {
   goals: Goals;
   races: Races;
   routines: Routines;
+  nudges: Nudger;
   /** Jobs already handed to the advisors when they ended. */
   ended: Set<string>;
   /** Connector tools a person allowed once for a job (`once` policy), by job. */
@@ -578,6 +582,14 @@ export class Core {
         if (routine.owner !== this.deviceId) throw new CoreError('not_allowed');
         if (!ws.routines.run(routine)) throw new CoreError('not_allowed');
         this.changed();
+        return { ok: true as const };
+      },
+      'nudges.stop': async (p) => {
+        const ws = this.workspace();
+        const m = typeof p?.id === 'string' ? ws.store.message(p.id) : undefined;
+        if (!m?.nudge || m.nudge.for !== this.deviceId || m.author.kind !== 'agent') throw new CoreError('not_found');
+        ws.nudges.mute(m.author.id, this.settings.get().language === 'en' ? 'en' : 'tr');
+        for (const done of ws.store.markNudged(m.author.id, this.deviceId)) this.emit('message.updated', done);
         return { ok: true as const };
       },
       'channels.typing': async (p) => {
@@ -1508,6 +1520,30 @@ export class Core {
       deviceId: this.deviceId,
       post: (routine) => inWs(() => this.postRoutine(ref.ws, routine)),
     });
+    const nudges = new Nudger({
+      agents: () =>
+        store.agents().filter((a) => a.nudges !== false && (kind !== 'team' || !a.owner || a.owner === this.deviceId)),
+      waiting: (agent, lang) => this.waitingOn(ref.ws, agent, lang),
+      channelOf: (agent) => store.channels().find((c) => c.kind === 'agent' && c.agentId === agent.id)?.id,
+      me: () => ({ ...this.me(), language: this.settings.get().language }),
+      quietHours: () => this.settings.get().quietHours,
+      post: (message) =>
+        inWs(() => {
+          store.commit({ type: 'message.posted', data: message });
+          this.emit('message.added', message);
+        }),
+      typing: (e) => inWs(() => this.emit('agent.typing', e)),
+      loadMuted: () => {
+        try {
+          return JSON.parse(store.meta('nudges.muted') ?? '{}') as Record<string, string[]>;
+        } catch {
+          return {};
+        }
+      },
+      saveMuted: (muted) => store.setMeta('nudges.muted', JSON.stringify(muted)),
+      ...(this.opts.nudgeScale ? { scale: this.opts.nudgeScale } : {}),
+    });
+    nudges.start();
     const timer = setInterval(() => {
       advisors.tick();
       if (routines.tick().length > 0) inWs(() => this.changed());
@@ -1571,6 +1607,7 @@ export class Core {
       goals,
       races,
       routines,
+      nudges,
       ended: new Set(),
       allowedOnce: new Map(),
       timer,
@@ -1598,6 +1635,7 @@ export class Core {
       clearInterval(ws.timer);
       ws.advisors.dispose();
       ws.goals.dispose();
+      ws.nudges.dispose();
       ws.jobs.disposeAll();
       ws.gateway.close();
       ws.store.close();
@@ -1697,6 +1735,50 @@ export class Core {
     const mode = modes.reduce((a, b) => (rank[a] <= rank[b] ? a : b));
     const approveFirst = Boolean(byPerson.approveFirst || byOwner.approveFirst);
     return mode === agent.mode && !approveFirst ? { allow: true } : { allow: true, mode, approveFirst };
+  }
+
+  /**
+   * What waits on this computer's person from one of its agents (PLAN.md 5.23): approvals its jobs ask for, and
+   * questions its answers and reports of the last week left that nobody answered, each as a short phrase.
+   */
+  private waitingOn(ws: Workspace, agent: Agent, lang: NudgeLanguage): Waiting[] {
+    const clean = (t: string, max: number) => {
+      const one = t.replace(/[`\s]+/g, ' ').trim();
+      return one.length > max ? `${one.slice(0, max - 1)}…` : one;
+    };
+    const out: Waiting[] = [];
+    for (const job of ws.jobs.waiting()) {
+      if (job.agentId !== agent.id || !job.approval) continue;
+      const a = job.approval;
+      const arg = a.arg ? clean(a.arg, 60) : '';
+      const what =
+        a.id === 'start'
+          ? lang === 'tr'
+            ? `başlama onayı${arg ? ` (${arg})` : ''}`
+            : `a go-ahead to start${arg ? ` (${arg})` : ''}`
+          : arg
+            ? lang === 'tr'
+              ? `\`${arg}\` onayı`
+              : `the approval for \`${arg}\``
+            : lang === 'tr'
+              ? 'bir onay'
+              : 'an approval';
+      out.push({ key: `a:${job.id}:${a.id}`, what });
+    }
+    for (const m of ws.store.openDecisions(agent.id, Date.now() - 7 * 24 * 60 * 60_000)) {
+      const by = m.jobId ? ws.store.job(m.jobId)?.by : undefined;
+      if (by && by !== this.deviceId) continue;
+      const q = clean(m.decisions?.[0]?.question ?? '', 70);
+      if (!q) continue;
+      const report = ws.store.channel(m.channelId)?.reports === true;
+      const code = reportCode(m.id);
+      const what =
+        lang === 'tr'
+          ? `${report ? `#${code} raporundaki ` : ''}"${q}" sorusu`
+          : `the question "${q}"${report ? ` in report #${code}` : ''}`;
+      out.push({ key: `d:${m.id}`, what });
+    }
+    return out;
   }
 
   /**
@@ -2539,6 +2621,7 @@ export class Core {
       clearInterval(ws.timer);
       ws.advisors.dispose();
       ws.goals.dispose();
+      ws.nudges.dispose();
       ws.jobs.disposeAll();
       ws.gateway.close();
       ws.store.close();
@@ -3198,6 +3281,7 @@ export class Core {
       ...(p.account ? { account: p.account } : {}),
       ...(spare !== undefined ? { spare } : {}),
       ...(p.fresh ? { fresh: true } : {}),
+      ...(p.nudges === false ? { nudges: false } : {}),
       instructions: p.instructions,
       ...(traits.length > 0 ? { traits } : {}),
       owner: existing?.owner ?? this.deviceId,

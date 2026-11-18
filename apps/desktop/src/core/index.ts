@@ -25,6 +25,8 @@ const core = new Core({
   // Tests search a stand-in registry on loopback instead of the official one.
   ...(process.env.LONCA_REGISTRY_URL ? { registry: process.env.LONCA_REGISTRY_URL } : {}),
   ...(peerHost ? { peer: { host: peerHost, port: Number(process.env.LONCA_PEER_PORT) || 0 } } : {}),
+  // Tests make the reminders' minutes into fractions of a second.
+  ...(Number(process.env.LONCA_NUDGE_SCALE) > 0 ? { nudgeScale: Number(process.env.LONCA_NUDGE_SCALE) } : {}),
   // Phones: the built UI; tests serve it on a loopback port without tailscale serve.
   web: {
     ...(process.env.LONCA_WEB_DIR ? { dir: process.env.LONCA_WEB_DIR } : {}),

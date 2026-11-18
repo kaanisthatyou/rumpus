@@ -60,6 +60,7 @@ export function AgentDialog() {
   const [account, setAccount] = useState(existing?.account ?? '');
   const [spare, setSpare] = useState<string | undefined>(existing?.spare);
   const [fresh, setFresh] = useState(existing?.fresh ?? false);
+  const [nudges, setNudges] = useState(existing?.nudges !== false);
   const allAccounts = useApp((s) => s.accounts);
   const accounts = useMemo(() => allAccounts.filter((a) => a.kind === kind), [allAccounts, kind]);
   const team = useApp((s) => s.workspace?.kind === 'team');
@@ -102,6 +103,7 @@ export function AgentDialog() {
             ...(account && accounts.some((a) => a.id === account) ? { account } : {}),
             ...spareOf(spare, accounts.some((a) => a.id === account) ? account : '', accounts),
             fresh,
+            nudges,
             instructions,
             traits,
             ...(team ? { access } : {}),
@@ -236,6 +238,13 @@ export function AgentDialog() {
                   <span>{t('agentForm.fresh')}</span>
                 </div>
                 <span className="l-field__hint">{t('agentForm.freshHint')}</span>
+              </div>
+              <div className="l-field">
+                <div className="row-field">
+                  <Switch checked={nudges} onChange={setNudges} label={t('agentForm.nudges')} />
+                  <span>{t('agentForm.nudges')}</span>
+                </div>
+                <span className="l-field__hint">{t('agentForm.nudgesHint')}</span>
               </div>
               <ModelField
                 id="agent-model"

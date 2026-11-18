@@ -574,6 +574,33 @@ and Rumpus dropped it, and the idle session was closed after 20 minutes with the
   and it is cleared when the app opens again (the commands ended with it).
 - The Codex driver reports none for now: only Claude Code's turns of its own are read.
 
+### 5.23 Reminders of what waits on a person (2026-11-18, Kaan)
+
+Agents ask for approvals and leave questions in their reports, and the person is often away from the screen. An
+agent now taps them on the shoulder, like a colleague would: "Kankaa, pşş", "Eee, ne diyosun?".
+
+- **What waits.** A job of the agent's that waits for an approval (one asked while it works, or the go-ahead before
+  it starts), and an answer or report of the last week with questions (`decisions`) nobody answered: no person's
+  message cites it and, outside the reports, nobody wrote in its channel after it. In a team only this computer's
+  own agents remind, and only of what is this person's.
+- **How.** The agent writes in its own channel as a message of its own, after showing that it types for a few
+  seconds. The first comes three to six minutes after something started to wait, then one every four to ten
+  minutes; after six in a row the gaps grow (up to 45 minutes), so an evening away is not a hundred lines. Nothing
+  is written in quiet hours (Settings, 23:00 to 08:00 by default).
+- **The lines** are put together from pieces in `packages/core/src/nudges.ts`, in the person's language (Turkish
+  and English): no model call, no tokens, and no two in a row the same. They grow less patient as the run goes on
+  (Kaan, same day): the first is calm ("acelesi yok"), the second a reminder, the third an "Eee?", the fourth and
+  fifth impatient, from the sixth on a little theatrical ("burada kök saldı, bak susmam ha"). No exclamation marks
+  and no emoji; they speak as the agent, never as the app.
+- **The button.** Under each line one button, its label different every time and curter as the run goes on
+  ("Bakarım", then "Tamam tamam", then "Tamam, sus artık geldim"). Its only job is to stop the reminders: what waits
+  from that agent now is not reminded of again (kept on this computer), and every earlier reminder's button goes.
+  Something new that starts to wait starts a new run. Writing an answer does not stop them; the run ends by itself
+  when nothing waits any more.
+- **The setting.** "Bekleyen işleri hatırlatır" in the agent's settings, on by default.
+- Reminders are not part of the conversation: they never reach the agent as channel context. Whether a button was
+  pressed is a mark of the computer it is for, not a logged change; other members do not see reminders at all.
+
 ## 6. Architecture
 
 ### 6.1 Stack
