@@ -198,6 +198,59 @@ async function run() {
       });
       continue;
     }
+    if (/arka planda derle/i.test(text)) {
+      // A command left running in the background: the turn ends, and when the command ends a little later the
+      // CLI takes a turn of its own on it, with no message (as Claude Code does in stream-json mode).
+      n += 1;
+      if (!started) {
+        out({ type: 'system', subtype: 'init', session_id: session, tools: ['Bash'] });
+        started = true;
+      }
+      const id = `g${n}`;
+      const input = { command: 'npm run build', run_in_background: true };
+      out({ type: 'assistant', message: { content: [{ type: 'tool_use', id, name: 'Bash', input }] } });
+      out({ type: 'system', subtype: 'background_tasks_changed', tasks: [{ task_id: id }] });
+      out({
+        type: 'user',
+        message: {
+          content: [{ type: 'tool_result', tool_use_id: id, content: `Command running in background with ID: ${id}.` }],
+        },
+      });
+      const answer = 'Derleme arka planda başladı, bitince yazılacak.';
+      out({ type: 'assistant', message: { content: [{ type: 'text', text: answer }] } });
+      out({
+        type: 'result',
+        subtype: 'success',
+        is_error: false,
+        result: answer,
+        total_cost_usd: 0,
+        usage: { input_tokens: 5, output_tokens: 5 },
+        queued_turn_count: queue.length,
+      });
+      setTimeout(() => {
+        out({
+          type: 'system',
+          subtype: 'task_notification',
+          task_id: id,
+          status: 'completed',
+          summary: 'Background command "npm run build" completed (exit code 0)',
+        });
+        out({ type: 'system', subtype: 'background_tasks_changed', tasks: [] });
+        out({ type: 'system', subtype: 'init', session_id: session, tools: ['Bash'] });
+        const done = 'Arka plandaki derleme bitti, kurulum dosyası hazır.';
+        out({ type: 'assistant', message: { content: [{ type: 'text', text: done }] } });
+        out({
+          type: 'result',
+          subtype: 'success',
+          is_error: false,
+          result: done,
+          total_cost_usd: 0,
+          usage: { input_tokens: 4, output_tokens: 6 },
+          queued_turn_count: 0,
+        });
+      }, 4000);
+      continue;
+    }
     if (/dosyaları düzenle/i.test(text)) {
       // Work on files in the agent's folder: a line added to README.md and a new file.
       n += 1;

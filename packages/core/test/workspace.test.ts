@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { ClaudeParser, quotaFrom } from '../src/drivers/claude.js';
 import { CodexParser } from '../src/drivers/codex.js';
 import type { AgentSession, DriverEvent, OpenSession } from '../src/drivers/types.js';
-import { Jobs, mentions } from '../src/jobs.js';
+import { Jobs, MAX_WAKES, mentions } from '../src/jobs.js';
 import { resolveLaunch } from '../src/proc.js';
 import { turnPrompt } from '../src/prompts.js';
 import { WorkspaceStore } from '../src/store.js';
@@ -260,6 +260,7 @@ class FakeSession implements AgentSession {
   sent: string[] = [];
   stopped = 0;
   busy = false;
+  background = 0;
   answers: [string, boolean][] = [];
   answer(id: string, allow: boolean) {
     this.answers.push([id, allow]);
@@ -451,5 +452,118 @@ describe('approvals', () => {
       expect(after?.steps.some((st) => st.kind === 'denied')).toBe(!allow);
       expect(jobs.answer(after?.id ?? '', true)).toBe(false);
     }
+  });
+});
+
+// ------------------------------------------------------------------ background commands (PLAN.md 5.22)
+
+describe('background commands', () => {
+  it('reads the background tasks of the CLI and the end of one as a turn of its own', () => {
+    const events: DriverEvent[] = [];
+    const p = new ClaudeParser('C:work', (e) => events.push(e));
+    p.line(JSON.stringify({ type: 'system', subtype: 'background_tasks_changed', tasks: [{ task_id: 'b1' }] }));
+    p.line(
+      JSON.stringify({
+        type: 'system',
+        subtype: 'task_notification',
+        task_id: 'b1',
+        status: 'completed',
+        summary: 'Background command "gh run watch" completed (exit code 0)\nmore',
+      }),
+    );
+    p.line(JSON.stringify({ type: 'system', subtype: 'background_tasks_changed', tasks: [] }));
+    expect(events).toEqual([
+      { type: 'tasks', running: 1 },
+      { type: 'wake', text: 'Background command "gh run watch" completed (exit code 0)' },
+      { type: 'tasks', running: 0 },
+    ]);
+  });
+
+  it('goes on with the request in a new job when a background command ends, and posts its answer', async () => {
+    const { s, jobs, sessions, answers } = jobsWith();
+    const request = msg({ text: '@claude derlemeyi başlat, bitince yaz' });
+    s.commit({ type: 'message.posted', data: request });
+    await jobs.onMessage(request, channel());
+    const session = sessions[0] as FakeSession;
+    session.background = 1;
+    session.emit({ type: 'tasks', running: 1 });
+    session.finish('Derleme başladı, bitince yazarım.');
+    await flush();
+    const first = s.jobsFor([request.id])[0];
+    expect(first).toMatchObject({ state: 'done', background: 1 });
+
+    // The build ends: the CLI takes a turn with no message.
+    session.background = 0;
+    session.emit({ type: 'wake', text: 'Background command "build" completed (exit code 0)' });
+    session.emit({ type: 'tasks', running: 0 });
+    session.emit({ type: 'text', text: 'Derleme bitti, kurulum hazır.' });
+    session.finish('Derleme bitti, kurulum hazır.');
+    await flush();
+    const both = s.jobsFor([request.id]);
+    expect(both).toHaveLength(2);
+    const woke = both.find((j) => j.id !== first?.id);
+    expect(woke).toMatchObject({ state: 'done', requestId: request.id, by: 'dev1' });
+    expect(woke?.steps[0]).toMatchObject({ kind: 'notice', label: 'woke', arg: expect.stringContaining('build') });
+    expect(s.jobsFor([request.id]).find((j) => j.id === first?.id)?.background).toBeUndefined();
+    expect(answers.map((m) => m.text)).toEqual(['Derleme başladı, bitince yazarım.', 'Derleme bitti, kurulum hazır.']);
+    expect(answers[1]?.jobId).toBe(woke?.id);
+    // Nothing was sent to the CLI for it: the turn was its own.
+    expect(session.sent).toHaveLength(1);
+  });
+
+  it('stops a session that keeps waking itself, and stops background commands from a finished job', async () => {
+    const { s, jobs, sessions, answers } = jobsWith();
+    const request = msg({ text: '@claude izle' });
+    s.commit({ type: 'message.posted', data: request });
+    await jobs.onMessage(request, channel());
+    const session = sessions[0] as FakeSession;
+    session.finish('Başladı.');
+    for (let i = 0; i < MAX_WAKES; i++) {
+      session.emit({ type: 'wake' });
+      session.finish(`Tur ${i}`);
+    }
+    await flush();
+    expect(session.stopped).toBe(0);
+    session.emit({ type: 'wake' });
+    expect(session.stopped).toBe(1);
+    session.finish('Bir tur daha');
+    await flush();
+    expect(s.jobsFor([request.id])).toHaveLength(MAX_WAKES + 1);
+    expect(answers).toHaveLength(MAX_WAKES + 1);
+
+    // A finished job with commands still running: stopping it stops them, and only them.
+    const other = msg({ text: '@claude sunucuyu aç' });
+    s.commit({ type: 'message.posted', data: other });
+    await jobs.onMessage(other, channel());
+    session.background = 1;
+    session.emit({ type: 'tasks', running: 1 });
+    session.finish('Açık.');
+    await flush();
+    const job = s.jobsFor([other.id])[0];
+    expect(job).toMatchObject({ state: 'done', background: 1 });
+    expect(jobs.stop(job?.id ?? '')).toBe(true);
+    expect(session.stopped).toBe(2);
+    expect(s.jobsFor([other.id])[0]).toMatchObject({ state: 'done' });
+    expect(s.jobsFor([other.id])[0]?.background).toBeUndefined();
+  });
+
+  it('clears the count of background commands when the app opens again', () => {
+    const st = store();
+    const job: Job = {
+      id: 'j1',
+      channelId: 'c1',
+      agentId: 'a1',
+      requestId: 'm1',
+      state: 'done',
+      steps: [],
+      usage: { in: 0, cached: 0, out: 0 },
+      background: 2,
+      started: 1,
+      ended: 2,
+    };
+    st.saveJob(job);
+    st.closeOrphanJobs(3);
+    expect(st.jobsFor(['m1'])[0]).toMatchObject({ state: 'done' });
+    expect(st.jobsFor(['m1'])[0]?.background).toBeUndefined();
   });
 });

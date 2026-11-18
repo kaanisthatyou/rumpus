@@ -15,6 +15,10 @@ export type DriverEvent =
   | { type: 'auth_failed'; text: string }
   | { type: 'approval'; id: string; label: string; arg?: string; detail?: string }
   | { type: 'notice'; code: string; text?: string }
+  /** How many of the agent's background commands still run (they may outlive the turn that started them). */
+  | { type: 'tasks'; running: number }
+  /** The CLI started a turn of its own, with no message: a background command it started ended (its summary). */
+  | { type: 'wake'; text?: string }
   | { type: 'end'; ok: boolean; final?: string; error?: string; cost?: number; usage?: Usage; more?: boolean }
   | { type: 'exit'; code: number | null; stderr: string };
 
@@ -42,6 +46,8 @@ export interface AgentSession {
   /** `live`: a message sent during a turn reaches the agent at its next break. `queue`: it waits for the next turn. */
   readonly steering: 'live' | 'queue';
   readonly busy: boolean;
+  /** Background commands of the agent's that still run after its turn (drivers that have them). */
+  readonly background?: number;
   send(text: string, images?: Attachment[]): void;
   /** Answers a pending approval (drivers that can ask). */
   answer?(id: string, allow: boolean): void;

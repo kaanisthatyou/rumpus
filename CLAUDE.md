@@ -51,7 +51,7 @@ purpose; never change roblox-factory for it.
 
 1. `pnpm check` (Biome, TypeScript, Vitest, copy rules).
 2. `pnpm e2e`: the real app with a temporary `LONCA_HOME`: `e2e/smoke.mjs` (launcher, shell, settings, restart)
-   and `e2e/channel.mjs` (agents, jobs, live view, steer and stop, board, palette, projects, a job's changes and undo, a race, restart) against
+   and `e2e/channel.mjs` (agents, jobs, live view, steer and stop, a background command that wakes the agent, board, palette, projects, a job's changes and undo, a race, restart) against
    `e2e/fake-claude.mjs`, a stand-in for Claude Code that costs no quota; `e2e/specialists.mjs` (a specialist from a template, its lesson and RESULT, the overview, unread marks, a
    routine); `e2e/reports.mjs` (the board's Reports page, a routine's report cards with images, the toast, a pin, answering a report and its decisions, the dashboard);
    `e2e/advisors.mjs` (providers, advisors)

@@ -1,6 +1,8 @@
 // Claude Code through its stream-json mode, as Fabrika drives it: one long-lived `claude -p` per conversation,
 // user messages as JSON lines on stdin (a message sent mid-turn is the steer), events as JSON lines on stdout.
 // Stopping kills the process; the next message resumes the same session with --resume.
+// A command the agent ran in the background outlives its turn: while the process lives, its end starts a turn of
+// the CLI's own (`task_notification`), which Rumpus shows as a job that goes on (`wake`).
 import { type ChildProcess, spawn } from 'node:child_process';
 import { type AgentMode, MCP_NAME, type Quota, type Usage } from '@lonca/protocol';
 import { killTree } from '../proc.js';
@@ -20,6 +22,10 @@ import {
 const READ_TOOLS = ['Read', 'Grep', 'Glob', 'WebSearch', 'WebFetch', 'TodoWrite'];
 const EDIT_TOOLS = [...READ_TOOLS, 'Edit', 'Write', 'NotebookEdit', 'Bash'];
 const IDLE_MS = 20 * 60 * 1000;
+/** How long an idle session is kept for background commands that still run (a build, a deploy, a watch). */
+const BACKGROUND_MS = 3 * 60 * 60 * 1000;
+/** Events that mean a turn is under way: one that comes while no turn runs is a turn the CLI started itself. */
+const TURN_EVENTS = new Set<DriverEvent['type']>(['session', 'delta', 'text', 'tool', 'usage']);
 
 /**
  * The autonomy ladder in Claude Code's terms. At read and edit, what would prompt is asked of Rumpus over stdio
@@ -153,6 +159,12 @@ export class ClaudeParser {
           ...(known?.arg ? { arg: known.arg } : {}),
         });
       } else if (ev.subtype === 'compact_boundary') this.emit({ type: 'notice', code: 'compacted' });
+      else if (ev.subtype === 'background_tasks_changed' && Array.isArray(ev.tasks))
+        this.emit({ type: 'tasks', running: ev.tasks.length });
+      else if (ev.subtype === 'task_notification') {
+        const summary = typeof ev.summary === 'string' ? ev.summary.trim().split('\n')[0]?.slice(0, 200) : '';
+        this.emit({ type: 'wake', ...(summary ? { text: summary } : {}) });
+      }
       return;
     }
     if (type === 'stream_event') {
@@ -238,6 +250,7 @@ class ClaudeSession implements AgentSession {
   private stderr = '';
   private warnedTrust = false;
   private parser: ClaudeParser | undefined;
+  private tasks = 0;
 
   constructor(
     private readonly opts: SessionOptions,
@@ -248,6 +261,10 @@ class ClaudeSession implements AgentSession {
 
   get busy(): boolean {
     return this.turn;
+  }
+
+  get background(): number {
+    return this.proc ? this.tasks : 0;
   }
 
   private spawn(): ChildProcess {
@@ -265,6 +282,20 @@ class ClaudeSession implements AgentSession {
       opts.cwd,
       (e) => {
         if (e.type === 'session') this.sessionId = e.id;
+        if (e.type === 'tasks') {
+          this.tasks = e.running;
+          if (!this.turn) this.armIdle();
+        }
+        if (e.type === 'wake') {
+          // A background command that ends during a turn is part of that turn.
+          if (this.turn) return;
+          this.turn = true;
+          clearTimeout(this.idle);
+        } else if (!this.turn && TURN_EVENTS.has(e.type) && this.proc === child) {
+          this.turn = true;
+          clearTimeout(this.idle);
+          this.emit({ type: 'wake' });
+        }
         if (e.type === 'end' && !e.more) this.turn = false;
         this.emit(e);
         if (e.type === 'end' && !e.more) this.armIdle();
@@ -294,6 +325,10 @@ class ClaudeSession implements AgentSession {
     child.on('close', (code) => {
       if (this.proc !== child) return;
       this.proc = undefined;
+      if (this.tasks > 0) {
+        this.tasks = 0;
+        this.emit({ type: 'tasks', running: 0 });
+      }
       const wasBusy = this.turn;
       this.turn = false;
       if (wasBusy) this.emit({ type: 'exit', code, stderr: this.stderr.trim() });
@@ -304,7 +339,7 @@ class ClaudeSession implements AgentSession {
 
   private armIdle(): void {
     clearTimeout(this.idle);
-    this.idle = setTimeout(() => this.dispose(), IDLE_MS);
+    this.idle = setTimeout(() => this.dispose(), this.tasks > 0 ? BACKGROUND_MS : IDLE_MS);
     this.idle.unref?.();
   }
 
@@ -336,6 +371,10 @@ class ClaudeSession implements AgentSession {
     this.proc = undefined;
     this.turn = false;
     killTree(proc?.pid);
+    if (this.tasks > 0) {
+      this.tasks = 0;
+      this.emit({ type: 'tasks', running: 0 });
+    }
   }
 
   dispose(): void {

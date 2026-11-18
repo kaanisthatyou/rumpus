@@ -428,6 +428,11 @@ export interface Job {
   approval?: { id: string; label: string; arg?: string; detail?: string };
   /** Set a moment after the job ends, when it changed files in a git repository. */
   changes?: JobChanges;
+  /**
+   * Background commands the agent started that still run after the job ended (PLAN.md 5.22). When one ends, the
+   * agent goes on by itself in a new job and writes into the channel.
+   */
+  background?: number;
   started: number;
   ended?: number;
 }

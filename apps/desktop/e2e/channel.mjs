@@ -432,6 +432,18 @@ try {
   await page.getByText('Derleme reddedildi').waitFor();
   assert.equal(await page.getByRole('button', { name: L.shell.waiting }).count(), 0);
 
+  // A command left running in the background (PLAN.md 5.22): the job ends with it on its card, and when it ends
+  // the agent goes on by itself in a new job and writes into the channel, with nobody writing to it.
+  await agentBox.fill('arka planda derle');
+  await agentBox.press('Enter');
+  await page.getByText('Derleme arka planda başladı').first().waitFor();
+  await page.getByText(L.job.background_one.replace('{{count}}', '1')).waitFor();
+  await shot(page, 'background');
+  await page.getByText('Arka plandaki derleme bitti, kurulum dosyası hazır.').waitFor({ timeout: 15_000 });
+  await page.getByText(L.job.tool.woke).first().waitFor();
+  assert.equal(await page.getByText(L.job.background_one.replace('{{count}}', '1')).count(), 0);
+  await shot(page, 'background-woke');
+
   // A connector: a local program added in Settings with a secret, open to @claude; its writing tool asks first.
   await page.keyboard.press('Control+Comma');
   await settingsDialog.getByRole('button', { name: L.settings.tabs.connectors }).click();
@@ -715,6 +727,11 @@ try {
   await composer.press('Enter');
   await page
     .locator('.job', { hasText: L.memory.recalled_other.replace('{{count}}', '2') })
+    .first()
+    .waitFor();
+  // It ends before the island writes to the same channel: a message during it would be written into it instead.
+  await page
+    .locator('.job.job--done', { hasText: L.memory.recalled_other.replace('{{count}}', '2') })
     .first()
     .waitFor();
 

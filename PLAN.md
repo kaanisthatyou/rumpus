@@ -79,7 +79,9 @@ From the Q&A on 2026-10-16.
    person's request under the other agent's owner's limits, and a part is never handed on, so work fans out one step
    from a person and agents can never keep each other going. A routine (5.16, 2026-11-11) is a person's standing
    request: a message they wrote once, posted for them at the times they set, on their own computer, as themselves;
-   it starts work exactly as that message would if they typed it.
+   it starts work exactly as that message would if they typed it. A command the agent left running in the
+   background while working on a person's request (5.22, 2026-11-18) may wake it once it ends: that turn goes on
+   with the same request, a bounded number of times (`MAX_WAKES`), and never starts a request of its own.
 4. **Safe defaults.** New agents: read-only, callable only by their owner. Others' requests are capped at read
    unless the owner raises it. Channel text reaches agents marked as untrusted.
 5. **No credential handling.** Rumpus never reads, copies or moves a CLI's login files. It spawns the unmodified
@@ -550,6 +552,27 @@ only in the live view and the island; it is now posted in the channel at once, a
 the job's id), so the channel reads as if the agent typed there. The answer stays its own message (`jobId`); a job
 that ends on a tool call, whose answer is the last note, takes the note back so it is not shown twice. Notes and the
 answer read as one run. In the report feed they are part of the report's card (its "notes" in the report).
+
+### 5.22 Background commands (2026-11-18, Kaan)
+
+An agent that starts a long command in the background (a CI run, a build, a deploy) and says it will write when it
+ends could not: its job ended with the turn, the CLI's own turn on the command's end came with no job to belong to
+and Rumpus dropped it, and the idle session was closed after 20 minutes with the command in it.
+
+- **The CLI does the waking.** Claude Code in stream-json mode keeps its background commands while the process
+  lives (`background_tasks_changed`), and when one ends it takes a turn on it by itself (`task_notification`, then
+  a normal turn). The driver reports the count (`tasks`) and the turn that came with no message (`wake`); any
+  turn event while no turn runs counts as one too.
+- **The session stays.** While commands run, an idle session is kept for up to three hours instead of 20 minutes,
+  and a specialist's or a part's session (closed when its job ends) is closed only after the last one.
+- **A job goes on.** A wake opens a new job on the same request (`requestId`, `by`), with a "woke" step that carries
+  the command's summary; its notes and answer go into the channel like any job's, so the agent writes there with
+  nobody writing to it. One request may wake its agent `MAX_WAKES` (8) times; past that the session stops, so an
+  agent cannot keep itself going with commands that wake it.
+- **The card says so.** A finished job whose commands still run shows how many, with a button that stops them (the
+  session stops; its conversation stays). The count is the owner's display only: it is not published to the team,
+  and it is cleared when the app opens again (the commands ended with it).
+- The Codex driver reports none for now: only Claude Code's turns of its own are read.
 
 ## 6. Architecture
 

@@ -1699,10 +1699,13 @@ export class Core {
     return mode === agent.mode && !approveFirst ? { allow: true } : { allow: true, mode, approveFirst };
   }
 
-  /** A job's state, for the other members: steps shortened, the streaming preview left out. */
+  /**
+   * A job's state, for the other members: steps shortened, the streaming preview and the count of background
+   * commands (it changes without the state, which is all that is published) left out.
+   */
   private publishJob(ws: Workspace, job: Job): void {
     if (ws.kind !== 'team' || !ws.membership?.can(this.deviceId, 'viewer')) return;
-    const { preview: _p, ...rest } = job;
+    const { preview: _p, background: _b, ...rest } = job;
     const steps = job.steps
       .slice(-30)
       .map((s) => ({ ...s, ...(s.preview ? { preview: s.preview.slice(0, 200) } : {}) }));

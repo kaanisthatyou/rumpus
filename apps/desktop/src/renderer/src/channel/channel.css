@@ -394,6 +394,20 @@
 .job__error {
   color: var(--bad);
 }
+/* Background commands still running after the job ended: the agent goes on by itself when they end. */
+.job__background {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--line);
+  color: var(--mute);
+  font-size: 12.5px;
+}
+.job__background > span {
+  flex: 1;
+  min-width: 0;
+}
 .job__changes {
   border-top: 1px solid var(--line);
   font-size: 12.5px;

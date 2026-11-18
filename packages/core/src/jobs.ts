@@ -162,6 +162,11 @@ const BUDGET_SOFT = 0.75;
 export const MAX_PARTS = 6;
 /** How long after the handing job started a part may still start. */
 const PART_WINDOW_MS = 2 * 60 * 60 * 1000;
+/**
+ * Turns the CLI may start on its own for one person's request, when background commands the agent started end
+ * (PLAN.md 5.22). Past it the session stops: an agent cannot keep itself going with commands that wake it.
+ */
+export const MAX_WAKES = 8;
 
 export function mentions(text: string): string[] {
   return [...new Set([...text.matchAll(MENTION)].map((m) => m[2] ?? ''))];
@@ -192,6 +197,8 @@ export class Jobs {
   private readonly waited = new Map<string, number>();
   /** Messages for a job that came while it waited: sent along when it starts again. */
   private readonly meanwhile = new Map<string, string[]>();
+  /** Turns the CLI started on its own, by the request they go on with. */
+  private readonly wakes = new Map<string, number>();
 
   constructor(private readonly deps: JobsDeps) {
     mkdirSync(join(deps.dir, 'jobs'), { recursive: true });
@@ -813,8 +820,14 @@ export class Jobs {
 
   stop(jobId: string, error?: string): boolean {
     const live = [...this.live.values()].find((l) => l.job?.id === jobId);
+    if (live?.job && live.job.state !== 'running' && live.job.state !== 'attention' && live.job.background) {
+      live.session.stop();
+      this.setBackground(live, 0);
+      return true;
+    }
     if (!live?.job || (live.job.state !== 'running' && live.job.state !== 'attention')) return false;
-    const job: Job = { ...live.job, state: 'stopped', ...(error ? { error } : {}), ended: this.now() };
+    const { background: _bg, ...was } = live.job;
+    const job: Job = { ...was, state: 'stopped', ...(error ? { error } : {}), ended: this.now() };
     clearTimeout(this.waits.get(jobId));
     this.waits.delete(jobId);
     this.meanwhile.delete(jobId);
@@ -994,6 +1007,14 @@ export class Jobs {
       this.deps.emitQuota(key, e.quota);
       return;
     }
+    if (e.type === 'tasks') {
+      this.setBackground(live, e.running);
+      return;
+    }
+    if (e.type === 'wake') {
+      this.wake(live, e.text);
+      return;
+    }
     const job = live.job;
     if (!job || job.state === 'stopped' || job.state === 'done' || job.state === 'failed') return;
     const at = this.now();
@@ -1130,6 +1151,57 @@ export class Jobs {
     if (e.type === 'usage') this.checkTokens(next);
   }
 
+  // ---------------------------------------------------------------- background commands (PLAN.md 5.22)
+
+  /** How many of the agent's background commands still run, on its latest job's card. */
+  private setBackground(live: Live, running: number): void {
+    const job = live.job;
+    if (!job || (job.background ?? 0) === running) return;
+    const { background: _was, ...rest } = job;
+    live.job = running > 0 ? { ...rest, background: running } : rest;
+    this.save(live.job, true);
+  }
+
+  /**
+   * A background command the agent started ended and the CLI took a turn on it with no message: the turn goes on
+   * with the request of the job before it, as a job of its own, and its answer goes into the channel.
+   */
+  private wake(live: Live, text?: string): void {
+    const prev = live.job;
+    if (prev?.state === 'running' || prev?.state === 'attention') return;
+    const count = prev ? (this.wakes.get(prev.requestId) ?? 0) : MAX_WAKES;
+    if (!prev || count >= MAX_WAKES) {
+      live.session.stop();
+      return;
+    }
+    this.wakes.set(prev.requestId, count + 1);
+    if (prev.background) {
+      const { background: _was, ...rest } = prev;
+      this.save(rest, true);
+    }
+    const at = this.now();
+    const job: Job = {
+      id: newId(),
+      channelId: live.channelId,
+      agentId: live.agent.id,
+      requestId: prev.requestId,
+      ...(prev.by ? { by: prev.by } : {}),
+      state: 'running',
+      steps: [{ id: newId(), kind: 'notice', label: 'woke', ...(text ? { arg: text } : {}), at }],
+      usage: { in: 0, cached: 0, out: 0 },
+      started: at,
+    };
+    live.job = job;
+    live.lastText = '';
+    live.unposted = undefined;
+    live.posted = undefined;
+    live.queue = [];
+    // Nothing to start again on another login: the turn was the CLI's own.
+    live.again = undefined;
+    this.transcript(job.id, { t: 'notice', text: 'woke', at });
+    this.save(job, true);
+  }
+
   /** A step on the job's card and in its transcript: a notice the live view shows in words (`job.tool.<code>`). */
   private mark(live: Live, code: string): void {
     const job = live.job;
@@ -1224,6 +1296,8 @@ export class Jobs {
     setTimeout(() => {
       const key = this.key(live.agent.id, live.slot);
       if (this.live.get(key) !== live) return;
+      // Its background commands still run: the session stays for the turn their end starts (and ends after it).
+      if (live.session.background) return;
       this.close(live);
       this.live.delete(key);
       if (part) this.deps.store.setSession(live.agent.id, live.slot, undefined);

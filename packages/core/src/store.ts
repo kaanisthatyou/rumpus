@@ -1128,10 +1128,16 @@ export class WorkspaceStore {
     const closed: Job[] = [];
     for (const r of rows) {
       const job = json<Job>(r.data);
-      if ((job.state === 'running' || job.state === 'attention') && mine(job)) {
-        const ended: Job = { ...job, state: 'stopped', error: 'app_closed', ended: now };
+      if (!mine(job)) continue;
+      // Background commands ended with the app.
+      const { background: _bg, ...rest } = job;
+      if (job.state === 'running' || job.state === 'attention') {
+        const ended: Job = { ...rest, state: 'stopped', error: 'app_closed', ended: now };
         this.saveJob(ended);
         closed.push(ended);
+      } else if (job.background) {
+        this.saveJob(rest);
+        closed.push(rest);
       }
     }
     return closed;

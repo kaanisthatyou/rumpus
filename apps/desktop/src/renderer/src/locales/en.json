@@ -403,7 +403,8 @@
       "budget": "Budget nearly used",
       "spare": "Out of quota: continues on the spare login",
       "wait_quota": "Out of quota: continues once it resets",
-      "follow": "Goes on in the earlier job's session"
+      "follow": "Goes on in the earlier job's session",
+      "woke": "A background command ended: goes on by itself"
     },
     "denied": "Refused",
     "more_one": "{{count}} more step",
@@ -414,6 +415,9 @@
     "follow": "Go on",
     "followPlaceholder": "Goes on in this job's session · sent with Enter",
     "stop": "Stop",
+    "background_one": "{{count}} background command still running: the job goes on by itself when it ends",
+    "background_other": "{{count}} background commands still running: the job goes on by itself as each ends",
+    "backgroundStop": "Stop the commands",
     "steerPlaceholder": "Delivered while it works · sent with Enter",
     "answer": "Answer of the job",
     "live": "Live view",

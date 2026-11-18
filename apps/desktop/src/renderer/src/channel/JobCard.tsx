@@ -156,6 +156,17 @@ export function JobCard({ job, agent }: { job: Job; agent: Agent | undefined }) 
       )}
       {running && job.preview && <p className="job__preview">{job.preview.slice(-280)}</p>}
       {error && job.state !== 'done' && <p className="job__error">{error}</p>}
+      {!running && job.background ? (
+        <div className="job__background">
+          <Icon name="clock" size={13} />
+          <span>{t('job.background', { count: job.background })}</span>
+          {!owner && (
+            <Button size="sm" variant="quiet" icon="close" onClick={() => void stopJob(job.id)}>
+              {t('job.backgroundStop')}
+            </Button>
+          )}
+        </div>
+      ) : null}
       {!running && <JobChanges job={job} mine={!owner} />}
       <div className="job__foot">
         <span className="job__usage l-mono">
