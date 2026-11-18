@@ -31,6 +31,23 @@ export interface BackgroundSettings {
   };
 }
 
+/** A report arrived (PLAN.md 5.21): what the toast over the screen's lower right corner shows. */
+export interface ReportToast {
+  /** The report's message id. */
+  id: string;
+  title: string;
+  /** The agent that wrote it. */
+  by: string;
+  /** Its short code (`4F2A1C`). */
+  code: string;
+  /** Reports that arrived together (the toast shows the newest and how many more). */
+  count: number;
+  /** Questions it leaves to the person. */
+  decisions: number;
+  look: { theme: 'dark' | 'light'; accent: string; motion: string };
+  labels: { kind: string; open: string; close: string; more: string; decisions: string };
+}
+
 export interface LoncaBridge {
   shell: {
     pickFolder(): Promise<string | null>;
@@ -56,6 +73,24 @@ export interface LoncaBridge {
     setBackground(background: BackgroundSettings): Promise<void>;
     /** The window was hidden in the tray (false) or shown again (true). */
     onShown(listener: (shown: boolean) => void): () => void;
+  };
+  /**
+   * The report toast: Bub over the screen's lower right corner when a report arrives, whatever window is in front.
+   * `show` comes from the main window; the toast's own page gets it with `onShow`, and a click on it reaches the
+   * main window as `onOpen`.
+   */
+  toast: {
+    show(toast: ReportToast): Promise<void>;
+    onShow(listener: (toast: ReportToast) => void): () => void;
+    /** From the toast, once its page is up: the toast it was made for (sent before it listened). */
+    pending(): Promise<ReportToast | null>;
+    /** From the toast: open this report in the main window. */
+    open(id: string): Promise<void>;
+    /** From the toast: it is done (its time is up, or it was closed). */
+    hide(): Promise<void>;
+    /** From the toast: the pointer is over it (true), or over the desktop around it. */
+    solid(on: boolean): Promise<void>;
+    onOpen(listener: (id: string) => void): () => void;
   };
   /** Invite links (`rumpus://join/<code>`) the app was opened with. */
   links: {

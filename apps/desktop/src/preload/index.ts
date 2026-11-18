@@ -1,6 +1,6 @@
 import type { ProvidersState } from '@lonca/protocol';
 import { contextBridge, ipcRenderer } from 'electron';
-import type { LoncaBridge, UpdateState } from '../shared/bridge.js';
+import type { LoncaBridge, ReportToast, UpdateState } from '../shared/bridge.js';
 
 // The core's port arrives here; it is handed to the page, which talks to the core directly.
 ipcRenderer.on('lonca:port', (event) => {
@@ -23,6 +23,23 @@ const bridge: LoncaBridge = {
       const h = (_e: unknown, shown: boolean) => listener(shown === true);
       ipcRenderer.on('window:shown', h);
       return () => ipcRenderer.off('window:shown', h);
+    },
+  },
+  toast: {
+    show: (toast) => ipcRenderer.invoke('toast:show', toast),
+    onShow: (listener) => {
+      const h = (_e: unknown, toast: ReportToast) => listener(toast);
+      ipcRenderer.on('toast:data', h);
+      return () => ipcRenderer.off('toast:data', h);
+    },
+    pending: () => ipcRenderer.invoke('toast:pending'),
+    open: (id) => ipcRenderer.invoke('toast:open', id),
+    hide: () => ipcRenderer.invoke('toast:hide'),
+    solid: (on) => ipcRenderer.invoke('toast:solid', on),
+    onOpen: (listener) => {
+      const h = (_e: unknown, id: string) => listener(id);
+      ipcRenderer.on('toast:open', h);
+      return () => ipcRenderer.off('toast:open', h);
     },
   },
   links: {

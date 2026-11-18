@@ -30,6 +30,7 @@ import {
   cleanTraits,
   commandName,
   DEFAULT_ACCESS,
+  type Decision,
   type DeviceStatus,
   type EventName,
   type Frame,
@@ -54,6 +55,7 @@ import {
   type MessageImage,
   type MethodName,
   type Overview,
+  type OverviewDay,
   oneLine,
   type PhoneState,
   PICTURE_SLOTS,
@@ -63,6 +65,8 @@ import {
   ProjectStatusInputSchema,
   type ProjectView,
   RECORD_KINDS,
+  REPORT_DECISIONS_MAX,
+  REPORTS_CHANNEL,
   type RecordItem,
   RoleInputSchema,
   type RoleTag,
@@ -512,8 +516,42 @@ export class Core {
       'invites.answer': async (p) => this.answerJoin(p?.id, p?.approve === true),
       'members.setRole': async (p) => this.setRole(p?.device, p?.role),
       'members.remove': async (p) => this.removeMember(p?.device),
-      'channels.create': async (p) => this.createChannel(p?.name, p?.reports === true),
-      'channels.reports': async (p) => this.setReports(p?.id, p?.reports === true),
+      'channels.create': async (p) => this.createChannel(p?.name),
+      'reports.list': async (p) => {
+        const { store } = this.workspace();
+        const limit = Number.isInteger(p?.limit) ? Math.min(300, Math.max(1, Number(p?.limit))) : 200;
+        const messages = store.reportFeed({ ...(typeof p?.before === 'number' ? { before: p.before } : {}), limit });
+        const feed = store.channel(REPORTS_CHANNEL)?.reports
+          ? REPORTS_CHANNEL
+          : store.channels().find((c) => c.reports)?.id;
+        // The jobs the feed's requests started, and the ones its answers end.
+        const jobs = new Map(store.jobsFor(messages.map((m) => m.id)).map((j) => [j.id, j]));
+        for (const m of messages) {
+          const j = m.jobId && !jobs.has(m.jobId) ? store.job(m.jobId) : undefined;
+          if (j) jobs.set(j.id, j);
+        }
+        return {
+          ...(feed ? { channel: feed } : {}),
+          messages,
+          jobs: [...jobs.values()],
+          marks: store.reportMarks(messages.map((m) => m.id)),
+        };
+      },
+      'reports.mark': async (p) => {
+        const { store } = this.workspace();
+        const ids = Array.isArray(p?.ids)
+          ? p.ids.filter((i): i is string => typeof i === 'string').slice(0, 500)
+          : undefined;
+        if (!ids) store.readAllReports(0);
+        else
+          store.markReports(ids, {
+            ...(typeof p?.read === 'boolean' ? { read: p.read } : {}),
+            ...(typeof p?.pinned === 'boolean' ? { pinned: p.pinned } : {}),
+          });
+        this.changed();
+        return { ok: true as const };
+      },
+      'reports.channel': async () => this.reportFeed(),
       'channels.rename': async (p) => this.renameChannel(p?.id, p?.name),
       'channels.delete': async (p) => this.deleteChannel(p?.id),
       'channels.read': async (p) => {
@@ -1404,7 +1442,13 @@ export class Core {
             );
           }
         }),
-      emitMessage: (message) => inWs(() => this.emit('message.added', message)),
+      emitMessage: (message) =>
+        inWs(() => {
+          this.emit('message.added', message);
+          // A report in the feed changes the count of unread reports.
+          if (message.author.kind === 'agent' && !message.during && store.channel(message.channelId)?.reports)
+            this.changed();
+        }),
       emitDeleted: (m) => inWs(() => this.emit('message.deleted', m)),
       emitQuota: (kind, quota) => this.emit('quota.changed', { kind, quota }),
       accountEnv: (agent) => this.accounts.env(agent.account),
@@ -1508,6 +1552,7 @@ export class Core {
               this.publishEndpoint(ref.ws);
               this.publishProfile(ref.ws);
               void this.fetchPictures(ref.ws);
+              void this.fetchImages(ref.ws);
             }),
         });
         store.onCommit = () => sync?.kick();
@@ -1761,6 +1806,13 @@ export class Core {
       const faces = this.faces();
       if (!this.pictures(ws.store).some((p) => p.blob === name) || !faces.has(name)) throw new PeerError(404, 'blob');
       return { data: faces.base64(name) };
+    }
+    if (req.path === '/v1/image') {
+      // Only an image a message of this workspace carries (a report's screenshot), from this workspace's own blobs.
+      const name = String(body.blob ?? '');
+      const message = typeof body.message === 'string' ? ws.store.message(body.message) : undefined;
+      if (!message?.images?.some((i) => i.blob === name) || !ws.blobs.has(name)) throw new PeerError(404, 'image');
+      return { data: ws.blobs.base64(name) };
     }
     if (req.path === '/v1/sync') {
       ws.sync.kick();
@@ -2214,6 +2266,15 @@ export class Core {
     if (events.some((e) => e.type === 'profile.saved' || e.type === 'look.saved' || e.type === 'device.endpoint')) {
       void this.fetchPictures(ws);
     }
+    // A report from another member's agent: its images, and the count of unread reports.
+    const reported = events.some(
+      (e) =>
+        e.type === 'message.posted' && store.channel(String((e.data as { channelId?: unknown })?.channelId))?.reports,
+    );
+    if (reported) {
+      void this.fetchImages(ws);
+      structure = true;
+    }
     if (events.some((e) => e.type === 'profile.saved')) this.friendSeen(ws);
     if (structure) this.changed();
   }
@@ -2586,6 +2647,61 @@ export class Core {
     }
   }
 
+  /**
+   * Asks other members for the images of reports this computer lacks (PLAN.md 5.21): the computer of the agent that
+   * made them first. Reports only, the newest ones, at most 10 MB each.
+   */
+  private async fetchImages(ws: Workspace): Promise<void> {
+    const signer = this.opts.signer;
+    if (ws.kind !== 'team' || !signer || !ws.membership?.can(this.deviceId, 'viewer')) return;
+    const wanted: { message: string; blob: string; owner?: string }[] = [];
+    for (const m of ws.store.reportFeed({ limit: 60 })) {
+      if (m.author.kind !== 'agent') continue;
+      const owner = ws.store.agent(m.author.id)?.owner;
+      for (const i of m.images ?? []) {
+        const key = `${ws.id}/${i.blob}`;
+        if (ws.blobs.has(i.blob) || this.fetching.has(key) || wanted.some((w) => w.blob === i.blob)) continue;
+        wanted.push({ message: m.id, blob: i.blob, ...(owner ? { owner } : {}) });
+      }
+    }
+    if (wanted.length === 0) return;
+    for (const w of wanted) this.fetching.add(`${ws.id}/${w.blob}`);
+    const client = this.peerClient(signer, 60_000);
+    const endpoints = ws.store.endpoints();
+    const others = ws.store
+      .members()
+      .filter((m) => !m.removed && m.device !== this.deviceId)
+      .map((m) => m.device);
+    let got = false;
+    for (const w of wanted) {
+      try {
+        const order = [...new Set([...(w.owner ? [w.owner] : []), ...others])].filter((d) => d !== this.deviceId);
+        for (const device of order) {
+          const address = endpoints[device]?.[0];
+          if (!address) continue;
+          try {
+            const answer = (await client.call(address, '/v1/image', ws.id, { message: w.message, blob: w.blob })) as {
+              data?: unknown;
+            };
+            if (
+              typeof answer.data === 'string' &&
+              ws.blobs.put(w.blob, Buffer.from(answer.data, 'base64'), 10 * 1024 * 1024)
+            ) {
+              got = true;
+              break;
+            }
+          } catch {
+            // this member does not have it or is away: the next one, or the next round
+          }
+        }
+      } finally {
+        this.fetching.delete(`${ws.id}/${w.blob}`);
+      }
+    }
+    // The window asks again for what it showed as missing.
+    if (got && ws.id === this.currentId()) this.within(ws, () => this.emit('reports.images', { ok: true }));
+  }
+
   /** A look and roles belong to a workspace of a team: not the personal one, not a conversation of two friends. */
   private requireTeamAdmin(): void {
     const ws = this.workspace();
@@ -2676,13 +2792,19 @@ export class Core {
       name: store.meta('name') ?? id,
       kind,
       me: this.me(),
-      channels: store.channels(),
+      // The report feed is not a channel to open: the board's Reports page shows it (PLAN.md 5.21).
+      channels: store.channels().filter((c) => !c.reports),
+      reportChannels: store
+        .channels()
+        .filter((c) => c.reports)
+        .map((c) => c.id),
       agents: store.agents(),
       advisors: store.advisors(),
       spend: advisors.spendToday(),
       active: jobs.active(),
       lessons: this.pendingLessons(store),
       unread: this.unread(store),
+      reportsUnread: store.reportsUnread(Number(store.meta('opened') ?? 0)),
       routines: this.routineViews(),
       ...this.teamState(this.workspace()),
     };
@@ -2713,6 +2835,8 @@ export class Core {
     const existing = p.id ? store.routine(p.id) : undefined;
     if (p.id && !existing) throw new CoreError('not_found');
     if (existing && existing.owner !== this.deviceId) throw new CoreError('not_allowed');
+    // The report feed is made when a routine first reports there.
+    if (p.channelId === REPORTS_CHANNEL) this.reportFeed();
     if (!store.channel(p.channelId)) throw new CoreError('not_found');
     if (!existing && store.routines().filter((r) => r.owner === this.deviceId).length >= 40) {
       throw new CoreError('bad_request', 'too_many');
@@ -2792,12 +2916,56 @@ export class Core {
       usage.out += j.usage.out;
       cost += j.cost ?? 0;
     }
-    const days = Array.from({ length: 7 }, (_, i) => ({ day: dayOf(today - (6 - i) * DAY), jobs: 0, tokens: 0 }));
+    const days: OverviewDay[] = Array.from({ length: 7 }, (_, i) => ({
+      day: dayOf(today - (6 - i) * DAY),
+      jobs: 0,
+      tokens: 0,
+      usage: { in: 0, cached: 0, out: 0 },
+      done: 0,
+      failed: 0,
+      cost: 0,
+    }));
+    const week: Overview['week'] = {
+      jobs: 0,
+      done: 0,
+      failed: 0,
+      stopped: 0,
+      usage: { in: 0, cached: 0, out: 0 },
+      cost: 0,
+      busyMs: 0,
+    };
+    const byAgent = new Map<string, Overview['agents'][number]>();
     for (const j of jobs) {
       const slot = days.find((d) => d.day === dayOf(j.started));
       if (!slot) continue;
       slot.jobs += 1;
       slot.tokens += j.usage.in + j.usage.out;
+      slot.usage.in += j.usage.in;
+      slot.usage.cached += j.usage.cached;
+      slot.usage.out += j.usage.out;
+      slot.cost += j.cost ?? 0;
+      if (j.state === 'done') slot.done += 1;
+      if (j.state === 'failed') slot.failed += 1;
+      week.jobs += 1;
+      week.usage.in += j.usage.in;
+      week.usage.cached += j.usage.cached;
+      week.usage.out += j.usage.out;
+      week.cost += j.cost ?? 0;
+      if (j.state === 'done') week.done += 1;
+      if (j.state === 'failed') week.failed += 1;
+      if (j.state === 'stopped') week.stopped += 1;
+      if (j.ended) week.busyMs += Math.max(0, j.ended - j.started);
+      const a = byAgent.get(j.agentId) ?? {
+        agentId: j.agentId,
+        name: store.agent(j.agentId)?.name ?? '',
+        jobs: 0,
+        done: 0,
+        tokens: 0,
+      };
+      a.jobs += 1;
+      if (j.state === 'done') a.done += 1;
+      a.tokens += j.usage.in + j.usage.cached + j.usage.out;
+      byAgent.set(j.agentId, a);
     }
     const firstLine = (t: string | undefined) => (t ?? '').trim().split('\n')[0]?.slice(0, 160) ?? '';
     return {
@@ -2809,6 +2977,8 @@ export class Core {
         cost,
       },
       days,
+      week,
+      agents: [...byAgent.values()].sort((x, y) => y.tokens - x.tokens).slice(0, 6),
       recent: jobs
         .filter(over)
         .slice(0, 12)
@@ -2820,7 +2990,7 @@ export class Core {
     };
   }
 
-  private createChannel(name: unknown, reports = false): Channel {
+  private createChannel(name: unknown): Channel {
     this.requireRole('admin');
     const { store } = this.workspace();
     const clean = typeof name === 'string' ? name.trim().replace(/İ/g, 'i').toLowerCase().replace(/\s+/g, '-') : '';
@@ -2832,7 +3002,6 @@ export class Core {
       kind: 'channel',
       topic: '',
       created: Date.now(),
-      ...(reports ? { reports: true } : {}),
     };
     store.commit({ type: 'channel.created', data: channel });
     this.changed();
@@ -2851,18 +3020,26 @@ export class Core {
     return { ...channel, name: clean };
   }
 
-  /** A text channel becomes a report channel (PLAN.md 5.21) or back; at least one text channel stays. */
-  private setReports(id: unknown, reports: boolean): Channel {
-    this.requireRole('admin');
+  /**
+   * The workspace's report feed (PLAN.md 5.21), made the first time something reports there: by an editor, under
+   * the same id on every computer, so two members making it at once make one.
+   */
+  private reportFeed(): Channel {
     const { store } = this.workspace();
-    const channel = typeof id === 'string' ? store.channel(id) : undefined;
-    if (channel?.kind !== 'channel') throw new CoreError('not_found');
-    if (Boolean(channel.reports) === reports) return channel;
-    if (reports && store.channels().filter((c) => c.kind === 'channel' && !c.reports).length <= 1)
-      throw new CoreError('bad_request', 'last');
-    store.commit({ type: 'channel.reports', data: { id: channel.id, reports } });
+    const there = store.channel(REPORTS_CHANNEL);
+    if (there?.reports) return there;
+    this.requireRole('editor');
+    const channel: Channel = {
+      id: REPORTS_CHANNEL,
+      name: 'reports',
+      kind: 'channel',
+      topic: '',
+      created: Date.now(),
+      reports: true,
+    };
+    store.commit({ type: 'channel.created', data: channel });
     this.changed();
-    return store.channel(channel.id) ?? channel;
+    return store.channel(REPORTS_CHANNEL) ?? channel;
   }
 
   /** What a message that answers a report carries about it; none when the id is not a report. */
@@ -3728,11 +3905,22 @@ export class Core {
             : `No such file: ${path}.`;
       }
     };
+    /** A question for the person, cleaned; none without one. */
+    const decisionOf = (raw: unknown): Decision | undefined => {
+      const d = (raw && typeof raw === 'object' ? raw : {}) as { question?: unknown; options?: unknown };
+      const question = str(d.question, 400)?.trim();
+      if (!question) return undefined;
+      const options = (Array.isArray(d.options) ? d.options : [])
+        .map((o) => str(o, 120)?.trim() ?? '')
+        .filter(Boolean)
+        .slice(0, 5);
+      return { question, ...(options.length ? { options } : {}) };
+    };
     return [
       {
         name: 'attach_image',
         description:
-          'Attaches an image file you made (a screenshot, a diagram, a design; PNG, JPEG, WebP or GIF, at most 10 MB) to your answer to the current job: it is shown with your answer, inside the report card in a report channel. Give an absolute path, or one relative to your folder. At most 8 per answer.',
+          'Attaches an image file you made (a screenshot, a diagram, a design; PNG, JPEG, WebP or GIF, at most 10 MB) to your answer to the current job: it is shown with your answer (inside its report card when the job reports). Give an absolute path, or one relative to your folder. At most 8 per answer.',
         inputSchema: {
           type: 'object',
           properties: { path: { type: 'string' }, caption: { type: 'string', description: 'One line under it.' } },
@@ -3752,21 +3940,54 @@ export class Core {
         },
       },
       {
+        name: 'ask_decision',
+        description:
+          'Leaves a question to the person on your answer to the current job, shown as a decision in its report card: they pick one of the options, write their own answer, or leave it to you. Ask only what you cannot settle yourself (a choice that is theirs: spending, publishing, a direction). At most 6 per answer.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            question: { type: 'string' },
+            options: { type: 'array', items: { type: 'string' }, description: 'Up to 5 short answers to pick from.' },
+          },
+          required: ['question'],
+        },
+        run: (a, ctx) => {
+          const decision = decisionOf(a);
+          if (!decision) return text('A question is needed.');
+          const r = this.workspace().jobs.askDecision(ctx.agentId, ctx.channelId, ctx.slot, decision);
+          return text(
+            r === 'ok'
+              ? 'Added. It is shown with your answer when the job ends; the person answers in your channel.'
+              : r === 'full'
+                ? `Not added: an answer carries at most ${REPORT_DECISIONS_MAX} questions.`
+                : 'No running job to add it to.',
+          );
+        },
+      },
+      {
         name: 'post_report',
         description:
-          'Posts a report into a report channel of the workspace, shown there as a dated card: a short title, the body in Markdown, and images (screenshots, diagrams) by file path. Use it for work worth reporting on its own (a nightly check, a finished study), not for chat. The report channel is the one named, else this channel if it is one, else the first one. Reports never start work. At most 3 per job.',
+          "Posts a report into the workspace's reports (the board's Reports page), shown as a dated card: a short title, the body in Markdown, images (screenshots, diagrams) by file path, and questions left to the person (decisions). Use it for work worth reporting on its own (a nightly check, a finished study), not for chat. Reports never start work. At most 3 per job.",
         inputSchema: {
           type: 'object',
           properties: {
             title: { type: 'string' },
             body: { type: 'string', description: 'Markdown.' },
-            channel: { type: 'string', description: 'The report channel, by name.' },
             images: {
               type: 'array',
               items: {
                 type: 'object',
                 properties: { path: { type: 'string' }, caption: { type: 'string' } },
                 required: ['path'],
+              },
+            },
+            decisions: {
+              type: 'array',
+              description: 'Questions the person decides (at most 6), each with up to 5 options.',
+              items: {
+                type: 'object',
+                properties: { question: { type: 'string' }, options: { type: 'array', items: { type: 'string' } } },
+                required: ['question'],
               },
             },
           },
@@ -3782,17 +4003,12 @@ export class Core {
           const title = str(a.title, 200)?.trim();
           const body = str(a.body, LIMITS.message)?.trim() ?? '';
           if (!title) return text('A title is needed.');
-          const reports = store.channels().filter((c) => c.kind === 'channel' && c.reports);
-          const named = (str(a.channel, 80) ?? '').replace(/^#/, '').trim().toLowerCase();
-          const channel = named
-            ? reports.find((c) => c.name === named || c.id === named)
-            : (reports.find((c) => c.id === ctx.channelId) ?? reports[0]);
-          if (!channel)
-            return text(
-              named
-                ? `No report channel #${named}. Report channels: ${reports.map((c) => `#${c.name}`).join(', ') || 'none'}.`
-                : 'There is no report channel in this workspace; a person makes one (a new channel of the report kind).',
-            );
+          let channel: Channel;
+          try {
+            channel = this.reportFeed();
+          } catch {
+            return text('Refused: only an editor of this workspace reports here.');
+          }
           const images: MessageImage[] = [];
           const problems: string[] = [];
           for (const item of (Array.isArray(a.images) ? a.images : []).slice(0, MESSAGE_IMAGES_MAX)) {
@@ -3804,6 +4020,10 @@ export class Core {
             if (typeof img === 'string') problems.push(img);
             else if (!images.some((i) => i.blob === img.blob)) images.push(img);
           }
+          const decisions = (Array.isArray(a.decisions) ? a.decisions : [])
+            .map(decisionOf)
+            .filter((d): d is Decision => d !== undefined)
+            .slice(0, REPORT_DECISIONS_MAX);
           const message: Message = {
             id: newId(),
             channelId: channel.id,
@@ -3812,12 +4032,14 @@ export class Core {
             created: Date.now(),
             title,
             ...(images.length ? { images } : {}),
+            ...(decisions.length ? { decisions } : {}),
           };
           store.commit({ type: 'message.posted', data: message });
           this.emit('message.added', message);
+          this.changed();
           this.reportsBy.set(job.id, posted + 1);
           return text(
-            `Posted report #${reportCode(message.id)} in #${channel.name}${images.length ? ` with ${images.length} image${images.length === 1 ? '' : 's'}` : ''}.${
+            `Posted report #${reportCode(message.id)}${images.length ? ` with ${images.length} image${images.length === 1 ? '' : 's'}` : ''}${decisions.length ? ` and ${decisions.length} decision${decisions.length === 1 ? '' : 's'}` : ''}.${
               problems.length ? ` Left out: ${problems.join(' ')}` : ''
             }`,
           );

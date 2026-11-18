@@ -124,6 +124,16 @@ function webBridge(): LoncaBridge {
       setBackground: async () => {},
       onShown: () => () => {},
     },
+    // The toast over the screen is the PC's; a phone hears of a report from its page.
+    toast: {
+      show: async () => {},
+      onShow: () => () => {},
+      pending: async () => null,
+      open: async () => {},
+      hide: async () => {},
+      solid: async () => {},
+      onOpen: () => () => {},
+    },
     // Invite links open the PC's app, never a phone's page.
     links: { pending: async () => null, onJoin: () => () => {} },
     // The quick-entry window is the PC's own.

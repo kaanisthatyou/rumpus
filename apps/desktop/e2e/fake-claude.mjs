@@ -316,6 +316,10 @@ async function run() {
         title: 'Gece taraması: iki uyarı',
         body: 'Bağımlılık taramasında **iki** uyarı var.\n\n- `zod` bir sürüm geride\n- `vite` güvenlik notu',
         images: [{ path: 'ekran.png', caption: 'Tarama özeti' }],
+        decisions: [
+          { question: 'zod güncellemesi şimdi mi yapılsın?', options: ['Şimdi', 'Hafta sonu'] },
+          { question: 'vite için ana sürüm yükseltilsin mi?' },
+        ],
       });
       const answer = [
         '# Sabah raporu',

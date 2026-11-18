@@ -1,21 +1,23 @@
-// Report channels (PLAN.md 5.21): what routines ask for and what agents report, shown as dated cards instead of a
-// chat. People do not write here; a report is answered from its card, which opens the agent's own channel with the
-// report attached to the next message. A card opens the whole report, with its images, over the page.
+// Reports (PLAN.md 5.21): what routines ask for and what agents report, on the board's Reports page as dated cards
+// instead of a chat. People do not write there; a report is answered from its card, which opens the agent's own
+// channel with the report attached to the next message, or its questions are decided from the report itself. A
+// report is read once opened, and pinned ones stay at the top. A card opens the whole report over the page.
 import {
   type Agent,
-  type Channel,
   type Citation,
   type Job,
   type Message,
   type MessageImage,
+  type ReportMark,
   reportCode,
   reportTitle,
 } from '@lonca/protocol';
-import { Avatar, Button, Chip, Icon, IconButton, Spinner } from '@lonca/ui';
+import { Avatar, Button, Icon, IconButton, Spinner } from '@lonca/ui';
 import { AnimatePresence, motion } from 'motion/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { specialistIcon } from '../agents/SpecialistDialog';
+import { EfficiencyMeter } from '../overview/Meter';
 import { core } from '../rpc';
 import { useApp } from '../store';
 import { clock, dayKey, dayLabel, elapsed, tokens } from './format';
@@ -38,13 +40,14 @@ export interface ReportEntry {
   at: number;
 }
 
-/** Groups a report channel's messages into cards, newest first. */
-export function reportEntries(messages: Message[], jobs: Record<string, Job>, channelId: string): ReportEntry[] {
+/** Groups the report feed's messages into cards, newest first. */
+export function reportEntries(messages: Message[], jobs: Record<string, Job>): ReportEntry[] {
   const byJob = new Map<string, ReportEntry>();
   const out: ReportEntry[] = [];
+  const asked = new Set(messages.map((m) => m.id));
   const jobsOf = new Map<string, Job[]>();
   for (const j of Object.values(jobs)) {
-    if (j.channelId !== channelId) continue;
+    if (!asked.has(j.requestId)) continue;
     jobsOf.set(j.requestId, [...(jobsOf.get(j.requestId) ?? []), j]);
   }
   const entryFor = (jobId: string, at: number): ReportEntry => {
@@ -112,15 +115,18 @@ export function Picture({ message, image, className }: { message: string; image:
   const key = `${message}/${image.blob}`;
   const url = useApp((s) => s.pictures[key]);
   const loadPicture = useApp((s) => s.loadPicture);
+  // Asked again when images arrive from another member's computer.
+  const epoch = useApp((s) => s.imagesEpoch);
   const [missing, setMissing] = useState(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the epoch is the trigger to ask again
   useEffect(() => {
     if (url) return;
     let live = true;
-    void loadPicture(message, image.blob).then((u) => live && !u && setMissing(true));
+    void loadPicture(message, image.blob).then((u) => live && setMissing(!u));
     return () => {
       live = false;
     };
-  }, [url, message, image.blob, loadPicture]);
+  }, [url, message, image.blob, loadPicture, epoch]);
   const { t } = useTranslation();
   if (missing)
     return (
@@ -226,7 +232,37 @@ function StatePill({ entry }: { entry: ReportEntry }) {
   );
 }
 
-function ReportCard({ entry, agent, onOpen }: { entry: ReportEntry; agent: Agent | undefined; onOpen: () => void }) {
+/** The pin of a report: a click keeps it at the top of the page; pinned, it turns green. */
+function PinButton({ id, pinned }: { id: string; pinned: boolean }) {
+  const { t } = useTranslation();
+  return (
+    <button
+      type="button"
+      className={`rpin ${pinned ? 'is-pinned' : ''}`}
+      aria-pressed={pinned}
+      aria-label={t(pinned ? 'reports.unpin' : 'reports.pin')}
+      title={t(pinned ? 'reports.unpin' : 'reports.pin')}
+      onClick={(e) => {
+        e.stopPropagation();
+        void useApp.getState().markReports([id], { pinned: !pinned });
+      }}
+    >
+      <Icon name="pin" size={14} />
+    </button>
+  );
+}
+
+function ReportCard({
+  entry,
+  agent,
+  mark,
+  onOpen,
+}: {
+  entry: ReportEntry;
+  agent: Agent | undefined;
+  mark: ReportMark | undefined;
+  onOpen: () => void;
+}) {
   const { t, i18n } = useTranslation();
   const answerReport = useApp((s) => s.answerReport);
   const report = entry.report;
@@ -237,9 +273,11 @@ function ReportCard({ entry, agent, onOpen }: { entry: ReportEntry; agent: Agent
   const step = running ? job?.steps.at(-1) : undefined;
   const name = agent?.name ?? (report?.author.kind === 'agent' ? report.author.name : '');
   const routine = entry.request?.routine !== undefined;
+  const unread = Boolean(report && !mark?.read);
+  const asks = report?.decisions?.length ?? 0;
   return (
     <motion.article
-      className={`rcard rcard--${stateOf(entry)}`}
+      className={`rcard rcard--${stateOf(entry)} ${unread ? 'is-unread' : ''} ${mark?.pinned ? 'is-pinned' : ''}`}
       layout="position"
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0, transition: { type: 'spring', stiffness: 420, damping: 34 } }}
@@ -262,8 +300,10 @@ function ReportCard({ entry, agent, onOpen }: { entry: ReportEntry; agent: Agent
         <time className="rcard__time l-mono" dateTime={new Date(entry.at).toISOString()}>
           {clock(entry.at)}
         </time>
+        {report && <PinButton id={report.id} pinned={Boolean(mark?.pinned)} />}
       </header>
       <button type="button" className="rcard__title" onClick={onOpen}>
+        {unread && <span className="rcard__new" title={t('reports.unread')} />}
         {title || t('reports.untitled')}
       </button>
       {summary ? (
@@ -276,6 +316,12 @@ function ReportCard({ entry, agent, onOpen }: { entry: ReportEntry; agent: Agent
         </p>
       ) : null}
       {report && <MessageImages message={report} max={4} />}
+      {asks > 0 && (
+        <button type="button" className="rcard__asks" onClick={onOpen}>
+          <Icon name="alert" size={12} />
+          {t('reports.decisions.waiting', { count: asks })}
+        </button>
+      )}
       <footer className="rcard__foot">
         <StatePill entry={entry} />
         {report && <span className="rcard__code l-mono">#{reportCode(report.id)}</span>}
@@ -302,93 +348,190 @@ function ReportCard({ entry, agent, onOpen }: { entry: ReportEntry; agent: Agent
   );
 }
 
-export function ReportsView({ channel }: { channel: Channel }) {
+type Filter = 'all' | 'unread' | 'pinned' | 'asks';
+
+/** The board's Reports page: every report of the workspace as dated cards, the pinned ones first. */
+export function ReportsView() {
   const { t, i18n } = useTranslation();
-  const messages = useApp((s) => s.messages[channel.id] ?? EMPTY);
+  const feed = useApp((s) => s.reportFeed);
+  const wsId = useApp((s) => s.workspace?.id);
   const jobs = useApp((s) => s.jobs);
   const agents = useApp((s) => s.workspace?.agents ?? NO_AGENTS);
-  const canEdit = useApp((s) => s.workspace?.kind === 'personal' || s.workspace?.role === 'admin');
+  const unreadCount = useApp((s) => s.workspace?.reportsUnread ?? 0);
+  const overview = useApp((s) => s.overview);
   const [who, setWho] = useState<string>('all');
-  const entries = useMemo(() => reportEntries(messages, jobs, channel.id), [messages, jobs, channel.id]);
+  const [filter, setFilter] = useState<Filter>('all');
+
+  useEffect(() => {
+    void useApp.getState().loadReports();
+    core
+      .call('overview.get')
+      .then((o) => useApp.setState({ overview: o }))
+      .catch(() => {});
+  }, []);
+
+  const loaded = feed.ws === wsId;
+  const messages = loaded ? feed.messages : EMPTY;
+  const entries = useMemo(() => reportEntries(messages, jobs), [messages, jobs]);
   const writers = useMemo(() => [...new Set(entries.flatMap((e) => (e.agentId ? [e.agentId] : [])))], [entries]);
-  const shown = who === 'all' ? entries : entries.filter((e) => e.agentId === who);
+  const markOf = (e: ReportEntry) => (e.report ? feed.marks[e.report.id] : undefined);
+  const counts = {
+    unread: entries.filter((e) => e.report && !markOf(e)?.read).length,
+    pinned: entries.filter((e) => markOf(e)?.pinned).length,
+    asks: entries.filter((e) => (e.report?.decisions?.length ?? 0) > 0).length,
+  };
+  const byWho = who === 'all' ? entries : entries.filter((e) => e.agentId === who);
+  const shown = byWho.filter((e) =>
+    filter === 'unread'
+      ? e.report && !markOf(e)?.read
+      : filter === 'pinned'
+        ? markOf(e)?.pinned
+        : filter === 'asks'
+          ? (e.report?.decisions?.length ?? 0) > 0
+          : true,
+  );
+  // On the whole list the pinned ones stand above the days.
+  const pinned = filter === 'all' ? shown.filter((e) => markOf(e)?.pinned) : [];
+  const rest = filter === 'all' ? shown.filter((e) => !markOf(e)?.pinned) : shown;
   const open = (e: ReportEntry) => {
     const id = e.report?.id ?? e.request?.id;
     if (id) useApp.getState().openReport(id);
   };
+  const card = (e: ReportEntry) => (
+    <ReportCard entry={e} agent={agents.find((a) => a.id === e.agentId)} mark={markOf(e)} onOpen={() => open(e)} />
+  );
+  const weekReports = entries.filter((e) => e.report && e.at > Date.now() - 7 * 86_400_000).length;
 
   return (
     <main className="chat reports-page">
       <header className="chat__head">
         <h2>
           <Icon name="report" size={15} />
-          {channel.name}
+          {t('shell.reports')}
         </h2>
-        <Chip>{t('reports.kind')}</Chip>
         <span className="chat__topic">{t('reports.hint')}</span>
         <span className="grow" />
+        {unreadCount > 0 && (
+          <Button
+            size="sm"
+            variant="quiet"
+            icon="check"
+            onClick={() => void useApp.getState().markReports(undefined, {})}
+          >
+            {t('reports.readAll')}
+          </Button>
+        )}
         <Button size="sm" variant="quiet" icon="clock" onClick={() => useApp.getState().setView('routines')}>
           {t('shell.routines')}
         </Button>
-        {canEdit && (
-          <IconButton
-            icon="hash"
-            label={t('reports.toText')}
-            onClick={() => void useApp.getState().setReports(channel.id, false)}
-          />
-        )}
       </header>
-      {writers.length > 1 && (
+      <div className="reports">
+        <section className="rtop" aria-label={t('overview.efficiency.title')}>
+          <EfficiencyMeter week={overview?.week} size={150} />
+          <div className="rtop__facts">
+            <div>
+              <span className="stat__label">{t('reports.facts.week')}</span>
+              <b className="l-mono">{weekReports}</b>
+            </div>
+            <div>
+              <span className="stat__label">{t('reports.facts.unread')}</span>
+              <b className="l-mono">{counts.unread}</b>
+            </div>
+            <div>
+              <span className="stat__label">{t('reports.facts.asks')}</span>
+              <b className="l-mono">{counts.asks}</b>
+            </div>
+            <div>
+              <span className="stat__label">{t('reports.facts.pinned')}</span>
+              <b className="l-mono">{counts.pinned}</b>
+            </div>
+          </div>
+        </section>
         <div className="reports__filter">
           <fieldset>
-            <legend className="l-sr">{t('reports.filter')}</legend>
-            {['all', ...writers].map((id) => (
-              <label key={id} className="tile" data-checked={who === id || undefined}>
+            <legend className="l-sr">{t('reports.show')}</legend>
+            {(['all', 'unread', 'pinned', 'asks'] as const).map((f) => (
+              <label key={f} className="tile" data-checked={filter === f || undefined}>
                 <input
                   type="radio"
                   className="l-sr"
-                  name="report-writer"
-                  checked={who === id}
-                  onChange={() => setWho(id)}
+                  name="report-filter"
+                  checked={filter === f}
+                  onChange={() => setFilter(f)}
                 />
-                {id === 'all' ? t('reports.everyone') : `@${agents.find((a) => a.id === id)?.handle ?? '?'}`}
+                {t(`reports.filters.${f}`)}
+                {f !== 'all' && counts[f] > 0 && <span className="reports__n l-mono">{counts[f]}</span>}
               </label>
             ))}
           </fieldset>
+          {writers.length > 1 && (
+            <fieldset>
+              <legend className="l-sr">{t('reports.filter')}</legend>
+              {['all', ...writers].map((id) => (
+                <label key={id} className="tile" data-checked={who === id || undefined}>
+                  <input
+                    type="radio"
+                    className="l-sr"
+                    name="report-writer"
+                    checked={who === id}
+                    onChange={() => setWho(id)}
+                  />
+                  {id === 'all' ? t('reports.everyone') : `@${agents.find((a) => a.id === id)?.handle ?? '?'}`}
+                </label>
+              ))}
+            </fieldset>
+          )}
         </div>
-      )}
-      <div className="reports">
-        {shown.length === 0 ? (
+        {!loaded ? (
+          <div className="report__loading">
+            <Spinner />
+          </div>
+        ) : shown.length === 0 ? (
           <div className="empty">
             <span className="reports__emptyicon">
               <Icon name="report" size={30} />
             </span>
-            <p className="empty__title">{t('reports.empty')}</p>
-            <p className="empty__sub">{t('reports.emptyHint')}</p>
-            <div className="empty__acts">
-              <Button icon="clock" onClick={() => useApp.setState({ routineDialog: 'new' })}>
-                {t('routines.new')}
-              </Button>
-            </div>
+            <p className="empty__title">{t(filter === 'all' ? 'reports.empty' : 'reports.emptyFilter')}</p>
+            {filter === 'all' && <p className="empty__sub">{t('reports.emptyHint')}</p>}
+            {filter === 'all' && (
+              <div className="empty__acts">
+                <Button icon="clock" onClick={() => useApp.setState({ routineDialog: 'new' })}>
+                  {t('routines.new')}
+                </Button>
+              </div>
+            )}
           </div>
         ) : (
-          shown.map((e, i) => {
-            const prev = shown[i - 1];
-            const newDay = !prev || dayKey(prev.at) !== dayKey(e.at);
-            return (
-              <section key={e.key} className="reports__item">
-                {newDay && (
-                  <h3 className="reports__day">
-                    <span>{dayLabel(e.at, i18n.language, t('channel.today'), t('channel.yesterday'))}</span>
-                    <span className="reports__weekday">
-                      {new Date(e.at).toLocaleDateString(i18n.language, { weekday: 'long' })}
-                    </span>
-                  </h3>
-                )}
-                <ReportCard entry={e} agent={agents.find((a) => a.id === e.agentId)} onOpen={() => open(e)} />
+          <>
+            {pinned.length > 0 && (
+              <section className="reports__item">
+                <h3 className="reports__day reports__day--pinned">
+                  <Icon name="pin" size={13} />
+                  <span>{t('reports.pinned')}</span>
+                </h3>
+                <div className="reports__grid">
+                  {pinned.map((e) => (
+                    <div key={e.key}>{card(e)}</div>
+                  ))}
+                </div>
               </section>
-            );
-          })
+            )}
+            {groupByDay(rest).map((g) => (
+              <section key={g.key} className="reports__item">
+                <h3 className="reports__day">
+                  <span>{dayLabel(g.at, i18n.language, t('channel.today'), t('channel.yesterday'))}</span>
+                  <span className="reports__weekday">
+                    {new Date(g.at).toLocaleDateString(i18n.language, { weekday: 'long' })}
+                  </span>
+                </h3>
+                <div className="reports__grid">
+                  {g.entries.map((e) => (
+                    <div key={e.key}>{card(e)}</div>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </>
         )}
       </div>
       <p className="reports__note">
@@ -399,7 +542,141 @@ export function ReportsView({ channel }: { channel: Channel }) {
   );
 }
 
-/** A report over the page: all of it, its images, the request and the job behind it. */
+function groupByDay(entries: ReportEntry[]): { key: string; at: number; entries: ReportEntry[] }[] {
+  const out: { key: string; at: number; entries: ReportEntry[] }[] = [];
+  for (const e of entries) {
+    const key = dayKey(e.at);
+    const last = out.at(-1);
+    if (last?.key === key) last.entries.push(e);
+    else out.push({ key, at: e.at, entries: [e] });
+  }
+  return out;
+}
+
+/** What is chosen for one question: one of its options, the agent's call, or words of the person's own. */
+type Choice = { kind: 'option'; text: string } | { kind: 'agent' } | { kind: 'own'; text: string };
+
+/**
+ * The questions a report leaves to the person: each answered with one of its options, with words of their own, or
+ * left to the agent ("Senin kararın"). The answers go to the agent's own channel as the person's message, with the
+ * report attached; anything else is answered with "Yanıtla", in the person's own words.
+ */
+function Decisions({ report, request }: { report: Message; request: Message | undefined }) {
+  const { t } = useTranslation();
+  const decisions = report.decisions ?? [];
+  const [choices, setChoices] = useState<Record<number, Choice>>({});
+  const [busy, setBusy] = useState(false);
+  const answered = Object.keys(choices).filter((k) => {
+    const c = choices[Number(k)];
+    return c && (c.kind !== 'own' || c.text.trim());
+  }).length;
+  const choose = (i: number, c: Choice | undefined) =>
+    setChoices((all) => {
+      const { [i]: _was, ...rest } = all;
+      return c ? { ...rest, [i]: c } : rest;
+    });
+  const send = async () => {
+    const lines = decisions.flatMap((d, i) => {
+      const c = choices[i];
+      if (!c || (c.kind === 'own' && !c.text.trim())) return [];
+      const answer = c.kind === 'agent' ? t('reports.said.yours') : c.text.trim();
+      return [`${i + 1}. ${d.question}\n   → ${answer}`];
+    });
+    if (lines.length === 0) return;
+    setBusy(true);
+    const ok = await useApp
+      .getState()
+      .answerReport(report, request, `${t('reports.said.decisions')}\n${lines.join('\n')}`);
+    setBusy(false);
+    if (ok) setChoices({});
+  };
+  return (
+    <section className="decide" aria-labelledby="decide-title">
+      <header className="decide__head">
+        <Icon name="alert" size={14} />
+        <h3 id="decide-title">{t('reports.decisions.title')}</h3>
+        <span className="decide__n l-mono">
+          {answered} / {decisions.length}
+        </span>
+      </header>
+      <ol className="decide__list">
+        {decisions.map((d, i) => {
+          const c = choices[i];
+          return (
+            // biome-ignore lint/suspicious/noArrayIndexKey: a report's questions never change order
+            <li key={i} className={`decide__q ${c ? 'is-answered' : ''}`}>
+              <p className="decide__text">{d.question}</p>
+              <div className="decide__opts">
+                {(d.options ?? []).map((o) => {
+                  const on = c?.kind === 'option' && c.text === o;
+                  return (
+                    <button
+                      key={o}
+                      type="button"
+                      className={`decide__opt ${on ? 'is-on' : ''}`}
+                      aria-pressed={on}
+                      onClick={() => choose(i, on ? undefined : { kind: 'option', text: o })}
+                    >
+                      {o}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  className={`decide__opt decide__opt--agent ${c?.kind === 'agent' ? 'is-on' : ''}`}
+                  aria-pressed={c?.kind === 'agent'}
+                  onClick={() => choose(i, c?.kind === 'agent' ? undefined : { kind: 'agent' })}
+                >
+                  <Icon name="spark" size={12} />
+                  {t('reports.said.yours')}
+                </button>
+                <button
+                  type="button"
+                  className={`decide__opt decide__opt--own ${c?.kind === 'own' ? 'is-on' : ''}`}
+                  aria-pressed={c?.kind === 'own'}
+                  onClick={() => choose(i, c?.kind === 'own' ? undefined : { kind: 'own', text: '' })}
+                >
+                  <Icon name="pencil" size={12} />
+                  {t('reports.decisions.own')}
+                </button>
+              </div>
+              {c?.kind === 'own' && (
+                <input
+                  className="l-input decide__input"
+                  // biome-ignore lint/a11y/noAutofocus: the field opens on request, typing is the next step
+                  autoFocus
+                  value={c.text}
+                  maxLength={600}
+                  aria-label={t('reports.decisions.ownLabel', { n: i + 1 })}
+                  placeholder={t('reports.decisions.ownPlaceholder')}
+                  onChange={(e) => choose(i, { kind: 'own', text: e.target.value })}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') void send();
+                  }}
+                />
+              )}
+            </li>
+          );
+        })}
+      </ol>
+      <footer className="decide__foot">
+        <span className="decide__hint">{t('reports.decisions.hint')}</span>
+        <Button
+          variant="primary"
+          size="sm"
+          icon="send"
+          busy={busy}
+          disabled={answered === 0}
+          onClick={() => void send()}
+        >
+          {t('reports.decisions.send', { count: answered })}
+        </Button>
+      </footer>
+    </section>
+  );
+}
+
+/** A report over the page: all of it, its images, its questions, the request and the job behind it. */
 export function ReportDialog({ id }: { id: string }) {
   const { t, i18n } = useTranslation();
   const close = useCallback(() => useApp.getState().openReport(undefined), []);
@@ -413,6 +690,7 @@ export function ReportDialog({ id }: { id: string }) {
   const agents = useApp((s) => s.workspace?.agents ?? NO_AGENTS);
   const answerReport = useApp((s) => s.answerReport);
   const lightbox = useApp((s) => s.lightbox);
+  const mark = useApp((s) => s.reportFeed.marks[id]);
 
   useEffect(() => {
     let on = true;
@@ -478,6 +756,7 @@ export function ReportDialog({ id }: { id: string }) {
             <h2 id="report-title">{failed ? t('reports.gone') : title || t('reports.untitled')}</h2>
             <span className="report__when">{when}</span>
           </div>
+          {report && <PinButton id={report.id} pinned={Boolean(mark?.pinned)} />}
           <IconButton icon="close" label={t('common.close')} onClick={close} />
         </header>
         <div className="report__body">
@@ -513,6 +792,7 @@ export function ReportDialog({ id }: { id: string }) {
                 )}
                 {job?.cost !== undefined && job.cost > 0 && <span className="l-mono">${job.cost.toFixed(2)}</span>}
               </div>
+              {report && (report.decisions?.length ?? 0) > 0 && <Decisions report={report} request={request} />}
               {(report?.images?.length ?? 0) > 0 && report && (
                 <div className="report__gallery">
                   {report.images?.map((img, i) => (
@@ -571,6 +851,15 @@ export function ReportDialog({ id }: { id: string }) {
               }}
             >
               {t('job.watch')}
+            </Button>
+          )}
+          {report && (
+            <Button
+              variant="quiet"
+              icon="check"
+              onClick={() => void useApp.getState().markReports([report.id], { read: !mark?.read })}
+            >
+              {t(mark?.read ? 'reports.markUnread' : 'reports.markRead')}
             </Button>
           )}
           <span className="grow" />

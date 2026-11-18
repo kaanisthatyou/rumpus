@@ -40,6 +40,7 @@ import type {
   RecordInput,
   RecordItem,
   RecordKind,
+  ReportMark,
   Routine,
   RoutineInput,
   TranscriptEntry,
@@ -426,9 +427,7 @@ export interface CoreMethods {
   'invites.answer': { params: { id: string; approve: boolean }; result: { ok: true } };
   'members.setRole': { params: { device: string; role: MemberRole }; result: { ok: true } };
   'members.remove': { params: { device: string }; result: { ok: true } };
-  'channels.create': { params: { name: string; reports?: boolean }; result: Channel };
-  /** Makes a channel a report channel (only routines and agents post there) or a text channel again. */
-  'channels.reports': { params: { id: string; reports: boolean }; result: Channel };
+  'channels.create': { params: { name: string }; result: Channel };
   'channels.rename': { params: { id: string; name: string }; result: Channel };
   'channels.delete': { params: { id: string }; result: { ok: true } };
   /** A person is typing in a channel (team workspaces tell the others; nothing is stored). */
@@ -436,6 +435,18 @@ export interface CoreMethods {
   /** The person has the channel open: what is in it now counts as read. */
   'channels.read': { params: { channelId: string }; result: { ok: true } };
   'overview.get': { params: undefined; result: Overview };
+  /**
+   * The report feed (PLAN.md 5.21), newest first: its messages before a moment, the jobs behind them, and this
+   * person's marks on them. `channel` is the feed's id once it exists.
+   */
+  'reports.list': {
+    params: { before?: number; limit?: number };
+    result: { channel?: string; messages: Message[]; jobs: Job[]; marks: Record<string, ReportMark> };
+  };
+  /** Marks reports read or unread, pinned or not (on this computer); without ids, every report is read. */
+  'reports.mark': { params: { ids?: string[]; read?: boolean; pinned?: boolean }; result: { ok: true } };
+  /** The report feed, made if it is not there yet (a routine that reports there). */
+  'reports.channel': { params: undefined; result: Channel };
   'routines.save': { params: RoutineInput; result: Routine };
   'routines.delete': { params: { id: string }; result: { ok: true } };
   /** Posts a routine's message now, whatever its time (its owner only). */
@@ -586,6 +597,8 @@ export interface CoreEvents {
   'memory.changed': MemoryState;
   /** A picture arrived from another member's computer. */
   'blob.added': { blob: string };
+  /** Report images arrived from another member's computer: the window asks again for the ones it lacked. */
+  'reports.images': { ok: true };
   'friends.changed': FriendsState;
   'message.added': Message;
   'message.updated': Message;

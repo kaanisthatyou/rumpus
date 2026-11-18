@@ -1,8 +1,8 @@
 // The app's sounds: a few short tones made on the spot (no audio files), for what a person may want to hear
 // without looking: a job that ended, one that waits for approval, someone who asks to join, another member's
-// message. Turned off in Settings → General.
+// message, a report that arrived. Turned off in Settings → General.
 
-export type Sound = 'done' | 'failed' | 'attention' | 'message' | 'join';
+export type Sound = 'done' | 'failed' | 'attention' | 'message' | 'join' | 'report';
 
 /** Each sound as notes: frequency (Hz), start and length (seconds). */
 const NOTES: Record<Sound, { f: number; at: number; len: number }[]> = {
@@ -26,6 +26,13 @@ const NOTES: Record<Sound, { f: number; at: number; len: number }[]> = {
     { f: 523.25, at: 0, len: 0.07 },
     { f: 659.25, at: 0.08, len: 0.07 },
     { f: 783.99, at: 0.16, len: 0.16 },
+  ],
+  // A report arrived: a light rising chime, an octave up, the last note left to ring.
+  report: [
+    { f: 783.99, at: 0, len: 0.08 },
+    { f: 1046.5, at: 0.07, len: 0.08 },
+    { f: 1318.51, at: 0.14, len: 0.09 },
+    { f: 1567.98, at: 0.22, len: 0.34 },
   ],
 };
 

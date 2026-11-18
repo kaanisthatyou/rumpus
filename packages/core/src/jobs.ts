@@ -13,6 +13,7 @@ import {
   type CliInfo,
   type CliKind,
   CoreError,
+  type Decision,
   FRESH_HISTORY,
   type Job,
   type JobChanges,
@@ -22,6 +23,7 @@ import {
   type Message,
   type MessageImage,
   type Quota,
+  REPORT_DECISIONS_MAX,
   splitResult,
   type TranscriptEntry,
 } from '@lonca/protocol';
@@ -84,7 +86,7 @@ export interface JobsDeps {
 }
 
 /** Told to an agent answering in a report channel (PLAN.md 5.21): its answer is shown as a report card. */
-export const REPORT_HINT = `[${BRAND.name}] This is a report channel: your answer is shown as a report card with its date. Start it with a short "# Title" line, then the findings; keep it a report, not a chat reply. Attach screenshots, diagrams or designs you made with attach_image; they are shown inside the card.`;
+export const REPORT_HINT = `[${BRAND.name}] This is the workspace's reports: your answer is shown as a report card with its date. Start it with a short "# Title" line, then the findings; keep it a report, not a chat reply. Attach screenshots, diagrams or designs you made with attach_image; they are shown inside the card. A choice that is the person's to make (spending, publishing, a direction) goes in ask_decision, not in the text: they answer it from the card or leave it to you.`;
 
 interface Live {
   agent: Agent;
@@ -923,6 +925,23 @@ export class Jobs {
 
   /** Images the agent attached to its current job's answer (`attach_image`), by job id, until it ends. */
   private readonly pictures = new Map<string, MessageImage[]>();
+  /** Questions the agent left to the person on its current job's answer (`ask_decision`), by job id. */
+  private readonly decisions = new Map<string, Decision[]>();
+
+  /** Adds a question to the answer of the agent's current job; `full` past the limit. */
+  askDecision(
+    agentId: string,
+    channelId: string,
+    slot: string | undefined,
+    decision: Decision,
+  ): 'ok' | 'none' | 'full' {
+    const job = this.current(agentId, channelId, slot);
+    if (!job) return 'none';
+    const list = this.decisions.get(job.id) ?? [];
+    if (list.length >= REPORT_DECISIONS_MAX) return 'full';
+    this.decisions.set(job.id, [...list, decision]);
+    return 'ok';
+  }
 
   /**
    * Attaches an image to the answer of the agent's current job in that session. `none` without a running job,
@@ -1091,8 +1110,9 @@ export class Jobs {
         }
         live.unposted = undefined;
         live.posted = undefined;
-        if (answer || this.pictures.has(job.id)) this.postAnswer(live, ended, answer);
+        if (answer || this.pictures.has(job.id) || this.decisions.has(job.id)) this.postAnswer(live, ended, answer);
         this.pictures.delete(job.id);
+        this.decisions.delete(job.id);
         this.endPart(live);
         return;
       }
@@ -1232,6 +1252,7 @@ export class Jobs {
     // A specialist's RESULT line is for whoever asked, not for the chat.
     const { text, result } = live.agent.specialty?.result ? splitResult(answer) : { text: answer, result: undefined };
     const images = this.pictures.get(job.id);
+    const decisions = this.decisions.get(job.id);
     const message: Message = {
       id: newId(),
       channelId: live.channelId,
@@ -1241,6 +1262,7 @@ export class Jobs {
       jobId: job.id,
       ...(result ? { result } : {}),
       ...(images?.length ? { images } : {}),
+      ...(decisions?.length ? { decisions } : {}),
     };
     this.deps.store.commit({ type: 'message.posted', data: message });
     this.deps.emitMessage(message);

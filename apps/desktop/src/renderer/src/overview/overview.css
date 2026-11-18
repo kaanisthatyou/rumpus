@@ -15,11 +15,16 @@
   margin: 0 auto;
 }
 
-/* Today's numbers: plain figures in text ink, with the week's bars beside them */
+/* Today's numbers: plain figures in text ink */
 .home__stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(220px, 1.5fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
+}
+@container page (max-width: 820px) {
+  .home__stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 .stat,
 .week {
@@ -519,4 +524,356 @@
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+/* ------------------------------------------------------------------ the dashboard (PLAN.md 5.21) */
+
+.dash {
+  display: grid;
+  grid-template-columns: minmax(0, 1.75fr) minmax(250px, 1fr);
+  gap: 14px;
+}
+@container page (max-width: 820px) {
+  .dash {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.dash__card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line);
+  background: var(--card);
+  overflow: hidden;
+  min-width: 0;
+}
+.dash__tokens {
+  background:
+    radial-gradient(90% 120% at 100% 0%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 60%),
+    var(--card);
+}
+.dash__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.dash__chip {
+  padding: 1px 8px;
+  border-radius: 99px;
+  font-size: 10.5px;
+  color: var(--mute);
+  border: 1px solid var(--line-2);
+}
+.dash__hero {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.dash__big {
+  font-size: 38px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  color: var(--ink);
+}
+.dash__heronote {
+  font-size: 12.5px;
+  color: var(--mute);
+}
+.dash__eff {
+  align-items: center;
+}
+.dash__eff .dash__head {
+  align-self: stretch;
+}
+.dash__ends {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  align-self: stretch;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.dash__ends li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--card-2);
+  font-size: 11.5px;
+  color: var(--mute);
+  min-width: 0;
+}
+.dash__ends li span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dash__ends b {
+  color: var(--ink);
+  font-weight: 500;
+}
+.dash__ends .is-done svg {
+  color: var(--ok);
+}
+.dash__ends .is-failed svg {
+  color: var(--bad);
+}
+.dash__ends .is-stopped svg {
+  color: var(--warn);
+}
+
+/* Tokens per day: one series in the accent, today's bar the strongest, the hovered day's numbers above */
+.tweek__tip {
+  min-height: 16px;
+  font-size: 11.5px;
+  color: var(--mute);
+}
+.tweek__bars {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  height: 128px;
+}
+.tweek__day {
+  all: unset;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0 0;
+  border-radius: 8px;
+  color: var(--meta);
+  cursor: default;
+  min-width: 0;
+}
+.tweek__day:focus-visible {
+  outline: 2px solid var(--accent);
+}
+.tweek__day.is-at {
+  background: var(--hover);
+  color: var(--ink);
+}
+.tweek__value {
+  height: 14px;
+  font-size: 10px;
+  color: var(--mute);
+  white-space: nowrap;
+}
+.tweek__day.is-at .tweek__value,
+.tweek__day.is-today .tweek__value {
+  color: var(--ink);
+}
+.tweek__track {
+  flex: 1;
+  width: 100%;
+  max-width: 34px;
+  display: flex;
+  align-items: flex-end;
+  border-bottom: 1px solid var(--line-2);
+}
+.tweek__bar {
+  display: block;
+  width: 100%;
+  border-radius: 4px 4px 0 0;
+  background: color-mix(in srgb, var(--accent) 55%, var(--card));
+  transition: background 0.15s;
+}
+.tweek__day.is-today .tweek__bar,
+.tweek__day.is-at .tweek__bar {
+  background: var(--accent);
+}
+.tweek__bar[data-empty] {
+  border-radius: 0;
+  background: var(--line-3);
+}
+.tweek__name {
+  font-size: 10.5px;
+  text-transform: capitalize;
+}
+.tweek__day.is-today .tweek__name {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* Where the tokens went: one bar in three parts with a 2px gap, each part named beside it */
+.tsplit__bar {
+  display: flex;
+  gap: 2px;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--line);
+}
+.tsplit__part {
+  display: block;
+  min-width: 3px;
+}
+.tsplit__part--out,
+.tsplit__dot--out {
+  background: var(--accent);
+}
+.tsplit__part--in,
+.tsplit__dot--in {
+  background: color-mix(in srgb, var(--accent) 50%, var(--card));
+}
+.tsplit__part--cached,
+.tsplit__dot--cached {
+  background: var(--line-3);
+}
+.tsplit__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: var(--mute);
+}
+.tsplit__legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tsplit__legend b {
+  color: var(--ink);
+  font-weight: 500;
+}
+.tsplit__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+}
+.tsplit__share {
+  color: var(--meta);
+  font-size: 11px;
+}
+
+/* Agents by tokens */
+.ashare {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0 2px;
+  list-style: none;
+}
+.ashare li {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.9fr) minmax(0, 2fr) 64px;
+  align-items: center;
+  gap: 12px;
+}
+.ashare__name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.ashare__name b {
+  font-size: 13px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ashare__name span {
+  font-size: 11px;
+  color: var(--meta);
+}
+.ashare__track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--line);
+  overflow: hidden;
+}
+.ashare__bar {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--accent);
+}
+.ashare__n {
+  text-align: right;
+  font-size: 12.5px;
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* ------------------------------------------------------------------ the efficiency meter */
+
+.meter {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.meter svg {
+  display: block;
+  overflow: visible;
+}
+.meter__seg {
+  stroke: var(--line-2);
+  stroke-width: 3.2;
+  stroke-linecap: round;
+}
+.meter__seg.is-on {
+  stroke: var(--meter);
+  filter: drop-shadow(0 0 1.5px color-mix(in srgb, var(--meter) 60%, transparent));
+}
+.meter--good {
+  --meter: var(--ok);
+}
+.meter--fair {
+  --meter: var(--warn);
+}
+.meter--poor {
+  --meter: var(--bad);
+}
+.meter--none {
+  --meter: var(--line-3);
+}
+.meter__read {
+  position: absolute;
+  top: 30%;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+.meter__label {
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--meta);
+}
+.meter__value {
+  font-size: 23px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+.meter__zone {
+  font-size: 11px;
+  color: var(--meter);
+}
+.meter--none .meter__zone {
+  color: var(--meta);
+}
+.meter__sub {
+  margin-top: -2px;
+  font-size: 11.5px;
+  color: var(--mute);
+  text-align: center;
 }

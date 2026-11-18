@@ -492,16 +492,19 @@ person's computer, reached over Tailscale like a team member's.
 - Removing a friend takes the conversation off this computer's lists and stops its sync; its folder stays on
   disk, and the other person is not told (their side simply stops hearing from this one).
 
-### 5.21 Report channels
+### 5.21 Reports
 
-Asked by Kaan on 2026-11-18: what routines and agents report should read as dated reports, not as chat. A channel
-is of one of two kinds, **text** (as before) or **reports**, picked when it is made and changed later by an admin
-(`channels.reports`; at least one text channel stays):
+Asked by Kaan on 2026-11-18: what routines and agents report should read as dated reports, not as chat. The same day
+he chose a page over a kind of channel: the workspace has **one report feed** (a channel of the kind `reports`
+under the fixed id `reports`, made by the first routine or agent that reports there, by an editor; two members
+making it at once make one), and it is not in the channel list. The board's **Reports** page ("Raporlar", under
+"Pano") shows it, with the number of unread reports beside its name. A routine is aimed at "Raporlar (Pano)" or at
+a text channel.
 
 - **Nobody types in a report channel** (`reports_only`). Routines post there (the person's standing request, as
   before), the agent mentioned answers there, and an agent posts reports of its own with `post_report` while it works
-  on any job (title, Markdown body, images; at most three per job; a report is never read for mentions, so it
-  never starts work). Advisors do not speak there.
+  on any job (title, Markdown body, images, decisions; at most three per job; a report is never read for mentions,
+  so it never starts work). Advisors do not speak there.
 - **Cards, not messages**: one card per job (the routine's message, the job, its answer) or per posted report,
   grouped by day, newest first. A card shows the agent, the routine or report mark, the time, the title (the
   report's own, else the answer's first heading, else the routine's text), a short summary, thumbnails, the job's
@@ -516,13 +519,37 @@ is of one of two kinds, **text** (as before) or **reports**, picked when it is m
 - **Images on any answer**: `attach_image` puts an image file (PNG, JPEG, WebP or GIF by its own bytes, at most
   10 MB, an absolute path or one in the agent's folder) on the current job's answer, at most eight. They are blobs
   of the workspace, kept on the computer that made them; another member's app shows a placeholder until blobs of
-  messages sync (not built yet).
+  messages sync (below).
+- **Decisions** ("Senin kararın"): a choice that is the person's (spending, publishing, a direction) is a question
+  on the report, not a line in its text: `ask_decision` on the current job's answer, or `decisions` in
+  `post_report` (at most six, each with up to five options). The report shows them in a box: each is answered with
+  an option, with words of the person's own, or left to the agent ("Senin kararın"), and the answers go to the
+  agent's own channel as the person's message with the report attached. Anything else is answered with "Yanıtla".
+  "Senin kararın" is the person's words to the agent, so the copy rules let `reports.said.*` use the second person.
+- **Read and pinned**: a report is read once it is opened (or all at once, "Tümü okundu"), and can be marked unread;
+  a pin (green when on) keeps it above the days. The marks are this person's, on this computer (`report_marks`,
+  not synced). Filters: all, unread, pinned, awaiting a decision; and by agent.
+- **Bub's toast**: a report of this person's (their agent wrote it, or the job was theirs) plays a short chime and
+  brings Bub over the lower right corner of the screen, in a see-through window that never takes the keyboard:
+  floating a little, the report's title, agent, code and questions beside it; under the pointer it raises its hand.
+  A click opens the report in the main window. Not while the Reports page is in front; not with notifications off.
+- **Images in a team**: another member's app asks for a report's images (`/v1/image`, only images a message of the
+  workspace carries, at most 10 MB, kept under the hash of their bytes), the computer of the agent that made them
+  first; the page asks again once they arrive.
+- **Efficiency**: on the Reports page and the overview, a dial like a battery's health: the share of the last seven
+  days' jobs that were completed out of those that ended (done, failed, stopped), to two decimals, never rounded,
+  with its state in words (İyi, Orta, Zayıf).
+
+**The overview's dashboard** (same day): tokens of the last seven days (the total, per day on hover, and where they
+went: input, cache, output, each named beside its color), the efficiency dial with the jobs done, failed and
+stopped, today's figures (jobs, tokens, cost, average time of an ended job, messages) and the agents by the tokens
+their jobs used. One series per chart.
 
 **What an agent writes while it works** (same day, Kaan): the text an agent writes before a tool call used to show
 only in the live view and the island; it is now posted in the channel at once, as the agent's message (`during`:
 the job's id), so the channel reads as if the agent typed there. The answer stays its own message (`jobId`); a job
 that ends on a tool call, whose answer is the last note, takes the note back so it is not shown twice. Notes and the
-answer read as one run. In a report channel they are part of the report's card (its "notes" in the report).
+answer read as one run. In the report feed they are part of the report's card (its "notes" in the report).
 
 ## 6. Architecture
 
@@ -1061,6 +1088,18 @@ The details behind 5.11 and 6.5, decided before building.
   `learn_lesson` and ended with a RESULT line that was taken out of the chat. Not yet tried on a real
   installation: the `rumpus://` handler (registered only by an installed app without `LONCA_HOME`) and the move of
   the former name's data folder.
+
+- 4.33 Reports on the board, decisions, pins, Bub's toast and the dashboard (5.21), 2026-11-18, asked by Kaan.
+  Built: the report feed (`REPORTS_CHANNEL`, `reports.list`, `reports.mark`, `reports.channel`; `report_marks`;
+  `WorkspaceState.reportChannels` and `reportsUnread`; report channels left out of `channels`); `Decision`,
+  `ask_decision`, `decisions` in `post_report`; report images between members (`/v1/image`, `fetchImages`,
+  `reports.images`); `Overview.week`, `agents` and each day's usage. The kind picker and the "turn into a report
+  channel" button are gone (`channels.reports` too). UI: the Reports page of the board (`ReportsView`), the
+  decisions box, pins and read marks, `overview/Dashboard.tsx` and `overview/Meter.tsx`, the toast window
+  (`shell/Toast.tsx`, `toast:*` in main), the `report` sound.
+  - Tests: `packages/core/test/reports.test.ts` (the feed, decisions, marks and the unread count, the overview's
+    week); `e2e/reports.mjs` (the page, a routine aimed at it, the toast and the unread count, a pin, the decisions
+    sent to the agent's channel, the dashboard).
 
 - 4.32 Report channels and agents' notes in the channel (5.21), 2026-11-18, asked by Kaan. Built: the channel kind
   (`Channel.reports`, stored as the kind `reports`, the `channel.reports` event for admins), `reports_only`;

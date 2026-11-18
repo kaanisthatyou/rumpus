@@ -34,6 +34,7 @@ import type {
   RaceInput,
   RecordInput,
   RecordItem,
+  ReportMark,
   Result,
   RoleInput,
   RoutineInput,
@@ -45,7 +46,7 @@ import type {
   WorkspaceState,
   WorkspaceSummary,
 } from '@lonca/protocol';
-import { BRAND, ERROR_CODES, handleOf, reportTitle } from '@lonca/protocol';
+import { BRAND, ERROR_CODES, handleOf, reportCode, reportTitle } from '@lonca/protocol';
 import { create } from 'zustand';
 import type { AppInfo, UpdateState } from '../../shared/bridge';
 import { agentLabel, concernsMe, runsHere, senderOf } from './agents/owner';
@@ -59,6 +60,7 @@ export type View =
   | 'tasks'
   | 'goals'
   | 'routines'
+  | 'reports'
   | 'ideas'
   | 'references'
   | 'commands'
@@ -66,6 +68,17 @@ export type View =
   | 'project';
 
 type Unread = Record<string, { count: number; mention?: boolean }>;
+
+export interface ReportFeed {
+  /** The workspace it was loaded for; another one's feed is loaded again. */
+  ws?: string;
+  messages: Message[];
+  marks: Record<string, ReportMark>;
+}
+const NO_FEED: ReportFeed = { messages: [], marks: {} };
+
+/** A report: an agent's message in the feed that is not a note it wrote while working. */
+export const isReport = (m: Message) => m.author.kind === 'agent' && !m.during;
 const NO_UNREAD: Unread = {};
 
 /** What the confirm dialog asks: its title, what will be lost, the button that does it, and the deed. */
@@ -152,6 +165,10 @@ export interface AppState {
   citing: Record<string, Citation>;
   /** The report open over the page, by its message id. */
   report?: string | undefined;
+  /** The report feed (the board's Reports page), loaded when the page first opens in a workspace. */
+  reportFeed: ReportFeed;
+  /** Counts up when images that were missing may have arrived: what showed none asks again. */
+  imagesEpoch: number;
   /** Images shown full size over the page: a message's, from the one at `index`. */
   lightbox?: { message: string; images: MessageImage[]; index: number } | undefined;
   /** Messages' images as data URLs, by `<message id>/<blob>`, loaded when first shown. */
@@ -206,11 +223,15 @@ export interface AppState {
   send(text: string): Promise<boolean>;
   editMessage(id: string, text: string): Promise<boolean>;
   deleteMessage(id: string): Promise<void>;
-  createChannel(name: string, reports?: boolean): Promise<boolean>;
-  /** Makes a channel a report channel, or a text channel again. */
-  setReports(id: string, reports: boolean): Promise<boolean>;
-  /** Answers a report: the agent's own channel opens with the report attached to the next message. */
-  answerReport(report: Message, request?: Message): Promise<void>;
+  createChannel(name: string): Promise<boolean>;
+  loadReports(): Promise<void>;
+  /** Marks reports read or unread, pinned or not; without ids every report is read. */
+  markReports(ids: string[] | undefined, mark: ReportMark): Promise<void>;
+  /**
+   * Answers a report: the agent's own channel opens with the report attached to the next message; with `text`
+   * (the answers to its questions) that message is sent at once.
+   */
+  answerReport(report: Message, request?: Message, text?: string): Promise<boolean>;
   /** Takes the report off the next message of the open channel. */
   uncite(): void;
   openReport(id: string | undefined): void;
@@ -394,6 +415,72 @@ export const useApp = create<AppState>((set, get) => {
     }, 800);
   }
 
+  /** Reports that arrived together, for one toast (a catch-up brings several at once). */
+  let toasts: Message[] = [];
+  let toastTimer: ReturnType<typeof setTimeout> | undefined;
+
+  /**
+   * A message in the report feed: on the Reports page if it is loaded, and for a report of this person's (their
+   * agent wrote it, or the job was theirs), a sound and Bub's toast over the screen (PLAN.md 5.21).
+   */
+  function onReport(m: Message): void {
+    set((s) =>
+      s.reportFeed.ws === s.workspace?.id
+        ? { reportFeed: { ...s.reportFeed, messages: upsert(s.reportFeed.messages, m) } }
+        : {},
+    );
+    const ws = get().workspace;
+    if (!ws || !isReport(m) || m.author.kind !== 'agent') return;
+    const agentId = m.author.id;
+    const agent = ws.agents.find((a) => a.id === agentId);
+    const job = m.jobId ? get().jobs[m.jobId] : undefined;
+    const mine = ws.kind !== 'team' || !agent?.owner || agent.owner === ws.me.id || (job ? concernsMe(job, ws) : false);
+    if (!mine) return;
+    sound('report');
+    // Reading the Reports page in a window in front: the card is right there.
+    if (get().view === 'reports' && !away()) return;
+    if (get().settings?.notifications === false) return;
+    toasts.push(m);
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      const batch = toasts;
+      toasts = [];
+      const last = batch.at(-1);
+      if (!last) return;
+      const request = last.jobId ? get().jobs[last.jobId]?.requestId : undefined;
+      const asked = request ? get().reportFeed.messages.find((x) => x.id === request) : undefined;
+      const settings = get().settings;
+      const theme =
+        settings?.theme === 'light' ||
+        (settings?.theme === 'system' && window.matchMedia('(prefers-color-scheme: light)').matches)
+          ? 'light'
+          : 'dark';
+      const decisions = last.decisions?.length ?? 0;
+      void window.lonca.toast.show({
+        id: last.id,
+        title: reportTitle(last, asked) || i18n.t('reports.untitled'),
+        by:
+          last.author.kind === 'agent'
+            ? agentLabel(
+                ws.agents.find((a) => a.id === agentId),
+                ws,
+              ) || last.author.name
+            : '',
+        code: reportCode(last.id),
+        count: batch.length,
+        decisions,
+        look: { theme, accent: settings?.accent ?? 'lime', motion: settings?.motion ?? 'system' },
+        labels: {
+          kind: i18n.t('reports.toast.kind'),
+          open: i18n.t('reports.toast.open'),
+          close: i18n.t('common.close'),
+          more: i18n.t('reports.toast.more', { count: batch.length - 1 }),
+          decisions: i18n.t('reports.decisions.waiting', { count: decisions }),
+        },
+      });
+    }, 600);
+  }
+
   /** One of the app's sounds, unless they are turned off in Settings. */
   function sound(which: Sound): void {
     if (get().settings?.sounds !== false) play(which);
@@ -416,6 +503,8 @@ export const useApp = create<AppState>((set, get) => {
     projects: [],
     attached: {},
     citing: {},
+    reportFeed: NO_FEED,
+    imagesEpoch: 0,
     pictures: {},
     images: {},
     faces: {},
@@ -476,6 +565,11 @@ export const useApp = create<AppState>((set, get) => {
         }
       });
       core.on('message.added', (m) => {
+        // The report feed is not a channel on screen: its page and its count of unread reports take it.
+        if (get().workspace?.reportChannels?.includes(m.channelId)) {
+          onReport(m);
+          return;
+        }
         set((s) => {
           // A message from someone ends their typing line.
           const typing = { ...(s.peopleTyping[m.channelId] ?? {}) };
@@ -528,6 +622,12 @@ export const useApp = create<AppState>((set, get) => {
       });
       core.on('memory.changed', (memory) => set({ memory }));
       core.on('blob.added', ({ blob }) => void get().loadFace(blob));
+      core.on('reports.images', () => set((s) => ({ imagesEpoch: s.imagesEpoch + 1 })));
+      // The toast over the screen was clicked: the report, on its page.
+      window.lonca.toast.onOpen((id) => {
+        get().setView('reports');
+        get().openReport(id);
+      });
       core.on('friends.changed', (friends) => {
         const before = get().friends;
         set({ friends });
@@ -556,11 +656,19 @@ export const useApp = create<AppState>((set, get) => {
       );
       core.on('workspace.activity', ({ id }) => set((s) => ({ activity: { ...s.activity, [id]: true } })));
       core.on('message.updated', (m) =>
-        set((s) => ({ messages: { ...s.messages, [m.channelId]: upsert(s.messages[m.channelId] ?? [], m) } })),
+        set((s) => ({
+          messages: { ...s.messages, [m.channelId]: upsert(s.messages[m.channelId] ?? [], m) },
+          ...(s.workspace?.reportChannels?.includes(m.channelId)
+            ? { reportFeed: { ...s.reportFeed, messages: upsert(s.reportFeed.messages, m) } }
+            : {}),
+        })),
       );
       core.on('message.deleted', ({ id, channelId }) =>
         set((s) => ({
           messages: { ...s.messages, [channelId]: (s.messages[channelId] ?? []).filter((m) => m.id !== id) },
+          ...(s.workspace?.reportChannels?.includes(channelId)
+            ? { reportFeed: { ...s.reportFeed, messages: s.reportFeed.messages.filter((m) => m.id !== id) } }
+            : {}),
         })),
       );
       core.on('job.updated', (job) => {
@@ -878,15 +986,15 @@ export const useApp = create<AppState>((set, get) => {
       return ok;
     },
 
-    async answerReport(report, request) {
+    async answerReport(report, request, text) {
       const ws = get().workspace;
-      if (!ws || report.author.kind !== 'agent') return;
+      if (!ws || report.author.kind !== 'agent') return false;
       const agentId = report.author.id;
       const agent = ws.agents.find((a) => a.id === agentId);
       // The agent's own channel; without one (the agent is gone), the first text channel with its name typed in.
       const own = ws.channels.find((c) => c.kind === 'agent' && c.agentId === agentId);
       const target = own ?? ws.channels.find((c) => c.kind === 'channel' && !c.reports);
-      if (!target) return;
+      if (!target) return false;
       const cite: Citation = {
         id: report.id,
         channelId: report.channelId,
@@ -896,7 +1004,9 @@ export const useApp = create<AppState>((set, get) => {
       };
       set((s) => ({ citing: { ...s.citing, [target.id]: cite }, report: undefined, lightbox: undefined }));
       await get().openChannel(target.id);
+      if (text) return get().send(!own && agent ? `@${agent.handle} ${text}` : text);
       if (!own && agent) set({ inject: { text: `@${agent.handle} `, at: Date.now() } });
+      return true;
     },
 
     uncite() {
@@ -910,6 +1020,8 @@ export const useApp = create<AppState>((set, get) => {
 
     openReport(id) {
       set({ report: id, lightbox: undefined });
+      // Opening a report reads it.
+      if (id && !get().reportFeed.marks[id]?.read) void get().markReports([id], { read: true });
     },
 
     async loadPicture(message, blob) {
@@ -929,21 +1041,35 @@ export const useApp = create<AppState>((set, get) => {
       await attempt(() => core.call('messages.delete', { id }));
     },
 
-    async createChannel(name, reports) {
-      const channel = await attempt(() =>
-        core.call('channels.create', { name, ...(reports ? { reports: true } : {}) }),
-      );
+    async createChannel(name) {
+      const channel = await attempt(() => core.call('channels.create', { name }));
       if (!channel) return false;
       await get().loadWorkspace();
       await get().openChannel(channel.id);
       return true;
     },
 
-    async setReports(id, reports) {
-      const channel = await attempt(() => core.call('channels.reports', { id, reports }));
-      if (!channel) return false;
-      await get().loadWorkspace();
-      return true;
+    async loadReports() {
+      const ws = get().workspace?.id;
+      const page = await core.call('reports.list', { limit: 200 }).catch(() => undefined);
+      if (!page || get().workspace?.id !== ws) return;
+      set((s) => {
+        const jobs = { ...s.jobs };
+        for (const j of page.jobs) if (!jobs[j.id] || jobs[j.id]?.state !== 'running') jobs[j.id] = j;
+        return { reportFeed: { ...(ws ? { ws } : {}), messages: page.messages, marks: page.marks }, jobs };
+      });
+    },
+
+    async markReports(ids, mark) {
+      // Shown at once; the core keeps it (and recounts the unread ones).
+      set((s) => {
+        const marks = { ...s.reportFeed.marks };
+        for (const id of ids ?? s.reportFeed.messages.filter(isReport).map((m) => m.id)) {
+          marks[id] = { ...marks[id], ...(ids ? mark : { read: true }) };
+        }
+        return { reportFeed: { ...s.reportFeed, marks } };
+      });
+      await core.call('reports.mark', { ...(ids ? { ids } : {}), ...mark }).catch(() => {});
     },
 
     async deleteChannel(id) {

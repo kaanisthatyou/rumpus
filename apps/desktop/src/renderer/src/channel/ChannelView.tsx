@@ -818,16 +818,6 @@ export function ChannelView({ channel }: { channel: Channel }) {
         {!own &&
           channel.kind === 'channel' &&
           (workspace?.kind === 'personal' || workspace?.role === 'admin') &&
-          (workspace?.channels.filter((c) => c.kind === 'channel' && !c.reports).length ?? 0) > 1 && (
-            <IconButton
-              icon="report"
-              label={t('reports.toReports')}
-              onClick={() => void useApp.getState().setReports(channel.id, true)}
-            />
-          )}
-        {!own &&
-          channel.kind === 'channel' &&
-          (workspace?.kind === 'personal' || workspace?.role === 'admin') &&
           (workspace?.channels.filter((c) => c.kind === 'channel').length ?? 0) > 1 && (
             <IconButton
               icon="trash"

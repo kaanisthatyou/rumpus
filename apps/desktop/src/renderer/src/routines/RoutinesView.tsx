@@ -1,6 +1,6 @@
 // Routines (PLAN.md 5.16): messages posted for a person at set times, as their standing request. The list shows
 // everyone's; a routine is changed and run only by the person who made it, on whose computer it posts.
-import type { RoutineView } from '@lonca/protocol';
+import { REPORTS_CHANNEL, type RoutineView } from '@lonca/protocol';
 import { Button, Chip, Icon, IconButton, Switch } from '@lonca/ui';
 import { AnimatePresence, motion } from 'motion/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -37,8 +37,13 @@ export function RoutineDialog() {
   const close = useCallback(() => useApp.setState({ routineDialog: undefined }), []);
   const existing = target && target !== 'new' ? target : undefined;
   const channels = useMemo(() => workspace?.channels.filter((c) => c.kind === 'channel') ?? [], [workspace]);
+  // Opened from the Reports page, a new routine reports there.
   const [channel, setChannel] = useState(
-    existing?.channelId ?? channels.find((c) => c.id === channelId)?.id ?? channels[0]?.id ?? '',
+    existing?.channelId ??
+      (useApp.getState().view === 'reports' ? REPORTS_CHANNEL : undefined) ??
+      channels.find((c) => c.id === channelId)?.id ??
+      channels[0]?.id ??
+      '',
   );
   const [text, setText] = useState(existing?.text ?? '');
   const [at, setAt] = useState(existing?.at ?? '09:00');
@@ -157,6 +162,8 @@ export function RoutineDialog() {
                 value={channel}
                 onChange={(e) => setChannel(e.target.value)}
               >
+                {/* The report feed: the routine's answers land on the board's Reports page as cards. */}
+                <option value={REPORTS_CHANNEL}>{t('routines.reportsTarget')}</option>
                 {channels.map((c) => (
                   <option key={c.id} value={c.id}>
                     #{c.name}
@@ -237,7 +244,11 @@ function RoutineCard({ routine }: { routine: RoutineView }) {
       <div className="routine__body">
         <p className="routine__text">{routine.text}</p>
         <div className="routine__meta">
-          <Chip mono>#{channel?.name ?? '—'}</Chip>
+          <Chip mono>
+            {routine.channelId === REPORTS_CHANNEL || workspace?.reportChannels?.includes(routine.channelId)
+              ? t('routines.reportsTarget')
+              : `#${channel?.name ?? '—'}`}
+          </Chip>
           {!mine && owner && <Chip>{t('routines.owner', { name: owner })}</Chip>}
           {routine.enabled && routine.next && (
             <span>

@@ -1,7 +1,8 @@
-// End-to-end test of report channels (PLAN.md 5.21) in the real app, with the fake Claude Code first on PATH: make
-// a report channel, a routine in it run now; the agent's note while working lands in the channel, its answer and
-// the report it posted are cards with images; a card opens the report and its image full size; answering it opens
-// the agent's channel with the report attached, and the agent gets it.
+// End-to-end test of reports (PLAN.md 5.21) in the real app, with the fake Claude Code first on PATH: the board's
+// Reports page, a routine aimed at it run now; Bub's toast and the unread count; the agent's answer and the report
+// it posted are cards with images; a pin; a card opens the report and its image full size; answering it opens the
+// agent's channel with the report attached, and the agent gets it; the posted report's questions are decided from
+// it; the overview's dashboard.
 // Usage: node e2e/reports.mjs   (after electron-vite build)
 import assert from 'node:assert/strict';
 import { copyFileSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
@@ -52,7 +53,13 @@ const shot = async (_page, name) => {
   await new Promise((r) => setTimeout(r, 500));
   n += 1;
   const png = await current.evaluate(async ({ BrowserWindow }) =>
-    (await BrowserWindow.getAllWindows()[0].webContents.capturePage()).toPNG().toString('base64'),
+    (
+      await BrowserWindow.getAllWindows()
+        .find((w) => !w.webContents.getURL().endsWith('#toast'))
+        .webContents.capturePage()
+    )
+      .toPNG()
+      .toString('base64'),
   );
   writeFileSync(join(shots, `rep-${String(n).padStart(2, '0')}-${name}.png`), Buffer.from(png, 'base64'));
 };
@@ -71,7 +78,11 @@ page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
 await app.evaluate(({ dialog }, dir) => {
   dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [dir] });
 }, project);
-await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1440, 900));
+await app.evaluate(({ BrowserWindow }) =>
+  BrowserWindow.getAllWindows()
+    .find((w) => !w.webContents.getURL().endsWith('#toast'))
+    .setSize(1440, 900),
+);
 
 try {
   await page.getByRole('heading', { name: L.shell.crew }).waitFor();
@@ -86,24 +97,19 @@ try {
   await page.getByRole('dialog').waitFor({ state: 'detached' });
   await side.getByRole('button', { name: /^@claude/ }).waitFor();
 
-  // A report channel: its kind picked when it is made; it stands in a group of its own.
-  await side.getByRole('button', { name: L.channel.create }).click();
-  await side.getByText(L.reports.kindReports, { exact: true }).click();
-  await side.getByText(L.reports.kindHint).waitFor();
-  await shot(page, 'new-channel');
-  const name = side.getByRole('textbox', { name: L.channel.create });
-  await name.fill('sabah');
-  await name.press('Enter');
-  await side.getByText(L.reports.group).waitFor();
+  // Reports: a page of the board, with no message box; people do not write there.
+  const nav = side.getByRole('button', { name: new RegExp(`^${L.shell.reports}`) });
+  await nav.click();
   await page.getByText(L.reports.empty).waitFor();
-  // No message box: people do not write here.
   assert.equal(await page.locator('.composer').count(), 0);
   await page.getByText(L.reports.closed).waitFor();
+  await page.locator('.rtop .meter').waitFor();
   await shot(page, 'empty');
 
-  // A routine in it, run now.
+  // A routine made from there reports there; run now while another page is open.
   await page.getByRole('button', { name: L.routines.new }).first().click();
   const routine = page.getByRole('dialog', { name: L.routines.new });
+  assert.equal(await routine.locator('#routine-channel').inputValue(), 'reports');
   await routine.getByRole('button', { name: '@claude' }).click();
   await routine.locator('#routine-text').pressSequentially('sabah raporu hazırla');
   await routine.locator('#routine-at').fill('08:30');
@@ -111,10 +117,31 @@ try {
   await routine.waitFor({ state: 'detached' });
   await page.locator('.chat__head').getByRole('button', { name: L.shell.routines }).click();
   const card = page.locator('.routine');
-  await card.getByText('#sabah').waitFor();
+  await card.getByText(L.routines.reportsTarget).waitFor();
   await card.getByRole('button', { name: L.routines.run }).click();
   await card.getByRole('button', { name: L.routines.ran }).waitFor();
-  await side.getByRole('button', { name: /^sabah/ }).click();
+
+  // Bub's toast over the screen, and the count of unread reports beside the page's name.
+  await nav.locator('.nav__unread', { hasText: '2' }).waitFor({ timeout: 20_000 });
+  const toastShown = async () =>
+    app.evaluate(({ BrowserWindow }) =>
+      BrowserWindow.getAllWindows().some((w) => w.webContents.getURL().endsWith('#toast') && w.isVisible()),
+    );
+  for (let i = 0; i < 60 && !(await toastShown()); i++) await new Promise((r) => setTimeout(r, 100));
+  assert.ok(await toastShown(), 'the report toast is shown');
+  await new Promise((r) => setTimeout(r, 900));
+  const toastPng = await app.evaluate(async ({ BrowserWindow }) => {
+    const w = BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().endsWith('#toast'));
+    return (await w.webContents.capturePage()).toPNG().toString('base64');
+  });
+  writeFileSync(join(shots, 'rep-00-toast.png'), Buffer.from(toastPng, 'base64'));
+  const toastText = await app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()
+      .find((x) => x.webContents.getURL().endsWith('#toast'))
+      .webContents.executeJavaScript("document.querySelector('.toast__card')?.textContent ?? ''"),
+  );
+  assert.match(toastText, new RegExp(L.reports.toast.kind));
+  await nav.click();
 
   // Two cards: the answer (titled by its heading, with the screenshot) and the report the agent posted.
   const answer = page.locator('.rcard', { hasText: 'Sabah raporu' });
@@ -125,11 +152,25 @@ try {
   await answer.locator('.pics__item img').waitFor();
   assert.equal(await own.locator('.pics__item').count(), 1);
   await answer.getByText(L.reports.fromRoutine).waitFor();
+  assert.equal(await page.locator('.rcard.is-unread').count(), 2);
+  await own.locator('.rcard__asks').waitFor();
+  // Pinned: it turns green and stands above the days.
+  await own.getByRole('button', { name: L.reports.pin }).click();
+  await page.locator('.reports__day--pinned').waitFor();
+  await page.locator('.rcard.is-pinned .rpin.is-pinned').waitFor();
   await shot(page, 'cards');
   // A narrow window: the cards go to one column.
-  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(960, 800));
+  await app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()
+      .find((w) => !w.webContents.getURL().endsWith('#toast'))
+      .setSize(960, 800),
+  );
   await shot(page, 'cards-960');
-  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1440, 900));
+  await app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()
+      .find((w) => !w.webContents.getURL().endsWith('#toast'))
+      .setSize(1440, 900),
+  );
 
   // The report over the page: its text without the heading, the image, the note written while working.
   await answer.getByRole('button', { name: 'Sabah raporu' }).click();
@@ -166,6 +207,36 @@ try {
   await sent.locator('.cite__open').click();
   await page.getByRole('dialog', { name: 'Sabah raporu' }).waitFor();
   await page.keyboard.press('Escape');
+
+  // The questions of the posted report: one option, one left to the agent; the answers go to the agent's channel.
+  await nav.click();
+  await page
+    .locator('.rcard', { hasText: 'Gece taraması: iki uyarı' })
+    .getByRole('button', { name: 'Gece taraması: iki uyarı' })
+    .click();
+  const posted = page.getByRole('dialog', { name: 'Gece taraması: iki uyarı' });
+  const decide = posted.locator('.decide');
+  await decide.getByText('zod güncellemesi şimdi mi yapılsın?').waitFor();
+  await decide.getByRole('button', { name: 'Hafta sonu' }).click();
+  await decide.locator('.decide__q').nth(1).getByRole('button', { name: L.reports.said.yours }).click();
+  await shot(page, 'decisions');
+  await decide.getByRole('button', { name: L.reports.decisions.send_other.replace('{{count}}', '2') }).click();
+  await posted.waitFor({ state: 'detached' });
+  const decided = page.locator('.msg', { hasText: L.reports.said.decisions });
+  await decided.locator('.cite', { hasText: 'Gece taraması' }).waitFor();
+  await decided.getByText(new RegExp(L.reports.said.yours)).waitFor();
+  await page
+    .getByText(/raporunu aldım; uyarılara bakıyorum\./)
+    .nth(1)
+    .waitFor({ timeout: 20_000 });
+  // Both reports were opened: none unread.
+  assert.equal(await nav.locator('.nav__unread').count(), 0);
+
+  // The overview's dashboard: tokens of the week and the efficiency meter.
+  await side.getByRole('button', { name: L.shell.home }).click();
+  await page.locator('.dash .meter').waitFor();
+  await page.locator('.tweek__bar').first().waitFor();
+  await shot(page, 'dashboard');
 
   // In the routine's channel the note the agent wrote while working stands as a message of its own.
   assert.deepEqual(errors, []);

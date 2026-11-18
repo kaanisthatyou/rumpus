@@ -164,7 +164,8 @@
     "hideSidebar": "Kanal listesini gizle",
     "expandCrew": "Paneli aç",
     "collapseCrew": "Şeride indir",
-    "closeCrew": "Paneli kapat"
+    "closeCrew": "Paneli kapat",
+    "reports": "Raporlar"
   },
   "settings": {
     "title": "Ayarlar",
@@ -1354,6 +1355,34 @@
         "hint": "Aynı ekran telefonda açılır, onay bekleyen işler bildirim olarak gelir.",
         "act": "Ayarlar"
       }
+    },
+    "efficiency": {
+      "title": "Verimlilik",
+      "good": "İyi",
+      "fair": "Orta",
+      "poor": "Zayıf",
+      "none": "Veri yok",
+      "empty": "Son 7 günde biten iş yok",
+      "done": "{{ended}} işin {{done}} tanesi tamamlandı"
+    },
+    "dash": {
+      "tokens": "Harcanan token",
+      "today": "Bugün {{count}}",
+      "hover": "Bir günün üzerine gelince ayrıntısı",
+      "in": "Girdi",
+      "cached": "Önbellek",
+      "out": "Çıktı",
+      "done": "Bitti",
+      "failed": "Hata",
+      "stopped": "Durdu",
+      "weekJobs_one": "7 günde {{count}} iş",
+      "weekJobs_other": "7 günde {{count}} iş",
+      "weekCost": "7 günde {{cost}}",
+      "average": "Ortalama süre",
+      "averageNote": "Biten iş başına",
+      "agents": "Agentlara göre token, son 7 gün",
+      "doneOf": "{{count}} işin {{done}} tanesi bitti",
+      "noAgents": "Son 7 günde iş yok."
     }
   },
   "routines": {
@@ -1380,7 +1409,8 @@
     "run": "Şimdi çalıştır",
     "ran": "Yazıldı",
     "message": "Rutin",
-    "messageHint": "Bu mesaj, sahibinin bir rutini tarafından yazıldı."
+    "messageHint": "Bu mesaj, sahibinin bir rutini tarafından yazıldı.",
+    "reportsTarget": "Raporlar (Pano)"
   },
   "traits": {
     "title": "Karakter",
@@ -1580,20 +1610,12 @@
     "many_other": "{{count}} yeni mesaj"
   },
   "reports": {
-    "group": "Rapor kanalları",
-    "kind": "Rapor kanalı",
-    "channelKind": "Kanal türü",
-    "kindText": "Metin",
-    "kindReports": "Rapor",
-    "kindHint": "Rapor kanalına kişiler yazmaz: rutinler ve agentların raporları tarihli kartlar olarak durur.",
     "hint": "Rutinlerin ve agentların raporları, tarihleriyle.",
-    "toReports": "Rapor kanalına çevir",
-    "toText": "Metin kanalına çevir",
     "filter": "Yazana göre",
     "everyone": "Hepsi",
     "empty": "Henüz rapor yok",
-    "emptyHint": "Bu kanala yazan bir rutin, içinde @ ile anılan agentın raporunu buraya getirir. Agentlar çalışırken buraya rapor da bırakabilir.",
-    "closed": "Bu kanala yalnızca rutinler ve agentlar yazar. Bir rapora yanıt, kartındaki Yanıtla ile agentın kanalından verilir.",
+    "emptyHint": "Hedefi Raporlar olan bir rutin, içinde @ ile anılan agentın raporunu buraya getirir. Agentlar çalışırken buraya rapor da bırakabilir.",
+    "closed": "Buraya yalnızca rutinler ve agentlar yazar. Bir rapora yanıt, kartındaki Yanıtla ile agentın kanalından verilir.",
     "fromRoutine": "Rutin",
     "posted": "Rapor",
     "asked": "İstek",
@@ -1621,6 +1643,48 @@
       "stopped": "Durduruldu",
       "waiting": "Bekliyor",
       "posted": "Yazıldı"
+    },
+    "emptyFilter": "Bu seçimde rapor yok",
+    "readAll": "Tümü okundu",
+    "show": "Gösterilenler",
+    "filters": {
+      "all": "Tümü",
+      "unread": "Okunmamış",
+      "pinned": "Sabitli",
+      "asks": "Karar bekleyen"
+    },
+    "facts": {
+      "week": "Son 7 günde rapor",
+      "unread": "Okunmamış",
+      "asks": "Karar bekleyen",
+      "pinned": "Sabitli"
+    },
+    "pinned": "Sabitlenenler",
+    "pin": "Sabitle",
+    "unpin": "Sabitlemeyi kaldır",
+    "unread": "Okunmadı",
+    "markRead": "Okundu say",
+    "markUnread": "Okunmadı say",
+    "decisions": {
+      "title": "Karar bekleyen sorular",
+      "waiting_one": "{{count}} karar bekliyor",
+      "waiting_other": "{{count}} karar bekliyor",
+      "own": "Başka cevap",
+      "ownLabel": "{{n}}. soruya cevap",
+      "ownPlaceholder": "Cevap · Enter ile gönderilir",
+      "hint": "Cevaplar agentın kanalına, rapor ekli olarak gider. Serbest yanıt için Yanıtla.",
+      "send_one": "{{count}} cevabı gönder",
+      "send_other": "{{count}} cevabı gönder"
+    },
+    "said": {
+      "yours": "Senin kararın",
+      "decisions": "Rapordaki sorulara cevaplar:"
+    },
+    "toast": {
+      "kind": "Yeni rapor",
+      "open": "Aç",
+      "more_one": "+{{count}} rapor daha",
+      "more_other": "+{{count}} rapor daha"
     }
   }
 }

@@ -164,7 +164,8 @@
     "hideSidebar": "Hide the channel list",
     "expandCrew": "Open the panel",
     "collapseCrew": "Narrow to a strip",
-    "closeCrew": "Close the panel"
+    "closeCrew": "Close the panel",
+    "reports": "Reports"
   },
   "settings": {
     "title": "Settings",
@@ -1354,6 +1355,34 @@
         "hint": "The same screen opens on the phone, and jobs waiting for approval arrive as notifications.",
         "act": "Settings"
       }
+    },
+    "efficiency": {
+      "title": "Efficiency",
+      "good": "Good",
+      "fair": "Fair",
+      "poor": "Poor",
+      "none": "No data",
+      "empty": "No job ended in the last 7 days",
+      "done": "{{done}} of {{ended}} jobs completed"
+    },
+    "dash": {
+      "tokens": "Tokens used",
+      "today": "Today {{count}}",
+      "hover": "A day shows its details on hover",
+      "in": "Input",
+      "cached": "Cache",
+      "out": "Output",
+      "done": "Done",
+      "failed": "Failed",
+      "stopped": "Stopped",
+      "weekJobs_one": "{{count}} job in 7 days",
+      "weekJobs_other": "{{count}} jobs in 7 days",
+      "weekCost": "{{cost}} in 7 days",
+      "average": "Average time",
+      "averageNote": "Per ended job",
+      "agents": "Tokens by agent, last 7 days",
+      "doneOf": "{{done}} of {{count}} jobs done",
+      "noAgents": "No jobs in the last 7 days."
     }
   },
   "routines": {
@@ -1380,7 +1409,8 @@
     "run": "Run now",
     "ran": "Posted",
     "message": "Routine",
-    "messageHint": "This message was posted by one of its owner's routines."
+    "messageHint": "This message was posted by one of its owner's routines.",
+    "reportsTarget": "Reports (board)"
   },
   "traits": {
     "title": "Character",
@@ -1580,20 +1610,12 @@
     "many_other": "{{count}} new messages"
   },
   "reports": {
-    "group": "Report channels",
-    "kind": "Report channel",
-    "channelKind": "Channel kind",
-    "kindText": "Text",
-    "kindReports": "Reports",
-    "kindHint": "People do not write in a report channel: reports of routines and agents stay there as dated cards.",
     "hint": "Reports of routines and agents, with their dates.",
-    "toReports": "Make it a report channel",
-    "toText": "Make it a text channel",
     "filter": "By writer",
     "everyone": "All",
     "empty": "No reports yet",
-    "emptyHint": "A routine that posts in this channel brings the report of the agent it mentions with @ here. Agents can also leave reports here while they work.",
-    "closed": "Only routines and agents write in this channel. A report is answered with Answer on its card, in the agent's channel.",
+    "emptyHint": "A routine aimed at Reports brings the report of the agent it mentions with @ here. Agents can also leave reports here while they work.",
+    "closed": "Only routines and agents write here. A report is answered with Answer on its card, in the agent's channel.",
     "fromRoutine": "Routine",
     "posted": "Report",
     "asked": "Request",
@@ -1621,6 +1643,48 @@
       "stopped": "Stopped",
       "waiting": "Waiting",
       "posted": "Posted"
+    },
+    "emptyFilter": "No reports in this selection",
+    "readAll": "All read",
+    "show": "Shown",
+    "filters": {
+      "all": "All",
+      "unread": "Unread",
+      "pinned": "Pinned",
+      "asks": "Awaiting a decision"
+    },
+    "facts": {
+      "week": "Reports in 7 days",
+      "unread": "Unread",
+      "asks": "Awaiting a decision",
+      "pinned": "Pinned"
+    },
+    "pinned": "Pinned",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "unread": "Unread",
+    "markRead": "Mark read",
+    "markUnread": "Mark unread",
+    "decisions": {
+      "title": "Questions awaiting a decision",
+      "waiting_one": "{{count}} decision awaited",
+      "waiting_other": "{{count}} decisions awaited",
+      "own": "Other answer",
+      "ownLabel": "Answer to question {{n}}",
+      "ownPlaceholder": "Answer · Enter sends",
+      "hint": "The answers go to the agent's channel with the report attached. Answer, for a free reply.",
+      "send_one": "Send {{count}} answer",
+      "send_other": "Send {{count}} answers"
+    },
+    "said": {
+      "yours": "Your decision",
+      "decisions": "Answers to the questions in the report:"
+    },
+    "toast": {
+      "kind": "New report",
+      "open": "Open",
+      "more_one": "+{{count}} more report",
+      "more_other": "+{{count}} more reports"
     }
   }
 }

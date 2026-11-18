@@ -1,5 +1,6 @@
-// Report channels (PLAN.md 5.21): people do not write there, routines and agents do; an agent attaches images and
-// posts reports; a person answers a report with it attached; what an agent writes between tool calls is posted.
+// Reports (PLAN.md 5.21): the workspace's report feed, on the board's Reports page. People do not write there,
+// routines and agents do; an agent attaches images, leaves questions and posts reports; a person reads, pins and
+// answers a report with it attached; what an agent writes between tool calls is posted.
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -7,6 +8,8 @@ import {
   type Channel,
   type Frame,
   type Message,
+  REPORTS_CHANNEL,
+  type ReportMark,
   type Response,
   type Routine,
   reportCode,
@@ -103,7 +106,7 @@ function toolOf(session: Fake) {
   };
 }
 
-describe('report channels', () => {
+describe('reports', () => {
   it('takes routines and agents only, carries images, and hands a cited report to the next job', async () => {
     const { call, sessions } = setup();
     const folder = tmp('lonca-proj-');
@@ -111,10 +114,13 @@ describe('report channels', () => {
     writeFileSync(join(folder, 'notes.txt'), 'not an image');
     await call('agents.save', { kind: 'claude-code', name: 'Nora', handle: 'nora', folder, mode: 'read' });
 
-    const reports = await call<Channel>('channels.create', { name: 'raporlar', reports: true });
-    expect(reports.reports).toBe(true);
+    // The feed is made once, under the same id, and is not among the channels to open.
+    const reports = await call<Channel>('reports.channel');
+    expect(reports).toMatchObject({ id: REPORTS_CHANNEL, reports: true });
+    expect((await call<Channel>('reports.channel')).id).toBe(REPORTS_CHANNEL);
     let ws = await call<WorkspaceState>('workspace.get');
-    expect(ws.channels.find((c) => c.id === reports.id)?.reports).toBe(true);
+    expect(ws.channels.some((c) => c.id === reports.id)).toBe(false);
+    expect(ws.reportChannels).toEqual([REPORTS_CHANNEL]);
     // A person does not write there.
     await expect(call('messages.send', { channelId: reports.id, text: '@nora merhaba' })).rejects.toThrow(
       'reports_only',
@@ -128,20 +134,26 @@ describe('report channels', () => {
     });
     await call('routines.run', { id: routine.id });
     const nora = await until(() => sessions[0]?.sent[0] && sessions[0]);
-    expect(nora.sent[0]?.text).toContain('This is a report channel');
+    expect(nora.sent[0]?.text).toContain("This is the workspace's reports");
     const tool = toolOf(nora);
 
     // Images: only image files, attached to the answer.
     expect(await tool('attach_image', { path: 'notes.txt' })).toMatch(/^Not an image/);
     expect(await tool('attach_image', { path: 'yok.png' })).toMatch(/^No such file/);
     expect(await tool('attach_image', { path: 'shot.png', caption: 'Ana ekran' })).toMatch(/^Attached/);
+    // A question left to the person, on the answer.
+    expect(await tool('ask_decision', { question: '' })).toMatch(/^A question is needed/);
+    expect(await tool('ask_decision', { question: 'Yayınlayayım mı?', options: ['Evet', 'Hayır', ''] })).toMatch(
+      /^Added/,
+    );
     // A report of its own, with an image by an absolute path.
     const posted = await tool('post_report', {
       title: 'Gece taraması',
       body: 'İki uyarı var.',
       images: [{ path: join(folder, 'shot.png') }],
+      decisions: [{ question: 'Hangisi önce?', options: ['A', 'B'] }, { question: '' }],
     });
-    expect(posted).toMatch(/^Posted report #[0-9A-Z]{6} in #raporlar with 1 image\.$/);
+    expect(posted).toMatch(/^Posted report #[0-9A-Z]{6} with 1 image and 1 decision\.$/);
 
     // What it writes before a tool call is posted at once; the answer ends the job with the image.
     nora.emit({ type: 'text', text: 'Testlere bakıyorum.' });
@@ -165,6 +177,24 @@ describe('report channels', () => {
       expect.objectContaining({ mime: 'image/png', caption: 'Ana ekran', width: 1, height: 1 }),
     ]);
     expect(own?.images?.length).toBe(1);
+    expect(own?.decisions).toEqual([{ question: 'Hangisi önce?', options: ['A', 'B'] }]);
+    expect(answer?.decisions).toEqual([{ question: 'Yayınlayayım mı?', options: ['Evet', 'Hayır'] }]);
+
+    // Two reports, both unread; read and pinned marks are kept, and all of them can be read at once.
+    ws = await call<WorkspaceState>('workspace.get');
+    expect(ws.reportsUnread).toBe(2);
+    const feed = await call<{ channel?: string; messages: Message[]; marks: Record<string, ReportMark> }>(
+      'reports.list',
+    );
+    expect(feed.channel).toBe(REPORTS_CHANNEL);
+    expect(feed.messages.map((m) => m.id)).toEqual(list.messages.map((m) => m.id));
+    await call('reports.mark', { ids: [answer?.id], read: true, pinned: true });
+    await call('reports.mark', { ids: [answer?.id], pinned: false });
+    expect((await call<WorkspaceState>('workspace.get')).reportsUnread).toBe(1);
+    const marks = (await call<{ marks: Record<string, ReportMark> }>('reports.list')).marks;
+    expect(marks[answer?.id ?? '']).toEqual({ read: true });
+    await call('reports.mark', {});
+    expect((await call<WorkspaceState>('workspace.get')).reportsUnread).toBe(0);
     expect(reportTitle(answer as Message)).toBe('Sabah raporu');
     const image = await call<string>('messages.image', { id: answer?.id, blob: answer?.images?.[0]?.blob });
     expect(image.startsWith('data:image/png;base64,')).toBe(true);
@@ -192,13 +222,10 @@ describe('report channels', () => {
     expect(turn?.text).toContain('Her şey yolunda.');
     expect(turn?.images.length).toBe(1);
 
-    // Back to a text channel; the last text channel cannot become a report channel.
-    await call('channels.reports', { id: reports.id, reports: false });
-    ws = await call<WorkspaceState>('workspace.get');
-    expect(ws.channels.find((c) => c.id === reports.id)?.reports).toBeUndefined();
-    const texts = ws.channels.filter((c) => c.kind === 'channel');
-    await call('channels.reports', { id: texts[0]?.id, reports: true });
-    await expect(call('channels.reports', { id: texts[1]?.id, reports: true })).rejects.toThrow('bad_request');
+    // The overview counts the week: one job, done.
+    const overview = await call<{ week: { done: number; jobs: number }; agents: { name: string }[] }>('overview.get');
+    expect(overview.week).toMatchObject({ done: 1 });
+    expect(overview.agents[0]?.name).toBe('Nora');
   });
 
   it('lets a note give way to the answer when the job ends on a tool call', async () => {

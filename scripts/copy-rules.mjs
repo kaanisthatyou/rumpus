@@ -37,11 +37,18 @@ export function flatten(obj, prefix = '') {
   return out;
 }
 
+/**
+ * Keys whose text is the person's own words, sent as their message (`reports.said.yours`: "Senin kararın", what a
+ * person tells an agent): the app does not speak there, so second person is theirs to use.
+ */
+const SAID = /(^|\.)said\./;
+
 export function findIssues(strings, lang) {
   const issues = [];
   for (const [key, text] of Object.entries(strings)) {
     for (const rule of RULES) {
       if (rule.lang && rule.lang !== lang) continue;
+      if (SAID.test(key) && rule.id.endsWith('second-person')) continue;
       if (rule.test(text)) issues.push({ key, rule: rule.id, note: rule.note, text });
     }
   }

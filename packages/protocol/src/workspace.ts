@@ -199,10 +199,30 @@ export interface Channel {
   topic: string;
   created: number;
   /**
-   * A report channel (PLAN.md 5.21): people do not write in it. Routines post there and agents answer with
-   * reports, and agents post reports of their own (`post_report`); the channel shows them as cards.
+   * The workspace's report feed (PLAN.md 5.21): people do not write in it. Routines post there and agents answer
+   * with reports, and agents post reports of their own (`post_report`). It is not in the channel list: the board's
+   * Reports page shows it as cards.
    */
   reports?: boolean;
+}
+
+/** The id of a workspace's report feed: the same everywhere, so two members making it at once make one. */
+export const REPORTS_CHANNEL = 'reports';
+
+/** A question a report leaves to the person (PLAN.md 5.21): answered from the report, or left to the agent. */
+export interface Decision {
+  question: string;
+  /** Answers to pick from; a person can always write their own or leave it to the agent. */
+  options?: string[];
+}
+
+/** Questions a report carries, at most this many. */
+export const REPORT_DECISIONS_MAX = 6;
+
+/** This person's marks on the reports (kept on this computer): read, and pinned to the top. */
+export interface ReportMark {
+  read?: boolean;
+  pinned?: boolean;
 }
 
 /** Images a message carries (screenshots, diagrams an agent attached), at most this many. */
@@ -260,6 +280,8 @@ export interface Message {
   title?: string;
   /** Screenshots and diagrams the agent attached (`attach_image`, `post_report`). */
   images?: MessageImage[];
+  /** Questions the report leaves to the person (`post_report`, `ask_decision`). */
+  decisions?: Decision[];
   /** The report this message answers; a job it starts gets the report. */
   cite?: Citation;
   /**
@@ -508,6 +530,10 @@ export interface WorkspaceState {
    * them (`@name`). Kept on this computer; channels with nothing new are left out.
    */
   unread?: Record<string, { count: number; mention?: boolean }>;
+  /** The report feed's channels (not in `channels`): the board's Reports page shows them (PLAN.md 5.21). */
+  reportChannels?: string[];
+  /** Reports this person has not opened yet (PLAN.md 5.21). */
+  reportsUnread?: number;
   /** This app's address for other members, once it listens. */
   address?: string;
   /**
@@ -791,10 +817,34 @@ export const RoutineInputSchema = z.object({
 export type RoutineInput = z.input<typeof RoutineInputSchema>;
 
 /** The workspace at a glance (the Overview page): today's numbers, the last days, the latest finished jobs. */
+export interface OverviewDay {
+  day: string;
+  jobs: number;
+  /** Input and output tokens (what the overview has always counted). */
+  tokens: number;
+  usage: Usage;
+  done: number;
+  failed: number;
+  cost: number;
+}
+
 export interface Overview {
   today: { messages: number; jobs: number; failed: number; usage: Usage; cost: number };
   /** The last seven days, oldest first; `day` is the local date (`2026-11-10`). */
-  days: { day: string; jobs: number; tokens: number }[];
+  days: OverviewDay[];
+  /** The last seven days together. Efficiency is `done` out of the jobs that ended (`done + failed + stopped`). */
+  week: {
+    jobs: number;
+    done: number;
+    failed: number;
+    stopped: number;
+    usage: Usage;
+    cost: number;
+    /** How long the jobs that ended ran, together (ms). */
+    busyMs: number;
+  };
+  /** Agents by the tokens their jobs used over the last seven days, most first. */
+  agents: { agentId: string; name: string; jobs: number; done: number; tokens: number }[];
   /** Jobs that ended, newest first, with the request's first line and the channel's name. */
   recent: { job: Job; request: string; channel: string }[];
 }

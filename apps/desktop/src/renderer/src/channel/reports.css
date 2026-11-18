@@ -1,4 +1,5 @@
-/* Report channels (PLAN.md 5.21): dated cards instead of a chat, a report over the page, images full size. */
+/* Reports (PLAN.md 5.21): the board's Reports page of dated cards, a report over the page, images full size,
+   the questions a report leaves, and the toast over the screen. */
 
 .reports-page {
   position: relative;
@@ -7,15 +8,38 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 6px 20px 24px;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  align-content: start;
-  gap: 0 14px;
+  padding: 14px 20px 24px;
+  display: flex;
+  flex-direction: column;
+}
+.reports > * {
+  width: 100%;
+  max-width: 1180px;
+  margin-left: auto;
+  margin-right: auto;
 }
 .reports > .empty {
-  grid-column: 1 / -1;
-  min-height: 60%;
+  min-height: 50%;
+}
+.reports__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  align-items: start;
+  gap: 12px 14px;
+}
+.reports__n {
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 99px;
+  font-size: 10.5px;
+  background: var(--active);
+  color: var(--ink);
+}
+.reports__day--pinned {
+  color: var(--ok);
+}
+.reports__day--pinned span {
+  color: var(--ink);
 }
 .reports__emptyicon {
   display: grid;
@@ -30,10 +54,9 @@
 }
 /* A day starts a row of its own: its header spans the grid, its cards follow. */
 .reports__item {
-  display: contents;
+  display: block;
 }
 .reports__day {
-  grid-column: 1 / -1;
   display: flex;
   align-items: baseline;
   gap: 8px;
@@ -56,7 +79,11 @@
   text-transform: capitalize;
 }
 .reports__filter {
-  padding: 10px 20px 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 12px;
 }
 .reports__filter fieldset {
   display: flex;
@@ -632,4 +659,405 @@
   .chat__head .chat__topic {
     display: none;
   }
+}
+
+/* ------------------------------------------------------------------ the report toast (its own window) */
+
+html[data-toast],
+html[data-toast] body,
+html[data-toast] #root {
+  background: transparent;
+  overflow: hidden;
+}
+.toast-stage {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 0 6px 6px 0;
+  pointer-events: none;
+}
+.toast {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  pointer-events: auto;
+}
+.toast__card {
+  all: unset;
+  box-sizing: border-box;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 290px;
+  margin-bottom: 34px;
+  padding: 11px 14px 10px;
+  border-radius: 14px 14px 4px 14px;
+  background: var(--card);
+  border: 1px solid var(--line-2);
+  box-shadow:
+    0 18px 40px -18px rgb(0 0 0 / 70%),
+    inset 0 1px 0 rgb(255 255 255 / 4%);
+  cursor: pointer;
+  transition:
+    border-color 0.16s,
+    transform 0.16s;
+}
+.toast__card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  border-radius: 14px 0 0 14px;
+  background: var(--accent);
+}
+.toast.is-over .toast__card {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line-2));
+  transform: translateY(-2px);
+}
+.toast__card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.toast__kind {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+}
+.toast__code {
+  margin-left: auto;
+  color: var(--meta);
+  letter-spacing: 0.04em;
+}
+.toast__title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.3;
+  color: var(--ink);
+}
+.toast__by {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--mute);
+}
+.toast__ask,
+.toast__more {
+  padding: 1px 7px;
+  border-radius: 99px;
+  font-size: 11px;
+}
+.toast__ask {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+}
+.toast__more {
+  color: var(--ink-2);
+  background: var(--active);
+}
+.toast__open {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  align-self: flex-end;
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-ink);
+}
+.toast__x {
+  all: unset;
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--card-2);
+  border: 1px solid var(--line-2);
+  color: var(--mute);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.toast.is-over .toast__x,
+.toast__x:focus-visible {
+  opacity: 1;
+}
+.toast__x:hover {
+  color: var(--ink);
+}
+.toast__bub {
+  display: grid;
+  place-items: end center;
+  width: 96px;
+  height: 104px;
+  filter: drop-shadow(0 10px 14px rgb(0 0 0 / 45%));
+  animation: toast-float 3.2s ease-in-out infinite;
+}
+.toast.is-over .toast__bub {
+  animation-play-state: paused;
+}
+@keyframes toast-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-1deg);
+  }
+  50% {
+    transform: translateY(-9px) rotate(1.5deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast__bub {
+    animation: none;
+  }
+}
+[data-motion='reduced'] .toast__bub {
+  animation: none;
+}
+
+/* ------------------------------------------------------------------ the top of the Reports page */
+
+.rtop {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 12px 18px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 55%), var(--card);
+}
+.rtop__facts {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.rtop__facts > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: var(--r-md, 10px);
+  background: var(--card-2);
+  border: 1px solid var(--line);
+}
+.rtop__facts b {
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--ink);
+}
+@container page (max-width: 760px) {
+  .rtop {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .rtop .meter {
+    margin: 0 auto;
+  }
+  .rtop__facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ------------------------------------------------------------------ read marks and pins on a card */
+
+.rcard.is-unread {
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--line-2));
+}
+.rcard.is-unread .rcard__rail {
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+.rcard.is-pinned {
+  border-color: color-mix(in srgb, var(--ok) 35%, var(--line-2));
+}
+.rcard__new {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin: 0 7px 2px 0;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: middle;
+}
+.rpin {
+  all: unset;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  color: var(--meta);
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    background 0.15s,
+    transform 0.15s;
+}
+.rpin:hover {
+  color: var(--ink);
+  background: var(--hover);
+}
+.rpin:focus-visible {
+  outline: 2px solid var(--accent);
+}
+.rpin.is-pinned {
+  color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 14%, transparent);
+  transform: rotate(-20deg);
+}
+.rpin.is-pinned svg {
+  fill: color-mix(in srgb, var(--ok) 45%, transparent);
+}
+.rcard__asks {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 3px 9px;
+  border-radius: 99px;
+  font-size: 11.5px;
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 11%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warn) 25%, transparent);
+  cursor: pointer;
+}
+.rcard__asks:focus-visible {
+  outline: 2px solid var(--accent);
+}
+
+/* ------------------------------------------------------------------ the questions a report leaves */
+
+.decide {
+  margin: 4px 0 16px;
+  padding: 12px 14px;
+  border-radius: var(--r-lg);
+  border: 1px solid color-mix(in srgb, var(--warn) 30%, var(--line-2));
+  background: color-mix(in srgb, var(--warn) 5%, var(--card));
+}
+.decide__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--warn);
+}
+.decide__head h3 {
+  flex: 1;
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink);
+}
+.decide__n {
+  font-size: 11.5px;
+  color: var(--mute);
+}
+.decide__list {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: q;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.decide__q {
+  counter-increment: q;
+  padding-left: 26px;
+  position: relative;
+}
+.decide__q::before {
+  content: counter(q);
+  position: absolute;
+  left: 0;
+  top: 1px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--mute);
+  border: 1px solid var(--line-2);
+}
+.decide__q.is-answered::before {
+  content: '';
+  border-color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 30%, transparent);
+}
+.decide__text {
+  margin: 0 0 7px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--ink);
+}
+.decide__opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.decide__opt {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 99px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  border: 1px solid var(--line-2);
+  background: var(--card);
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.decide__opt:hover {
+  border-color: var(--line-3);
+}
+.decide__opt:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.decide__opt.is-on {
+  color: var(--ink);
+  border-color: color-mix(in srgb, var(--accent) 65%, transparent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--card));
+}
+.decide__opt--agent {
+  color: var(--accent-ink);
+}
+.decide__input {
+  margin-top: 7px;
+  width: 100%;
+}
+.decide__foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.decide__hint {
+  flex: 1;
+  font-size: 11.5px;
+  color: var(--meta);
 }

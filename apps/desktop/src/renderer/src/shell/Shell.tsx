@@ -38,6 +38,7 @@ const BOARD: { view: View; icon: IconName }[] = [
   { view: 'tasks', icon: 'tasks' },
   { view: 'goals', icon: 'target' },
   { view: 'routines', icon: 'clock' },
+  { view: 'reports', icon: 'report' },
 ];
 const RECORDS: { view: View; icon: IconName }[] = [
   { view: 'ideas', icon: 'idea' },
@@ -51,6 +52,7 @@ const ICON_OF: Record<View, IconName> = {
   tasks: 'tasks',
   goals: 'target',
   routines: 'clock',
+  reports: 'report',
   ideas: 'idea',
   references: 'image',
   commands: 'bookmark',
@@ -229,11 +231,9 @@ function Sidebar({ onSettings }: { onSettings: () => void }) {
   const openProjectDialog = useApp((s) => s.openProjectDialog);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
-  // A new channel is a text channel unless the report kind is picked (PLAN.md 5.21).
-  const [reportKind, setReportKind] = useState(false);
   const unread = useApp((s) => s.unread);
-  const channels = workspace?.channels.filter((c) => c.kind === 'channel' && !c.reports) ?? [];
-  const reportChannels = workspace?.channels.filter((c) => c.kind === 'channel' && c.reports) ?? [];
+  const channels = workspace?.channels.filter((c) => c.kind === 'channel') ?? [];
+  const reportsUnread = workspace?.reportsUnread ?? 0;
   const agentChannels = workspace?.channels.filter((c) => c.kind === 'agent') ?? [];
   // Jobs that wait for this person: an approval is given on the computer the agent runs on.
   const waiting = Object.values(jobs)
@@ -246,6 +246,7 @@ function Sidebar({ onSettings }: { onSettings: () => void }) {
       .filter((j) => j.state === 'running')
       .map((j) => j.channelId),
   );
+  const reportsRunning = (workspace?.reportChannels ?? []).some((id) => running.has(id));
 
   return (
     <aside className="side" aria-label={t('shell.channels')}>
@@ -292,29 +293,12 @@ function Sidebar({ onSettings }: { onSettings: () => void }) {
             className="side__new"
             onSubmit={async (e) => {
               e.preventDefault();
-              if (await createChannel(name, reportKind)) {
+              if (await createChannel(name)) {
                 setName('');
-                setReportKind(false);
                 setCreating(false);
               }
             }}
           >
-            <fieldset className="side__kind">
-              <legend className="l-sr">{t('reports.channelKind')}</legend>
-              {[false, true].map((kind) => (
-                <label key={String(kind)} data-checked={reportKind === kind || undefined}>
-                  <input
-                    type="radio"
-                    className="l-sr"
-                    name="channel-kind"
-                    checked={reportKind === kind}
-                    onChange={() => setReportKind(kind)}
-                  />
-                  <Icon name={kind ? 'report' : 'hash'} size={13} />
-                  {t(kind ? 'reports.kindReports' : 'reports.kindText')}
-                </label>
-              ))}
-            </fieldset>
             <input
               className="l-input"
               // biome-ignore lint/a11y/noAutofocus: the field opens on request, typing is the next step
@@ -325,7 +309,6 @@ function Sidebar({ onSettings }: { onSettings: () => void }) {
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => e.key === 'Escape' && setCreating(false)}
             />
-            {reportKind && <p className="side__kindhint">{t('reports.kindHint')}</p>}
           </form>
         )}
         {channels.map((c) => (
@@ -340,22 +323,6 @@ function Sidebar({ onSettings }: { onSettings: () => void }) {
           />
         ))}
       </div>
-      {reportChannels.length > 0 && (
-        <div className="grp">
-          <h2>{t('reports.group')}</h2>
-          {reportChannels.map((c) => (
-            <NavButton
-              key={c.id}
-              on={view === 'channel' && channelId === c.id}
-              icon="report"
-              label={c.name}
-              badge={running.has(c.id)}
-              {...(unread[c.id] ? { unread: unread[c.id] } : {})}
-              onClick={() => void openChannel(c.id)}
-            />
-          ))}
-        </div>
-      )}
       {agentChannels.length > 0 && (
         <div className="grp">
           <h2>{t('channel.agents')}</h2>
@@ -412,6 +379,9 @@ function Sidebar({ onSettings }: { onSettings: () => void }) {
             on={view === item.view}
             icon={item.icon}
             label={t(`shell.${item.view}`)}
+            // Reports this person has not opened: their number beside the page's name.
+            {...(item.view === 'reports' && reportsUnread > 0 ? { unread: { count: reportsUnread } } : {})}
+            {...(item.view === 'reports' && reportsRunning ? { badge: true } : {})}
             onClick={() => setView(item.view)}
           />
         ))}
@@ -1044,6 +1014,7 @@ function Crew({ over = false }: { over?: boolean }) {
 
 export function Shell({ onSettings }: { onSettings: () => void }) {
   const view = useApp((s) => s.view);
+  const wsId = useApp((s) => s.workspace?.id);
   const channel = useApp((s) => s.workspace?.channels.find((c) => c.id === s.channelId));
   const watching = useApp((s) => s.watching);
   const panel = useApp((s) => s.panel);
@@ -1080,8 +1051,8 @@ export function Shell({ onSettings }: { onSettings: () => void }) {
     >
       <Rail onSettings={onSettings} />
       <Sidebar onSettings={onSettings} />
-      {view === 'channel' && channel?.reports ? (
-        <ReportsView key={channel.id} channel={channel} />
+      {view === 'reports' ? (
+        <ReportsView key={wsId} />
       ) : view === 'channel' && channel ? (
         <ChannelView key={channel.id} channel={channel} />
       ) : view === 'home' ? (

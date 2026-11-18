@@ -18,6 +18,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { Island } from './shell/Island';
+import { Toast } from './shell/Toast';
 import { Unpaired } from './shell/Unpaired';
 import { startWeb } from './web';
 
@@ -27,6 +28,13 @@ if (root && window.location.hash === '#quick') {
   createRoot(root).render(
     <StrictMode>
       <Island />
+    </StrictMode>,
+  );
+} else if (root && window.location.hash === '#toast') {
+  document.documentElement.dataset.toast = '1';
+  createRoot(root).render(
+    <StrictMode>
+      <Toast />
     </StrictMode>,
   );
 } else if (root) {

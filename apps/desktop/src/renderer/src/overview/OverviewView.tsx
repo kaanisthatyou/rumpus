@@ -1,15 +1,16 @@
 // The workspace at a glance: what runs now, who is here with which agents, where the projects stand, what
 // finished lately, today's numbers, and (until it is done or hidden) the steps of setting a workspace up.
-import type { Agent, Job, Overview } from '@lonca/protocol';
+import type { Agent, Job } from '@lonca/protocol';
 import { Avatar, Bub, Button, Chip, Icon, IconButton, type IconName, LiveDot, Track } from '@lonca/ui';
 import { motion } from 'motion/react';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { remoteOwner } from '../agents/owner';
 import { specialistIcon } from '../agents/SpecialistDialog';
-import { clock, elapsed, tokens } from '../channel/format';
+import { clock, elapsed } from '../channel/format';
 import { core } from '../rpc';
 import { useApp } from '../store';
+import { Dashboard } from './Dashboard';
 
 const HIDDEN = 'lonca.setup.hidden';
 const rise = { hidden: { opacity: 0, y: 8 }, shown: { opacity: 1, y: 0 } };
@@ -22,65 +23,6 @@ function useNow(active: boolean): number {
     return () => clearInterval(timer);
   }, [active]);
   return now;
-}
-
-function Stat({ label, value, note }: { label: string; value: string; note?: string }) {
-  return (
-    <div className="stat">
-      <span className="stat__label">{label}</span>
-      <b className="stat__value">{value}</b>
-      {note && <span className="stat__note">{note}</span>}
-    </div>
-  );
-}
-
-/** Jobs per day over the last week: one series, so no legend; each bar says its numbers on hover and focus. */
-function Week({ days }: { days: Overview['days'] }) {
-  const { t, i18n } = useTranslation();
-  const most = Math.max(1, ...days.map((d) => d.jobs));
-  const [at, setAt] = useState<number>();
-  const shown = at === undefined ? undefined : days[at];
-  return (
-    <div className="week">
-      <div className="week__head">
-        <span className="stat__label">{t('overview.week')}</span>
-        <span className="week__tip l-mono" role="status">
-          {shown
-            ? `${new Date(`${shown.day}T12:00:00`).toLocaleDateString(i18n.language, { day: 'numeric', month: 'short' })} · ${t('overview.jobs', { count: shown.jobs })} · ${tokens(shown.tokens, i18n.language)} token`
-            : t('overview.jobs', { count: days.reduce((n, d) => n + d.jobs, 0) })}
-        </span>
-      </div>
-      <div className="week__bars">
-        {days.map((d, i) => {
-          const date = new Date(`${d.day}T12:00:00`);
-          const label = date.toLocaleDateString(i18n.language, { weekday: 'short' });
-          return (
-            <button
-              key={d.day}
-              type="button"
-              className={`week__day ${i === days.length - 1 ? 'is-today' : ''}`}
-              aria-label={`${date.toLocaleDateString(i18n.language, { weekday: 'long' })}: ${t('overview.jobs', { count: d.jobs })}`}
-              onMouseEnter={() => setAt(i)}
-              onMouseLeave={() => setAt(undefined)}
-              onFocus={() => setAt(i)}
-              onBlur={() => setAt(undefined)}
-            >
-              <span className="week__track">
-                <motion.span
-                  className="week__bar"
-                  initial={{ height: 0 }}
-                  animate={{ height: d.jobs === 0 ? 2 : `${Math.max(8, (d.jobs / most) * 100)}%` }}
-                  transition={{ type: 'spring', stiffness: 260, damping: 28, delay: i * 0.03 }}
-                  data-empty={d.jobs === 0 || undefined}
-                />
-              </span>
-              <span className="week__name">{label}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
 }
 
 function RunningJob({ job, agent, now }: { job: Job; agent: Agent | undefined; now: number }) {
@@ -249,7 +191,6 @@ export function OverviewView({ onSettings }: { onSettings: () => void }) {
     { device: workspace?.me.id ?? '', name: workspace?.me.name ?? '', role: 'admin' as const, me: true, online: true },
   ];
   const busy = new Set(running.map((j) => j.agentId));
-  const today = overview?.today;
   const title = workspace?.kind === 'team' ? workspace.name : t('shell.workspace');
 
   return (
@@ -283,21 +224,7 @@ export function OverviewView({ onSettings }: { onSettings: () => void }) {
           />
         )}
 
-        <motion.section className="home__stats" variants={rise} aria-label={t('overview.today')}>
-          <Stat
-            label={t('overview.stat.jobs')}
-            value={String(today?.jobs ?? 0)}
-            {...(today?.failed ? { note: t('overview.stat.failed', { count: today.failed }) } : {})}
-          />
-          <Stat
-            label={t('overview.stat.tokens')}
-            value={tokens((today?.usage.in ?? 0) + (today?.usage.out ?? 0), lang)}
-            note={t('overview.stat.cached', { count: tokens(today?.usage.cached ?? 0, lang) })}
-          />
-          <Stat label={t('overview.stat.cost')} value={`$${(today?.cost ?? 0).toFixed(2)}`} />
-          <Stat label={t('overview.stat.messages')} value={String(today?.messages ?? 0)} />
-          {overview && <Week days={overview.days} />}
-        </motion.section>
+        <Dashboard overview={overview} />
 
         <div className="home__cols">
           <div className="home__col">

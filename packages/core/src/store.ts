@@ -12,6 +12,7 @@ import {
   type Channel,
   type Citation,
   cleanProfile,
+  type Decision,
   type Goal,
   ImageRefSchema,
   isHexColor,
@@ -24,7 +25,9 @@ import {
   type Profile,
   type Project,
   type ProjectStatus,
+  REPORT_DECISIONS_MAX,
   type RecordItem,
+  type ReportMark,
   type RoleTag,
   type Routine,
   type WorkspaceLook,
@@ -111,6 +114,9 @@ CREATE TABLE IF NOT EXISTS tags (
   id TEXT PRIMARY KEY, data TEXT NOT NULL, created INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS tagged (id TEXT PRIMARY KEY, data TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS report_marks (
+  id TEXT PRIMARY KEY, read INTEGER NOT NULL DEFAULT 0, pinned INTEGER NOT NULL DEFAULT 0
+);
 CREATE TABLE IF NOT EXISTS sessions (
   agent_id TEXT NOT NULL, channel_id TEXT NOT NULL, session_id TEXT NOT NULL, PRIMARY KEY (agent_id, channel_id)
 );
@@ -119,8 +125,6 @@ CREATE TABLE IF NOT EXISTS sessions (
 export type WorkspaceEvent =
   | { type: 'channel.created'; data: Channel }
   | { type: 'channel.renamed'; data: { id: string; name: string } }
-  /** A text channel becomes a report channel, or back (PLAN.md 5.21). */
-  | { type: 'channel.reports'; data: { id: string; reports: boolean } }
   | { type: 'channel.deleted'; data: { id: string } }
   | { type: 'agent.saved'; data: Agent }
   | { type: 'agent.deleted'; data: { id: string } }
@@ -220,7 +224,7 @@ const short = (v: unknown, max: number) => (typeof v === 'string' ? v.slice(0, m
  * What a message carries beside its text (a report's title, its images, the report it answers), cleaned: it may
  * come from another member's computer, so it is display data only and held to the same limits everywhere.
  */
-export function messageExtra(m: Partial<Message>): Pick<Message, 'title' | 'images' | 'cite' | 'during'> {
+export function messageExtra(m: Partial<Message>): Pick<Message, 'title' | 'images' | 'cite' | 'during' | 'decisions'> {
   const title = short(m.title, 200).trim();
   const images: MessageImage[] = (Array.isArray(m.images) ? m.images : [])
     .filter(
@@ -247,7 +251,19 @@ export function messageExtra(m: Partial<Message>): Pick<Message, 'title' | 'imag
         }
       : undefined;
   const during = typeof m.during === 'string' && m.during ? m.during.slice(0, 64) : undefined;
+  const decisions: Decision[] = (Array.isArray(m.decisions) ? m.decisions : [])
+    .map((d) => ({
+      question: short(d?.question, 400).trim(),
+      options: (Array.isArray(d?.options) ? d.options : [])
+        .map((o) => short(o, 120).trim())
+        .filter(Boolean)
+        .slice(0, 5),
+    }))
+    .filter((d) => d.question)
+    .slice(0, REPORT_DECISIONS_MAX)
+    .map((d) => ({ question: d.question, ...(d.options.length ? { options: d.options } : {}) }));
   return {
+    ...(decisions.length ? { decisions } : {}),
     ...(title ? { title } : {}),
     ...(images.length ? { images } : {}),
     ...(cite ? { cite } : {}),
@@ -268,7 +284,7 @@ function toMessage(r: Row): Message {
     ...(r.handover ? { handover: json<{ requestId: string; agentId: string }>(r.handover) } : {}),
     ...(r.result ? { result: json<Record<string, unknown>>(r.result) } : {}),
     ...(r.routine ? { routine: String(r.routine) } : {}),
-    ...(r.extra ? json<Pick<Message, 'title' | 'images' | 'cite' | 'during'>>(r.extra) : {}),
+    ...(r.extra ? json<Pick<Message, 'title' | 'images' | 'cite' | 'during' | 'decisions'>>(r.extra) : {}),
   };
 }
 
@@ -549,12 +565,6 @@ export class WorkspaceStore {
           );
         return;
       }
-      case 'channel.reports':
-        // Only a normal channel changes; an agent's own channel stays what it is.
-        this.db
-          .prepare("UPDATE channels SET kind = ? WHERE id = ? AND kind IN ('channel', 'reports')")
-          .run(e.data.reports === true ? 'reports' : 'channel', e.data.id);
-        return;
       case 'channel.renamed':
         this.db.prepare('UPDATE channels SET name = ? WHERE id = ?').run(e.data.name, e.data.id);
         return;
@@ -909,6 +919,62 @@ export class WorkspaceStore {
       )
       .all(channelId, opts.before ?? Number.MAX_SAFE_INTEGER, opts.limit ?? 100) as Row[];
     return rows.map(toMessage).reverse();
+  }
+
+  /** The report feed's messages (every report channel's), newest last, like `messages`. */
+  reportFeed(opts: { before?: number; limit?: number } = {}): Message[] {
+    const rows = this.db
+      .prepare(
+        "SELECT m.* FROM messages m JOIN channels c ON c.id = m.channel_id WHERE c.kind = 'reports' AND c.deleted = 0 AND m.deleted = 0 AND m.created < ? ORDER BY m.created DESC, m.rowid DESC LIMIT ?",
+      )
+      .all(opts.before ?? Number.MAX_SAFE_INTEGER, opts.limit ?? 200) as Row[];
+    return rows.map(toMessage).reverse();
+  }
+
+  /** A report: an agent's message in the feed that is not a note it wrote while working. */
+  private static readonly REPORT_SQL =
+    "SELECT m.id FROM messages m JOIN channels c ON c.id = m.channel_id WHERE c.kind = 'reports' AND c.deleted = 0 AND m.deleted = 0 AND json_extract(m.author, '$.kind') = 'agent' AND (m.extra IS NULL OR json_extract(m.extra, '$.during') IS NULL)";
+
+  /** This person's marks on reports, by message id (only the marked ones). */
+  reportMarks(ids: string[]): Record<string, ReportMark> {
+    const out: Record<string, ReportMark> = {};
+    const get = this.db.prepare('SELECT read, pinned FROM report_marks WHERE id = ?');
+    for (const id of ids) {
+      const r = get.get(id) as Row | undefined;
+      if (!r) continue;
+      out[id] = { ...(Number(r.read) ? { read: true } : {}), ...(Number(r.pinned) ? { pinned: true } : {}) };
+    }
+    return out;
+  }
+
+  markReports(ids: string[], mark: ReportMark): void {
+    const set = this.db.prepare(
+      `INSERT INTO report_marks (id, read, pinned) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET ${[
+        ...(mark.read !== undefined ? ['read = excluded.read'] : []),
+        ...(mark.pinned !== undefined ? ['pinned = excluded.pinned'] : []),
+      ].join(', ')}`,
+    );
+    if (mark.read === undefined && mark.pinned === undefined) return;
+    for (const id of ids) set.run(id, mark.read ? 1 : 0, mark.pinned ? 1 : 0);
+  }
+
+  /** Every report posted after a moment is read. */
+  readAllReports(after: number): void {
+    this.db
+      .prepare(
+        `INSERT INTO report_marks (id, read) SELECT id, 1 FROM (${WorkspaceStore.REPORT_SQL} AND m.created > ?) WHERE true ON CONFLICT(id) DO UPDATE SET read = 1`,
+      )
+      .run(after);
+  }
+
+  /** Reports posted after a moment that this person has not opened. */
+  reportsUnread(after: number): number {
+    const r = this.db
+      .prepare(
+        `SELECT COUNT(*) AS n FROM (${WorkspaceStore.REPORT_SQL} AND m.created > ?) x WHERE NOT EXISTS (SELECT 1 FROM report_marks k WHERE k.id = x.id AND k.read = 1)`,
+      )
+      .get(after) as Row;
+    return Number(r.n);
   }
 
   search(query: string, limit = 50): Message[] {

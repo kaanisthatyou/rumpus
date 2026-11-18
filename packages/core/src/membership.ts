@@ -2,6 +2,7 @@
 // itself: a valid signature by a device with a membership certificate valid at the event's time, and a role that
 // allows the event. Certificates are events too, written by admins; the workspace's first event names the root admin.
 
+import { REPORTS_CHANNEL } from '@lonca/protocol';
 import { eventPayload, type SignedEvent, verifySignature } from './identity.js';
 import type { WorkspaceStore } from './store.js';
 
@@ -62,10 +63,10 @@ function minRole(type: string, data: Record<string, unknown>): Role | undefined 
       return 'editor';
     case 'channel.created':
       // An agent's own channel comes with the agent; other channels are an admin's.
-      return data.kind === 'agent' ? 'editor' : 'admin';
+      // The report feed is made by whoever's routine or agent reports first (PLAN.md 5.21).
+      return data.kind === 'agent' || (data.reports === true && data.id === REPORTS_CHANNEL) ? 'editor' : 'admin';
     case 'channel.renamed':
     case 'channel.deleted':
-    case 'channel.reports':
     case 'member.certified':
     case 'member.removed':
     // The workspace's name and pictures, and its roles (names with a color): an admin's.

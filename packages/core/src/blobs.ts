@@ -121,8 +121,8 @@ export class Blobs {
    * Bytes that came from another computer under a name: kept only when the name is the hash of the bytes, they
    * are the image type the name says, and they are no larger than a picture may be.
    */
-  put(name: string, bytes: Buffer): boolean {
-    if (!NAME.test(name) || bytes.length === 0 || bytes.length > LIMITS.picture) return false;
+  put(name: string, bytes: Buffer, max: number = LIMITS.picture): boolean {
+    if (!NAME.test(name) || bytes.length === 0 || bytes.length > Math.min(max, MAX_BYTES)) return false;
     const [hash, ext] = name.split('.') as [string, string];
     if (createHash('sha256').update(bytes).digest('hex') !== hash) return false;
     if (sniff(bytes) !== MIMES[ext]) return false;

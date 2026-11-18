@@ -21,7 +21,7 @@ import {
   type UtilityProcess,
   utilityProcess,
 } from 'electron';
-import type { BackgroundSettings, UpdateState } from '../shared/bridge.js';
+import type { BackgroundSettings, ReportToast, UpdateState } from '../shared/bridge.js';
 import { Identity } from './identity.js';
 import { errorCode, Providers } from './providers.js';
 import { attachSecrets } from './secrets.js';
@@ -72,6 +72,14 @@ let quick: BrowserWindow | undefined;
 let quickKey: string | undefined;
 /** The same key as Rumpus writes it (`Ctrl+Alt+Space`), for the page; undefined while another app holds it. */
 let quickCombo: string | undefined;
+/**
+ * The report toast (PLAN.md 5.21): Bub over the lower right corner of the screen when a report arrives, made the
+ * first time one does. It never takes the keyboard; clicks pass through it except over Bub and the card.
+ */
+let toast: BrowserWindow | undefined;
+/** What the toast shows (its page asks for it once it is up, in case it came before the page listened). */
+let toastLast: ReportToast | undefined;
+const TOAST = { width: 420, height: 190 };
 /** The text size as a zoom factor; Chromium shares it between windows of one origin, so both follow it. */
 let zoom = 1;
 const TITLE_BAR_HEIGHT = 36;
@@ -82,6 +90,100 @@ function applyZoom(): void {
     if (process.platform !== 'darwin') win.setTitleBarOverlay({ height: Math.round(TITLE_BAR_HEIGHT * zoom) });
   }
   if (quick && !quick.isDestroyed()) quick.webContents.setZoomFactor(zoom);
+}
+
+/** A report toast from the page, held to what it may say: short strings, small numbers, known looks. */
+function cleanToast(raw: unknown): ReportToast | undefined {
+  const t = (raw ?? {}) as Record<string, unknown>;
+  const str = (v: unknown, max: number) => (typeof v === 'string' ? v.slice(0, max) : '');
+  const num = (v: unknown) => (Number.isInteger(v) ? Math.max(0, Math.min(99, v as number)) : 0);
+  const look = (t.look ?? {}) as Record<string, unknown>;
+  const labels = (t.labels ?? {}) as Record<string, unknown>;
+  const id = str(t.id, 64);
+  if (!id) return undefined;
+  return {
+    id,
+    title: str(t.title, 160),
+    by: str(t.by, 60),
+    code: str(t.code, 8),
+    count: Math.max(1, num(t.count)),
+    decisions: num(t.decisions),
+    look: {
+      theme: look.theme === 'light' ? 'light' : 'dark',
+      accent: /^[a-z]{2,12}$/.test(String(look.accent)) ? String(look.accent) : 'lime',
+      motion: /^[a-z]{2,12}$/.test(String(look.motion)) ? String(look.motion) : 'full',
+    },
+    labels: {
+      kind: str(labels.kind, 40),
+      open: str(labels.open, 40),
+      close: str(labels.close, 40),
+      more: str(labels.more, 40),
+      decisions: str(labels.decisions, 60),
+    },
+  };
+}
+
+/** The lower right corner of the screen the main window is on (or the pointer, while it is hidden). */
+function toastBounds(): Electron.Rectangle {
+  const visible = win && !win.isDestroyed() && win.isVisible() && !win.isMinimized();
+  const display = visible
+    ? screen.getDisplayMatching(win?.getBounds() ?? screen.getPrimaryDisplay().bounds)
+    : screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+  const area = display.workArea;
+  const width = Math.round(TOAST.width * zoom);
+  const height = Math.round(TOAST.height * zoom);
+  return { x: area.x + area.width - width - 8, y: area.y + area.height - height - 8, width, height };
+}
+
+function createToastWindow(): BrowserWindow {
+  const t = new BrowserWindow({
+    show: false,
+    frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    hasShadow: false,
+    resizable: false,
+    movable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    focusable: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    title: BRAND.name,
+    ...toastBounds(),
+    webPreferences: {
+      preload: join(here, '../preload/index.cjs'),
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
+      spellcheck: false,
+    },
+  });
+  t.setAlwaysOnTop(true, 'pop-up-menu');
+  t.setIgnoreMouseEvents(true, { forward: true });
+  t.webContents.on('did-finish-load', () => {
+    t.webContents.setZoomFactor(zoom);
+    if (!toastLast) return;
+    t.setBounds(toastBounds());
+    t.showInactive();
+  });
+  t.on('closed', () => {
+    toast = undefined;
+  });
+  if (devUrl) void t.loadURL(`${devUrl}#toast`);
+  else void t.loadFile(join(here, '../renderer/index.html'), { hash: 'toast' });
+  return t;
+}
+
+function showToast(next: ReportToast): void {
+  toastLast = next;
+  const t = toast ?? createToastWindow();
+  toast = t;
+  if (t.webContents.isLoading()) return;
+  t.setBounds(toastBounds());
+  t.webContents.send('toast:data', next);
+  t.showInactive();
 }
 
 /** Rumpus's combo (`Ctrl+Alt+Space`, `Ctrl+Shift+ArrowUp`) as an Electron accelerator. */
@@ -378,6 +480,25 @@ function registerIpc(): void {
     pendingLink = undefined;
     return link;
   });
+  handle('toast:show', (event, raw) => {
+    if (!win || win.isDestroyed() || event.sender !== win.webContents) return;
+    const next = cleanToast(raw);
+    if (next) showToast(next);
+  });
+  handle('toast:open', (event, id) => {
+    if (!toast || event.sender !== toast.webContents || typeof id !== 'string') return;
+    toast.hide();
+    showWindow();
+    win?.webContents.send('toast:open', id.slice(0, 64));
+  });
+  handle('toast:pending', (event) => (toast && event.sender === toast.webContents ? (toastLast ?? null) : null));
+  handle('toast:hide', (event) => {
+    if (toast && event.sender === toast.webContents) toast.hide();
+  });
+  handle('toast:solid', (event, solid) => {
+    if (!toast || toast.isDestroyed() || event.sender !== toast.webContents) return;
+    toast.setIgnoreMouseEvents(solid !== true, { forward: true });
+  });
   handle('quick:hide', () => quick?.hide());
   // The page says when the pointer is over something of its own (the text box, a bubble): only then does the
   // island take the mouse; everywhere else clicks reach the desktop and the windows under it.
@@ -533,6 +654,7 @@ function start(): void {
   win.on('closed', () => {
     win = undefined;
     quick?.destroy();
+    toast?.destroy();
   });
   // Never Ctrl Space (editors use it); when another app holds the key, quick entry stays in the palette.
   setQuickKey('Ctrl+Alt+Space');
