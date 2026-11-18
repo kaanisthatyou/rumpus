@@ -94,7 +94,7 @@ import { Goals, gitWorktrees } from './goals.js';
 import { canonical, type SignedEvent, type Signer, verifySignature } from './identity.js';
 import { newId } from './ids.js';
 import { Instructions } from './instructions.js';
-import { Jobs, MAX_PARTS } from './jobs.js';
+import { Jobs, MAX_PARTS, mentions } from './jobs.js';
 import { type Llm, noLlm } from './llm.js';
 import { type Member, Membership, ROLES, type Role } from './membership.js';
 import {
@@ -108,7 +108,7 @@ import {
   scanSuggestion,
 } from './memory.js';
 import { listModels } from './models.js';
-import { type NudgeLanguage, Nudger, type Waiting } from './nudges.js';
+import { askedIn, type NudgeLanguage, Nudger, type Waiting } from './nudges.js';
 import { PEER_PORT, PeerClient, PeerError, type PeerRequest, PeerServer, peerTarget } from './peer.js';
 import { PHONE_PORT, PhoneServer } from './phone.js';
 import { killTree, type Launch, openConsole, type Runner, resolveLaunch, run } from './proc.js';
@@ -1763,7 +1763,7 @@ export class Core {
             : lang === 'tr'
               ? 'bir onay'
               : 'an approval';
-      out.push({ key: `a:${job.id}:${a.id}`, what });
+      out.push({ key: `a:${job.id}:${a.id}`, what, channelId: job.channelId });
     }
     for (const m of ws.store.openDecisions(agent.id, Date.now() - 7 * 24 * 60 * 60_000)) {
       const by = m.jobId ? ws.store.job(m.jobId)?.by : undefined;
@@ -1776,7 +1776,23 @@ export class Core {
         lang === 'tr'
           ? `${report ? `#${code} raporundaki ` : ''}"${q}" sorusu`
           : `the question "${q}"${report ? ` in report #${code}` : ''}`;
-      out.push({ key: `d:${m.id}`, what });
+      out.push({ key: `d:${m.id}`, what, channelId: m.channelId });
+    }
+    // Questions asked in an answer's text (Kaan, 2026-11-18): the agent's last word in a channel, nobody wrote after.
+    for (const m of ws.store.lastAnswers(agent.id, Date.now() - 2 * 24 * 60 * 60_000)) {
+      const by = m.jobId ? ws.store.job(m.jobId)?.by : undefined;
+      if (by && by !== this.deviceId) continue;
+      const asked = askedIn(m.text);
+      if (asked === undefined) continue;
+      const q = clean(asked, 70);
+      const what = q
+        ? lang === 'tr'
+          ? `"${q}" sorusu`
+          : `the question "${q}"`
+        : lang === 'tr'
+          ? 'son mesajımdaki soru'
+          : 'the question in my last message';
+      out.push({ key: `q:${m.id}`, what, channelId: m.channelId });
     }
     return out;
   }
@@ -3212,9 +3228,30 @@ export class Core {
     // Writing in a channel is having read it.
     store.setMeta(`read.${channel.id}`, String(message.created));
     this.emit('message.added', message);
+    this.hushNudges(message);
     void jobs.onMessage(message, channel);
     this.workspace().advisors.onMessage(message, channel);
     return message;
+  }
+
+  /**
+   * Writing to an agent is answering it (Kaan, 2026-11-18): its reminders stop like with the button (PLAN.md 5.23),
+   * and every earlier reminder's button goes.
+   */
+  private hushNudges(message: Message): void {
+    const ws = this.workspace();
+    const cited = message.cite ? ws.store.message(message.cite.id) : undefined;
+    const lang = this.settings.get().language === 'en' ? 'en' : 'tr';
+    const hushed = ws.nudges.answered(
+      {
+        channelId: message.channelId,
+        handles: mentions(message.text),
+        citedAgent: cited?.author.kind === 'agent' ? cited.author.id : undefined,
+      },
+      lang,
+    );
+    for (const id of hushed)
+      for (const done of ws.store.markNudged(id, this.deviceId)) this.emit('message.updated', done);
   }
 
   private ownMessage(id: unknown): Message {

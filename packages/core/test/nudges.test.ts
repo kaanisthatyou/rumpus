@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Agent, Message } from '@lonca/protocol';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Nudger, type NudgerDeps, nudgeButton, nudgeText, type Waiting } from '../src/nudges.js';
+import { askedIn, Nudger, type NudgerDeps, nudgeButton, nudgeText, type Waiting } from '../src/nudges.js';
 import { WorkspaceStore } from '../src/store.js';
 
 const tmp = (p: string) => mkdtempSync(join(tmpdir(), p));
@@ -165,6 +165,49 @@ describe('the reminder schedule', () => {
     for (let i = 0; i < 6; i++) w.wait(11);
     expect(w.posted).toHaveLength(1);
   });
+
+  it('stops when the person writes to the agent, as surely as on the button', () => {
+    const t = setup();
+    t.n.tick();
+    t.wait(7);
+    expect(t.posted).toHaveLength(1);
+    // Written elsewhere, to nobody: not an answer.
+    expect(t.n.answered({ channelId: 'c-other', handles: [] }, 'tr')).toEqual([]);
+    // Written in its channel: an answer.
+    expect(t.n.answered({ channelId: 'c-felix', handles: [] }, 'tr')).toEqual(['a1']);
+    for (let i = 0; i < 6; i++) t.wait(11);
+    expect(t.posted).toHaveLength(1);
+
+    // Named somewhere else, or cited: an answer too; and a line being typed is not sent.
+    const u = setup();
+    u.n.tick();
+    expect(u.n.answered({ channelId: 'c-other', handles: ['felix'] }, 'tr')).toEqual(['a1']);
+    const v = setup();
+    v.n.tick();
+    expect(v.n.answered({ channelId: 'c-other', handles: [], citedAgent: 'a1' }, 'tr')).toEqual(['a1']);
+    const w = setup();
+    w.n.tick();
+    w.wait(7);
+    expect(w.posted).toHaveLength(1);
+    w.setNow(new Date(2026, 10, 18, 15, 0).getTime());
+    w.n.tick(); // the next line is being typed
+    expect(w.typing).toEqual([true, false, true]);
+    w.n.answered({ channelId: 'c-felix', handles: [] }, 'tr');
+    vi.advanceTimersByTime(8000);
+    expect(w.posted).toHaveLength(1);
+  });
+});
+
+describe('questions left in an answer', () => {
+  it('finds the question at the end of an answer, and nothing when none is left', () => {
+    expect(askedIn('Hallettim.\n\nKalan: yok. Push edeyim mi?')).toBe('Push edeyim mi?');
+    expect(askedIn('Bitti.\n\n**Senin kararın:** 0.9.2 olarak çıkalım.')).toBe('');
+    expect(askedIn('Done. Your call: ship it now or wait for the build.')).toBe('');
+    expect(askedIn('Bitti, push ettim. Karar gereken bir şey yok.')).toBeUndefined();
+    expect(askedIn(`Neden çalışmıyordu? Yol yanlıştı.\n${'Düzelttim ve test ettim.\n'.repeat(80)}`)).toBeUndefined();
+    expect(askedIn('Bak:\n```\nnedir bu?\n```\nHepsi tamam.')).toBeUndefined();
+    expect(askedIn('Linke bak: https://x.dev/a?b')).toBeUndefined();
+  });
 });
 
 describe('what waits, in the store', () => {
@@ -205,5 +248,31 @@ describe('what waits, in the store', () => {
     expect(s.message('n2')?.nudge?.done).toBe(true);
     expect(s.message('n3')?.nudge?.done).toBeUndefined();
     expect(s.markNudged('a1', 'dev1')).toEqual([]);
+  });
+
+  it('finds an agent’s last answer in a channel until a person writes after it or cites it', () => {
+    const s = new WorkspaceStore(join(tmp('lonca-nudge-'), 'lonca.db'), 'dev1');
+    for (const id of ['c1', 'c2', 'c3'])
+      s.commit({ type: 'channel.created', data: { id, name: id, kind: 'channel', topic: '', created: 1 } });
+    const agent = { kind: 'agent' as const, id: 'a1', name: 'Felix' };
+    const person = { kind: 'person' as const, id: 'dev1', name: 'Kaan' };
+    const post = (m: Partial<Message> & { id: string }) =>
+      s.commit({ type: 'message.posted', data: { channelId: 'c1', author: agent, text: 'x', created: 10, ...m } });
+    post({ id: 'm1', jobId: 'j1', text: 'Eski cevap. Olur mu?', created: 10 });
+    post({ id: 'm2', jobId: 'j2', text: 'Yeni cevap. Push edeyim mi?', created: 12 });
+    post({ id: 'm3', channelId: 'c2', jobId: 'j3', text: 'Orada da soru?', created: 13 });
+    post({ id: 'm4', channelId: 'c3', jobId: 'j4', text: 'Üçüncü?', created: 14 });
+    post({ id: 'n1', channelId: 'c3', text: 'Pşş', created: 15, nudge: { for: 'dev1', button: 'Tamam' } });
+    expect(s.lastAnswers('a1', 5).map((m) => m.id)).toEqual(['m2', 'm3', 'm4']);
+    post({ id: 'p1', author: person, channelId: 'c2', created: 20 });
+    post({
+      id: 'p2',
+      author: person,
+      channelId: 'c1',
+      text: 'bak',
+      cite: { id: 'm4', channelId: 'c3', title: '', at: 14, by: 'Felix' },
+      created: 21,
+    });
+    expect(s.lastAnswers('a1', 5)).toEqual([]);
   });
 });

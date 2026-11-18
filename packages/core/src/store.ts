@@ -953,6 +953,32 @@ export class WorkspaceStore {
   }
 
   /**
+   * An agent's last word in each channel since `since`, when no person wrote there after it nor cites it: an answer
+   * whose questions (asked in its text, not as `decisions`) may still wait on someone. Reminders, notes made while
+   * working, handovers and reports are left out.
+   */
+  lastAnswers(agentId: string, since: number): Message[] {
+    const own = `json_extract(x.author, '$.kind') = 'agent' AND json_extract(x.author, '$.id') = ?
+      AND (x.extra IS NULL OR (json_extract(x.extra, '$.nudge') IS NULL AND json_extract(x.extra, '$.during') IS NULL))`;
+    const rows = this.db
+      .prepare(
+        `SELECT m.* FROM messages m JOIN channels c ON c.id = m.channel_id
+         WHERE m.deleted = 0 AND c.deleted = 0 AND c.kind <> 'reports' AND m.created >= ? AND m.handover IS NULL
+           AND m.job_id IS NOT NULL
+           AND (m.extra IS NULL OR json_extract(m.extra, '$.decisions') IS NULL)
+           AND m.id = (SELECT x.id FROM messages x WHERE x.deleted = 0 AND x.channel_id = m.channel_id AND ${own}
+             ORDER BY x.created DESC, x.rowid DESC LIMIT 1)
+           AND NOT EXISTS (SELECT 1 FROM messages p WHERE p.deleted = 0 AND p.channel_id = m.channel_id
+             AND p.created > m.created AND json_extract(p.author, '$.kind') = 'person')
+           AND NOT EXISTS (SELECT 1 FROM messages p WHERE p.deleted = 0 AND p.extra IS NOT NULL
+             AND json_extract(p.author, '$.kind') = 'person' AND json_extract(p.extra, '$.cite.id') = m.id)
+         ORDER BY m.created LIMIT 20`,
+      )
+      .all(since, agentId) as Row[];
+    return rows.map(toMessage);
+  }
+
+  /**
    * The button under one of an agent's reminders was pressed on this computer: every reminder of that agent's for
    * this device counts as answered. A mark of this computer's, not a logged change. Returns the ones it changed.
    */

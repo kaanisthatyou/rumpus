@@ -581,8 +581,11 @@ agent now taps them on the shoulder, like a colleague would: "Kankaa, pşş", "E
 
 - **What waits.** A job of the agent's that waits for an approval (one asked while it works, or the go-ahead before
   it starts), and an answer or report of the last week with questions (`decisions`) nobody answered: no person's
-  message cites it and, outside the reports, nobody wrote in its channel after it. In a team only this computer's
-  own agents remind, and only of what is this person's.
+  message cites it and, outside the reports, nobody wrote in its channel after it. Also a question an agent asks in
+  the text of its answer (Kaan, same day): its last word in a channel in the last two days ends with a question, or
+  says something waits on the person ("Senin kararın", "your call"), and nobody wrote there after it nor cites it
+  (`askedIn`, `store.lastAnswers`). In a team only this computer's own agents remind, and only of what is this
+  person's.
 - **How.** The agent writes in its own channel as a message of its own, after showing that it types for a few
   seconds. The first comes three to six minutes after something started to wait, then one every four to ten
   minutes; after six in a row the gaps grow (up to 45 minutes), so an evening away is not a hundred lines. Nothing
@@ -595,7 +598,9 @@ agent now taps them on the shoulder, like a colleague would: "Kankaa, pşş", "E
 - **The button.** Under each line one button, its label different every time and curter as the run goes on
   ("Bakarım", then "Tamam tamam", then "Tamam, sus artık geldim"). Its only job is to stop the reminders: what waits
   from that agent now is not reminded of again (kept on this computer), and every earlier reminder's button goes.
-  Something new that starts to wait starts a new run. Writing an answer does not stop them; the run ends by itself
+  Something new that starts to wait starts a new run. Answering is optional, but it stops them as surely as the
+  button (Kaan, same day): a person's message in the agent's channel or where something of its waits, naming it, or
+  citing its message (`Nudger.answered`); a line being typed then is not sent. Otherwise the run ends by itself
   when nothing waits any more.
 - **The setting.** "Bekleyen işleri hatırlatır" in the agent's settings, on by default.
 - Reminders are not part of the conversation: they never reach the agent as channel context. Whether a button was

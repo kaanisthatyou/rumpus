@@ -13,6 +13,8 @@ export interface Waiting {
   key: string;
   /** A short noun phrase in the person's language: "`npm run build` onayı". */
   what: string;
+  /** The channel it waits in: writing there counts as an answer. */
+  channelId?: string;
 }
 
 /** What a line is about. */
@@ -457,6 +459,48 @@ export function typingMs(text: string, r: Rand = Math.random): number {
   return Math.round(Math.min(7000, Math.max(1600, text.length * 38 + 500 + r() * 1400)));
 }
 
+// ------------------------------------------------------------------------------------ questions in an answer
+
+/** A line that hands something to the person: "Senin kararın:", "Sende bekleyenler", "Your call". */
+const ASKS =
+  /(senin karar|karar(ın)?ı bekleyen|karar sende|sende bekleyen|onayını bekle|senden (bir )?(cevap|onay|karar)|\bdecide\b|your call|waiting on you|need from you|your decision|up to you)/iu;
+/** "Karar gereken bir şey yok", "nothing to decide": the hint says nothing waits. */
+const NOTHING = /(\byok\b|hiçbir|gerek(miyor| yok)|\bnothing\b|\bnone\b|\bno decision|\bnot needed\b)/iu;
+
+/**
+ * Whether an agent's answer leaves a question to the person in its text, looking at its end (where the summary
+ * and what is left go): `undefined` when not, else the first question it asks there ("" when it only says something
+ * waits on the person).
+ */
+export function askedIn(text: string): string | undefined {
+  const plain = text
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/<[^>\n]+>/g, ' ')
+    .trim();
+  // Only the answer's last part counts: a question asked on the way and settled later is no question left.
+  const tail = plain
+    .slice(-900)
+    .split('\n')
+    .map((l) =>
+      l
+        .replace(/^\s*(?:[-*+>]|\d+[.):])\s+/, '')
+        .replace(/[*_`#|]+/g, '')
+        .trim(),
+    )
+    .filter(Boolean)
+    .slice(-10);
+  let hint = false;
+  let found: string | undefined;
+  for (const line of tail) {
+    if (ASKS.test(line) && !NOTHING.test(line)) hint = true;
+    for (const sentence of line.split(/(?<=[.?!:])\s+/)) {
+      const q = sentence.trim();
+      if (!found && q.endsWith('?') && q.length >= 6 && !/^https?:/i.test(q)) found = q;
+    }
+  }
+  return found ?? (hint ? '' : undefined);
+}
+
 // ---------------------------------------------------------------------------------------------- the schedule
 
 const MINUTE = 60_000;
@@ -612,6 +656,30 @@ export class Nudger {
     );
     wait.unref?.();
     this.waits.add(wait);
+  }
+
+  /**
+   * The person wrote a message: an answer to every agent whose reminders it concerns (written in the agent's own
+   * channel or where something of its waits, naming it, or citing it) mutes them like the button. Returns their ids.
+   */
+  answered(
+    m: { channelId: string; handles: string[]; citedAgent?: string | undefined },
+    lang: NudgeLanguage,
+  ): string[] {
+    const out: string[] = [];
+    for (const agent of this.deps.agents()) {
+      const items = this.deps.waiting(agent, lang);
+      if (items.length === 0 && !this.runs.has(agent.id)) continue;
+      const hit =
+        m.handles.includes(agent.handle) ||
+        m.citedAgent === agent.id ||
+        this.deps.channelOf(agent, items) === m.channelId ||
+        items.some((i) => i.channelId === m.channelId);
+      if (!hit) continue;
+      this.mute(agent.id, lang);
+      out.push(agent.id);
+    }
+    return out;
   }
 
   /** The button under a reminder: what waits from that agent now is not reminded of again. */
