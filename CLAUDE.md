@@ -53,7 +53,8 @@ purpose; never change roblox-factory for it.
 2. `pnpm e2e`: the real app with a temporary `LONCA_HOME`: `e2e/smoke.mjs` (launcher, shell, settings, restart)
    and `e2e/channel.mjs` (agents, jobs, live view, steer and stop, board, palette, projects, a job's changes and undo, a race, restart) against
    `e2e/fake-claude.mjs`, a stand-in for Claude Code that costs no quota; `e2e/specialists.mjs` (a specialist from a template, its lesson and RESULT, the overview, unread marks, a
-   routine); `e2e/advisors.mjs` (providers, advisors)
+   routine); `e2e/reports.mjs` (a report channel, a routine's report cards with images, answering a report);
+   `e2e/advisors.mjs` (providers, advisors)
    against `e2e/fake-provider.mjs`, a stand-in OpenAI-compatible server; `e2e/team.mjs` (two apps, invite, join,
    sync) and `e2e/profiles.mjs` (two apps: a profile with a picture, a workspace's look and roles, friends, the
    invite card) with `LONCA_PEER_HOST=127.0.0.1` instead of Tailscale; `e2e/phone.mjs` (pairing a narrow window as a

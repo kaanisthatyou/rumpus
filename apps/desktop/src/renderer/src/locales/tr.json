@@ -344,7 +344,8 @@
     "already_friend": "Bu kişi zaten arkadaş listesinde.",
     "friend_self": "Bu, bu bilgisayarın kendi arkadaş kodu.",
     "friend_refused": "İstek kabul edilmedi: kod başka bir cihaza ait ya da karşı tarafta bekleyen istek sınırı dolu.",
-    "account_taken": "Bu klasörü zaten bir hesap kullanıyor."
+    "account_taken": "Bu klasörü zaten bir hesap kullanıyor.",
+    "reports_only": "Bu bir rapor kanalı: yalnızca rutinler ve agentlar yazar."
   },
   "channel": {
     "newSession": "Yeni oturum",
@@ -1577,5 +1578,49 @@
   "notice": {
     "many_one": "{{count}} yeni mesaj",
     "many_other": "{{count}} yeni mesaj"
+  },
+  "reports": {
+    "group": "Rapor kanalları",
+    "kind": "Rapor kanalı",
+    "channelKind": "Kanal türü",
+    "kindText": "Metin",
+    "kindReports": "Rapor",
+    "kindHint": "Rapor kanalına kişiler yazmaz: rutinler ve agentların raporları tarihli kartlar olarak durur.",
+    "hint": "Rutinlerin ve agentların raporları, tarihleriyle.",
+    "toReports": "Rapor kanalına çevir",
+    "toText": "Metin kanalına çevir",
+    "filter": "Yazana göre",
+    "everyone": "Hepsi",
+    "empty": "Henüz rapor yok",
+    "emptyHint": "Bu kanala yazan bir rutin, içinde @ ile anılan agentın raporunu buraya getirir. Agentlar çalışırken buraya rapor da bırakabilir.",
+    "closed": "Bu kanala yalnızca rutinler ve agentlar yazar. Bir rapora yanıt, kartındaki Yanıtla ile agentın kanalından verilir.",
+    "fromRoutine": "Rutin",
+    "posted": "Rapor",
+    "asked": "İstek",
+    "nobody": "Agent bekleniyor",
+    "untitled": "Başlıksız rapor",
+    "working": "Agent çalışıyor.",
+    "noText": "Raporun metni yok.",
+    "tokens": "Jeton",
+    "answer": "Yanıtla",
+    "answerPlaceholder": "Rapora yanıt · Enter ile gönderilir",
+    "uncite": "Raporu çıkar",
+    "request": "İstenen",
+    "notes_one": "Çalışırken yazılan {{count}} not",
+    "notes_other": "Çalışırken yazılan {{count}} not",
+    "gone": "Rapor bulunamadı",
+    "image": "Görsel {{n}}",
+    "imageElsewhere": "Görsel, onu yapan bilgisayarda duruyor.",
+    "previous": "Önceki görsel",
+    "next": "Sonraki görsel",
+    "state": {
+      "running": "Çalışıyor",
+      "attention": "Onay bekliyor",
+      "done": "Bitti",
+      "failed": "Hata",
+      "stopped": "Durduruldu",
+      "waiting": "Bekliyor",
+      "posted": "Yazıldı"
+    }
   }
 }

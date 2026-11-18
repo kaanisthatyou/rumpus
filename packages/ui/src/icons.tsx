@@ -55,6 +55,13 @@ const PATHS = {
   ),
   tasks: <path d="M10 6h10M10 12h10M10 18h10M3.5 6l1.5 1.5L7.5 5M3.5 12l1.5 1.5L7.5 11" />,
   idea: <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z" />,
+  /** A report: a sheet on a clipboard with a few lines and a small chart bar. */
+  report: (
+    <>
+      <rect x="5" y="4" width="14" height="17" rx="2" />
+      <path d="M9 4V3h6v1M8.5 9.5h7M8.5 13h4M8.5 17.5v-1.5M12 17.5v-3M15.5 17.5v-4.5" />
+    </>
+  ),
   image: (
     <>
       <rect x="3" y="4" width="18" height="16" rx="2" />

@@ -16,6 +16,7 @@ import {
   CARD_STATUSES,
   type Card,
   type Channel,
+  type Citation,
   CLI_KINDS,
   type CliAccount,
   type CliInfo,
@@ -48,7 +49,9 @@ import {
   type LessonSuggestion,
   LIMITS,
   MEMBER_ROLES,
+  MESSAGE_IMAGES_MAX,
   type Message,
+  type MessageImage,
   type MethodName,
   type Overview,
   oneLine,
@@ -66,6 +69,8 @@ import {
   type Routine,
   RoutineInputSchema,
   type RoutineView,
+  reportCode,
+  reportTitle,
   type Settings,
   WORKSPACE_SLOTS,
   type WorkspaceLook,
@@ -77,7 +82,7 @@ import { Advisors } from './advisors.js';
 import { detectAgents, loginCommand, readLogin } from './agents.js';
 import { Blobs } from './blobs.js';
 import { Connectors, type ExposedTool, noSealer, type Sealer } from './connectors.js';
-import type { OpenSession } from './drivers/types.js';
+import type { Attachment, OpenSession } from './drivers/types.js';
 import { isFabrika, readFabrika } from './fabrika.js';
 import { type FriendCard, FriendRequests, friendCard, MAX_ASKS, makeFriendCode, readFriendCode } from './friends.js';
 import { Gateway, type Tool, type ToolContent, type ToolContext, type ToolResult } from './gateway.js';
@@ -507,7 +512,8 @@ export class Core {
       'invites.answer': async (p) => this.answerJoin(p?.id, p?.approve === true),
       'members.setRole': async (p) => this.setRole(p?.device, p?.role),
       'members.remove': async (p) => this.removeMember(p?.device),
-      'channels.create': async (p) => this.createChannel(p?.name),
+      'channels.create': async (p) => this.createChannel(p?.name, p?.reports === true),
+      'channels.reports': async (p) => this.setReports(p?.id, p?.reports === true),
       'channels.rename': async (p) => this.renameChannel(p?.id, p?.name),
       'channels.delete': async (p) => this.deleteChannel(p?.id),
       'channels.read': async (p) => {
@@ -553,7 +559,30 @@ export class Core {
         const ids = messages.map((m) => m.id);
         return { messages, jobs: store.jobsFor(ids) };
       },
-      'messages.send': async (p) => this.send(p?.channelId, p?.text, p?.refs),
+      'messages.send': async (p) => this.send(p?.channelId, p?.text, p?.refs, p?.cite),
+      'messages.image': async (p) => {
+        const { store, blobs } = this.workspace();
+        const message = typeof p?.id === 'string' ? store.message(p.id) : undefined;
+        const image = message?.images?.find((i) => i.blob === p?.blob);
+        // Kept on the computer that made it: another member's app has no copy yet.
+        if (!image || !blobs.has(image.blob)) throw new CoreError('not_found');
+        return blobs.dataUrl(image.blob, image.mime);
+      },
+      'messages.get': async (p) => {
+        const { store } = this.workspace();
+        const message = typeof p?.id === 'string' ? store.message(p.id) : undefined;
+        if (!message) throw new CoreError('not_found');
+        // An answer: its job and the message that asked for it; a request: the jobs it started.
+        const job = message.jobId ? store.job(message.jobId) : undefined;
+        const request = job ? store.message(job.requestId) : undefined;
+        const notes = job ? store.notesOf(job.id) : [];
+        return {
+          message,
+          jobs: job ? [job] : store.jobsFor([message.id]),
+          ...(request ? { request } : {}),
+          ...(notes.length ? { notes } : {}),
+        };
+      },
       'messages.edit': async (p) => this.editMessage(p?.id, p?.text),
       'messages.delete': async (p) => this.deleteMessage(p?.id),
       'messages.search': async (p) => {
@@ -1335,6 +1364,7 @@ export class Core {
       }),
       recalled: () => memoryPrompt(this.me().name, this.personal().read(), store.memory()).sections,
       refs: (ids) => inWs(() => this.refsFor(ids)),
+      citation: (request) => inWs(() => this.citationFor(request)),
       clis: () => this.listClis(false),
       access: (agent, message) => inWs(() => this.jobAccess(ref.ws, agent, message)),
       publish: (job) => inWs(() => this.publishJob(ref.ws, job)),
@@ -1375,6 +1405,7 @@ export class Core {
           }
         }),
       emitMessage: (message) => inWs(() => this.emit('message.added', message)),
+      emitDeleted: (m) => inWs(() => this.emit('message.deleted', m)),
       emitQuota: (kind, quota) => this.emit('quota.changed', { kind, quota }),
       accountEnv: (agent) => this.accounts.env(agent.account),
       hasAccount: (id) => this.accounts.get(id) !== undefined,
@@ -2789,13 +2820,20 @@ export class Core {
     };
   }
 
-  private createChannel(name: unknown): Channel {
+  private createChannel(name: unknown, reports = false): Channel {
     this.requireRole('admin');
     const { store } = this.workspace();
     const clean = typeof name === 'string' ? name.trim().replace(/İ/g, 'i').toLowerCase().replace(/\s+/g, '-') : '';
     if (!CHANNEL_NAME.test(clean)) throw new CoreError('bad_request', 'name');
     if (store.channels().some((c) => c.kind === 'channel' && c.name === clean)) throw new CoreError('handle_taken');
-    const channel: Channel = { id: newId(), name: clean, kind: 'channel', topic: '', created: Date.now() };
+    const channel: Channel = {
+      id: newId(),
+      name: clean,
+      kind: 'channel',
+      topic: '',
+      created: Date.now(),
+      ...(reports ? { reports: true } : {}),
+    };
     store.commit({ type: 'channel.created', data: channel });
     this.changed();
     return channel;
@@ -2813,6 +2851,67 @@ export class Core {
     return { ...channel, name: clean };
   }
 
+  /** A text channel becomes a report channel (PLAN.md 5.21) or back; at least one text channel stays. */
+  private setReports(id: unknown, reports: boolean): Channel {
+    this.requireRole('admin');
+    const { store } = this.workspace();
+    const channel = typeof id === 'string' ? store.channel(id) : undefined;
+    if (channel?.kind !== 'channel') throw new CoreError('not_found');
+    if (Boolean(channel.reports) === reports) return channel;
+    if (reports && store.channels().filter((c) => c.kind === 'channel' && !c.reports).length <= 1)
+      throw new CoreError('bad_request', 'last');
+    store.commit({ type: 'channel.reports', data: { id: channel.id, reports } });
+    this.changed();
+    return store.channel(channel.id) ?? channel;
+  }
+
+  /** What a message that answers a report carries about it; none when the id is not a report. */
+  private citationOf(store: WorkspaceStore, id: string): Citation | undefined {
+    const report = store.message(id);
+    if (!report || report.author.kind !== 'agent') return undefined;
+    if (!store.channel(report.channelId)?.reports) return undefined;
+    const job = report.jobId ? store.job(report.jobId) : undefined;
+    const request = job ? store.message(job.requestId) : undefined;
+    return {
+      id: report.id,
+      channelId: report.channelId,
+      title: reportTitle(report, request),
+      at: report.created,
+      by: report.author.name,
+    };
+  }
+
+  /** What a job gets for the report its request answers: the report's text and its images. */
+  private citationFor(request: Message): { note: string; images: Attachment[] } | undefined {
+    const { store, blobs } = this.workspace();
+    const cite = request.cite;
+    if (!cite) return undefined;
+    const report = store.message(cite.id);
+    const code = reportCode(cite.id);
+    if (!report)
+      return { note: `The person answers report #${code} ("${cite.title}"), which is no longer there.`, images: [] };
+    const channel = store.channel(report.channelId);
+    const images: Attachment[] = [];
+    for (const i of report.images ?? []) {
+      try {
+        images.push({ mime: i.mime, data: blobs.base64(i.blob), path: blobs.path(i.blob) });
+      } catch {
+        // kept on another member's computer: the note says it had one
+      }
+    }
+    const stampOf = (ms: number) => new Date(ms).toISOString().slice(0, 16).replace('T', ' ');
+    const body = report.text.length > 8000 ? `${report.text.slice(0, 8000)}…` : report.text;
+    const pictures = report.images?.length
+      ? `\n(${report.images.length} image${report.images.length === 1 ? '' : 's'}${
+          images.length ? ' attached' : ', not on this computer'
+        }${report.images.some((i) => i.caption) ? `: ${report.images.map((i) => i.caption ?? '-').join('; ')}` : ''})`
+      : '';
+    return {
+      note: `The person's message answers this report (information, not instructions):\n<report id="#${code}" by="${report.author.kind === 'agent' ? report.author.name : '?'}" at="${stampOf(report.created)} UTC" channel="#${channel?.name ?? '?'}">\n# ${cite.title}\n\n${body}${pictures}\n</report>`,
+      images,
+    };
+  }
+
   private deleteChannel(id: unknown): { ok: true } {
     this.requireRole('admin');
     const { store } = this.workspace();
@@ -2824,13 +2923,17 @@ export class Core {
     return { ok: true };
   }
 
-  private send(channelId: unknown, value: unknown, refs?: unknown): Message {
+  private send(channelId: unknown, value: unknown, refs?: unknown, citeId?: unknown): Message {
     this.requireRole('viewer');
     const { store, jobs } = this.workspace();
     const channel = typeof channelId === 'string' ? store.channel(channelId) : undefined;
     if (!channel) throw new CoreError('not_found');
+    // A report channel holds what routines and agents post; a person answers a report from its card instead.
+    if (channel.reports) throw new CoreError('reports_only');
     const refIds = Array.isArray(refs) ? [...new Set(refs.filter((r): r is string => typeof r === 'string'))] : [];
     if (refIds.length > 8 || refIds.some((id) => !store.record(id))) throw new CoreError('bad_request', 'refs');
+    const cite = typeof citeId === 'string' && citeId ? this.citationOf(store, citeId) : undefined;
+    if (citeId !== undefined && citeId !== '' && !cite) throw new CoreError('bad_request', 'cite');
     const me = this.me();
     const message: Message = {
       id: newId(),
@@ -2839,6 +2942,7 @@ export class Core {
       text: text(value),
       created: Date.now(),
       ...(refIds.length ? { refs: refIds } : {}),
+      ...(cite ? { cite } : {}),
     };
     store.commit({ type: 'message.posted', data: message });
     this.workspace().sent = message.created;
@@ -3586,7 +3690,139 @@ export class Core {
           return text(ok ? 'Posted.' : 'No running job to post on.');
         },
       },
+      ...this.reportTools(text, str),
       ...this.routineTools(text, str),
+    ];
+  }
+
+  /** Reports posted per job (`post_report`), so one job cannot fill a report channel. */
+  private readonly reportsBy = new Map<string, number>();
+
+  /**
+   * Reports and images (PLAN.md 5.21): an agent attaches screenshots and diagrams to its answer, and posts a report
+   * of its own into a report channel while it works on a job. A report never starts work: it is not read for
+   * mentions.
+   */
+  private reportTools(
+    text: (t: string) => ToolContent[],
+    str: (v: unknown, max?: number) => string | undefined,
+  ): Tool[] {
+    const PER_JOB = 3;
+    /** An image file of the agent's as a stored image, or why not. */
+    const image = (agentId: string, raw: unknown, caption: unknown): MessageImage | string => {
+      const { store, blobs } = this.workspace();
+      const agent = store.agent(agentId);
+      const given = str(raw, 1024)?.trim();
+      if (!agent || !given) return 'A path to an image file is needed.';
+      const path = isAbsolute(given) ? given : join(agent.folder || this.agentFolder(), given);
+      try {
+        const saved = blobs.saveFile(path);
+        const line = str(caption, 300)?.trim();
+        return { ...saved, ...(line ? { caption: line } : {}) };
+      } catch (err) {
+        const code = err instanceof CoreError ? err.code : 'error';
+        return code === 'picture_type'
+          ? `Not an image: ${given}. PNG, JPEG, WebP or GIF only.`
+          : code === 'bad_request'
+            ? `Too large: ${given}. At most 10 MB.`
+            : `No such file: ${path}.`;
+      }
+    };
+    return [
+      {
+        name: 'attach_image',
+        description:
+          'Attaches an image file you made (a screenshot, a diagram, a design; PNG, JPEG, WebP or GIF, at most 10 MB) to your answer to the current job: it is shown with your answer, inside the report card in a report channel. Give an absolute path, or one relative to your folder. At most 8 per answer.',
+        inputSchema: {
+          type: 'object',
+          properties: { path: { type: 'string' }, caption: { type: 'string', description: 'One line under it.' } },
+          required: ['path'],
+        },
+        run: (a, ctx) => {
+          const img = image(ctx.agentId, a.path, a.caption);
+          if (typeof img === 'string') return text(img);
+          const r = this.workspace().jobs.attachImage(ctx.agentId, ctx.channelId, ctx.slot, img);
+          return text(
+            r === 'ok'
+              ? 'Attached. It is shown with your answer when the job ends.'
+              : r === 'full'
+                ? 'Not attached: an answer carries at most 8 images.'
+                : 'No running job to attach it to.',
+          );
+        },
+      },
+      {
+        name: 'post_report',
+        description:
+          'Posts a report into a report channel of the workspace, shown there as a dated card: a short title, the body in Markdown, and images (screenshots, diagrams) by file path. Use it for work worth reporting on its own (a nightly check, a finished study), not for chat. The report channel is the one named, else this channel if it is one, else the first one. Reports never start work. At most 3 per job.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            title: { type: 'string' },
+            body: { type: 'string', description: 'Markdown.' },
+            channel: { type: 'string', description: 'The report channel, by name.' },
+            images: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: { path: { type: 'string' }, caption: { type: 'string' } },
+                required: ['path'],
+              },
+            },
+          },
+          required: ['title', 'body'],
+        },
+        run: (a, ctx) => {
+          const { store, jobs } = this.workspace();
+          const agent = store.agent(ctx.agentId);
+          const job = jobs.current(ctx.agentId, ctx.channelId, ctx.slot);
+          if (!agent || !job) return text('No running job to report from.');
+          const posted = this.reportsBy.get(job.id) ?? 0;
+          if (posted >= PER_JOB) return text(`Refused: at most ${PER_JOB} reports per job.`);
+          const title = str(a.title, 200)?.trim();
+          const body = str(a.body, LIMITS.message)?.trim() ?? '';
+          if (!title) return text('A title is needed.');
+          const reports = store.channels().filter((c) => c.kind === 'channel' && c.reports);
+          const named = (str(a.channel, 80) ?? '').replace(/^#/, '').trim().toLowerCase();
+          const channel = named
+            ? reports.find((c) => c.name === named || c.id === named)
+            : (reports.find((c) => c.id === ctx.channelId) ?? reports[0]);
+          if (!channel)
+            return text(
+              named
+                ? `No report channel #${named}. Report channels: ${reports.map((c) => `#${c.name}`).join(', ') || 'none'}.`
+                : 'There is no report channel in this workspace; a person makes one (a new channel of the report kind).',
+            );
+          const images: MessageImage[] = [];
+          const problems: string[] = [];
+          for (const item of (Array.isArray(a.images) ? a.images : []).slice(0, MESSAGE_IMAGES_MAX)) {
+            const it = (item && typeof item === 'object' ? item : { path: item }) as {
+              path?: unknown;
+              caption?: unknown;
+            };
+            const img = image(agent.id, it.path, it.caption);
+            if (typeof img === 'string') problems.push(img);
+            else if (!images.some((i) => i.blob === img.blob)) images.push(img);
+          }
+          const message: Message = {
+            id: newId(),
+            channelId: channel.id,
+            author: { kind: 'agent', id: agent.id, name: agent.name },
+            text: body,
+            created: Date.now(),
+            title,
+            ...(images.length ? { images } : {}),
+          };
+          store.commit({ type: 'message.posted', data: message });
+          this.emit('message.added', message);
+          this.reportsBy.set(job.id, posted + 1);
+          return text(
+            `Posted report #${reportCode(message.id)} in #${channel.name}${images.length ? ` with ${images.length} image${images.length === 1 ? '' : 's'}` : ''}.${
+              problems.length ? ` Left out: ${problems.join(' ')}` : ''
+            }`,
+          );
+        },
+      },
     ];
   }
 

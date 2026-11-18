@@ -18,7 +18,9 @@ import {
   type JobChanges,
   type JobStep,
   type Language,
+  MESSAGE_IMAGES_MAX,
   type Message,
+  type MessageImage,
   type Quota,
   splitResult,
   type TranscriptEntry,
@@ -44,6 +46,8 @@ export interface JobsDeps {
   me: () => { id: string; name: string; language: Language };
   emitJob: (job: Job) => void;
   emitMessage: (message: Message) => void;
+  /** A message taken back (a note the agent wrote while working that turned out to be its answer). */
+  emitDeleted?: (message: { id: string; channelId: string }) => void;
   /** `key` is the CLI, or `<cli>:<account>` for an agent on an extra login. */
   emitQuota: (key: string, quota: Quota) => void;
   /** The environment of the agent's account (its CLI config folder), when it runs on an extra login. */
@@ -54,6 +58,8 @@ export interface JobsDeps {
   launch?: (path: string) => Launch;
   /** The records a message refers to: their notes for the prompt, their images as attachments. */
   refs?: (ids: string[]) => { notes: string[]; images: Attachment[] };
+  /** The report a message answers (PLAN.md 5.21): its text for the prompt, its images as attachments. */
+  citation?: (request: Message) => { note: string; images: Attachment[] } | undefined;
   /** The editable instruction layers (and the agent's project), read when a session starts. */
   layers?: (agent: Agent) => PromptLayers;
   /** How many memory sections the prompt carries (shown on the job card). */
@@ -77,6 +83,9 @@ export interface JobsDeps {
   };
 }
 
+/** Told to an agent answering in a report channel (PLAN.md 5.21): its answer is shown as a report card. */
+export const REPORT_HINT = `[${BRAND.name}] This is a report channel: your answer is shown as a report card with its date. Start it with a short "# Title" line, then the findings; keep it a report, not a chat reply. Attach screenshots, diagrams or designs you made with attach_image; they are shown inside the card.`;
+
 interface Live {
   agent: Agent;
   channelId: string;
@@ -86,6 +95,10 @@ interface Live {
   job: Job | undefined;
   queue: string[];
   lastText: string;
+  /** Text the agent wrote that is not in the channel yet: it goes there once a tool call follows it. */
+  unposted?: string;
+  /** The last note posted while the job ran, in case the answer turns out to be the same text. */
+  posted?: { id: string; text: string };
   /** The instruction layers the session was started with; a change starts a new process (same conversation). */
   layers?: string;
   toolset?: string;
@@ -493,6 +506,8 @@ export class Jobs {
     live.agent = agent;
     live.job = job;
     live.lastText = '';
+    live.unposted = undefined;
+    live.posted = undefined;
     live.queue = [];
     live.again = { base, channel, request, ...(prompt !== undefined ? { prompt } : {}), opts };
     this.watchBudget(job);
@@ -535,7 +550,16 @@ export class Jobs {
     const refIds = [...new Set([...(agent.specialty?.refs ?? []), ...(request.refs ?? [])])];
     const refs = refIds.length && this.deps.refs ? this.deps.refs(refIds) : { notes: [], images: [] };
     const notes = refs.notes.length ? `\n\n<references>\n${refs.notes.join('\n')}\n</references>` : '';
-    live.session.send(turnPrompt(request, context, channel.name, history || 20) + notes + retried, refs.images);
+    const cited = request.cite ? this.deps.citation?.(request) : undefined;
+    const report = channel.reports ? `\n\n${REPORT_HINT}` : '';
+    live.session.send(
+      turnPrompt(request, context, channel.name, history || 20) +
+        notes +
+        (cited ? `\n\n${cited.note}` : '') +
+        report +
+        retried,
+      [...refs.images, ...(cited?.images ?? [])],
+    );
     return job;
   }
 
@@ -897,6 +921,28 @@ export class Jobs {
     if (live.token) this.deps.gateway?.revoke(live.token);
   }
 
+  /** Images the agent attached to its current job's answer (`attach_image`), by job id, until it ends. */
+  private readonly pictures = new Map<string, MessageImage[]>();
+
+  /**
+   * Attaches an image to the answer of the agent's current job in that session. `none` without a running job,
+   * `full` once it has as many as a message carries.
+   */
+  attachImage(
+    agentId: string,
+    channelId: string,
+    slot: string | undefined,
+    image: MessageImage,
+  ): 'ok' | 'none' | 'full' {
+    const job = this.current(agentId, channelId, slot);
+    if (!job) return 'none';
+    const list = this.pictures.get(job.id) ?? [];
+    if (list.some((i) => i.blob === image.blob)) return 'ok';
+    if (list.length >= MESSAGE_IMAGES_MAX) return 'full';
+    this.pictures.set(job.id, [...list, image]);
+    return 'ok';
+  }
+
   /** A progress note from the agent (Rumpus's post_progress tool) on its current job. */
   note(agentId: string, channelId: string, text: string): boolean {
     const live = [...this.live.values()].find(
@@ -941,10 +987,14 @@ export class Jobs {
       }
       case 'text':
         live.lastText = e.text;
+        live.unposted = e.text;
         next = { ...job, preview: undefined };
         this.transcript(job.id, { t: 'text', text: e.text, at });
         break;
       case 'tool':
+        // What it wrote before reaching for a tool was for the people watching, not its answer: it goes into the
+        // channel now, as if the agent had typed it there.
+        this.postNote(live, job);
         next = {
           ...job,
           steps: [...job.steps, { id: e.id, kind: 'tool', label: e.label, ...(e.arg ? { arg: e.arg } : {}), at }],
@@ -1034,7 +1084,15 @@ export class Jobs {
         this.save(ended, true);
         this.settleChanges(job.id);
         const answer = (e.final ?? live.lastText).trim();
-        if (answer) this.postAnswer(live, ended, answer);
+        // A job that ended on a tool call has its last note as its answer: the note gives way to the answer.
+        if (answer && live.posted && live.posted.text.trim() === answer) {
+          this.deps.store.commit({ type: 'message.deleted', data: { id: live.posted.id } });
+          this.deps.emitDeleted?.({ id: live.posted.id, channelId: live.channelId });
+        }
+        live.unposted = undefined;
+        live.posted = undefined;
+        if (answer || this.pictures.has(job.id)) this.postAnswer(live, ended, answer);
+        this.pictures.delete(job.id);
         this.endPart(live);
         return;
       }
@@ -1152,9 +1210,28 @@ export class Jobs {
     }, 0);
   }
 
+  /** Posts what the agent wrote while working (before a tool call) as its message in the channel. */
+  private postNote(live: Live, job: Job): void {
+    const text = live.unposted?.replace(/^\s*GOAL_DONE\s*$/m, '').trim();
+    live.unposted = undefined;
+    if (!text) return;
+    const message: Message = {
+      id: newId(),
+      channelId: live.channelId,
+      author: { kind: 'agent', id: live.agent.id, name: live.agent.name },
+      text,
+      created: this.now(),
+      during: job.id,
+    };
+    live.posted = { id: message.id, text };
+    this.deps.store.commit({ type: 'message.posted', data: message });
+    this.deps.emitMessage(message);
+  }
+
   private postAnswer(live: Live, job: Job, answer: string): void {
     // A specialist's RESULT line is for whoever asked, not for the chat.
     const { text, result } = live.agent.specialty?.result ? splitResult(answer) : { text: answer, result: undefined };
+    const images = this.pictures.get(job.id);
     const message: Message = {
       id: newId(),
       channelId: live.channelId,
@@ -1163,6 +1240,7 @@ export class Jobs {
       created: this.now(),
       jobId: job.id,
       ...(result ? { result } : {}),
+      ...(images?.length ? { images } : {}),
     };
     this.deps.store.commit({ type: 'message.posted', data: message });
     this.deps.emitMessage(message);

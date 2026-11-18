@@ -10,14 +10,17 @@ import {
   type Author,
   type Card,
   type Channel,
+  type Citation,
   cleanProfile,
   type Goal,
   ImageRefSchema,
   isHexColor,
   type Job,
   LIMITS,
+  MESSAGE_IMAGES_MAX,
   type MemorySuggestion,
   type Message,
+  type MessageImage,
   type Profile,
   type Project,
   type ProjectStatus,
@@ -116,6 +119,8 @@ CREATE TABLE IF NOT EXISTS sessions (
 export type WorkspaceEvent =
   | { type: 'channel.created'; data: Channel }
   | { type: 'channel.renamed'; data: { id: string; name: string } }
+  /** A text channel becomes a report channel, or back (PLAN.md 5.21). */
+  | { type: 'channel.reports'; data: { id: string; reports: boolean } }
   | { type: 'channel.deleted'; data: { id: string } }
   | { type: 'agent.saved'; data: Agent }
   | { type: 'agent.deleted'; data: { id: string } }
@@ -203,6 +208,50 @@ function toChannel(r: Row): Channel {
     ...(r.agent_id ? { agentId: String(r.agent_id) } : {}),
     topic: String(r.topic ?? ''),
     created: Number(r.created),
+    ...(r.kind === 'reports' ? { reports: true } : {}),
+  };
+}
+
+const BLOB = /^[a-f0-9]{64}\.(png|jpg|webp|gif)$/;
+const IMAGE_MIMES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'] as const;
+const short = (v: unknown, max: number) => (typeof v === 'string' ? v.slice(0, max) : '');
+
+/**
+ * What a message carries beside its text (a report's title, its images, the report it answers), cleaned: it may
+ * come from another member's computer, so it is display data only and held to the same limits everywhere.
+ */
+export function messageExtra(m: Partial<Message>): Pick<Message, 'title' | 'images' | 'cite' | 'during'> {
+  const title = short(m.title, 200).trim();
+  const images: MessageImage[] = (Array.isArray(m.images) ? m.images : [])
+    .filter(
+      (i): i is MessageImage =>
+        Boolean(i) && BLOB.test(String(i.blob)) && (IMAGE_MIMES as readonly string[]).includes(String(i.mime)),
+    )
+    .slice(0, MESSAGE_IMAGES_MAX)
+    .map((i) => ({
+      blob: i.blob,
+      mime: i.mime,
+      ...(short(i.caption, 300).trim() ? { caption: short(i.caption, 300).trim() } : {}),
+      ...(Number.isInteger(i.width) && Number(i.width) > 0 ? { width: Number(i.width) } : {}),
+      ...(Number.isInteger(i.height) && Number(i.height) > 0 ? { height: Number(i.height) } : {}),
+    }));
+  const c = m.cite;
+  const cite: Citation | undefined =
+    c && typeof c.id === 'string' && typeof c.channelId === 'string' && Number.isFinite(c.at)
+      ? {
+          id: c.id.slice(0, 64),
+          channelId: c.channelId.slice(0, 64),
+          title: short(c.title, 200),
+          at: Number(c.at),
+          by: short(c.by, 60),
+        }
+      : undefined;
+  const during = typeof m.during === 'string' && m.during ? m.during.slice(0, 64) : undefined;
+  return {
+    ...(title ? { title } : {}),
+    ...(images.length ? { images } : {}),
+    ...(cite ? { cite } : {}),
+    ...(during ? { during } : {}),
   };
 }
 
@@ -219,6 +268,7 @@ function toMessage(r: Row): Message {
     ...(r.handover ? { handover: json<{ requestId: string; agentId: string }>(r.handover) } : {}),
     ...(r.result ? { result: json<Record<string, unknown>>(r.result) } : {}),
     ...(r.routine ? { routine: String(r.routine) } : {}),
+    ...(r.extra ? json<Pick<Message, 'title' | 'images' | 'cite' | 'during'>>(r.extra) : {}),
   };
 }
 
@@ -238,6 +288,7 @@ export class WorkspaceStore {
     if (!columns.includes('handover')) this.db.exec('ALTER TABLE messages ADD COLUMN handover TEXT');
     if (!columns.includes('result')) this.db.exec('ALTER TABLE messages ADD COLUMN result TEXT');
     if (!columns.includes('routine')) this.db.exec('ALTER TABLE messages ADD COLUMN routine TEXT');
+    if (!columns.includes('extra')) this.db.exec('ALTER TABLE messages ADD COLUMN extra TEXT');
     this.migrateEvents();
     this.clock = new Clock(deviceId);
     const latest = this.db.prepare('SELECT MAX(at) AS at FROM events').get() as Row | undefined;
@@ -488,9 +539,22 @@ export class WorkspaceStore {
           .prepare(
             'INSERT OR IGNORE INTO channels (id, name, kind, agent_id, topic, created) VALUES (?, ?, ?, ?, ?, ?)',
           )
-          .run(c.id, c.name, c.kind, c.agentId ?? null, c.topic, c.created);
+          .run(
+            c.id,
+            c.name,
+            c.kind === 'agent' ? 'agent' : c.reports === true ? 'reports' : 'channel',
+            c.agentId ?? null,
+            c.topic,
+            c.created,
+          );
         return;
       }
+      case 'channel.reports':
+        // Only a normal channel changes; an agent's own channel stays what it is.
+        this.db
+          .prepare("UPDATE channels SET kind = ? WHERE id = ? AND kind IN ('channel', 'reports')")
+          .run(e.data.reports === true ? 'reports' : 'channel', e.data.id);
+        return;
       case 'channel.renamed':
         this.db.prepare('UPDATE channels SET name = ? WHERE id = ?').run(e.data.name, e.data.id);
         return;
@@ -568,7 +632,7 @@ export class WorkspaceStore {
         const m = e.data;
         this.db
           .prepare(
-            'INSERT OR IGNORE INTO messages (id, channel_id, author, text, created, job_id, refs, handover, result, routine) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            'INSERT OR IGNORE INTO messages (id, channel_id, author, text, created, job_id, refs, handover, result, routine, extra) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
           )
           .run(
             m.id,
@@ -584,6 +648,7 @@ export class WorkspaceStore {
             m.handover ? JSON.stringify({ requestId: m.handover.requestId, agentId: m.handover.agentId }) : null,
             m.result ? JSON.stringify(m.result).slice(0, 8000) : null,
             m.routine ?? null,
+            ((x) => (Object.keys(x).length ? JSON.stringify(x) : null))(messageExtra(m)),
           );
         return;
       }
@@ -747,7 +812,7 @@ export class WorkspaceStore {
 
   channels(): Channel[] {
     // Normal channels first, then agents' own channels; each in the order they were made.
-    const sql = "SELECT * FROM channels WHERE deleted = 0 ORDER BY CASE kind WHEN 'channel' THEN 0 ELSE 1 END, created";
+    const sql = "SELECT * FROM channels WHERE deleted = 0 ORDER BY CASE kind WHEN 'agent' THEN 1 ELSE 0 END, created";
     return (this.db.prepare(sql).all() as Row[]).map(toChannel);
   }
 
@@ -818,6 +883,17 @@ export class WorkspaceStore {
   }
 
   /** The answer message a job ended with. */
+  /** What an agent wrote in the channel while it worked on a job, before its answer, oldest first. */
+  notesOf(jobId: string): Message[] {
+    return (
+      this.db
+        .prepare(
+          "SELECT * FROM messages WHERE extra IS NOT NULL AND json_extract(extra, '$.during') = ? AND deleted = 0 ORDER BY created LIMIT 50",
+        )
+        .all(jobId) as Row[]
+    ).map(toMessage);
+  }
+
   answerOf(jobId: string): Message | undefined {
     const r = this.db
       .prepare('SELECT * FROM messages WHERE job_id = ? AND deleted = 0 ORDER BY created DESC LIMIT 1')

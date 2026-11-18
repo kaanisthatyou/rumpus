@@ -65,6 +65,7 @@ function minRole(type: string, data: Record<string, unknown>): Role | undefined 
       return data.kind === 'agent' ? 'editor' : 'admin';
     case 'channel.renamed':
     case 'channel.deleted':
+    case 'channel.reports':
     case 'member.certified':
     case 'member.removed':
     // The workspace's name and pictures, and its roles (names with a color): an admin's.

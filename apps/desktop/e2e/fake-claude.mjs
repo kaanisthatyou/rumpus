@@ -4,6 +4,7 @@
 // so a test can steer or stop it. Messages sent during a turn wait as turns of their own, like the real CLI.
 import { appendFileSync, writeFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
+import { deflateSync } from 'node:zlib';
 
 const args = process.argv.slice(2);
 if (args[0] === '--version') {
@@ -57,6 +58,56 @@ async function callAndShow(id, name, toolArgs) {
   out({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: id, content: result }] } });
   return result;
 }
+/** A small PNG that looks like a bar chart, as an agent's screenshot would be. */
+function chartPng(w, h) {
+  const crcTable = Array.from({ length: 256 }, (_, k) => {
+    let c = k;
+    for (let i = 0; i < 8; i++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    return c >>> 0;
+  });
+  const crc = (buf) => {
+    let c = 0xffffffff;
+    for (const b of buf) c = crcTable[(c ^ b) & 0xff] ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+  };
+  const chunk = (type, data) => {
+    const len = Buffer.alloc(4);
+    len.writeUInt32BE(data.length);
+    const body = Buffer.concat([Buffer.from(type, 'latin1'), data]);
+    const sum = Buffer.alloc(4);
+    sum.writeUInt32BE(crc(body));
+    return Buffer.concat([len, body, sum]);
+  };
+  const bars = [0.42, 0.66, 0.51, 0.83, 0.74, 0.92];
+  const rows = [];
+  for (let y = 0; y < h; y++) {
+    const row = Buffer.alloc(1 + w * 3);
+    for (let x = 0; x < w; x++) {
+      const slot = Math.floor((x / w) * bars.length);
+      const inBar = x % (w / bars.length) > 14 && x % (w / bars.length) < w / bars.length - 14;
+      const top = h - 24 - (bars[slot] ?? 0) * (h - 60);
+      const on = inBar && y > top && y < h - 24;
+      const grid = y % 50 === 0;
+      const [r, g, b] = on ? [190, 242, 100] : grid ? [52, 54, 58] : [30, 31, 34];
+      row[1 + x * 3] = r;
+      row[2 + x * 3] = g;
+      row[3 + x * 3] = b;
+    }
+    rows.push(row);
+  }
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(w, 0);
+  ihdr.writeUInt32BE(h, 4);
+  ihdr[8] = 8;
+  ihdr[9] = 2;
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', ihdr),
+    chunk('IDAT', deflateSync(Buffer.concat(rows))),
+    chunk('IEND', Buffer.alloc(0)),
+  ]);
+}
+
 let started = false;
 let busy = false;
 let n = 0;
@@ -225,6 +276,63 @@ async function run() {
         result: answer,
         total_cost_usd: 0,
         usage: { input_tokens: 10, output_tokens: 5 },
+        queued_turn_count: queue.length,
+      });
+      continue;
+    }
+    if (/<report id="#/.test(text)) {
+      // A person answering a report: the report came with the message.
+      n += 1;
+      if (!started) {
+        out({ type: 'system', subtype: 'init', session_id: session, tools: [] });
+        started = true;
+      }
+      const code = /<report id="#([0-9A-Z]{6})"/.exec(text)?.[1];
+      const answer = `#${code} raporunu aldım; uyarılara bakıyorum.`;
+      out({ type: 'assistant', message: { content: [{ type: 'text', text: answer }] } });
+      out({
+        type: 'result',
+        subtype: 'success',
+        is_error: false,
+        result: answer,
+        total_cost_usd: 0,
+        usage: { input_tokens: 10, output_tokens: 5 },
+        queued_turn_count: queue.length,
+      });
+      continue;
+    }
+    if (mcp && /sabah raporu/i.test(text)) {
+      // A routine's report: a note before its first tool call, a screenshot attached, a report of its own posted,
+      // then an answer with a heading (the card's title).
+      n += 1;
+      if (!started) {
+        out({ type: 'system', subtype: 'init', session_id: session, tools: ['mcp__rumpus__attach_image'] });
+        started = true;
+      }
+      writeFileSync('ekran.png', chartPng(480, 300));
+      out({ type: 'assistant', message: { content: [{ type: 'text', text: 'Testlere ve ana ekrana bakıyorum.' }] } });
+      await callAndShow(`i${n}`, 'attach_image', { path: 'ekran.png', caption: 'Ana ekran, 08:30' });
+      await callAndShow(`r${n}`, 'post_report', {
+        title: 'Gece taraması: iki uyarı',
+        body: 'Bağımlılık taramasında **iki** uyarı var.\n\n- `zod` bir sürüm geride\n- `vite` güvenlik notu',
+        images: [{ path: 'ekran.png', caption: 'Tarama özeti' }],
+      });
+      const answer = [
+        '# Sabah raporu',
+        '',
+        'Testlerin hepsi geçti (212). Ana ekran yükleniyor, konsolda hata yok.',
+        '',
+        '- Derleme: 41 sn',
+        '- Kapsam: %78',
+      ].join(String.fromCharCode(10));
+      out({ type: 'assistant', message: { content: [{ type: 'text', text: answer }] } });
+      out({
+        type: 'result',
+        subtype: 'success',
+        is_error: false,
+        result: answer,
+        total_cost_usd: 0,
+        usage: { input_tokens: 1200, output_tokens: 140 },
         queued_turn_count: queue.length,
       });
       continue;

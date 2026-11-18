@@ -5,6 +5,7 @@ import type {
   AgentInput,
   Card,
   CardStatus,
+  Citation,
   CliAccount,
   CliInfo,
   CliKind,
@@ -19,6 +20,7 @@ import type {
   MemorySection,
   MemoryState,
   Message,
+  MessageImage,
   Overview,
   PictureSlot,
   ProjectInput,
@@ -43,7 +45,7 @@ import type {
   WorkspaceState,
   WorkspaceSummary,
 } from '@lonca/protocol';
-import { BRAND, ERROR_CODES, handleOf } from '@lonca/protocol';
+import { BRAND, ERROR_CODES, handleOf, reportTitle } from '@lonca/protocol';
 import { create } from 'zustand';
 import type { AppInfo, UpdateState } from '../../shared/bridge';
 import { agentLabel, concernsMe, runsHere, senderOf } from './agents/owner';
@@ -146,6 +148,14 @@ export interface AppState {
   projectDialog?: ProjectView | 'new';
   /** Records attached to the next message, per channel. */
   attached: Record<string, string[]>;
+  /** The report the next message answers, per channel (PLAN.md 5.21). */
+  citing: Record<string, Citation>;
+  /** The report open over the page, by its message id. */
+  report?: string | undefined;
+  /** Images shown full size over the page: a message's, from the one at `index`. */
+  lightbox?: { message: string; images: MessageImage[]; index: number } | undefined;
+  /** Messages' images as data URLs, by `<message id>/<blob>`, loaded when first shown. */
+  pictures: Record<string, string>;
   /** Full images of references, loaded when first shown. */
   images: Record<string, string>;
   /** People's and workspaces' pictures as data URLs, by blob name, loaded when first shown. */
@@ -196,7 +206,15 @@ export interface AppState {
   send(text: string): Promise<boolean>;
   editMessage(id: string, text: string): Promise<boolean>;
   deleteMessage(id: string): Promise<void>;
-  createChannel(name: string): Promise<boolean>;
+  createChannel(name: string, reports?: boolean): Promise<boolean>;
+  /** Makes a channel a report channel, or a text channel again. */
+  setReports(id: string, reports: boolean): Promise<boolean>;
+  /** Answers a report: the agent's own channel opens with the report attached to the next message. */
+  answerReport(report: Message, request?: Message): Promise<void>;
+  /** Takes the report off the next message of the open channel. */
+  uncite(): void;
+  openReport(id: string | undefined): void;
+  loadPicture(message: string, blob: string): Promise<string | undefined>;
   deleteChannel(id: string): Promise<boolean>;
   deleteWorkspace(id: string): Promise<boolean>;
   saveAgent(input: AgentInput): Promise<boolean>;
@@ -397,6 +415,8 @@ export const useApp = create<AppState>((set, get) => {
     records: [],
     projects: [],
     attached: {},
+    citing: {},
+    pictures: {},
     images: {},
     faces: {},
     paletteOpen: false,
@@ -839,11 +859,66 @@ export const useApp = create<AppState>((set, get) => {
       const channelId = get().channelId;
       if (!channelId || !text.trim()) return false;
       const refs = get().attached[channelId] ?? [];
+      const cite = get().citing[channelId];
       const ok = Boolean(
-        await attempt(() => core.call('messages.send', { channelId, text, ...(refs.length ? { refs } : {}) })),
+        await attempt(() =>
+          core.call('messages.send', {
+            channelId,
+            text,
+            ...(refs.length ? { refs } : {}),
+            ...(cite ? { cite: cite.id } : {}),
+          }),
+        ),
       );
-      if (ok && refs.length) set((s) => ({ attached: { ...s.attached, [channelId]: [] } }));
+      if (ok && (refs.length || cite))
+        set((s) => {
+          const { [channelId]: _sent, ...citing } = s.citing;
+          return { attached: { ...s.attached, [channelId]: [] }, citing };
+        });
       return ok;
+    },
+
+    async answerReport(report, request) {
+      const ws = get().workspace;
+      if (!ws || report.author.kind !== 'agent') return;
+      const agentId = report.author.id;
+      const agent = ws.agents.find((a) => a.id === agentId);
+      // The agent's own channel; without one (the agent is gone), the first text channel with its name typed in.
+      const own = ws.channels.find((c) => c.kind === 'agent' && c.agentId === agentId);
+      const target = own ?? ws.channels.find((c) => c.kind === 'channel' && !c.reports);
+      if (!target) return;
+      const cite: Citation = {
+        id: report.id,
+        channelId: report.channelId,
+        title: reportTitle(report, request),
+        at: report.created,
+        by: report.author.name,
+      };
+      set((s) => ({ citing: { ...s.citing, [target.id]: cite }, report: undefined, lightbox: undefined }));
+      await get().openChannel(target.id);
+      if (!own && agent) set({ inject: { text: `@${agent.handle} `, at: Date.now() } });
+    },
+
+    uncite() {
+      const channelId = get().channelId;
+      if (!channelId) return;
+      set((s) => {
+        const { [channelId]: _gone, ...citing } = s.citing;
+        return { citing };
+      });
+    },
+
+    openReport(id) {
+      set({ report: id, lightbox: undefined });
+    },
+
+    async loadPicture(message, blob) {
+      const key = `${message}/${blob}`;
+      const cached = get().pictures[key];
+      if (cached) return cached;
+      const url = await core.call('messages.image', { id: message, blob }).catch(() => undefined);
+      if (url) set((s) => ({ pictures: { ...s.pictures, [key]: url } }));
+      return url;
     },
 
     async editMessage(id, text) {
@@ -854,11 +929,20 @@ export const useApp = create<AppState>((set, get) => {
       await attempt(() => core.call('messages.delete', { id }));
     },
 
-    async createChannel(name) {
-      const channel = await attempt(() => core.call('channels.create', { name }));
+    async createChannel(name, reports) {
+      const channel = await attempt(() =>
+        core.call('channels.create', { name, ...(reports ? { reports: true } : {}) }),
+      );
       if (!channel) return false;
       await get().loadWorkspace();
       await get().openChannel(channel.id);
+      return true;
+    },
+
+    async setReports(id, reports) {
+      const channel = await attempt(() => core.call('channels.reports', { id, reports }));
+      if (!channel) return false;
+      await get().loadWorkspace();
       return true;
     },
 

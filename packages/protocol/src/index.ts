@@ -426,7 +426,9 @@ export interface CoreMethods {
   'invites.answer': { params: { id: string; approve: boolean }; result: { ok: true } };
   'members.setRole': { params: { device: string; role: MemberRole }; result: { ok: true } };
   'members.remove': { params: { device: string }; result: { ok: true } };
-  'channels.create': { params: { name: string }; result: Channel };
+  'channels.create': { params: { name: string; reports?: boolean }; result: Channel };
+  /** Makes a channel a report channel (only routines and agents post there) or a text channel again. */
+  'channels.reports': { params: { id: string; reports: boolean }; result: Channel };
   'channels.rename': { params: { id: string; name: string }; result: Channel };
   'channels.delete': { params: { id: string }; result: { ok: true } };
   /** A person is typing in a channel (team workspaces tell the others; nothing is stored). */
@@ -442,7 +444,19 @@ export interface CoreMethods {
     params: { channelId: string; before?: number; limit?: number };
     result: { messages: Message[]; jobs: Job[] };
   };
-  'messages.send': { params: { channelId: string; text: string; refs?: string[] }; result: Message };
+  'messages.send': {
+    /** `cite`: the id of a report the message answers. */
+    params: { channelId: string; text: string; refs?: string[]; cite?: string };
+    result: Message;
+  };
+  /** One of a message's images as a data URL (on the computer that has it). */
+  'messages.image': { params: { id: string; blob: string }; result: string };
+  /** A message by id, wherever it is (a report opened from a message that answers it). */
+  'messages.get': {
+    params: { id: string };
+    /** For an answer: its job, the message that asked for it, and what the agent wrote while it worked. */
+    result: { message: Message; jobs: Job[]; request?: Message; notes?: Message[] };
+  };
   'messages.edit': { params: { id: string; text: string }; result: Message };
   'messages.delete': { params: { id: string }; result: { ok: true } };
   'messages.search': { params: { query: string; limit?: number }; result: Message[] };
@@ -657,6 +671,7 @@ export const ERROR_CODES = [
   'oauth_unsupported',
   'oauth_cancelled',
   'over_budget',
+  'reports_only',
   'provider_bad_url',
   'provider_bad_key',
   'provider_storage',

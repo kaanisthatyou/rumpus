@@ -72,6 +72,34 @@ export class Blobs {
   }
 
   /**
+   * An image file on this computer (a screenshot or a diagram an agent made): one of the four image types by its
+   * own bytes, whatever its name says, at most 10 MB. Its size is read where the format makes that cheap.
+   */
+  saveFile(path: string): { blob: string; mime: ImageRef['mime']; width?: number; height?: number } {
+    let bytes: Buffer;
+    try {
+      if (!statSync(path).isFile() || statSync(path).size > MAX_BYTES) throw new CoreError('bad_request', 'size');
+      bytes = readFileSync(path);
+    } catch (err) {
+      if (err instanceof CoreError) throw err;
+      throw new CoreError('not_found');
+    }
+    const mime = sniff(bytes);
+    const ext = mime ? TYPES[mime] : undefined;
+    if (!mime || !ext) throw new CoreError('picture_type');
+    const name = `${createHash('sha256').update(bytes).digest('hex')}.${ext}`;
+    const file = join(this.dir, name);
+    if (!existsSync(file)) writeFileSync(file, bytes);
+    const size =
+      mime === 'image/png'
+        ? { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) }
+        : mime === 'image/gif'
+          ? { width: bytes.readUInt16LE(6), height: bytes.readUInt16LE(8) }
+          : undefined;
+    return { blob: name, mime: mime as ImageRef['mime'], ...(size && size.width > 0 && size.height > 0 ? size : {}) };
+  }
+
+  /**
    * A person's or a workspace's picture from a data URL: one of the four image types by its own bytes (not by
    * what the data URL claims), at most `LIMITS.picture` bytes.
    */

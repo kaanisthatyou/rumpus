@@ -10,6 +10,7 @@ import './projects/projects.css';
 import './agents/specialists.css';
 import './overview/overview.css';
 import './routines/routines.css';
+import './channel/reports.css';
 import './shell/layout.css';
 import './people/people.css';
 import './i18n';

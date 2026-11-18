@@ -344,7 +344,8 @@
     "already_friend": "This person is already among the friends.",
     "friend_self": "This is this computer's own friend code.",
     "friend_refused": "The request was not taken: the code belongs to another device, or too many requests wait there.",
-    "account_taken": "An account already uses this folder."
+    "account_taken": "An account already uses this folder.",
+    "reports_only": "This is a report channel: only routines and agents write in it."
   },
   "channel": {
     "newSession": "New session",
@@ -1577,5 +1578,49 @@
   "notice": {
     "many_one": "{{count}} new message",
     "many_other": "{{count}} new messages"
+  },
+  "reports": {
+    "group": "Report channels",
+    "kind": "Report channel",
+    "channelKind": "Channel kind",
+    "kindText": "Text",
+    "kindReports": "Reports",
+    "kindHint": "People do not write in a report channel: reports of routines and agents stay there as dated cards.",
+    "hint": "Reports of routines and agents, with their dates.",
+    "toReports": "Make it a report channel",
+    "toText": "Make it a text channel",
+    "filter": "By writer",
+    "everyone": "All",
+    "empty": "No reports yet",
+    "emptyHint": "A routine that posts in this channel brings the report of the agent it mentions with @ here. Agents can also leave reports here while they work.",
+    "closed": "Only routines and agents write in this channel. A report is answered with Answer on its card, in the agent's channel.",
+    "fromRoutine": "Routine",
+    "posted": "Report",
+    "asked": "Request",
+    "nobody": "Waiting for an agent",
+    "untitled": "Untitled report",
+    "working": "The agent is working.",
+    "noText": "The report has no text.",
+    "tokens": "Tokens",
+    "answer": "Answer",
+    "answerPlaceholder": "Answer to the report · Enter sends",
+    "uncite": "Remove the report",
+    "request": "Asked",
+    "notes_one": "{{count}} note written while working",
+    "notes_other": "{{count}} notes written while working",
+    "gone": "Report not found",
+    "image": "Image {{n}}",
+    "imageElsewhere": "The image is on the computer that made it.",
+    "previous": "Previous image",
+    "next": "Next image",
+    "state": {
+      "running": "Running",
+      "attention": "Waiting for approval",
+      "done": "Done",
+      "failed": "Failed",
+      "stopped": "Stopped",
+      "waiting": "Waiting",
+      "posted": "Posted"
+    }
   }
 }

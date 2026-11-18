@@ -5,6 +5,7 @@ import { AdvisorDialog } from './agents/AdvisorDialog';
 import { AgentDialog } from './agents/AgentDialog';
 import { runsHere } from './agents/owner';
 import { SpecialistDialog } from './agents/SpecialistDialog';
+import { Lightbox, ReportDialog } from './channel/Reports';
 import { GoalDialog } from './goals/GoalDialog';
 import { actionFor } from './keys';
 import { Launcher } from './launcher/Launcher';
@@ -59,6 +60,8 @@ export function App() {
   const workspaceDialog = useApp((s) => s.workspaceDialog);
   const friendsOpen = useApp((s) => s.friendsOpen);
   const confirm = useApp((s) => s.confirm);
+  const report = useApp((s) => s.report);
+  const lightbox = useApp((s) => s.lightbox);
   // "Edit profile" on the person's own card: the settings, on that tab.
   useEffect(() => {
     if (settingsTab) setSettingsOpen(true);
@@ -174,6 +177,9 @@ export function App() {
           {onboarded && paletteOpen && <Palette key="palette" onSettings={openSettings} />}
         </AnimatePresence>
         <AnimatePresence>{onboarded && shortcutsOpen && <ShortcutsDialog key="shortcuts" />}</AnimatePresence>
+        <AnimatePresence>{onboarded && report && <ReportDialog key={report} id={report} />}</AnimatePresence>
+        {/* A report shows its images over itself; a channel's message shows them over the page. */}
+        <AnimatePresence>{onboarded && !report && lightbox && <Lightbox key="lightbox" />}</AnimatePresence>
         <AnimatePresence>{onboarded && confirm && <ConfirmDialog key="confirm" ask={confirm} />}</AnimatePresence>
       </div>
     </MotionConfig>

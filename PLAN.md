@@ -492,6 +492,38 @@ person's computer, reached over Tailscale like a team member's.
 - Removing a friend takes the conversation off this computer's lists and stops its sync; its folder stays on
   disk, and the other person is not told (their side simply stops hearing from this one).
 
+### 5.21 Report channels
+
+Asked by Kaan on 2026-11-18: what routines and agents report should read as dated reports, not as chat. A channel
+is of one of two kinds, **text** (as before) or **reports**, picked when it is made and changed later by an admin
+(`channels.reports`; at least one text channel stays):
+
+- **Nobody types in a report channel** (`reports_only`). Routines post there (the person's standing request, as
+  before), the agent mentioned answers there, and an agent posts reports of its own with `post_report` while it works
+  on any job (title, Markdown body, images; at most three per job; a report is never read for mentions, so it
+  never starts work). Advisors do not speak there.
+- **Cards, not messages**: one card per job (the routine's message, the job, its answer) or per posted report,
+  grouped by day, newest first. A card shows the agent, the routine or report mark, the time, the title (the
+  report's own, else the answer's first heading, else the routine's text), a short summary, thumbnails, the job's
+  state, time and tokens, and a short code (`#4F2A1C`, a hash of the message id, the same on every computer). The
+  agent answering in a report channel is told its answer is a report card (start with a `# Title`, attach images).
+- **A card opens the report** over the page: all its text, its images in a gallery and full size (arrows, Esc), what
+  the agent wrote while working, the request, and the live view of its job.
+- **Answering a report** ("Yanıtla"): the agent's own channel opens with the report attached to the next message,
+  as an object above the box (removable). The sent message carries a `Citation` (id, channel, title, date, agent;
+  filled in by the core, not taken from the client) shown as a chip that opens the report again; the job it starts
+  gets the report's text in a `<report>` block, as information, and its images as attachments.
+- **Images on any answer**: `attach_image` puts an image file (PNG, JPEG, WebP or GIF by its own bytes, at most
+  10 MB, an absolute path or one in the agent's folder) on the current job's answer, at most eight. They are blobs
+  of the workspace, kept on the computer that made them; another member's app shows a placeholder until blobs of
+  messages sync (not built yet).
+
+**What an agent writes while it works** (same day, Kaan): the text an agent writes before a tool call used to show
+only in the live view and the island; it is now posted in the channel at once, as the agent's message (`during`:
+the job's id), so the channel reads as if the agent typed there. The answer stays its own message (`jobId`); a job
+that ends on a tool call, whose answer is the last note, takes the note back so it is not shown twice. Notes and the
+answer read as one run. In a report channel they are part of the report's card (its "notes" in the report).
+
 ## 6. Architecture
 
 ### 6.1 Stack
@@ -1029,6 +1061,20 @@ The details behind 5.11 and 6.5, decided before building.
   `learn_lesson` and ended with a RESULT line that was taken out of the chat. Not yet tried on a real
   installation: the `rumpus://` handler (registered only by an installed app without `LONCA_HOME`) and the move of
   the former name's data folder.
+
+- 4.32 Report channels and agents' notes in the channel (5.21), 2026-11-18, asked by Kaan. Built: the channel kind
+  (`Channel.reports`, stored as the kind `reports`, the `channel.reports` event for admins), `reports_only`;
+  `Message.title`, `images`, `cite` and `during` (one `extra` column, cleaned by `messageExtra` wherever it is
+  applied); `messages.get`, `messages.image`; `attach_image` and `post_report`; the cited report in a job's prompt
+  (`JobsDeps.citation`) and the report hint (`REPORT_HINT`); notes posted between tool calls (`Jobs.postNote`).
+  UI: `channel/Reports.tsx` (the cards, the report dialog, the lightbox, the cite chip, images under messages), the
+  kind picker under "Kanal oluştur", a group of report channels in the channel list, a button that turns a text
+  channel into a report channel and back.
+  - Tests: `packages/core/test/reports.test.ts` (refusal, routine, images, a posted report, notes, the answer's
+    images and its title, `messages.get`, a cited reply and its prompt, switching kinds; a note giving way to the
+    answer); `e2e/reports.mjs` (a report channel from the sidebar, a routine in it, the cards at 1440 and 960 px,
+    the report and its image full size, answering it in the agent's channel). The fake CLI answers "sabah raporu"
+    with a note, an image and a posted report, and a cited message with the report's code.
 
 - 4.31 Writing on a job's card, 2026-11-17, asked by Kaan (two things he liked in Fabrika's job drawer): the card's
   field is "Çalışırken yaz" while the job runs (it was "Yönlendir"; same steering), and "Devam et" once it ended.

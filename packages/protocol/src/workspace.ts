@@ -198,6 +198,36 @@ export interface Channel {
   agentId?: string;
   topic: string;
   created: number;
+  /**
+   * A report channel (PLAN.md 5.21): people do not write in it. Routines post there and agents answer with
+   * reports, and agents post reports of their own (`post_report`); the channel shows them as cards.
+   */
+  reports?: boolean;
+}
+
+/** Images a message carries (screenshots, diagrams an agent attached), at most this many. */
+export const MESSAGE_IMAGES_MAX = 8;
+
+/** An image a message carries: a blob of the workspace, kept on the computer that made it. */
+export interface MessageImage {
+  blob: string;
+  mime: 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif';
+  /** A line under it. */
+  caption?: string;
+  width?: number;
+  height?: number;
+}
+
+/** A report a message refers to (a person answering it): enough to show it without loading its channel. */
+export interface Citation {
+  /** The report's message. */
+  id: string;
+  channelId: string;
+  title: string;
+  /** When the report was posted. */
+  at: number;
+  /** The agent that wrote it. */
+  by: string;
 }
 
 export type Author =
@@ -226,6 +256,47 @@ export interface Message {
   result?: Record<string, unknown>;
   /** Posted for its author by one of their routines (its id). */
   routine?: string;
+  /** A report's title (`post_report`); a routine's report takes the first heading of its answer instead. */
+  title?: string;
+  /** Screenshots and diagrams the agent attached (`attach_image`, `post_report`). */
+  images?: MessageImage[];
+  /** The report this message answers; a job it starts gets the report. */
+  cite?: Citation;
+  /**
+   * Written by the agent while it worked on this job (between its tool calls), before its answer: posted in the
+   * channel as it came, like a message the agent typed there.
+   */
+  during?: string;
+}
+
+/**
+ * A report's short code (`4F2A1C`), the same on every computer: six characters of a hash of its message's id, so a
+ * person can name it and an agent can be told which one is meant.
+ */
+export function reportCode(id: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < id.length; i += 1) {
+    h ^= id.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(36).toUpperCase().padStart(6, '0').slice(-6);
+}
+
+/**
+ * A report's title: the one it was posted with, else the first heading of its text, else the first line of the
+ * request it answers (a routine's message, without the mentions), else its own first line.
+ */
+export function reportTitle(report: Pick<Message, 'title' | 'text'>, request?: Pick<Message, 'text'>): string {
+  const cut = (t: string) => (t.length > 120 ? `${t.slice(0, 119)}…` : t);
+  if (report.title?.trim()) return cut(report.title.trim());
+  const heading = /^\s{0,3}#{1,3}\s+(.+?)\s*#*\s*$/m.exec(report.text)?.[1];
+  if (heading) return cut(heading.replace(/[*_`]/g, ''));
+  const asked = request?.text
+    .replace(/(^|\s)@[a-z0-9][a-z0-9-]*/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (asked) return cut(asked);
+  return cut((report.text.trim().split('\n')[0] ?? '').replace(/[#*_`]/g, '').trim());
 }
 
 /** idle is never stored: a job is running, waiting on a person, or over. */

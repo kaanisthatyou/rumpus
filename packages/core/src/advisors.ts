@@ -133,7 +133,9 @@ export class Advisors {
   }
 
   private livesIn(a: Advisor, channel: Channel): boolean {
-    return channel.kind === 'channel' && (a.channels.length === 0 || a.channels.includes(channel.id));
+    return (
+      channel.kind === 'channel' && !channel.reports && (a.channels.length === 0 || a.channels.includes(channel.id))
+    );
   }
 
   spendToday(): Record<string, number> {
@@ -157,7 +159,7 @@ export class Advisors {
 
   /** A message was posted: advisors it mentions answer (a person's mention always; another advisor's within limits). */
   onMessage(message: Message, channel: Channel): void {
-    if (this.disposed || channel.kind !== 'channel') return;
+    if (this.disposed || channel.kind !== 'channel' || channel.reports) return;
     const handles = mentions(message.text);
     if (handles.length === 0) return;
     const fromPerson = message.author.kind === 'person';
@@ -177,7 +179,7 @@ export class Advisors {
   onJobEnded(job: Job): void {
     if (this.disposed || job.state !== 'done') return;
     const channel = this.deps.store.channel(job.channelId);
-    if (channel?.kind !== 'channel' || !this.mayChatter(channel.id)) return;
+    if (channel?.kind !== 'channel' || channel.reports || !this.mayChatter(channel.id)) return;
     const answer = this.deps.store
       .messages(channel.id, { limit: 20 })
       .reverse()
@@ -199,8 +201,8 @@ export class Advisors {
     const source = record.sourceId ? this.deps.store.message(record.sourceId) : undefined;
     const channel = source
       ? this.deps.store.channel(source.channelId)
-      : this.deps.store.channels().find((c) => c.kind === 'channel');
-    if (channel?.kind !== 'channel' || !this.mayChatter(channel.id)) return;
+      : this.deps.store.channels().find((c) => c.kind === 'channel' && !c.reports);
+    if (channel?.kind !== 'channel' || channel.reports || !this.mayChatter(channel.id)) return;
     const pick = this.pickOne(channel, 'idea');
     if (!pick) return;
     this.lastUnasked.set(channel.id, this.now());
@@ -211,7 +213,8 @@ export class Advisors {
   onGoalStep(goal: Goal, step: GoalStep, report: string): void {
     if (this.disposed) return;
     const channel = this.deps.store.channel(goal.channelId);
-    if (channel?.kind !== 'channel' || inQuietHours(new Date(this.now()), this.deps.quietHours())) return;
+    if (channel?.kind !== 'channel' || channel.reports || inQuietHours(new Date(this.now()), this.deps.quietHours()))
+      return;
     const members = this.mine().filter((a) => this.livesIn(a, channel) && a.chatter !== 'off');
     if (members.length === 0) return;
     const a = members[(goal.used.steps - 1 + members.length) % members.length];
@@ -240,7 +243,7 @@ export class Advisors {
   tick(): void {
     if (this.disposed) return;
     const now = this.now();
-    const channels = this.deps.store.channels().filter((c) => c.kind === 'channel');
+    const channels = this.deps.store.channels().filter((c) => c.kind === 'channel' && !c.reports);
     for (const a of this.mine()) {
       const every = CHATTER_RATES[a.chatter].idleMs;
       if (!every) continue;

@@ -10,6 +10,7 @@ import { specialistIcon } from '../agents/SpecialistDialog';
 import { Board } from '../board/Board';
 import { ChannelView } from '../channel/ChannelView';
 import { LiveView } from '../channel/LiveView';
+import { ReportsView } from '../channel/Reports';
 import { GoalsView } from '../goals/GoalsView';
 import { useMedia } from '../media';
 import { MemoryView } from '../memory/MemoryView';
@@ -228,8 +229,11 @@ function Sidebar({ onSettings }: { onSettings: () => void }) {
   const openProjectDialog = useApp((s) => s.openProjectDialog);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
+  // A new channel is a text channel unless the report kind is picked (PLAN.md 5.21).
+  const [reportKind, setReportKind] = useState(false);
   const unread = useApp((s) => s.unread);
-  const channels = workspace?.channels.filter((c) => c.kind === 'channel') ?? [];
+  const channels = workspace?.channels.filter((c) => c.kind === 'channel' && !c.reports) ?? [];
+  const reportChannels = workspace?.channels.filter((c) => c.kind === 'channel' && c.reports) ?? [];
   const agentChannels = workspace?.channels.filter((c) => c.kind === 'agent') ?? [];
   // Jobs that wait for this person: an approval is given on the computer the agent runs on.
   const waiting = Object.values(jobs)
@@ -288,12 +292,29 @@ function Sidebar({ onSettings }: { onSettings: () => void }) {
             className="side__new"
             onSubmit={async (e) => {
               e.preventDefault();
-              if (await createChannel(name)) {
+              if (await createChannel(name, reportKind)) {
                 setName('');
+                setReportKind(false);
                 setCreating(false);
               }
             }}
           >
+            <fieldset className="side__kind">
+              <legend className="l-sr">{t('reports.channelKind')}</legend>
+              {[false, true].map((kind) => (
+                <label key={String(kind)} data-checked={reportKind === kind || undefined}>
+                  <input
+                    type="radio"
+                    className="l-sr"
+                    name="channel-kind"
+                    checked={reportKind === kind}
+                    onChange={() => setReportKind(kind)}
+                  />
+                  <Icon name={kind ? 'report' : 'hash'} size={13} />
+                  {t(kind ? 'reports.kindReports' : 'reports.kindText')}
+                </label>
+              ))}
+            </fieldset>
             <input
               className="l-input"
               // biome-ignore lint/a11y/noAutofocus: the field opens on request, typing is the next step
@@ -304,6 +325,7 @@ function Sidebar({ onSettings }: { onSettings: () => void }) {
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => e.key === 'Escape' && setCreating(false)}
             />
+            {reportKind && <p className="side__kindhint">{t('reports.kindHint')}</p>}
           </form>
         )}
         {channels.map((c) => (
@@ -318,6 +340,22 @@ function Sidebar({ onSettings }: { onSettings: () => void }) {
           />
         ))}
       </div>
+      {reportChannels.length > 0 && (
+        <div className="grp">
+          <h2>{t('reports.group')}</h2>
+          {reportChannels.map((c) => (
+            <NavButton
+              key={c.id}
+              on={view === 'channel' && channelId === c.id}
+              icon="report"
+              label={c.name}
+              badge={running.has(c.id)}
+              {...(unread[c.id] ? { unread: unread[c.id] } : {})}
+              onClick={() => void openChannel(c.id)}
+            />
+          ))}
+        </div>
+      )}
       {agentChannels.length > 0 && (
         <div className="grp">
           <h2>{t('channel.agents')}</h2>
@@ -1042,7 +1080,9 @@ export function Shell({ onSettings }: { onSettings: () => void }) {
     >
       <Rail onSettings={onSettings} />
       <Sidebar onSettings={onSettings} />
-      {view === 'channel' && channel ? (
+      {view === 'channel' && channel?.reports ? (
+        <ReportsView key={channel.id} channel={channel} />
+      ) : view === 'channel' && channel ? (
         <ChannelView key={channel.id} channel={channel} />
       ) : view === 'home' ? (
         <OverviewView onSettings={onSettings} />

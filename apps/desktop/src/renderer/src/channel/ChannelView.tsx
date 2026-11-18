@@ -27,6 +27,7 @@ import { clock, dayKey, dayLabel } from './format';
 import { InviteCard } from './InviteCard';
 import { JobCard } from './JobCard';
 import { Markdown } from './Markdown';
+import { CiteChip, MessageImages } from './Reports';
 
 const EMPTY: Message[] = [];
 const NO_ADVISORS: Advisor[] = [];
@@ -249,7 +250,9 @@ function MessageRow({
           </form>
         ) : (
           <>
+            {message.cite && <CiteChip cite={message.cite} />}
             {body && !onlyInvite && <Markdown text={body} />}
+            <MessageImages message={message} />
             {invites.map((code) => (
               <InviteCard key={code} code={code} />
             ))}
@@ -369,6 +372,8 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
   const detach = useApp((s) => s.detach);
   const saveRecord = useApp((s) => s.saveRecord);
   const inject = useApp((s) => s.inject);
+  const citing = useApp((s) => s.citing[channel.id]);
+  const uncite = useApp((s) => s.uncite);
   const [picking, setPicking] = useState(false);
   const team = useApp((s) => s.workspace?.kind === 'team');
   const members = useApp((s) => s.workspace?.members);
@@ -564,9 +569,11 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
     if (!(await send(value))) setText((now) => now || value);
   };
 
-  const placeholder = own
-    ? t('channel.composerAgent', { handle: own.handle })
-    : t('shell.composer', { channel: channel.name });
+  const placeholder = citing
+    ? t('reports.answerPlaceholder')
+    : own
+      ? t('channel.composerAgent', { handle: own.handle })
+      : t('shell.composer', { channel: channel.name });
   return (
     <div className="composer">
       <AnimatePresence>
@@ -672,6 +679,11 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
               {c.title}
             </button>
           ))}
+        </div>
+      )}
+      {citing && (
+        <div className="composer__cite">
+          <CiteChip cite={citing} onRemove={uncite} />
         </div>
       )}
       {attached.length > 0 && (
@@ -806,6 +818,16 @@ export function ChannelView({ channel }: { channel: Channel }) {
         {!own &&
           channel.kind === 'channel' &&
           (workspace?.kind === 'personal' || workspace?.role === 'admin') &&
+          (workspace?.channels.filter((c) => c.kind === 'channel' && !c.reports).length ?? 0) > 1 && (
+            <IconButton
+              icon="report"
+              label={t('reports.toReports')}
+              onClick={() => void useApp.getState().setReports(channel.id, true)}
+            />
+          )}
+        {!own &&
+          channel.kind === 'channel' &&
+          (workspace?.kind === 'personal' || workspace?.role === 'admin') &&
           (workspace?.channels.filter((c) => c.kind === 'channel').length ?? 0) > 1 && (
             <IconButton
               icon="trash"
@@ -889,12 +911,19 @@ export function ChannelView({ channel }: { channel: Channel }) {
             const firstNew = i === firstNewAt;
             // A person's (or advisor's) messages in quick succession read as one run, unless something hangs
             // under the earlier one (a job, a goal) or either carries a mark of its own.
+            // An agent's notes while it works, and the answer after them, read as one run too.
+            const notes =
+              m.author.kind === 'agent' &&
+              prev?.during !== undefined &&
+              (m.during === prev.during || m.jobId === prev.during);
             const run =
               prev !== undefined &&
               !newDay &&
               !firstNew &&
-              (m.author.kind === 'person' || m.author.kind === 'advisor') &&
+              (m.author.kind === 'person' || m.author.kind === 'advisor' || notes) &&
+              m.author.kind !== 'system' &&
               prev.author.kind === m.author.kind &&
+              'id' in prev.author &&
               prev.author.id === m.author.id &&
               m.created - prev.created < RUN_MS &&
               !m.routine &&
