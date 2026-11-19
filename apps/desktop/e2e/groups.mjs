@@ -75,8 +75,8 @@ const until = async (fn, what, ms = 10_000) => {
   }
   throw new Error(`timed out: ${what}`);
 };
-const stored = () => JSON.parse(readFileSync(join(home, 'settings.json'), 'utf8')).groups ?? {};
-const only = () => Object.values(stored())[0] ?? [];
+// Groups are the workspace's (kept with its channels); a closed group is this person's, in the settings.
+const closedInSettings = () => JSON.parse(readFileSync(join(home, 'settings.json'), 'utf8')).closedGroups ?? [];
 
 let { app, page, errors, side } = await launch();
 try {
@@ -98,7 +98,7 @@ try {
   await side.getByRole('textbox', { name: L.groups.create }).fill('Oyunlar');
   await side.getByRole('textbox', { name: L.groups.create }).press('Enter');
   await group('Oyunlar').getByText(L.groups.empty).waitFor();
-  await until(() => only().length === 1, 'the group in the settings');
+  await until(async () => (await side.locator('.cgrp').count()) === 1, 'the group in the list');
 
   // A channel's menu: moved into the group.
   await channel('roblox').click({ button: 'right' });
@@ -106,7 +106,9 @@ try {
   await shot('channel-menu');
   await menuOf().getByRole('menuitemradio', { name: 'Oyunlar' }).click();
   await menuOf().waitFor({ state: 'detached' });
-  await group('Oyunlar').getByRole('button', { name: /^roblox/ }).waitFor();
+  await group('Oyunlar')
+    .getByRole('button', { name: /^roblox/ })
+    .waitFor();
   assert.equal(await group('Oyunlar').getByText(L.groups.empty).count(), 0);
 
   // A new group straight from a channel's menu takes that channel with it.
@@ -114,12 +116,16 @@ try {
   await menuOf().getByRole('menuitem', { name: L.groups.newWith }).click();
   await side.getByRole('textbox', { name: L.groups.create }).fill('Yazı');
   await side.getByRole('textbox', { name: L.groups.create }).press('Enter');
-  await group('Yazı').getByRole('button', { name: /^notlar/ }).waitFor();
+  await group('Yazı')
+    .getByRole('button', { name: /^notlar/ })
+    .waitFor();
 
   // Dragging a channel onto a group moves it there.
   await channel('tasarim').dragTo(group('Oyunlar').getByRole('button', { name: 'Oyunlar', exact: true }));
-  await group('Oyunlar').getByRole('button', { name: /^tasarim/ }).waitFor();
-  await until(() => only().find((g) => g.name === 'Oyunlar')?.channels.length === 2, 'two channels in Oyunlar');
+  await group('Oyunlar')
+    .getByRole('button', { name: /^tasarim/ })
+    .waitFor();
+  await until(async () => (await group('Oyunlar').locator('.nav').count()) === 2, 'two channels in Oyunlar');
 
   // Rename a channel from its menu.
   await channel('tasarim').click({ button: 'right' });
@@ -127,18 +133,32 @@ try {
   const rename = side.getByRole('textbox', { name: L.groups.renameChannel });
   await rename.fill('arayuz');
   await rename.press('Enter');
-  await group('Oyunlar').getByRole('button', { name: /^arayuz/ }).waitFor();
+  await group('Oyunlar')
+    .getByRole('button', { name: /^arayuz/ })
+    .waitFor();
 
   // A closed group hides its channels.
   await group('Oyunlar').getByRole('button', { name: 'Oyunlar', exact: true }).click();
-  assert.equal(await group('Oyunlar').getByRole('button', { name: 'Oyunlar', exact: true }).getAttribute('aria-expanded'), 'false');
-  assert.equal(await group('Oyunlar').getByRole('button', { name: /^roblox/ }).count(), 0);
+  assert.equal(
+    await group('Oyunlar').getByRole('button', { name: 'Oyunlar', exact: true }).getAttribute('aria-expanded'),
+    'false',
+  );
+  assert.equal(
+    await group('Oyunlar')
+      .getByRole('button', { name: /^roblox/ })
+      .count(),
+    0,
+  );
+  await until(() => closedInSettings().length === 1, 'the closed group in the settings');
   await shot('collapsed');
 
   // Group menu: move up, rename.
   await group('Yazı').getByRole('button', { name: 'Yazı', exact: true }).click({ button: 'right' });
   await menuOf().getByRole('menuitem', { name: L.groups.moveUp }).click();
-  await until(() => only()[0]?.name === 'Yazı', 'Yazı first');
+  await until(
+    async () => (await side.locator('.cgrp .cgrp__head').first().innerText()).trim() === 'Yazı',
+    'Yazı first',
+  );
   await group('Yazı').getByRole('button', { name: 'Yazı', exact: true }).click({ button: 'right' });
   await menuOf().getByRole('menuitem', { name: L.groups.rename }).click();
   await side.getByRole('textbox', { name: L.groups.rename }).fill('Notlar');
@@ -152,19 +172,27 @@ try {
   ({ app, page, errors, side } = await launch());
   await group('Notlar').waitFor();
   await group('Oyunlar').waitFor();
-  assert.equal(await group('Oyunlar').getByRole('button', { name: 'Oyunlar', exact: true }).getAttribute('aria-expanded'), 'false');
+  assert.equal(
+    await group('Oyunlar').getByRole('button', { name: 'Oyunlar', exact: true }).getAttribute('aria-expanded'),
+    'false',
+  );
   const order = await side.locator('.cgrp .cgrp__head').allInnerTexts();
-  assert.deepEqual(order.map((s) => s.trim()), ['Notlar', 'Oyunlar']);
+  assert.deepEqual(
+    order.map((s) => s.trim()),
+    ['Notlar', 'Oyunlar'],
+  );
 
   // Opening it again; deleting a group puts its channels back in the list.
   await group('Oyunlar').getByRole('button', { name: 'Oyunlar', exact: true }).click();
-  await group('Oyunlar').getByRole('button', { name: /^roblox/ }).waitFor();
+  await group('Oyunlar')
+    .getByRole('button', { name: /^roblox/ })
+    .waitFor();
   await group('Oyunlar').getByRole('button', { name: 'Oyunlar', exact: true }).click({ button: 'right' });
   await menuOf().getByRole('menuitem', { name: L.groups.delete }).click();
   await group('Oyunlar').waitFor({ state: 'detached' });
   await channel('roblox').waitFor();
   await channel('arayuz').waitFor();
-  await until(() => only().length === 1, 'one group left');
+  await until(async () => (await side.locator('.cgrp').count()) === 1, 'one group left');
 
   // A channel's menu answers the keyboard: arrows move, Esc closes.
   await channel('roblox').click({ button: 'right' });

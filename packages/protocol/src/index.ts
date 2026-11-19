@@ -19,6 +19,7 @@ import type {
   Card,
   CardStatus,
   Channel,
+  ChannelGroup,
   FriendsState,
   GitState,
   Goal,
@@ -78,19 +79,6 @@ export const START_VIEWS = ['home', 'last'] as const;
  */
 export const CREW_LAYOUTS = ['panel', 'strip'] as const;
 
-/**
- * A group of channels in the channel list ("Create group"). It is this person's own way of ordering the list, kept
- * in their settings per workspace; other members do not see it.
- */
-export const ChannelGroupSchema = z.object({
-  id: z.string().min(1).max(40),
-  name: z.string().min(1).max(40),
-  /** Channel ids in the order they are shown; ids of channels that are gone are skipped. */
-  channels: z.array(z.string().max(64)).max(500),
-  collapsed: z.boolean(),
-});
-export type ChannelGroup = z.infer<typeof ChannelGroupSchema>;
-
 /** The settings fields as they are checked; the stored file fills in the newer ones from defaults (below). */
 const SETTINGS_FIELDS = {
   v: z.literal(1),
@@ -118,8 +106,8 @@ const SETTINGS_FIELDS = {
   crew: z.enum(CREW_LAYOUTS),
   /** The channel list is on screen (off: the middle column gets its room). */
   sidebar: z.boolean(),
-  /** Groups in the channel list, per workspace id. */
-  groups: z.record(z.string().max(64), z.array(ChannelGroupSchema).max(50)),
+  /** Channel groups this person closed in the list (groups are the workspace's; closing one is this person's). */
+  closedGroups: z.array(z.string().max(40)).max(500),
   /** OS notifications while the app is in the background. */
   notifications: z.boolean(),
   /** Short sounds for a job that ended or waits, a request to join, another member's message. */
@@ -148,7 +136,7 @@ export const SettingsSchema = z.object({
   startView: SETTINGS_FIELDS.startView.default('last'),
   crew: SETTINGS_FIELDS.crew.default('panel'),
   sidebar: SETTINGS_FIELDS.sidebar.default(true),
-  groups: SETTINGS_FIELDS.groups.default({}),
+  closedGroups: SETTINGS_FIELDS.closedGroups.default([]),
   notifications: SETTINGS_FIELDS.notifications.default(true),
   sounds: SETTINGS_FIELDS.sounds.default(true),
   agentFolder: SETTINGS_FIELDS.agentFolder.default(''),
@@ -221,7 +209,7 @@ export function defaultSettings(language: Language = 'en'): Settings {
     startView: 'last',
     crew: 'panel',
     sidebar: true,
-    groups: {},
+    closedGroups: [],
     notifications: true,
     sounds: true,
     agentFolder: '',
@@ -447,6 +435,8 @@ export interface CoreMethods {
   'channels.create': { params: { name: string }; result: Channel };
   'channels.rename': { params: { id: string; name: string }; result: Channel };
   'channels.delete': { params: { id: string }; result: { ok: true } };
+  /** The workspace's channel groups, all of them in their order (an admin's; every member sees them). */
+  'channels.groups': { params: { groups: ChannelGroup[] }; result: { ok: true } };
   /** A person is typing in a channel (team workspaces tell the others; nothing is stored). */
   'channels.typing': { params: { channelId: string }; result: { ok: true } };
   /** The button under an agent's reminder: that agent stops reminding of what waits now (PLAN.md 5.23). */

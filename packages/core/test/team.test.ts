@@ -382,6 +382,17 @@ describe('team workspaces between two apps', () => {
       return p?.status.next[0] === 'Giriş ekranı' && p.status.by === 'Arda' && p.folder !== ardaClone;
     }, 'kaan sees arda edit the page, keeping his own folder');
 
+    // Channel groups are the workspace's: Kaan's groups reach Arda; an editor cannot change them.
+    await kaan.call('channels.groups', {
+      groups: [{ id: 'g1', name: 'Genel işler', channels: [genel, 'gone-channel'] }],
+    });
+    const seen = await until(async () => {
+      const g = (await arda.call<WorkspaceState>('workspace.get')).groups;
+      return g?.length ? g : undefined;
+    }, 'arda sees the groups');
+    expect(seen).toEqual([{ id: 'g1', name: 'Genel işler', channels: [genel] }]);
+    await expect(arda.call('channels.groups', { groups: [] })).rejects.toThrow('not_allowed');
+
     // An editor cannot make channels; an admin can make the editor a viewer, and remove them.
     await expect(arda.call('channels.create', { name: 'gizli' })).rejects.toThrow('not_allowed');
     const ardaDevice = aState.members?.find((m) => m.me)?.device ?? '';

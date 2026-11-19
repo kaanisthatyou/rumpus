@@ -71,6 +71,8 @@ function minRole(type: string, data: Record<string, unknown>): Role | undefined 
     case 'member.removed':
     // The workspace's name and pictures, and its roles (names with a color): an admin's.
     case 'look.saved':
+    // The channel list's groups: an admin arranges them, like the channels themselves.
+    case 'layout.saved':
     case 'tag.saved':
     case 'tag.deleted':
     case 'tagged.saved':
@@ -194,6 +196,9 @@ export class Membership {
         break;
       case 'look.saved':
         if (data.id !== 'workspace') return 'not_allowed';
+        break;
+      case 'layout.saved':
+        if (data.id !== 'channels') return 'not_allowed';
         break;
       case 'job.saved':
         // A job runs on its agent's owner's computer, and only that computer reports it.

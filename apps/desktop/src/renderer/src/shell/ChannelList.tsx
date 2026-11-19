@@ -1,6 +1,7 @@
-// The channel list in the sidebar: channels and agents' channels, and the groups this person sorts them into
-// ("Create group"). Groups are kept in this person's settings per workspace; other members do not see them. A
-// channel moves into a group by dragging it there or from its right-click menu.
+// The channel list in the sidebar: channels and agents' channels, and the groups they are sorted into ("Create
+// group"). Groups are the workspace's, like Discord's categories: every member sees the same ones and an admin
+// arranges them; whether a group is closed is each person's own. A channel moves into a group by dragging it there
+// or from its right-click menu.
 import type { Channel, ChannelGroup } from '@lonca/protocol';
 import { Icon, IconButton, type IconName } from '@lonca/ui';
 import { motion } from 'motion/react';
@@ -126,7 +127,7 @@ function tidy(items: MenuItem[]): MenuItem[] {
 export function ChannelList() {
   const { t } = useTranslation();
   const workspace = useApp((s) => s.workspace);
-  const stored = useApp((s) => s.settings?.groups);
+  const closedIds = useApp((s) => s.settings?.closedGroups);
   const view = useApp((s) => s.view);
   const channelId = useApp((s) => s.channelId);
   const jobs = useApp((s) => s.jobs);
@@ -140,8 +141,8 @@ export function ChannelList() {
   /** Where a dragged channel would land: a group's id, or `''` for the list outside any group. */
   const [drop, setDrop] = useState<{ group: string; before?: string }>();
 
-  const wsId = workspace?.id ?? '';
-  const groups = (wsId && stored?.[wsId]) || NO_GROUPS;
+  const groups = workspace?.groups ?? NO_GROUPS;
+  const closed = useMemo(() => new Set(closedIds ?? []), [closedIds]);
   const listed = useMemo(
     () => (workspace?.channels ?? []).filter((c) => c.kind === 'channel' || c.kind === 'agent'),
     [workspace?.channels],
@@ -167,14 +168,20 @@ export function ChannelList() {
   const plain = listed.filter((c) => c.kind === 'channel').length;
 
   const save = (next: ChannelGroup[]) => {
-    const all = useApp.getState().settings?.groups ?? {};
+    if (!manage) return;
     // Channels that are gone, and a channel in two groups, are dropped while saving.
     const seen = new Set<string>();
     const clean = next.map((g) => ({
       ...g,
       channels: g.channels.filter((id) => byId.has(id) && !seen.has(id) && seen.add(id)),
     }));
-    void useApp.getState().patch({ groups: { ...all, [wsId]: clean } });
+    void useApp.getState().saveGroups(clean);
+  };
+  /** Opens or closes a group for this person only; ids of groups that are gone are dropped. */
+  const toggle = (id: string) => {
+    const known = new Set(groups.map((g) => g.id));
+    const rest = [...closed].filter((x) => x !== id && known.has(x));
+    void useApp.getState().patch({ closedGroups: closed.has(id) ? rest : [...rest, id] });
   };
   const change = (id: string, fn: (g: ChannelGroup) => ChannelGroup) =>
     save(groups.map((g) => (g.id === id ? fn(g) : g)));
@@ -193,7 +200,6 @@ export function ChannelList() {
       id: crypto.randomUUID(),
       name: name.slice(0, 40),
       channels: [],
-      collapsed: false,
     };
     const next = [...groups.map((g) => ({ ...g, channels: g.channels.filter((id) => id !== first) })), group];
     if (first) group.channels.push(first);
@@ -233,18 +239,22 @@ export function ChannelList() {
           ? [{ label: t('groups.markRead'), icon: 'check' as const, run: () => useApp.getState().markRead(c.id) }]
           : []),
         { rule: true },
-        { heading: t('groups.moveTo') },
-        ...groups.map((g) => ({
-          label: g.name,
-          icon: 'folder' as const,
-          checked: inGroup === g.id,
-          run: () => move(c.id, g.id),
-        })),
-        ...(groups.length > 0
-          ? [{ label: t('groups.none'), checked: !inGroup, run: () => move(c.id, undefined) }]
+        ...(manage
+          ? [
+              { heading: t('groups.moveTo') },
+              ...groups.map((g) => ({
+                label: g.name,
+                icon: 'folder' as const,
+                checked: inGroup === g.id,
+                run: () => move(c.id, g.id),
+              })),
+              ...(groups.length > 0
+                ? [{ label: t('groups.none'), checked: !inGroup, run: () => move(c.id, undefined) }]
+                : []),
+              { label: t('groups.newWith'), icon: 'plus' as const, run: () => setNaming({ with: c.id }) },
+              { rule: true as const },
+            ]
           : []),
-        { label: t('groups.newWith'), icon: 'plus', run: () => setNaming({ with: c.id }) },
-        { rule: true },
         ...(c.kind === 'channel' && manage
           ? [{ label: t('groups.renameChannel'), icon: 'pencil' as const, run: () => setRenaming({ channel: c.id }) }]
           : []),
@@ -270,14 +280,15 @@ export function ChannelList() {
   const groupMenu = (e: MouseEvent<HTMLElement>, g: ChannelGroup, index: number) => {
     const ids = g.channels.filter((id) => byId.has(id));
     const someUnread = ids.some((id) => unread[id]);
+    const shut = closed.has(g.id);
     openMenu(
       e,
       t('groups.menuOf', { name: g.name }),
       tidy([
         {
-          label: t(g.collapsed ? 'groups.expand' : 'groups.collapse'),
-          icon: g.collapsed ? 'chevronRight' : 'chevronDown',
-          run: () => change(g.id, (x) => ({ ...x, collapsed: !x.collapsed })),
+          label: t(shut ? 'groups.expand' : 'groups.collapse'),
+          icon: shut ? 'chevronRight' : 'chevronDown',
+          run: () => toggle(g.id),
         },
         ...(someUnread
           ? [
@@ -290,17 +301,21 @@ export function ChannelList() {
               },
             ]
           : []),
-        { rule: true },
-        { label: t('groups.rename'), icon: 'pencil', run: () => setRenaming({ group: g.id }) },
-        ...(index > 0 ? [{ label: t('groups.moveUp'), run: () => shift(g.id, -1) }] : []),
-        ...(index < groups.length - 1 ? [{ label: t('groups.moveDown'), run: () => shift(g.id, 1) }] : []),
-        { rule: true },
-        {
-          label: t('groups.delete'),
-          icon: 'trash',
-          danger: true,
-          run: () => save(groups.filter((x) => x.id !== g.id)),
-        },
+        ...(manage
+          ? [
+              { rule: true as const },
+              { label: t('groups.rename'), icon: 'pencil' as const, run: () => setRenaming({ group: g.id }) },
+              ...(index > 0 ? [{ label: t('groups.moveUp'), run: () => shift(g.id, -1) }] : []),
+              ...(index < groups.length - 1 ? [{ label: t('groups.moveDown'), run: () => shift(g.id, 1) }] : []),
+              { rule: true as const },
+              {
+                label: t('groups.delete'),
+                icon: 'trash' as const,
+                danger: true,
+                run: () => save(groups.filter((x) => x.id !== g.id)),
+              },
+            ]
+          : []),
       ]),
     );
   };
@@ -308,7 +323,7 @@ export function ChannelList() {
   /** A drop zone: a group (by id) or the list outside groups (`''`). */
   const zone = (group: string) => ({
     onDragOver: (e: DragEvent<HTMLDivElement>) => {
-      if (!dragged(e)) return;
+      if (!manage || !dragged(e)) return;
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
       if (drop?.group !== group || drop.before) setDrop({ group });
@@ -347,7 +362,7 @@ export function ChannelList() {
         badge={running.has(c.id)}
         {...(unread[c.id] ? { unread: unread[c.id] } : {})}
         className={drop && group && drop.group === group && drop.before === c.id ? 'is-dropbefore' : ''}
-        draggable
+        draggable={manage}
         onDragStart={(e) => {
           e.dataTransfer.setData(DRAG, c.id);
           e.dataTransfer.effectAllowed = 'move';
@@ -356,7 +371,7 @@ export function ChannelList() {
         {...(group
           ? {
               onDragOver: (e: DragEvent<HTMLButtonElement>) => {
-                if (!dragged(e)) return;
+                if (!manage || !dragged(e)) return;
                 e.preventDefault();
                 e.stopPropagation();
                 if (drop?.group !== group || drop.before !== c.id) setDrop({ group, before: c.id });
@@ -382,12 +397,14 @@ export function ChannelList() {
       <div className={`grp ${drop?.group === '' ? 'is-drop' : ''}`} {...zone('')}>
         <h2>
           <span className="grow">{t('shell.channels')}</span>
-          <IconButton
-            size="sm"
-            icon="folder"
-            label={t('groups.create')}
-            onClick={() => setNaming((v) => (v ? undefined : {}))}
-          />
+          {manage && (
+            <IconButton
+              size="sm"
+              icon="folder"
+              label={t('groups.create')}
+              onClick={() => setNaming((v) => (v ? undefined : {}))}
+            />
+          )}
           <IconButton size="sm" icon="plus" label={t('channel.create')} onClick={() => setCreating((v) => !v)} />
         </h2>
         {creating && (
@@ -410,9 +427,10 @@ export function ChannelList() {
       </div>
       {groups.map((g, index) => {
         const inside = g.channels.map((id) => byId.get(id)).filter((c): c is Channel => Boolean(c));
+        const shut = closed.has(g.id);
         // A closed group still shows the channel on screen, as its only line.
-        const shown = g.collapsed ? inside.filter((c) => view === 'channel' && c.id === channelId) : inside;
-        const missed = g.collapsed
+        const shown = shut ? inside.filter((c) => view === 'channel' && c.id === channelId) : inside;
+        const missed = shut
           ? inside.reduce(
               (sum, c) => {
                 const u = unread[c.id];
@@ -424,7 +442,7 @@ export function ChannelList() {
         return (
           <div
             key={g.id}
-            className={`grp cgrp ${g.collapsed ? 'is-collapsed' : ''} ${drop?.group === g.id && !drop.before ? 'is-drop' : ''}`}
+            className={`grp cgrp ${shut ? 'is-collapsed' : ''} ${drop?.group === g.id && !drop.before ? 'is-drop' : ''}`}
             {...zone(g.id)}
           >
             {renaming?.group === g.id ? (
@@ -442,8 +460,8 @@ export function ChannelList() {
                 <button
                   type="button"
                   className="cgrp__head"
-                  aria-expanded={!g.collapsed}
-                  onClick={() => change(g.id, (x) => ({ ...x, collapsed: !x.collapsed }))}
+                  aria-expanded={!shut}
+                  onClick={() => toggle(g.id)}
                   onContextMenu={(e) => groupMenu(e, g, index)}
                 >
                   <span className="cgrp__chev" aria-hidden="true">
@@ -455,7 +473,7 @@ export function ChannelList() {
               </h2>
             )}
             {shown.map((c) => row(c, g.id))}
-            {!g.collapsed && inside.length === 0 && <p className="cgrp__empty">{t('groups.empty')}</p>}
+            {!shut && inside.length === 0 && <p className="cgrp__empty">{t('groups.empty')}</p>}
           </div>
         );
       })}

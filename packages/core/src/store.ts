@@ -9,7 +9,10 @@ import {
   type Agent,
   type Author,
   type Card,
+  CHANNEL_GROUPS_MAX,
   type Channel,
+  type ChannelGroup,
+  ChannelGroupSchema,
   type Citation,
   cleanProfile,
   type Decision,
@@ -110,6 +113,7 @@ CREATE TABLE IF NOT EXISTS routines (
 );
 CREATE TABLE IF NOT EXISTS profiles (id TEXT PRIMARY KEY, data TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS looks (id TEXT PRIMARY KEY, data TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS layouts (id TEXT PRIMARY KEY, data TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS tags (
   id TEXT PRIMARY KEY, data TEXT NOT NULL, created INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0
 );
@@ -153,6 +157,8 @@ export type WorkspaceEvent =
   | { type: 'profile.saved'; data: Profile & { device: string } }
   /** The workspace's name, the line about it, its icon and banner (`id` is always `workspace`). */
   | { type: 'look.saved'; data: WorkspaceLook & { id: 'workspace' } }
+  /** The channel list's groups, all of them in their order (`id` is always `channels`). */
+  | { type: 'layout.saved'; data: { id: 'channels'; groups: ChannelGroup[] } }
   /** A role in Discord's sense: a name with a color. It grants nothing. */
   | { type: 'tag.saved'; data: RoleTag }
   | { type: 'tag.deleted'; data: { id: string } }
@@ -182,6 +188,7 @@ const TABLES: Record<string, string> = {
   progress: 'progress',
   profile: 'profiles',
   look: 'looks',
+  layout: 'layouts',
   tag: 'tags',
   tagged: 'tagged',
 };
@@ -749,6 +756,17 @@ export class WorkspaceStore {
         this.db.prepare('INSERT OR REPLACE INTO looks (id, data) VALUES (?, ?)').run('workspace', JSON.stringify(look));
         return;
       }
+      case 'layout.saved': {
+        const groups = (Array.isArray(e.data.groups) ? e.data.groups : [])
+          .map((g) => ChannelGroupSchema.safeParse(g))
+          .filter((r) => r.success)
+          .map((r) => r.data)
+          .slice(0, CHANNEL_GROUPS_MAX);
+        this.db
+          .prepare('INSERT OR REPLACE INTO layouts (id, data) VALUES (?, ?)')
+          .run('channels', JSON.stringify(groups));
+        return;
+      }
       case 'tag.saved': {
         const tag: RoleTag = {
           id: String(e.data.id),
@@ -798,6 +816,12 @@ export class WorkspaceStore {
   look(): WorkspaceLook | undefined {
     const r = this.db.prepare("SELECT data FROM looks WHERE id = 'workspace'").get() as Row | undefined;
     return r ? json<WorkspaceLook>(r.data) : undefined;
+  }
+
+  /** The channel list's groups, in their order. */
+  groups(): ChannelGroup[] {
+    const r = this.db.prepare("SELECT data FROM layouts WHERE id = 'channels'").get() as Row | undefined;
+    return r ? json<ChannelGroup[]>(r.data) : [];
   }
 
   /** The workspace's roles (names with a color), in the order they were made. */

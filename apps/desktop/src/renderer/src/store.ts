@@ -5,6 +5,7 @@ import type {
   AgentInput,
   Card,
   CardStatus,
+  ChannelGroup,
   Citation,
   CliAccount,
   CliInfo,
@@ -257,6 +258,8 @@ export interface AppState {
   renameChannel(id: string, name: string): Promise<boolean>;
   /** Clears a channel's unread count without opening it. */
   markRead(id: string): void;
+  /** The workspace's channel groups, all of them (shown at once, then kept; an admin's). */
+  saveGroups(groups: ChannelGroup[]): Promise<boolean>;
   deleteWorkspace(id: string): Promise<boolean>;
   saveAgent(input: AgentInput): Promise<boolean>;
   deleteAgent(id: string): Promise<void>;
@@ -1114,6 +1117,14 @@ export const useApp = create<AppState>((set, get) => {
       if (!channel) return false;
       await get().loadWorkspace();
       return true;
+    },
+
+    async saveGroups(groups) {
+      const before = get().workspace;
+      if (before) set({ workspace: { ...before, groups } });
+      const done = await attempt(() => core.call('channels.groups', { groups }));
+      if (!done) await get().loadWorkspace();
+      return Boolean(done);
     },
 
     markRead(id) {

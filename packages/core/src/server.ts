@@ -15,7 +15,9 @@ import {
   BRAND,
   CARD_STATUSES,
   type Card,
+  CHANNEL_GROUPS_MAX,
   type Channel,
+  ChannelGroupSchema,
   type Citation,
   CLI_KINDS,
   type CliAccount,
@@ -558,6 +560,7 @@ export class Core {
       'reports.channel': async () => this.reportFeed(),
       'channels.rename': async (p) => this.renameChannel(p?.id, p?.name),
       'channels.delete': async (p) => this.deleteChannel(p?.id),
+      'channels.groups': async (p) => this.saveGroups(p?.groups),
       'channels.read': async (p) => {
         const { store } = this.workspace();
         if (typeof p?.channelId !== 'string' || !store.channel(p.channelId)) throw new CoreError('not_found');
@@ -2896,6 +2899,7 @@ export class Core {
       me: this.me(),
       // The report feed is not a channel to open: the board's Reports page shows it (PLAN.md 5.21).
       channels: store.channels().filter((c) => !c.reports),
+      groups: store.groups(),
       reportChannels: store
         .channels()
         .filter((c) => c.reports)
@@ -3120,6 +3124,32 @@ export class Core {
     store.commit({ type: 'channel.renamed', data: { id: channel.id, name: clean } });
     this.changed();
     return { ...channel, name: clean };
+  }
+
+  /**
+   * The channel list's groups (an admin's, like the channels): every member sees them. Channels that are gone, and a
+   * channel named in two groups, are left out.
+   */
+  private saveGroups(input: unknown): { ok: true } {
+    this.requireRole('admin');
+    const { store } = this.workspace();
+    const parsed = ChannelGroupSchema.array().max(CHANNEL_GROUPS_MAX).safeParse(input);
+    if (!parsed.success) throw new CoreError('bad_request', 'groups');
+    const listed = new Set(
+      store
+        .channels()
+        .filter((c) => !c.reports)
+        .map((c) => c.id),
+    );
+    const seen = new Set<string>();
+    const groups = parsed.data.map((g) => ({
+      id: g.id,
+      name: g.name,
+      channels: g.channels.filter((id) => listed.has(id) && !seen.has(id) && Boolean(seen.add(id))),
+    }));
+    store.commit({ type: 'layout.saved', data: { id: 'channels', groups } });
+    this.changed();
+    return { ok: true };
   }
 
   /**

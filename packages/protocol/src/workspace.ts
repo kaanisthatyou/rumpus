@@ -514,6 +514,19 @@ export interface JoinRequest {
   at: number;
 }
 
+/**
+ * A group of channels in the channel list ("Create group"), like a category in Discord: the workspace's own, so
+ * every member sees the same groups; an admin arranges them. Whether a group is closed is each person's own.
+ */
+export const ChannelGroupSchema = z.object({
+  id: z.string().min(1).max(40),
+  name: z.string().trim().min(1).max(40),
+  /** Channel ids in the order they are shown; ids of channels that are gone are skipped. */
+  channels: z.array(z.string().max(64)).max(500),
+});
+export const CHANNEL_GROUPS_MAX = 50;
+export type ChannelGroup = z.infer<typeof ChannelGroupSchema>;
+
 export interface WorkspaceState {
   id: string;
   name: string;
@@ -528,6 +541,8 @@ export interface WorkspaceState {
   /** In a direct conversation with a friend: the friend's device. */
   friend?: string;
   channels: Channel[];
+  /** The channel list's groups, in their order (the same for every member). */
+  groups?: ChannelGroup[];
   agents: Agent[];
   advisors: Advisor[];
   /** Tokens each advisor spent today on this computer. */
