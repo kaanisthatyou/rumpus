@@ -16,6 +16,7 @@ import { RaceDialog } from './races/RaceDialog';
 import { RoutineDialog } from './routines/RoutinesView';
 import { SettingsDialog } from './settings/SettingsDialog';
 import { ConfirmDialog } from './shell/ConfirmDialog';
+import { ContextMenuView } from './shell/ContextMenu';
 import { FriendsDialog } from './shell/FriendsDialog';
 import { InviteDialog } from './shell/InviteDialog';
 import { NewWorkspaceDialog } from './shell/NewWorkspaceDialog';
@@ -60,6 +61,7 @@ export function App() {
   const workspaceDialog = useApp((s) => s.workspaceDialog);
   const friendsOpen = useApp((s) => s.friendsOpen);
   const confirm = useApp((s) => s.confirm);
+  const menu = useApp((s) => s.menu);
   const report = useApp((s) => s.report);
   const lightbox = useApp((s) => s.lightbox);
   // "Edit profile" on the person's own card: the settings, on that tab.
@@ -161,6 +163,7 @@ export function App() {
         <AnimatePresence>{onboarded && workspaceDialog && <WorkspaceDialog key="workspace" />}</AnimatePresence>
         <AnimatePresence>{onboarded && friendsOpen && <FriendsDialog key="friends" />}</AnimatePresence>
         <AnimatePresence>{onboarded && profileCard && <ProfilePopover key="profile-card" />}</AnimatePresence>
+        <AnimatePresence>{onboarded && menu && <ContextMenuView key="menu" menu={menu} />}</AnimatePresence>
         <AnimatePresence>{agentDialog && <AgentDialog key="agent-dialog" />}</AnimatePresence>
         <AnimatePresence>{specialistDialog && <SpecialistDialog key="specialist-dialog" />}</AnimatePresence>
         <AnimatePresence>{routineDialog && <RoutineDialog key="routine-dialog" />}</AnimatePresence>

@@ -47,6 +47,7 @@ import type {
   WorkspaceSummary,
 } from '@lonca/protocol';
 import { BRAND, ERROR_CODES, handleOf, reportCode, reportTitle } from '@lonca/protocol';
+import type { IconName } from '@lonca/ui';
 import { create } from 'zustand';
 import type { AppInfo, UpdateState } from '../../shared/bridge';
 import { agentLabel, concernsMe, runsHere, senderOf } from './agents/owner';
@@ -80,6 +81,20 @@ const NO_FEED: ReportFeed = { messages: [], marks: {} };
 /** A report: an agent's message in the feed that is not a note it wrote while working. */
 export const isReport = (m: Message) => m.author.kind === 'agent' && !m.during;
 const NO_UNREAD: Unread = {};
+
+/** One line of a context menu: a deed, or a heading over the lines after it. */
+export type MenuItem =
+  | { label: string; icon?: IconName; run: () => void; danger?: boolean; checked?: boolean }
+  | { heading: string }
+  | { rule: true };
+
+/** A context menu over the page (a right click on a channel or a group), rendered from App.tsx. */
+export interface ContextMenu {
+  x: number;
+  y: number;
+  label: string;
+  items: MenuItem[];
+}
 
 /** What the confirm dialog asks: its title, what will be lost, the button that does it, and the deed. */
 export interface Confirm {
@@ -185,6 +200,8 @@ export interface AppState {
   profileCard?: { id: string; x: number; left: number; y: number; name?: string; agent?: boolean } | undefined;
   /** A question before something that cannot be undone (deleting a channel or a workspace). */
   confirm?: Confirm | undefined;
+  /** The open context menu. */
+  menu?: ContextMenu | undefined;
   /** The open team workspace's own dialog: its look and its roles. */
   workspaceDialog?: boolean;
   /** Friends and the requests on their way (PLAN.md 5.20); the dialog that shows them. */
@@ -237,6 +254,9 @@ export interface AppState {
   openReport(id: string | undefined): void;
   loadPicture(message: string, blob: string): Promise<string | undefined>;
   deleteChannel(id: string): Promise<boolean>;
+  renameChannel(id: string, name: string): Promise<boolean>;
+  /** Clears a channel's unread count without opening it. */
+  markRead(id: string): void;
   deleteWorkspace(id: string): Promise<boolean>;
   saveAgent(input: AgentInput): Promise<boolean>;
   deleteAgent(id: string): Promise<void>;
@@ -1087,6 +1107,21 @@ export const useApp = create<AppState>((set, get) => {
       if (get().channelId === id) set({ channelId: undefined });
       await get().loadWorkspace();
       return true;
+    },
+
+    async renameChannel(id, name) {
+      const channel = await attempt(() => core.call('channels.rename', { id, name }));
+      if (!channel) return false;
+      await get().loadWorkspace();
+      return true;
+    },
+
+    markRead(id) {
+      set((s) => {
+        const { [id]: _read, ...unread } = s.unread;
+        return { unread };
+      });
+      void core.call('channels.read', { channelId: id }).catch(() => {});
     },
 
     async deleteWorkspace(id) {

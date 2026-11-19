@@ -29,6 +29,7 @@ import { RecordsView } from '../records/RecordsView';
 import { RoutinesView } from '../routines/RoutinesView';
 import { PHONE, useApp, type View, WIDE } from '../store';
 import { enablePush, pushState } from '../web';
+import { ChannelList, NavButton } from './ChannelList';
 import { FriendAvatar } from './FriendsDialog';
 import { QuotaBlock, quotaWindows } from './quota';
 import { useTaskbar } from './taskbar';
@@ -59,53 +60,6 @@ const ICON_OF: Record<View, IconName> = {
   memory: 'layers',
   project: 'folder',
 };
-
-function NavButton({
-  on,
-  icon,
-  label,
-  onClick,
-  badge,
-  unread,
-}: {
-  on: boolean;
-  icon: IconName;
-  label: string;
-  onClick: () => void;
-  badge?: boolean;
-  /** Messages that arrived since the channel was last open; `mention` when one of them names this person. */
-  unread?: { count: number; mention?: boolean };
-}) {
-  const { t } = useTranslation();
-  return (
-    <button
-      type="button"
-      className={`nav ${on ? 'is-on' : ''} ${unread ? 'is-unread' : ''}`}
-      aria-current={on ? 'page' : undefined}
-      onClick={onClick}
-    >
-      {on && (
-        <motion.span
-          layoutId="nav-on"
-          className="nav__on"
-          transition={{ type: 'spring', stiffness: 520, damping: 38 }}
-        />
-      )}
-      <Icon name={icon} size={14} />
-      <span className="grow">{label}</span>
-      {badge && <span className="nav__live" aria-hidden="true" />}
-      {unread && (
-        <span
-          className={`nav__unread ${unread.mention ? 'is-mention' : ''}`}
-          title={t(unread.mention ? 'channel.unreadMention' : 'channel.unread', { count: unread.count })}
-        >
-          {unread.mention ? '@' : ''}
-          {unread.count > 99 ? '99+' : unread.count}
-        </span>
-      )}
-    </button>
-  );
-}
 
 function Rail({ onSettings }: { onSettings: () => void }) {
   const { t } = useTranslation();
@@ -220,21 +174,13 @@ function Sidebar({ onSettings }: { onSettings: () => void }) {
   const tailscale = useApp((s) => s.tailscale);
   const workspace = useApp((s) => s.workspace);
   const view = useApp((s) => s.view);
-  const channelId = useApp((s) => s.channelId);
   const jobs = useApp((s) => s.jobs);
-  const openChannel = useApp((s) => s.openChannel);
   const setView = useApp((s) => s.setView);
-  const createChannel = useApp((s) => s.createChannel);
   const projects = useApp((s) => s.projects);
   const projectId = useApp((s) => s.projectId);
   const openProject = useApp((s) => s.openProject);
   const openProjectDialog = useApp((s) => s.openProjectDialog);
-  const [creating, setCreating] = useState(false);
-  const [name, setName] = useState('');
-  const unread = useApp((s) => s.unread);
-  const channels = workspace?.channels.filter((c) => c.kind === 'channel') ?? [];
   const reportsUnread = workspace?.reportsUnread ?? 0;
-  const agentChannels = workspace?.channels.filter((c) => c.kind === 'agent') ?? [];
   // Jobs that wait for this person: an approval is given on the computer the agent runs on.
   const waiting = Object.values(jobs)
     .filter((j) => j.state === 'attention' && runsHere(j, workspace))
@@ -283,66 +229,7 @@ function Sidebar({ onSettings }: { onSettings: () => void }) {
       <div className="grp">
         <NavButton on={view === 'home'} icon="home" label={t('shell.home')} onClick={() => setView('home')} />
       </div>
-      <div className="grp">
-        <h2>
-          <span className="grow">{t('shell.channels')}</span>
-          <IconButton size="sm" icon="plus" label={t('channel.create')} onClick={() => setCreating((v) => !v)} />
-        </h2>
-        {creating && (
-          <form
-            className="side__new"
-            onSubmit={async (e) => {
-              e.preventDefault();
-              if (await createChannel(name)) {
-                setName('');
-                setCreating(false);
-              }
-            }}
-          >
-            <input
-              className="l-input"
-              // biome-ignore lint/a11y/noAutofocus: the field opens on request, typing is the next step
-              autoFocus
-              value={name}
-              aria-label={t('channel.create')}
-              placeholder={t('channel.namePlaceholder')}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Escape' && setCreating(false)}
-            />
-          </form>
-        )}
-        {channels.map((c) => (
-          <NavButton
-            key={c.id}
-            on={view === 'channel' && channelId === c.id}
-            icon="hash"
-            label={c.name}
-            badge={running.has(c.id)}
-            {...(unread[c.id] ? { unread: unread[c.id] } : {})}
-            onClick={() => void openChannel(c.id)}
-          />
-        ))}
-      </div>
-      {agentChannels.length > 0 && (
-        <div className="grp">
-          <h2>{t('channel.agents')}</h2>
-          {agentChannels.map((c) => (
-            <NavButton
-              key={c.id}
-              on={view === 'channel' && channelId === c.id}
-              icon={
-                workspace?.agents.find((a) => a.id === c.agentId)?.specialty
-                  ? specialistIcon(workspace.agents.find((a) => a.id === c.agentId))
-                  : 'terminal'
-              }
-              label={`@${c.name}`}
-              badge={running.has(c.id)}
-              {...(unread[c.id] ? { unread: unread[c.id] } : {})}
-              onClick={() => void openChannel(c.id)}
-            />
-          ))}
-        </div>
-      )}
+      <ChannelList />
       <div className="grp">
         <h2>
           <span className="grow">{t('shell.projects')}</span>

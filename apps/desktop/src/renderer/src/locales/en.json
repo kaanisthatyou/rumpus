@@ -375,6 +375,26 @@
     "deleteBody": "The channel and its messages are deleted. In a team workspace it goes for the other members too. This cannot be undone.",
     "deleteAction": "Delete channel"
   },
+  "groups": {
+    "create": "Create group",
+    "namePlaceholder": "Group name",
+    "menuOf": "{{name}} menu",
+    "open": "Open",
+    "markRead": "Mark as read",
+    "markAllRead": "Mark all as read",
+    "moveTo": "Move to group",
+    "none": "No group",
+    "newWith": "New group",
+    "renameChannel": "Rename",
+    "agentSettings": "Agent settings",
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "rename": "Rename group",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "delete": "Delete group",
+    "empty": "Empty. Channels are added by dragging or from the right-click menu."
+  },
   "job": {
     "state": {
       "running": "Running",

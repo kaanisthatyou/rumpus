@@ -157,6 +157,7 @@ describe('settings from before the look options', () => {
       startView: 'last',
       crew: 'panel',
       sidebar: true,
+      groups: {},
       notifications: true,
       sounds: true,
       agentFolder: '',

@@ -375,6 +375,26 @@
     "deleteBody": "Kanal ve içindeki mesajlar silinir. Ekip çalışma alanında diğer üyelerden de kalkar. Bu geri alınamaz.",
     "deleteAction": "Kanalı sil"
   },
+  "groups": {
+    "create": "Grup oluştur",
+    "namePlaceholder": "Grup adı",
+    "menuOf": "{{name}} menüsü",
+    "open": "Aç",
+    "markRead": "Okundu say",
+    "markAllRead": "Hepsini okundu say",
+    "moveTo": "Gruba taşı",
+    "none": "Grupsuz",
+    "newWith": "Yeni grup",
+    "renameChannel": "Yeniden adlandır",
+    "agentSettings": "Agent ayarları",
+    "collapse": "Daralt",
+    "expand": "Genişlet",
+    "rename": "Grubu yeniden adlandır",
+    "moveUp": "Yukarı taşı",
+    "moveDown": "Aşağı taşı",
+    "delete": "Grubu sil",
+    "empty": "Boş. Kanallar sürükleyerek ya da sağ tık menüsünden eklenir."
+  },
   "job": {
     "state": {
       "running": "Çalışıyor",
