@@ -76,7 +76,7 @@ describe('the reminder schedule', () => {
     const deps: NudgerDeps = {
       agents: () => [agent],
       waiting: () => items,
-      channelOf: () => 'c-felix',
+      channelOf: (_agent, item) => item?.channelId ?? 'c-felix',
       me: () => ({ id: 'dev1', name: 'Kaan', language: 'tr' }),
       quietHours: () => ({ from: '23:00', to: '08:00' }),
       post: (m) => posted.push(m),
@@ -195,6 +195,33 @@ describe('the reminder schedule', () => {
     w.n.answered({ channelId: 'c-felix', handles: [] }, 'tr');
     vi.advanceTimersByTime(8000);
     expect(w.posted).toHaveLength(1);
+  });
+
+  it('writes in the channel each question waits in, and the button there stops them everywhere', () => {
+    const t = setup();
+    t.setItems([
+      { key: 'q:m1', what: '"Push edeyim mi?" sorusu', channelId: 'c-genel' },
+      { key: 'q:m2', what: '"Hangi renk?" sorusu', channelId: 'c-tasarim' },
+      { key: 'd:m3', what: '"#R1 raporundaki" sorusu' },
+    ]);
+    t.n.tick();
+    t.wait(7);
+    const where = new Set(t.posted.map((m) => m.channelId));
+    expect(where).toEqual(new Set(['c-genel', 'c-tasarim', 'c-felix']));
+    expect(t.posted.find((m) => m.channelId === 'c-genel')?.text).not.toContain('Hangi renk');
+    // Answering in one of them is an answer to the agent: none of them goes on.
+    expect(t.n.answered({ channelId: 'c-tasarim', handles: [] }, 'tr')).toEqual(['a1']);
+    for (let i = 0; i < 6; i++) t.wait(11);
+    expect(t.posted).toHaveLength(3);
+
+    const u = setup();
+    u.setItems([{ key: 'q:m1', what: '"Push edeyim mi?" sorusu', channelId: 'c-genel' }]);
+    u.n.tick();
+    u.wait(7);
+    expect(u.posted.map((m) => m.channelId)).toEqual(['c-genel']);
+    u.n.mute('a1', 'tr');
+    for (let i = 0; i < 6; i++) u.wait(11);
+    expect(u.posted).toHaveLength(1);
   });
 });
 

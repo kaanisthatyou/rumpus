@@ -586,8 +586,10 @@ agent now taps them on the shoulder, like a colleague would: "Kankaa, pşş", "E
   says something waits on the person ("Senin kararın", "your call"), and nobody wrote there after it nor cites it
   (`askedIn`, `store.lastAnswers`). In a team only this computer's own agents remind, and only of what is this
   person's.
-- **How.** The agent writes in its own channel as a message of its own, after showing that it types for a few
-  seconds. The first comes three to six minutes after something started to wait, then one every four to ten
+- **How.** The agent writes where the thing waits, as a message of its own, after showing that it types for a few
+  seconds: in the channel the approval or question was asked in (Kaan, 2026-11-19), in its own channel for a
+  report's question. What waits in two channels is reminded of in each, on its own schedule; the button under any
+  of them, or an answer, stops them all. The first comes three to six minutes after something started to wait, then one every four to ten
   minutes; after six in a row the gaps grow (up to 45 minutes), so an evening away is not a hundred lines. Nothing
   is written in quiet hours (Settings, 23:00 to 08:00 by default).
 - **The lines** are put together from pieces in `packages/core/src/nudges.ts`, in the person's language (Turkish

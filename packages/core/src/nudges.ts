@@ -1,6 +1,6 @@
 // Reminders of what waits on a person (PLAN.md 5.23): an agent whose job waits for an approval, or whose report
-// left questions nobody answered, writes into its channel every few minutes, as a message of its own, until the
-// person presses the button under one of them. The lines are put together from pieces here (no model call, no
+// left questions nobody answered, writes where that waits (the channel the question was asked in; its own channel for
+// a report's) every few minutes, as a message of its own, until the person presses the button under one of them. The lines are put together from pieces here (no model call, no
 // tokens), in the person's language, so no two read the same.
 import type { Agent, Message } from '@lonca/protocol';
 import { inQuietHours } from './advisors.js';
@@ -526,8 +526,11 @@ export interface NudgerDeps {
   agents(): Agent[];
   /** What waits on this person from an agent. */
   waiting(agent: Agent, lang: NudgeLanguage): Waiting[];
-  /** Where the agent writes its reminders. */
-  channelOf(agent: Agent, items: Waiting[]): string | undefined;
+  /**
+   * Where the agent writes its reminder of `item`: the channel it waits in, when the agent can write there (Kaan,
+   * 2026-11-19), else, and without `item`, the agent's own channel.
+   */
+  channelOf(agent: Agent, item?: Waiting): string | undefined;
   /** This person: their device id, name and language. */
   me(): { id: string; name: string; language: string };
   quietHours(): { from: string; to: string };
@@ -541,6 +544,9 @@ export interface NudgerDeps {
   /** Shortens every gap (tests): 0.01 makes minutes into fractions of a second. */
   scale?: number;
 }
+
+/** A run is an agent's in one channel: what waits in two channels is reminded of in both. */
+const runKey = (agentId: string, channelId: string) => `${agentId} ${channelId}`;
 
 export class Nudger {
   private readonly runs = new Map<string, Run>();
@@ -587,7 +593,6 @@ export class Nudger {
     const seen = new Set<string>();
     let mutedChanged = false;
     for (const agent of this.deps.agents()) {
-      seen.add(agent.id);
       const items = this.deps.waiting(agent, lang);
       const keys = new Set(items.map((i) => i.key));
       // What no longer waits is forgotten from the stopped list too: if it comes back, it is new.
@@ -597,30 +602,35 @@ export class Nudger {
         if (muted.length) this.muted[agent.id] = muted;
         else delete this.muted[agent.id];
       }
-      const open = items.filter((i) => !muted.includes(i.key));
-      if (open.length === 0) {
-        this.runs.delete(agent.id);
-        continue;
+      const byChannel = new Map<string, Waiting[]>();
+      for (const item of items) {
+        if (muted.includes(item.key)) continue;
+        const channelId = this.deps.channelOf(agent, item);
+        if (channelId) byChannel.set(channelId, [...(byChannel.get(channelId) ?? []), item]);
       }
-      let run = this.runs.get(agent.id);
-      if (!run) {
-        run = { next: now + this.gap(FIRST), count: 0, recent: [] };
-        this.runs.set(agent.id, run);
-        continue;
+      for (const [channelId, open] of byChannel) {
+        const key = runKey(agent.id, channelId);
+        seen.add(key);
+        let run = this.runs.get(key);
+        if (!run) {
+          run = { next: now + this.gap(FIRST), count: 0, recent: [] };
+          this.runs.set(key, run);
+          continue;
+        }
+        if (run.typing || now < run.next) continue;
+        if (inQuietHours(new Date(now), this.deps.quietHours())) continue;
+        this.write(agent, channelId, key, run, open, me, lang);
       }
-      if (run.typing || now < run.next) continue;
-      if (inQuietHours(new Date(now), this.deps.quietHours())) continue;
-      const channelId = this.deps.channelOf(agent, open);
-      if (!channelId) continue;
-      this.write(agent, channelId, run, open, me, lang);
     }
-    for (const id of [...this.runs.keys()]) if (!seen.has(id)) this.runs.delete(id);
+    // What no longer waits somewhere (or an agent gone) ends its run there.
+    for (const key of [...this.runs.keys()]) if (!seen.has(key)) this.runs.delete(key);
     if (mutedChanged) this.deps.saveMuted(this.muted);
   }
 
   private write(
     agent: Agent,
     channelId: string,
+    key: string,
     run: Run,
     items: Waiting[],
     me: { id: string; name: string },
@@ -640,7 +650,7 @@ export class Nudger {
         this.deps.typing({ agentId: agent.id, channelId, on: false });
         run.typing = false;
         // Stopped (or answered) while it typed: the line is not sent.
-        if (this.runs.get(agent.id) !== run) return;
+        if (this.runs.get(key) !== run) return;
         this.deps.post({
           id: newId(),
           channelId,
@@ -660,7 +670,8 @@ export class Nudger {
 
   /**
    * The person wrote a message: an answer to every agent whose reminders it concerns (written in the agent's own
-   * channel or where something of its waits, naming it, or citing it) mutes them like the button. Returns their ids.
+   * channel or where something of its waits or is reminded of, naming it, or citing it) mutes them like the button.
+   * Returns their ids.
    */
   answered(
     m: { channelId: string; handles: string[]; citedAgent?: string | undefined },
@@ -669,12 +680,12 @@ export class Nudger {
     const out: string[] = [];
     for (const agent of this.deps.agents()) {
       const items = this.deps.waiting(agent, lang);
-      if (items.length === 0 && !this.runs.has(agent.id)) continue;
+      if (items.length === 0 && !this.running(agent.id)) continue;
       const hit =
         m.handles.includes(agent.handle) ||
         m.citedAgent === agent.id ||
-        this.deps.channelOf(agent, items) === m.channelId ||
-        items.some((i) => i.channelId === m.channelId);
+        this.deps.channelOf(agent) === m.channelId ||
+        items.some((i) => i.channelId === m.channelId || this.deps.channelOf(agent, i) === m.channelId);
       if (!hit) continue;
       this.mute(agent.id, lang);
       out.push(agent.id);
@@ -682,12 +693,16 @@ export class Nudger {
     return out;
   }
 
-  /** The button under a reminder: what waits from that agent now is not reminded of again. */
+  private running(agentId: string): boolean {
+    return [...this.runs.keys()].some((k) => k.startsWith(`${agentId} `));
+  }
+
+  /** The button under a reminder: what waits from that agent now, in every channel, is not reminded of again. */
   mute(agentId: string, lang: NudgeLanguage): void {
     const agent = this.deps.agents().find((a) => a.id === agentId);
     const keys = agent ? this.deps.waiting(agent, lang).map((i) => i.key) : [];
     this.muted[agentId] = [...new Set([...(this.muted[agentId] ?? []), ...keys])];
-    this.runs.delete(agentId);
+    for (const k of [...this.runs.keys()]) if (k.startsWith(`${agentId} `)) this.runs.delete(k);
     this.deps.saveMuted(this.muted);
   }
 }

@@ -1527,7 +1527,12 @@ export class Core {
       agents: () =>
         store.agents().filter((a) => a.nudges !== false && (kind !== 'team' || !a.owner || a.owner === this.deviceId)),
       waiting: (agent, lang) => this.waitingOn(ref.ws, agent, lang),
-      channelOf: (agent) => store.channels().find((c) => c.kind === 'agent' && c.agentId === agent.id)?.id,
+      // Where the question was asked (Kaan, 2026-11-19); a report's question, and what waits nowhere, in its own channel.
+      channelOf: (agent, item) => {
+        const at = item?.channelId ? store.channel(item.channelId) : undefined;
+        if (at && !at.reports) return at.id;
+        return store.channels().find((c) => c.kind === 'agent' && c.agentId === agent.id)?.id;
+      },
       me: () => ({ ...this.me(), language: this.settings.get().language }),
       quietHours: () => this.settings.get().quietHours,
       post: (message) =>
