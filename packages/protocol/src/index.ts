@@ -465,8 +465,11 @@ export interface CoreMethods {
     result: { messages: Message[]; jobs: Job[] };
   };
   'messages.send': {
-    /** `cite`: the id of a report the message answers. */
-    params: { channelId: string; text: string; refs?: string[]; cite?: string };
+    /**
+     * `cite`: the id of a report the message answers. `follow`: the job whose card the box points at; its agent goes
+     * on in that job's conversation instead of a new session (PLAN.md 5.24).
+     */
+    params: { channelId: string; text: string; refs?: string[]; cite?: string; follow?: string };
     result: Message;
   };
   /** One of a message's images as a data URL (on the computer that has it). */

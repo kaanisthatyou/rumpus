@@ -179,6 +179,11 @@ export interface AppState {
   attached: Record<string, string[]>;
   /** The report the next message answers, per channel (PLAN.md 5.21). */
   citing: Record<string, Citation>;
+  /**
+   * Going on in a job's conversation (PLAN.md 5.24), per channel: `pick` a card chosen with its button (else the
+   * latest card counts), `off` the card whose going-on was closed with ×, `target` the card the box points at now.
+   */
+  following: Record<string, { pick?: string; off?: string; target?: string }>;
   /** The report open over the page, by its message id. */
   report?: string | undefined;
   /** The report feed (the board's Reports page), loaded when the page first opens in a workspace. */
@@ -238,7 +243,13 @@ export interface AppState {
   /** Narrows the crew panel to its strip or opens it: beside the page in a wide window, over it in a narrow one. */
   toggleCrew(): void;
   openChannel(id: string): Promise<void>;
-  send(text: string): Promise<boolean>;
+  /** `follow`: the job whose conversation the message goes on in. */
+  send(text: string, opts?: { follow?: string }): Promise<boolean>;
+  /** Points the box of a job's channel at it (the card's button), or `off` closes going on there for that card. */
+  follow(
+    channelId: string,
+    patch: { pick?: string | undefined; off?: string | undefined; target?: string | undefined },
+  ): void;
   editMessage(id: string, text: string): Promise<boolean>;
   deleteMessage(id: string): Promise<void>;
   createChannel(name: string): Promise<boolean>;
@@ -528,6 +539,7 @@ export const useApp = create<AppState>((set, get) => {
     projects: [],
     attached: {},
     citing: {},
+    following: {},
     reportFeed: NO_FEED,
     imagesEpoch: 0,
     pictures: {},
@@ -995,7 +1007,14 @@ export const useApp = create<AppState>((set, get) => {
       });
     },
 
-    async send(text) {
+    follow(channelId, patch) {
+      const now = get().following[channelId] ?? {};
+      const next = { ...now, ...patch };
+      if (now.pick === next.pick && now.off === next.off && now.target === next.target) return;
+      set((s) => ({ following: { ...s.following, [channelId]: next } }));
+    },
+
+    async send(text, opts = {}) {
       const channelId = get().channelId;
       if (!channelId || !text.trim()) return false;
       const refs = get().attached[channelId] ?? [];
@@ -1007,6 +1026,7 @@ export const useApp = create<AppState>((set, get) => {
             text,
             ...(refs.length ? { refs } : {}),
             ...(cite ? { cite: cite.id } : {}),
+            ...(opts.follow ? { follow: opts.follow } : {}),
           }),
         ),
       );

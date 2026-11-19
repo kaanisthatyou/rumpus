@@ -222,8 +222,12 @@ export class Jobs {
     await this.starting.get(messageId);
   }
 
-  onMessage(message: Message, channel: Channel): Promise<void> {
-    const work = this.route(message, channel).finally(() => this.starting.delete(message.id));
+  /**
+   * A message that may start work. `follow`: the job whose card the box pointed at (Kaan, 2026-11-19): its agent
+   * goes on in that job's conversation instead of a new session, unless the message names only other agents.
+   */
+  onMessage(message: Message, channel: Channel, follow?: string): Promise<void> {
+    const work = this.route(message, channel, follow).finally(() => this.starting.delete(message.id));
     this.starting.set(message.id, work);
     return work;
   }
@@ -242,7 +246,7 @@ export class Jobs {
       .some((j) => j.agentId === h.agentId && j.started > this.now() - PART_WINDOW_MS);
   }
 
-  private async route(message: Message, channel: Channel): Promise<void> {
+  private async route(message: Message, channel: Channel, follow?: string): Promise<void> {
     // Only a person's message starts work, or a part of a person's job that its agent handed over.
     const part = message.author.kind === 'agent' && this.isPart(message);
     if (message.author.kind !== 'person' && !part) return;
@@ -259,26 +263,52 @@ export class Jobs {
       else await this.start(agent, channel, message, undefined, this.scopeFor(agent, message));
       return;
     }
-    for (const target of this.targets(message, channel, this.deps.store.agents())) {
-      const rule = this.deps.access?.(target, message) ?? { allow: true };
-      if (!rule.allow) continue;
-      const agent = rule.mode ? { ...target, mode: rule.mode } : target;
-      // A specialist's jobs each run in a session of their own; a message to one that is working steers that job.
-      const live = ownSessions(agent)
-        ? [...this.live.values()].find(
-            (l) =>
-              l.agent.id === agent.id &&
-              l.slot.startsWith(`${channel.id}#${SPEC}`) &&
-              (l.job?.state === 'running' || l.job?.state === 'attention'),
-          )
-        : this.live.get(this.key(agent.id, channel.id));
-      if (live?.job && (live.job.state === 'running' || live.job.state === 'attention')) {
-        this.steerLive(live, message.text);
-      } else if (rule.approveFirst) {
-        this.hold(agent, channel, message);
-      } else {
-        await this.start(agent, channel, message, undefined, this.scopeFor(agent, message));
+    const agents = this.deps.store.agents();
+    const targets = this.targets(message, channel, agents);
+    const earlier = follow ? this.deps.store.job(follow) : undefined;
+    const goesOn =
+      earlier?.channelId === channel.id &&
+      !this.deps.store.message(earlier.requestId)?.handover &&
+      (targets.length === 0 || targets.some((a) => a.id === earlier.agentId))
+        ? agents.find((a) => a.id === earlier.agentId)
+        : undefined;
+    if (earlier && goesOn) {
+      // Not allowed to go on there (an approval first, a part's ended conversation): a message like any other.
+      const went = this.steer(earlier.id, message.text)
+        ? true
+        : await this.follow(earlier.id, message, channel).then(
+            () => true,
+            () => false,
+          );
+      if (went) {
+        for (const target of targets) if (target.id !== goesOn.id) await this.routeTo(target, message, channel);
+        return;
       }
+      if (!targets.some((a) => a.id === goesOn.id)) targets.push(goesOn);
+    }
+    for (const target of targets) await this.routeTo(target, message, channel);
+  }
+
+  /** A person's message to one agent: steers its running job in the channel, or starts one (held for approval). */
+  private async routeTo(target: Agent, message: Message, channel: Channel): Promise<void> {
+    const rule = this.deps.access?.(target, message) ?? { allow: true };
+    if (!rule.allow) return;
+    const agent = rule.mode ? { ...target, mode: rule.mode } : target;
+    // A specialist's jobs each run in a session of their own; a message to one that is working steers that job.
+    const live = ownSessions(agent)
+      ? [...this.live.values()].find(
+          (l) =>
+            l.agent.id === agent.id &&
+            l.slot.startsWith(`${channel.id}#${SPEC}`) &&
+            (l.job?.state === 'running' || l.job?.state === 'attention'),
+        )
+      : this.live.get(this.key(agent.id, channel.id));
+    if (live?.job && (live.job.state === 'running' || live.job.state === 'attention')) {
+      this.steerLive(live, message.text);
+    } else if (rule.approveFirst) {
+      this.hold(agent, channel, message);
+    } else {
+      await this.start(agent, channel, message, undefined, this.scopeFor(agent, message));
     }
   }
 

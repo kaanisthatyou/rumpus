@@ -16,6 +16,7 @@ import { Avatar, Bub, Button, Chip, Icon, IconButton, Kbd } from '@lonca/ui';
 import { AnimatePresence, motion } from 'motion/react';
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { remoteOwner } from '../agents/owner';
 import { specialistIcon } from '../agents/SpecialistDialog';
 import { GoalCard } from '../goals/GoalCard';
 import { nameStyle, PersonAvatar, PersonButton, usePerson } from '../people/people';
@@ -396,6 +397,37 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const own = channel.kind === 'agent' ? agents.find((a) => a.id === channel.agentId) : undefined;
 
+  // Going on (Kaan, 2026-11-19; PLAN.md 5.24): by default the box points at the channel's latest card of an agent of
+  // this computer's, and a message goes on in that job's conversation instead of a new session. × sends the next
+  // one to a new session; a newer card points the box at itself again.
+  const jobs = useApp((s) => s.jobs);
+  const wsState = useApp((s) => s.workspace);
+  const channelMessages = useApp((s) => s.messages[channel.id] ?? EMPTY);
+  const following = useApp((s) => s.following[channel.id]);
+  const follow = useApp((s) => s.follow);
+  const followable = useMemo(() => {
+    const parts = new Set(channelMessages.filter((m) => m.handover).map((m) => m.id));
+    return Object.values(jobs)
+      .filter((j) => {
+        if (j.channelId !== channel.id || parts.has(j.requestId)) return false;
+        const agent = agents.find((a) => a.id === j.agentId);
+        return Boolean(agent) && !remoteOwner(agent, wsState) && (!own || own.id === j.agentId);
+      })
+      .sort((a, b) => b.started - a.started);
+  }, [jobs, channel.id, channelMessages, agents, wsState, own]);
+  const latest = followable[0];
+  const picked = following?.pick ? followable.find((j) => j.id === following.pick) : undefined;
+  const pointed = picked ?? (latest && latest.id !== following?.off ? latest : undefined);
+  const pointedAgent = pointed ? agents.find((a) => a.id === pointed.agentId) : undefined;
+  // A message that names only other agents is theirs: it does not go on in this card's conversation.
+  const named = [...text.matchAll(/(^|\s)@([a-z0-9][a-z0-9-]*)/g)]
+    .map((m) => m[2])
+    .filter((h) => agents.some((a) => a.handle === h));
+  const goesOn =
+    pointed && pointedAgent && (named.length === 0 || named.includes(pointedAgent.handle)) ? pointed : undefined;
+  useEffect(() => follow(channel.id, { target: goesOn?.id }), [follow, channel.id, goesOn?.id]);
+  const pointedRequest = pointed ? channelMessages.find((m) => m.id === pointed.requestId) : undefined;
+
   // `@` at the caret lists agents; `/` at the start lists commands.
   const caret = ref.current?.selectionStart ?? text.length;
   const mention = /(^|\s)@([a-z0-9-]*)$/.exec(text.slice(0, caret));
@@ -575,7 +607,9 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
     setText('');
     // The next words are a new message: others hear about the typing again at once.
     typedAt.current = 0;
-    if (!(await send(value))) setText((now) => now || value);
+    const via = goesOn?.id;
+    if (!(await send(value, via ? { follow: via } : {}))) setText((now) => now || value);
+    else if (following?.pick) follow(channel.id, { pick: undefined });
   };
 
   const placeholder = citing
@@ -695,6 +729,36 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
           <CiteChip cite={citing} onRemove={uncite} />
         </div>
       )}
+      {pointed && pointedAgent && (
+        <div className={`composer__follow${goesOn ? '' : ' is-idle'}`}>
+          <button
+            type="button"
+            className="composer__follow-open"
+            title={t('channel.followShow')}
+            onClick={() =>
+              document
+                .querySelector(`[data-job="${pointed.id}"]`)
+                ?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+            }
+          >
+            <Icon name="chevronRight" size={13} />
+            <b>{t('channel.follow', { name: pointedAgent.name })}</b>
+            {pointedRequest?.text && <span>{pointedRequest.text.replace(/\s+/g, ' ').slice(0, 80)}</span>}
+          </button>
+          <button
+            type="button"
+            className="composer__follow-x"
+            aria-label={t('channel.followClose')}
+            title={t('channel.followClose')}
+            onClick={() => {
+              follow(channel.id, { pick: undefined, off: latest?.id });
+              ref.current?.focus();
+            }}
+          >
+            <Icon name="close" size={11} />
+          </button>
+        </div>
+      )}
       {attached.length > 0 && (
         <div className="composer__refs">
           {attached.map((id) => (
@@ -702,7 +766,7 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
           ))}
         </div>
       )}
-      <div className="composer__box">
+      <div className={`composer__box${goesOn ? ' is-following' : ''}`}>
         <IconButton icon="plus" label={t('records.pick')} onClick={() => setPicking((v) => !v)} />
         <label className="l-sr" htmlFor="composer">
           {placeholder}

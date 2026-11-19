@@ -608,6 +608,19 @@ agent now taps them on the shoulder, like a colleague would: "Kankaa, pşş", "E
 - Reminders are not part of the conversation: they never reach the agent as channel context. Whether a button was
   pressed is a mark of the computer it is for, not a logged change; other members do not see reminders at all.
 
+### 5.24 Going on from the box (2026-11-19, Kaan)
+
+- **Why.** An agent with a fresh session per job (Felix, Nora) paid the whole start (some 12k tokens) for every
+  message, as if a new CLI window opened each time. Going on in a job's conversation was a button and a field of
+  its own on the card.
+- **What.** By default the channel's box points at its latest card of an agent of this computer's: a green outline
+  round the box, the card marked, and a line above the box ("Felix ile devam", the request) that scrolls to it. A
+  message sent from there goes on in that job's conversation (`messages.send` with `follow`; a running job is
+  steered), without naming the agent. A message that names only other agents is theirs. × above the box sends the
+  next message to a new session; the next card points the box at itself again. The card's "Devam et" points the box
+  at an older card.
+- Not for another member's agent (it runs on their computer) nor a handed-over part (its conversation ends with it).
+
 ## 6. Architecture
 
 ### 6.1 Stack

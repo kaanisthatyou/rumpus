@@ -612,7 +612,7 @@ export class Core {
         const ids = messages.map((m) => m.id);
         return { messages, jobs: store.jobsFor(ids) };
       },
-      'messages.send': async (p) => this.send(p?.channelId, p?.text, p?.refs, p?.cite),
+      'messages.send': async (p) => this.send(p?.channelId, p?.text, p?.refs, p?.cite, p?.follow),
       'messages.image': async (p) => {
         const { store, blobs } = this.workspace();
         const message = typeof p?.id === 'string' ? store.message(p.id) : undefined;
@@ -3237,9 +3237,10 @@ export class Core {
     return { ok: true };
   }
 
-  private send(channelId: unknown, value: unknown, refs?: unknown, citeId?: unknown): Message {
+  private send(channelId: unknown, value: unknown, refs?: unknown, citeId?: unknown, follow?: unknown): Message {
     this.requireRole('viewer');
-    const { store, jobs } = this.workspace();
+    const ws = this.workspace();
+    const { store, jobs } = ws;
     const channel = typeof channelId === 'string' ? store.channel(channelId) : undefined;
     if (!channel) throw new CoreError('not_found');
     // A report channel holds what routines and agents post; a person answers a report from its card instead.
@@ -3264,7 +3265,13 @@ export class Core {
     store.setMeta(`read.${channel.id}`, String(message.created));
     this.emit('message.added', message);
     this.hushNudges(message);
-    void jobs.onMessage(message, channel);
+    // Going on in a job's conversation is for an agent of this computer's (another member's runs on theirs).
+    const earlier = typeof follow === 'string' ? store.job(follow) : undefined;
+    const goesOn =
+      earlier && (ws.kind !== 'team' || this.agentOwner(store, earlier.agentId) === this.deviceId)
+        ? earlier.id
+        : undefined;
+    void jobs.onMessage(message, channel, goesOn);
     this.workspace().advisors.onMessage(message, channel);
     return message;
   }

@@ -575,6 +575,76 @@ button.jobfile__path:hover {
 .composer__box {
   align-items: flex-end;
 }
+/* Going on in a job's conversation (PLAN.md 5.24): a green outline round the box, the card it points at marked. */
+.composer__box {
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+.composer__box.is-following {
+  border-color: color-mix(in srgb, var(--ok) 70%, var(--line-2));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 16%, transparent);
+}
+.job.is-followed {
+  border-color: color-mix(in srgb, var(--ok) 55%, var(--line-2));
+  box-shadow: inset 3px 0 0 var(--ok);
+}
+.composer__follow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  max-width: min(520px, 100%);
+  margin: 0 0 6px;
+  border-radius: var(--r);
+  border: 1px solid color-mix(in srgb, var(--ok) 40%, var(--line-2));
+  background: color-mix(in srgb, var(--ok) 7%, var(--card));
+  font-size: 12px;
+}
+.composer__follow.is-idle {
+  opacity: 0.55;
+}
+.composer__follow-open {
+  all: unset;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 4px 4px 4px 8px;
+  cursor: pointer;
+  color: var(--ok);
+}
+.composer__follow-open b {
+  flex: none;
+  font-weight: 600;
+}
+.composer__follow-open span {
+  min-width: 0;
+  color: var(--meta);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.composer__follow-open:focus-visible,
+.composer__follow-x:focus-visible {
+  outline: 2px solid var(--ok);
+  outline-offset: -2px;
+}
+.composer__follow-x {
+  all: unset;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin-right: 2px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--meta);
+}
+.composer__follow-x:hover {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+}
 .composer__box textarea {
   flex: 1;
   min-width: 0;

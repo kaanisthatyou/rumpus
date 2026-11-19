@@ -63,8 +63,9 @@ export function JobCard({ job, agent }: { job: Job; agent: Agent | undefined }) 
   const running = job.state === 'running' || job.state === 'attention';
   // Another member's agent: the job runs on their computer; only they steer, stop, approve or watch it live.
   const owner = useApp((s) => remoteOwner(agent, s.workspace));
-  // Writing on a finished job's card goes on in its conversation (a new job of the same agent).
+  // A finished job's conversation goes on from the channel's box (PLAN.md 5.24): the button points the box here.
   const follows = !running && !owner && Boolean(agent);
+  const followed = useApp((s) => s.following[job.channelId]?.target === job.id);
   const watched = useApp((s) => s.watching === job.id);
   const now = useNow(running);
   const hidden = Math.max(0, job.steps.length - SHOWN);
@@ -74,7 +75,7 @@ export function JobCard({ job, agent }: { job: Job; agent: Agent | undefined }) 
 
   return (
     <motion.div
-      className={`job job--${job.state} ${watched ? 'is-watched' : ''}`}
+      className={`job job--${job.state}${watched ? ' is-watched' : ''}${followed ? ' is-followed' : ''}`}
       data-job={job.id}
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
@@ -182,8 +183,15 @@ export function JobCard({ job, agent }: { job: Job; agent: Agent | undefined }) 
             {t('job.watch')}
           </Button>
         )}
-        {follows && (
-          <Button size="sm" icon="chevronRight" onClick={() => setSteering((v) => !v)}>
+        {follows && !followed && (
+          <Button
+            size="sm"
+            icon="chevronRight"
+            onClick={() => {
+              useApp.getState().follow(job.channelId, { pick: job.id, off: undefined });
+              document.getElementById('composer')?.focus();
+            }}
+          >
             {t('job.follow')}
           </Button>
         )}
@@ -199,7 +207,7 @@ export function JobCard({ job, agent }: { job: Job; agent: Agent | undefined }) 
         )}
       </div>
       <AnimatePresence>
-        {steering && (running || follows) && (
+        {steering && running && (
           <motion.form
             className="job__steer"
             initial={{ opacity: 0, height: 0 }}
@@ -218,8 +226,8 @@ export function JobCard({ job, agent }: { job: Job; agent: Agent | undefined }) 
               // biome-ignore lint/a11y/noAutofocus: the steer field opens on request and typing is the next step
               autoFocus
               value={draft}
-              placeholder={t(running ? 'job.steerPlaceholder' : 'job.followPlaceholder')}
-              aria-label={t(running ? 'job.steer' : 'job.follow')}
+              placeholder={t('job.steerPlaceholder')}
+              aria-label={t('job.steer')}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => e.key === 'Escape' && setSteering(false)}
             />
