@@ -54,6 +54,7 @@ import type { AppInfo, UpdateState } from '../../shared/bridge';
 import { agentLabel, concernsMe, runsHere, senderOf } from './agents/owner';
 import i18n from './i18n';
 import { core, RpcError } from './rpc';
+import { plain } from './shell/island-text';
 import { play, type Sound } from './sounds';
 
 export type View =
@@ -451,6 +452,30 @@ export const useApp = create<AppState>((set, get) => {
     }, 800);
   }
 
+  /**
+   * A job that ended well is told with its answer, not only with who finished it. The answer comes into the channel
+   * a moment after the job's end, so the notification waits for it and says just who finished when none comes.
+   */
+  const endings = new Map<string, { who: string; timer: ReturnType<typeof setTimeout> }>();
+  function noticeEnding(jobId: string, who: string): void {
+    const timer = setTimeout(() => {
+      endings.delete(jobId);
+      notify(i18n.t('job.notify.done'), who);
+    }, 2000);
+    endings.set(jobId, { who, timer });
+  }
+  /** A message that is the answer of a job waiting in `endings`: notified with its words; true when it was. */
+  function noticeAnswer(m: Message): boolean {
+    const ending = m.jobId ? endings.get(m.jobId) : undefined;
+    if (!m.jobId || !ending || m.author.kind === 'person') return false;
+    clearTimeout(ending.timer);
+    endings.delete(m.jobId);
+    const text = plain(m.text);
+    if (text) notify(ending.who, text);
+    else notify(i18n.t('job.notify.done'), ending.who);
+    return true;
+  }
+
   /** Reports that arrived together, for one toast (a catch-up brings several at once). */
   let toasts: Message[] = [];
   let toastTimer: ReturnType<typeof setTimeout> | undefined;
@@ -602,6 +627,8 @@ export const useApp = create<AppState>((set, get) => {
         }
       });
       core.on('message.added', (m) => {
+        // A job's answer is its end's notification; it is not told again as a message.
+        const told = noticeAnswer(m);
         // The report feed is not a channel on screen: its page and its count of unread reports take it.
         if (get().workspace?.reportChannels?.includes(m.channelId)) {
           onReport(m);
@@ -647,7 +674,7 @@ export const useApp = create<AppState>((set, get) => {
         // background: an OS notification under the sender's own name (a bot's with its owner's).
         const ws = get().workspace;
         const from = ws ? senderOf(m, ws) : undefined;
-        if (ws && from && away()) {
+        if (ws && from && away() && !told) {
           const channel = ws.channels.find((c) => c.id === m.channelId)?.name ?? '';
           noticeMessage({
             title: `#${channel} · ${ws.name}`,
@@ -731,8 +758,10 @@ export const useApp = create<AppState>((set, get) => {
               .filter(Boolean)
               .join(' · ');
             notify(i18n.t('job.approval.notifyTitle'), `${who}: ${what}`);
+          } else if (job.state === 'done') {
+            noticeEnding(job.id, who);
           } else {
-            notify(i18n.t(`job.notify.${job.state === 'done' ? 'done' : 'failed'}`), who);
+            notify(i18n.t('job.notify.failed'), who);
           }
         }
       });
