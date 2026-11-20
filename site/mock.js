@@ -1,4 +1,4 @@
-// A drawing of the app's window in HTML, for the landing page, the posters and the reel (marketing/). It follows
+// A drawing of the app's window in HTML, for the landing page. It follows
 // the real shell (rail, channel list, channel, crew panel) and uses the app's own labels; the conversations in it
 // are examples. Styles: mock.css. Everything that moves is a CSS animation that runs under `.play`, so a page can
 // restart a scene by toggling the class and the reel can seek it frame by frame.

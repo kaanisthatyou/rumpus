@@ -112,7 +112,6 @@ packages/protocol   types and schemas shared by the core and its clients
 packages/core       core logic: store and sync, jobs and CLI drivers, advisors, goals, projects, MCP gateway
 packages/ui         design system: tokens, components, icons, the mark and the mascot, motion
 site                the landing page at rumpus.lol: plain files, no build
-marketing           posters, social images and reels, drawn as web pages
 brand               the mark, the wordmark, Bub the mascot, colors
 docs/research       studies behind the plan
 ```
