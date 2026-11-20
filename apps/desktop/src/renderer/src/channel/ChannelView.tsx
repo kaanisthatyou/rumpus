@@ -766,7 +766,9 @@ function Composer({ channel, agents }: { channel: Channel; agents: Agent[] }) {
           ))}
         </div>
       )}
-      <div className={`composer__box${goesOn ? ' is-following' : ''}`}>
+      <div
+        className={`composer__box${goesOn ? ' is-following' : ''}${pointed?.state === 'running' ? ' is-working' : ''}`}
+      >
         <IconButton icon="plus" label={t('records.pick')} onClick={() => setPicking((v) => !v)} />
         <label className="l-sr" htmlFor="composer">
           {placeholder}

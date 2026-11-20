@@ -589,6 +589,71 @@ button.jobfile__path:hover {
   border-color: color-mix(in srgb, var(--ok) 55%, var(--line-2));
   box-shadow: inset 3px 0 0 var(--ok);
 }
+/*
+ * While the job the box points at runs, a light goes round the box's edge and the glow breathes; it stops with the
+ * job (Kaan, 2026-11-20).
+ */
+@property --composer-turn {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+.composer__box.is-working {
+  border-color: transparent;
+  background:
+    linear-gradient(var(--card), var(--card)) padding-box,
+    conic-gradient(
+      from var(--composer-turn),
+      color-mix(in srgb, var(--ok) 35%, var(--line-2)) 0deg,
+      var(--ok) 60deg,
+      var(--accent) 120deg,
+      color-mix(in srgb, var(--ok) 35%, var(--line-2)) 200deg,
+      color-mix(in srgb, var(--ok) 35%, var(--line-2)) 360deg
+    )
+    border-box;
+  animation:
+    composer-turn 2.4s linear infinite,
+    composer-breathe 1.8s ease-in-out infinite alternate;
+}
+@keyframes composer-turn {
+  to {
+    --composer-turn: 360deg;
+  }
+}
+@keyframes composer-breathe {
+  from {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 10%, transparent);
+  }
+  to {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--ok) 26%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .composer__box.is-working {
+    animation: none;
+    border-color: var(--ok);
+    background: var(--card);
+  }
+}
+/* A finished job's card steps back: faded until the pointer is on it or it is open or followed. */
+.job--done,
+.job--stopped {
+  opacity: 0.55;
+  border-color: var(--line);
+  transition: opacity 0.2s;
+}
+.job--done:hover,
+.job--stopped:hover,
+.job--done:focus-within,
+.job--stopped:focus-within,
+.job--done.is-watched,
+.job--stopped.is-watched {
+  opacity: 1;
+}
+.job--done.is-followed,
+.job--stopped.is-followed {
+  opacity: 0.8;
+}
 .composer__follow {
   display: flex;
   align-items: center;
