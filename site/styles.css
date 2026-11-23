@@ -451,7 +451,16 @@ h2 {
     transform 0.25s var(--out);
 }
 
+@property --vi-fill {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 0%;
+}
+
+/* The VI arrives hollow (the lime shows through its outline), then fills from the bottom with a Miami sunset. The
+   upper layer is the page's lime down to the fill line, so what is not filled yet reads as empty. */
 .ver__vi {
+  --vi-fill: 0%;
   position: absolute;
   left: -0.04em;
   bottom: -0.08em;
@@ -459,13 +468,20 @@ h2 {
   letter-spacing: -0.02em;
   line-height: 1;
   color: transparent;
-  background: linear-gradient(180deg, #4b3bd6 0%, #9a2fc9 38%, #e2409f 70%, #ff9f70 100%) 0 0 / 100% 220%;
+  background:
+    linear-gradient(to top, transparent var(--vi-fill), var(--lime) var(--vi-fill)),
+    linear-gradient(180deg, #5b2fd8 0%, #b23ad0 34%, #ff4f9a 64%, #ff8a7a 84%, #ffb36b 100%);
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-stroke: 1.5px #fff;
   paint-order: stroke fill;
-  filter: drop-shadow(0 0 1px #1b0633) drop-shadow(0 0 1px #1b0633) drop-shadow(0 0 8px rgb(255 79 168 / 70%));
+  filter: drop-shadow(0 0 1px #1b0633) drop-shadow(0 0 1px #1b0633) drop-shadow(0 0 8px rgb(255 79 154 / 60%));
   opacity: 0;
+  transform: scale(0.92);
+  transition:
+    opacity 0.3s var(--out),
+    transform 0.4s var(--out),
+    --vi-fill 0.15s;
   pointer-events: none;
 }
 
@@ -477,60 +493,13 @@ h2 {
 
 .ver:hover .ver__vi,
 .ver:focus-visible .ver__vi {
-  animation:
-    vi-on 0.9s steps(1, end) forwards,
-    vi-glow 2.4s ease-in-out 0.9s infinite alternate;
-}
-
-/* A neon sign switching on: a few flickers, then it holds. */
-@keyframes vi-on {
-  0% {
-    opacity: 0.35;
-  }
-
-  12% {
-    opacity: 0;
-  }
-
-  22% {
-    opacity: 0.8;
-  }
-
-  30% {
-    opacity: 0.1;
-  }
-
-  44% {
-    opacity: 1;
-  }
-
-  52% {
-    opacity: 0.4;
-  }
-
-  60%,
-  100% {
-    opacity: 1;
-  }
-}
-
-@keyframes vi-glow {
-  from {
-    opacity: 1;
-    background-position: 0 0;
-  }
-
-  to {
-    opacity: 1;
-    background-position: 0 100%;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ver:hover .ver__vi,
-  .ver:focus-visible .ver__vi {
-    opacity: 1;
-  }
+  --vi-fill: 100%;
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 0.3s var(--out),
+    transform 0.4s var(--out),
+    --vi-fill 1s cubic-bezier(0.45, 0, 0.25, 1) 0.45s;
 }
 
 .hero__win {
