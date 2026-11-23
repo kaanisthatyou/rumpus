@@ -92,10 +92,10 @@ export const AgentInputSchema = z.object({
    */
   fresh: z.boolean().default(false),
   /**
-   * Reminds the person of what waits on them (an approval, a report's questions) with a line in its channel every
-   * few minutes, until they press the line's button (PLAN.md 5.23).
+   * Reminds the person of what waits on them (an approval, a report's questions) with one line and a notification a
+   * quarter of an hour after it started to wait (PLAN.md 5.23). Off by default (Kaan, 2026-11-23).
    */
-  nudges: z.boolean().default(true),
+  nudges: z.boolean().default(false),
   /** In a team workspace: who besides the owner may give it jobs, and how far (PLAN.md 5.11). */
   access: z
     .object({
@@ -132,7 +132,7 @@ export interface Agent {
   spare?: string;
   /** Every job in a fresh session (`FRESH_HISTORY` messages of context) instead of one growing conversation. */
   fresh?: boolean;
-  /** False when it does not remind the person of what waits on them; missing means it does. */
+  /** True when it reminds the person of what waits on them; missing means it does not (Kaan, 2026-11-23). */
   nudges?: boolean;
   access?: AgentAccess;
   specialty?: Specialty;

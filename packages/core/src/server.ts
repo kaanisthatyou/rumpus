@@ -1525,7 +1525,7 @@ export class Core {
     });
     const nudges = new Nudger({
       agents: () =>
-        store.agents().filter((a) => a.nudges !== false && (kind !== 'team' || !a.owner || a.owner === this.deviceId)),
+        store.agents().filter((a) => a.nudges === true && (kind !== 'team' || !a.owner || a.owner === this.deviceId)),
       waiting: (agent, lang) => this.waitingOn(ref.ws, agent, lang),
       // Where the question was asked (Kaan, 2026-11-19); a report's question, and what waits nowhere, in its own channel.
       channelOf: (agent, item) => {
@@ -3360,7 +3360,7 @@ export class Core {
       ...(p.account ? { account: p.account } : {}),
       ...(spare !== undefined ? { spare } : {}),
       ...(p.fresh ? { fresh: true } : {}),
-      ...(p.nudges === false ? { nudges: false } : {}),
+      ...(p.nudges ? { nudges: true } : {}),
       instructions: p.instructions,
       ...(traits.length > 0 ? { traits } : {}),
       owner: existing?.owner ?? this.deviceId,

@@ -111,72 +111,58 @@ describe('the reminder schedule', () => {
     };
   }
 
-  it('writes after a few minutes, types first, keeps writing every few minutes, and stops on the button', () => {
+  it('writes once, a quarter of an hour after something started to wait, and not again while it waits', () => {
     const t = setup();
     t.n.tick(); // something waits: the run starts
-    t.wait(2);
+    t.wait(14);
     expect(t.posted).toHaveLength(0);
-    t.wait(5); // 7 minutes in: past the first gap (3 to 6)
+    t.wait(2); // 16 minutes in
     expect(t.posted).toHaveLength(1);
     expect(t.typing).toEqual([true, false]);
     expect(t.posted[0]).toMatchObject({ channelId: 'c-felix', author: { kind: 'agent', id: 'a1', name: 'Felix' } });
     expect(t.posted[0]?.nudge?.for).toBe('dev1');
     expect(t.posted[0]?.nudge?.button).toBeTruthy();
     for (let i = 0; i < 12; i++) t.wait(11);
-    expect(t.posted.length).toBeGreaterThanOrEqual(8);
-    const texts = t.posted.map((m) => m.text);
-    expect(new Set(texts).size).toBe(texts.length);
-
-    const before = t.posted.length;
-    t.n.mute('a1', 'tr');
-    for (let i = 0; i < 6; i++) t.wait(11);
-    expect(t.posted).toHaveLength(before);
+    expect(t.posted).toHaveLength(1);
     expect(t.muted()).toEqual({ a1: ['a:j1:q1'] });
 
-    // Something new waits: a new run, about that.
+    // Something new waits: one reminder about that.
     t.setItems([...one, { key: 'd:m9', what: '"yeni soru" sorusu' }]);
-    for (let i = 0; i < 3; i++) t.wait(4);
-    expect(t.posted.length).toBeGreaterThan(before);
+    t.wait(1);
+    t.wait(16);
+    expect(t.posted).toHaveLength(2);
+    for (let i = 0; i < 6; i++) t.wait(11);
+    expect(t.posted).toHaveLength(2);
     // What stopped waiting is forgotten.
     t.setItems([]);
     t.wait(1);
     expect(t.muted()).toEqual({});
   });
 
-  it('says nothing in quiet hours, nothing once it was answered, and grows its gaps over a long evening', () => {
+  it('says nothing in quiet hours, nor once it no longer waits', () => {
     const t = setup();
     t.setNow(new Date(2026, 10, 18, 23, 30).getTime());
     t.n.tick();
     for (let i = 0; i < 20; i++) t.wait(10);
     expect(t.posted).toHaveLength(0);
 
-    const u = setup();
-    u.n.tick();
-    for (let i = 0; i < 120; i++) u.wait(5); // ten hours
-    // Every few minutes at first, then further apart: well under the 60 to 150 lines of steady gaps.
-    expect(u.posted.length).toBeGreaterThan(8);
-    expect(u.posted.length).toBeLessThan(40);
-
     const w = setup();
     w.n.tick();
-    w.wait(7);
-    expect(w.posted).toHaveLength(1);
+    w.wait(10);
     w.setItems([]);
     for (let i = 0; i < 6; i++) w.wait(11);
-    expect(w.posted).toHaveLength(1);
+    expect(w.posted).toHaveLength(0);
   });
 
-  it('stops when the person writes to the agent, as surely as on the button', () => {
+  it('says nothing when the person writes to the agent first, or presses the button', () => {
     const t = setup();
     t.n.tick();
-    t.wait(7);
-    expect(t.posted).toHaveLength(1);
     // Written elsewhere, to nobody: not an answer.
     expect(t.n.answered({ channelId: 'c-other', handles: [] }, 'tr')).toEqual([]);
     // Written in its channel: an answer.
     expect(t.n.answered({ channelId: 'c-felix', handles: [] }, 'tr')).toEqual(['a1']);
-    for (let i = 0; i < 6; i++) t.wait(11);
-    expect(t.posted).toHaveLength(1);
+    for (let i = 0; i < 3; i++) t.wait(11);
+    expect(t.posted).toHaveLength(0);
 
     // Named somewhere else, or cited: an answer too; and a line being typed is not sent.
     const u = setup();
@@ -187,17 +173,21 @@ describe('the reminder schedule', () => {
     expect(v.n.answered({ channelId: 'c-other', handles: [], citedAgent: 'a1' }, 'tr')).toEqual(['a1']);
     const w = setup();
     w.n.tick();
-    w.wait(7);
-    expect(w.posted).toHaveLength(1);
-    w.setNow(new Date(2026, 10, 18, 15, 0).getTime());
-    w.n.tick(); // the next line is being typed
-    expect(w.typing).toEqual([true, false, true]);
+    w.setNow(new Date(2026, 10, 18, 14, 16).getTime());
+    w.n.tick(); // the line is being typed
+    expect(w.typing).toEqual([true]);
     w.n.answered({ channelId: 'c-felix', handles: [] }, 'tr');
     vi.advanceTimersByTime(8000);
-    expect(w.posted).toHaveLength(1);
+    expect(w.posted).toHaveLength(0);
+
+    const x = setup();
+    x.n.tick();
+    x.n.mute('a1', 'tr');
+    for (let i = 0; i < 3; i++) x.wait(11);
+    expect(x.posted).toHaveLength(0);
   });
 
-  it('writes in the channel each question waits in, and the button there stops them everywhere', () => {
+  it('writes once in the channel each question waits in', () => {
     const t = setup();
     t.setItems([
       { key: 'q:m1', what: '"Push edeyim mi?" sorusu', channelId: 'c-genel' },
@@ -205,23 +195,12 @@ describe('the reminder schedule', () => {
       { key: 'd:m3', what: '"#R1 raporundaki" sorusu' },
     ]);
     t.n.tick();
-    t.wait(7);
+    t.wait(16);
     const where = new Set(t.posted.map((m) => m.channelId));
     expect(where).toEqual(new Set(['c-genel', 'c-tasarim', 'c-felix']));
     expect(t.posted.find((m) => m.channelId === 'c-genel')?.text).not.toContain('Hangi renk');
-    // Answering in one of them is an answer to the agent: none of them goes on.
-    expect(t.n.answered({ channelId: 'c-tasarim', handles: [] }, 'tr')).toEqual(['a1']);
     for (let i = 0; i < 6; i++) t.wait(11);
     expect(t.posted).toHaveLength(3);
-
-    const u = setup();
-    u.setItems([{ key: 'q:m1', what: '"Push edeyim mi?" sorusu', channelId: 'c-genel' }]);
-    u.n.tick();
-    u.wait(7);
-    expect(u.posted.map((m) => m.channelId)).toEqual(['c-genel']);
-    u.n.mute('a1', 'tr');
-    for (let i = 0; i < 6; i++) u.wait(11);
-    expect(u.posted).toHaveLength(1);
   });
 });
 

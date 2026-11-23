@@ -1,7 +1,7 @@
 // End-to-end test of reminders (PLAN.md 5.23) in the real app, with the fake Claude Code first on PATH and the
-// reminders' minutes made into fractions of a second (LONCA_NUDGE_SCALE): a job waits for an approval, the agent
-// types and writes a reminder in its channel, then another; the button under one stops them (and every other
-// one's button goes); the setting turns them off.
+// reminders' minutes made into fractions of a second (LONCA_NUDGE_SCALE): the setting is off until turned on; a job
+// waits for an approval, the agent types and writes one reminder in its channel and no second; the button under it
+// goes when pressed; the setting turns them off again.
 // Usage: node e2e/nudges.mjs   (after electron-vite build)
 import assert from 'node:assert/strict';
 import { copyFileSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
@@ -83,7 +83,7 @@ const app = await electron.launch({
     [pathKey]: `${bin}${delimiter}${process.env[pathKey]}`,
     LONCA_HOME: home,
     LONCA_LANG: 'tr',
-    // Three to six minutes before the first one: about a second.
+    // Fifteen minutes before the reminder: under three seconds.
     LONCA_NUDGE_SCALE: '0.003',
   },
 });
@@ -107,8 +107,11 @@ try {
   await page.getByRole('button', { name: L.crew.add, exact: true }).click();
   const form = page.getByRole('dialog', { name: L.agentForm.new });
   await form.waitFor();
-  // On by default.
-  assert.equal(await form.getByRole('switch', { name: L.agentForm.nudges }).getAttribute('aria-checked'), 'true');
+  // Off by default (Kaan, 2026-11-23): turned on here.
+  const nudgeSwitch = form.getByRole('switch', { name: L.agentForm.nudges });
+  assert.equal(await nudgeSwitch.getAttribute('aria-checked'), 'false');
+  await nudgeSwitch.click();
+  assert.equal(await nudgeSwitch.getAttribute('aria-checked'), 'true');
   await form.getByText(L.agentForm.nudgesHint).waitFor();
   await page.getByRole('button', { name: L.agentForm.pick, exact: true }).click();
   await page.getByText(project).waitFor();
@@ -129,13 +132,11 @@ try {
   const reminder = page.locator('.msg', { has: page.locator('.msg__nudge') }).first();
   assert.match(await reminder.innerText(), /Claude/);
   await shot(page, 'reminder');
-  // And another, in other words.
-  await until(async () => (await buttons.count()) >= 2, 'a second reminder', 40_000);
-  const texts = await page.locator('.msg', { has: page.locator('.msg__nudge') }).allInnerTexts();
-  assert.ok(new Set(texts).size >= 2, `two different reminders: ${JSON.stringify(texts)}`);
-  await shot(page, 'reminders');
+  // Only one: no second while it still waits.
+  await sleep(8000);
+  assert.equal(await buttons.count(), 1, 'one reminder');
 
-  // The button under the latest stops them: every button goes, and no new one comes.
+  // The button under it goes when pressed, and no new one comes.
   await buttons.last().click();
   await until(async () => (await buttons.count()) === 0, 'the buttons gone');
   const after = await page.locator('.msg--agent').count();

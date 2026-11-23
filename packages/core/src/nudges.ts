@@ -1,7 +1,9 @@
 // Reminders of what waits on a person (PLAN.md 5.23): an agent whose job waits for an approval, or whose report
 // left questions nobody answered, writes where that waits (the channel the question was asked in; its own channel for
-// a report's) every few minutes, as a message of its own, until the person presses the button under one of them. The lines are put together from pieces here (no model call, no
-// tokens), in the person's language, so no two read the same.
+// a report's) once, a quarter of an hour after it started to wait, as a message of its own, and the person's computer
+// shows a notification of it (Kaan, 2026-11-23: a reminder every few minutes was a thousand messages). Off unless the
+// agent's setting turns it on. The lines are put together from pieces here (no model call, no tokens), in the
+// person's language.
 import type { Agent, Message } from '@lonca/protocol';
 import { inQuietHours } from './advisors.js';
 import { newId } from './ids.js';
@@ -504,20 +506,11 @@ export function askedIn(text: string): string | undefined {
 // ---------------------------------------------------------------------------------------------- the schedule
 
 const MINUTE = 60_000;
-/** The first reminder comes this long after something started to wait. */
-const FIRST = [3, 6] as const;
-/** Then one every few minutes. */
-const EVERY = [4, 10] as const;
-/** After this many in a run the gaps grow, up to `LONGEST` minutes: an evening away is not a hundred lines. */
-const STEADY = 6;
-const LONGEST = 45;
-/** Lines of a run kept to avoid saying the same thing twice in a row. */
-const RECENT = 12;
+/** The one reminder comes this long after something started to wait; what waits is not reminded of again. */
+const AFTER = 15;
 
 interface Run {
   next: number;
-  count: number;
-  recent: string[];
   typing?: boolean;
 }
 
@@ -566,11 +559,6 @@ export class Nudger {
     return (this.deps.random ?? Math.random)();
   }
 
-  private gap(range: readonly [number, number], factor = 1): number {
-    const minutes = range[0] + this.rand() * (range[1] - range[0]);
-    return Math.round(Math.min(LONGEST, minutes * factor) * MINUTE * (this.deps.scale ?? 1));
-  }
-
   start(): void {
     if (this.timer) return;
     const every = Math.max(100, Math.round(20_000 * (this.deps.scale ?? 1)));
@@ -613,7 +601,7 @@ export class Nudger {
         seen.add(key);
         let run = this.runs.get(key);
         if (!run) {
-          run = { next: now + this.gap(FIRST), count: 0, recent: [] };
+          run = { next: now + Math.round(AFTER * MINUTE * (this.deps.scale ?? 1)) };
           this.runs.set(key, run);
           continue;
         }
@@ -637,11 +625,7 @@ export class Nudger {
     lang: NudgeLanguage,
   ): void {
     const r = () => this.rand();
-    let text = nudgeText(lang, { name: me.name, items, count: run.count }, r);
-    for (let i = 0; i < 12 && run.recent.includes(text); i++) {
-      text = nudgeText(lang, { name: me.name, items, count: run.count }, r);
-    }
-    run.recent = [...run.recent, text].slice(-RECENT);
+    const text = nudgeText(lang, { name: me.name, items, count: 0 }, r);
     run.typing = true;
     this.deps.typing({ agentId: agent.id, channelId, on: true });
     const wait = setTimeout(
@@ -657,10 +641,12 @@ export class Nudger {
           author: { kind: 'agent', id: agent.id, name: agent.name },
           text,
           created: this.now(),
-          nudge: { for: me.id, button: nudgeButton(lang, r, run.count) },
+          nudge: { for: me.id, button: nudgeButton(lang, r, 0) },
         });
-        run.count += 1;
-        run.next = this.now() + this.gap(EVERY, run.count > STEADY ? 1.4 ** (run.count - STEADY) : 1);
+        // Said once: what it was about is not reminded of again while it waits.
+        this.muted[agent.id] = [...new Set([...(this.muted[agent.id] ?? []), ...items.map((i) => i.key)])];
+        this.runs.delete(key);
+        this.deps.saveMuted(this.muted);
       },
       typingMs(text, r),
     );

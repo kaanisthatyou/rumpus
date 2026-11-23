@@ -589,9 +589,10 @@ agent now taps them on the shoulder, like a colleague would: "Kankaa, pşş", "E
 - **How.** The agent writes where the thing waits, as a message of its own, after showing that it types for a few
   seconds: in the channel the approval or question was asked in (Kaan, 2026-11-19), in its own channel for a
   report's question. What waits in two channels is reminded of in each, on its own schedule; the button under any
-  of them, or an answer, stops them all. The first comes three to six minutes after something started to wait, then one every four to ten
-  minutes; after six in a row the gaps grow (up to 45 minutes), so an evening away is not a hundred lines. Nothing
-  is written in quiet hours (Settings, 23:00 to 08:00 by default).
+  of them, or an answer, stops them all. One line, fifteen minutes after something started to wait, and a
+  notification of it on the person's computer; what it was about is not reminded of again (Kaan, 2026-11-23: a line
+  every few minutes was too many). Off unless the agent's setting turns it on (same day). Nothing is written in quiet
+  hours (Settings, 23:00 to 08:00 by default).
 - **The lines** are put together from pieces in `packages/core/src/nudges.ts`, in the person's language (Turkish
   and English): no model call, no tokens, and no two in a row the same. They grow less patient as the run goes on
   (Kaan, same day): the first is calm ("acelesi yok"), the second a reminder, the third an "Eee?", the fourth and

@@ -60,7 +60,7 @@ export function AgentDialog() {
   const [account, setAccount] = useState(existing?.account ?? '');
   const [spare, setSpare] = useState<string | undefined>(existing?.spare);
   const [fresh, setFresh] = useState(existing?.fresh ?? false);
-  const [nudges, setNudges] = useState(existing?.nudges !== false);
+  const [nudges, setNudges] = useState(existing?.nudges === true);
   const allAccounts = useApp((s) => s.accounts);
   const accounts = useMemo(() => allAccounts.filter((a) => a.kind === kind), [allAccounts, kind]);
   const team = useApp((s) => s.workspace?.kind === 'team');

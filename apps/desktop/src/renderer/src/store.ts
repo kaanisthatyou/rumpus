@@ -629,6 +629,10 @@ export const useApp = create<AppState>((set, get) => {
       core.on('message.added', (m) => {
         // A job's answer is its end's notification; it is not told again as a message.
         const told = noticeAnswer(m);
+        // An agent's one reminder of what waits on this person (PLAN.md 5.23) is a notification too.
+        if (m.nudge && !m.nudge.done && m.author.kind === 'agent' && m.nudge.for === get().workspace?.me.id) {
+          notify(i18n.t('notice.waiting', { name: m.author.name }), plain(m.text));
+        }
         // The report feed is not a channel on screen: its page and its count of unread reports take it.
         if (get().workspace?.reportChannels?.includes(m.channelId)) {
           onReport(m);
