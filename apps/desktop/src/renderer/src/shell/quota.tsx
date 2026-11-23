@@ -1,6 +1,7 @@
 // A login's quota as bars: the shell's corner, `/durum` and the profile cards all show it the same way.
 import type { CliKind, Quota } from '@lonca/protocol';
 import { Track } from '@lonca/ui';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useApp } from '../store';
 
@@ -10,16 +11,35 @@ import { useApp } from '../store';
  */
 const SHOWN = ['five_hour', 'seven_day', 'seven_day_opus', 'seven_day_sonnet'];
 
-export function quotaWindows(quota: Quota | undefined): [string, { used: number; resets?: number }][] {
+/**
+ * The CLI reports a login's quota only while one of its jobs runs, so the last report can outlive its window: a
+ * window whose reset time has passed is shown as fresh (nothing used) until the next report says otherwise.
+ */
+export function quotaWindows(
+  quota: Quota | undefined,
+  now = Date.now(),
+): [string, { used: number; resets?: number }][] {
   const windows = quota?.windows ?? {};
   return SHOWN.flatMap((name) => {
     const w = windows[name];
-    return w ? [[name, w] as [string, { used: number; resets?: number }]] : [];
+    if (!w) return [];
+    const reset = w.resets !== undefined && w.resets * 1000 <= now;
+    return [[name, reset ? { used: 0 } : w] as [string, { used: number; resets?: number }]];
   });
+}
+
+/** Renders again every minute, so a quota window that resets meanwhile shows it without a new report. */
+export function useMinuteTick(): void {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setTick((n) => n + 1), 60_000);
+    return () => clearInterval(timer);
+  }, []);
 }
 
 export function QuotaBars({ title, quota }: { title: string; quota: Quota | undefined }) {
   const { t } = useTranslation();
+  useMinuteTick();
   const windows = quotaWindows(quota);
   if (windows.length === 0) return null;
   return (

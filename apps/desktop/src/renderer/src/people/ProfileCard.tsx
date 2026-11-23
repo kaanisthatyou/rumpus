@@ -9,7 +9,7 @@ import { type CSSProperties, type ReactNode, useEffect, useLayoutEffect, useRef,
 import { useTranslation } from 'react-i18next';
 import { remoteOwner } from '../agents/owner';
 import { specialistIcon } from '../agents/SpecialistDialog';
-import { QuotaBars, QuotaBlock, quotaWindows } from '../shell/quota';
+import { QuotaBars, QuotaBlock, quotaWindows, useMinuteTick } from '../shell/quota';
 import { useApp } from '../store';
 import { nameStyle, type Person, ProfileAvatar, RoleChip, useFace, usePerson } from './people';
 
@@ -217,6 +217,7 @@ export function ProfilePopover() {
 function PersonQuota({ id, me }: { id: string; me: boolean }) {
   const { t } = useTranslation();
   const quota = useApp((s) => s.quota);
+  useMinuteTick();
   const status = useApp((s) => (me ? undefined : s.statuses.find((x) => x.device === id)));
   const mine = me ? Object.entries(quota).filter(([, q]) => quotaWindows(q).length > 0) : [];
   const theirs = (status?.quotas ?? []).filter((q) => quotaWindows(q.quota).length > 0);

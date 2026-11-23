@@ -31,7 +31,7 @@ import { PHONE, useApp, type View, WIDE } from '../store';
 import { enablePush, pushState } from '../web';
 import { ChannelList, NavButton } from './ChannelList';
 import { FriendAvatar } from './FriendsDialog';
-import { QuotaBlock, quotaWindows } from './quota';
+import { QuotaBlock, quotaWindows, useMinuteTick } from './quota';
 import { useTaskbar } from './taskbar';
 import { askDeleteWorkspace } from './WorkspaceDialog';
 
@@ -416,6 +416,7 @@ function CrewStrip({ covered }: { covered: boolean }) {
   const clis = useApp((s) => s.clis);
   const jobs = useApp((s) => s.jobs);
   const quota = useApp((s) => s.quota);
+  useMinuteTick();
   const typing = useApp((s) => s.typing);
   const openChannel = useApp((s) => s.openChannel);
   const openAgentDialog = useApp((s) => s.openAgentDialog);
