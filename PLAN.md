@@ -1,25 +1,13 @@
 # Rumpus: plan
 
-Status: **Phase 4 under way** (0.9.0-alpha.0, 2026-11-11; since then connectors sign in with OAuth, 4.20, the
-name is Rumpus, 4.21, a job's changes are listed and can be undone, 4.22, and the live view, the board, the
-taskbar and sounds show what happens, 4.23, and one task can be raced by several agents, 4.24; on 2026-11-12
-people got profiles, workspaces a look and roles, invites a card, 4.26, and friends outside any workspace, 4.27). The product is called **Rumpus** since 2026-11-11 (it
-was Lonca until 2026-11-10 and Serai for a day; the code name `lonca` stays in package names and environment
-variables, see section 2). Built on
-2026-11-10/11: specialists (5.15), routines (5.16), the Overview page and unread counts (5.17), invite links with
-a check of the way to the inviter (5.11); then (4.19) a shell that adapts to its room, an agent folder that no
-longer has to be picked, character presets for agents and the personal settings. The name was opened again that day (Serai was
-taken) and settled as Rumpus (4.21, section 10). Before that (0.8.0-alpha.0, 2026-10-19): memory, projects with status pages, hand-over, several
-CLI logins, `/durum`, `/özet`, quick entry and advisor notes; voice is paused (Kaan, 2026-10-19). The
-connector store has its core and its catalog (4.10, 4.11, 2026-10-22): connectors from Rumpus's catalog, the MCP
-Registry or by hand, served through Rumpus's gateway with a policy per tool; OAuth sign-in since 2026-11-11 (4.20),
-MCPB comes next. The done-checks of Phases 1-3 wait for real use by Kaan and Arda; see the status blocks
-under section 8. Owners: Kaan and Arda. v0.1 (the Python chat server, tag `v0.1.0`) was the starting point for
-ideas and the security model, not for code.
+Status: **0.9 alpha**, Phase 4 under way. Phases 0 to 3 are built (the solo core, advisors and goals, teams over
+Tailscale, the phone companion); Phase 4 has memory, projects with status pages, hand-over between agents, several
+CLI logins per computer, connectors with OAuth, specialists, routines, reports, races, profiles and friends. Voice
+is paused. The done-checks of every phase wait for real use by the owners; see the status blocks under section 8.
+Owners: Kaan and Arda.
 
 Research behind this plan: `docs/research/` (Claude Desktop, Antigravity, Hermes Agent + Jan, CLI agents, platform:
-connectors, voice, networking). Theme: Grafit & tek vurgu, artboard 2 of the "Serai theme directions" canvas
-(claude.ai artifact, private).
+connectors, voice, networking). Theme: **Graphite & one accent** (section 7).
 
 ---
 
@@ -37,35 +25,32 @@ An open-source desktop hub where people and the CLI coding agents they already h
 Rumpus **does not have its own coding agent**. It drives the CLIs people install and log in to themselves. The only
 model calls Rumpus makes itself are for advisors, memory upkeep and voice, on API keys the person enters.
 
-It is the general version of Fabrika (roblox-factory's cockpit app), without Roblox and without the two-person
-assumption. Roblox can come back later as a pack (connectors, commands, advisor profiles).
-
 ## 2. Decisions so far
 
 From the Q&A on 2026-10-16.
 
 | Topic | Decision |
 |---|---|
-| Name | **Rumpus** since 2026-11-11 (a lively noise; a rumpus room is a room for play): one everyday word in Discord's manner, chosen by Kaan from the third round in section 10. It was Lonca until 2026-11-10 (Kaan asked for a name the product can be published and sold under), then Serai for a day (a caravanserai; taken by a company and under every domain ending tried). The name lives in `packages/protocol/src/brand.ts`; the code name `lonca` stays in package names (`@lonca/*`), environment variables (`LONCA_*`), wire headers and file names. Invite codes, invite links and the data folders of both former names are still accepted |
-| Workspace word | Independent of the product's name: "alan" in Turkish, "workspace" in English (2026-11-10) |
+| Name | **Rumpus** (a lively noise; a rumpus room is a room for play): one everyday word, in Discord's manner. It lives in `packages/protocol/src/brand.ts` |
+| Workspace word | "Workspace", whatever the product is called (2026-11-10) |
 | Distribution | Open source, **Apache-2.0** |
 | Platforms, first release | Windows, Linux, phone companion (PWA). No macOS yet |
 | Stack | Electron + TypeScript |
-| Main agents | The user's own CLI agents, driven headless, as Fabrika does with Claude Code. No agent of our own |
+| Main agents | The user's own CLI agents, driven headless. No agent of our own |
 | Provider sign-in | API keys and local endpoints for advisors (Groq, Anthropic, Gemini, NVIDIA NIM, DeepSeek, OpenAI-compatible, Ollama / LM Studio). Subscriptions only through the official CLIs the user logged in to |
 | Workspace storage | Local only: every member keeps the whole workspace on their own PC. **No relay and no hosted server**, now or later |
-| Networking | Solo needs nothing. Teams connect over Tailscale, as Kaan and Arda do with Fabrika |
+| Networking | Solo needs nothing. Teams connect over Tailscale |
 | Code sharing | Git. Rumpus shows status and offers pull/push; chat, records and boards live in Rumpus's own store |
-| Advisors | Continuous chatter (like Fabrika's #genel bots), on the advisor owner's keys |
+| Advisors | Continuous chatter in the channels they live in, on the advisor owner's keys |
 | Cross-member jobs | Run on the agent owner's PC with the owner's login; the owner decides who may call it and how much it may do |
 | `/todo`, `/goal` | `/todo` adds a card to the board; `/goal` starts goal mode (step by step until done, stoppable) |
-| System prompts | Fabrika-like defaults for every role (worker, advisor, goal step, ...), editable by the people using them, in layers (5.14) |
+| System prompts | Defaults for every role (worker, advisor, goal step, ...), editable by the people using them, in layers (5.14) |
 | Phase order | Team (Phase 3) before memory, voice and the connector store (Phase 4) |
 | Viewer role | Reads and posts messages; cannot task agents or edit the board and records |
-| Repo | `github.com/kaanisthatyou/rumpus`, public since 2026-11-13 (private and called `lonca` until then), set up as open source from the first commit |
+| Repo | `github.com/kaanisthatyou/rumpus`, public since 2026-11-13, set up as open source from the first commit |
 | Telemetry | None. Rumpus sends nothing |
 | v0.1 code | Removed from `main` when the v2 skeleton lands; tag `v0.1.0` kept |
-| Theme | **Grafit & tek vurgu** (direction 2 on the canvas) |
+| Theme | **Graphite & one accent** (section 7) |
 | UI copy | **Impersonal**: Rumpus's own text states facts and actions, with no author presence (7.1) |
 
 ## 3. Principles
@@ -75,7 +60,7 @@ From the Q&A on 2026-10-16.
    modes, connectors and limits are set only on the owner's computer and cannot be changed remotely (v0.1 rule).
 3. **Only a person starts work.** A person's message, card or goal starts a job. Advisors and agents never start
    jobs of their own; an advisor may propose one as a card a person approves with one click. The agent working on a
-   person's request may hand parts of it to other agents (Fabrika's hand-over, 2026-10-17): a part continues that
+   person's request may hand parts of it to other agents (hand-over, 2026-10-17): a part continues that
    person's request under the other agent's owner's limits, and a part is never handed on, so work fans out one step
    from a person and agents can never keep each other going. A routine (5.16, 2026-11-11) is a person's standing
    request: a message they wrote once, posted for them at the times they set, on their own computer, as themselves;
@@ -91,39 +76,34 @@ From the Q&A on 2026-10-16.
 7. **Everything bilingual.** Turkish and English UI from the first build.
 8. **One small core with plugin points**, not Hermes-style breadth.
 
-## 4. From Fabrika to Rumpus
+## 4. At a glance
 
-| Fabrika | Rumpus |
+| Part | What it is |
 |---|---|
-| Cockpit: one Claude chat per person | A direct channel with each of your agents, plus channels |
-| Team chat with channels, mirrored at both PCs | Channels in a workspace, replicated at every member |
-| Worker Claude (`@claude`): job card, steps, tokens, live view, steer, stop | **Workers**: any supported CLI agent, same job card |
-| Chat bots on free APIs, small talk in #genel, critical takes | **Advisors** with personality profiles |
-| Blender agent: the one machine with Blender | Capability agents: an agent with tools or connectors only one machine has |
-| `roblox-studio-peer`: use the other PC's Studio | Later: a member's agent uses a connector on another member's PC |
-| `ideas/`, `references/`, `.claude/commands/`, `library/` | **Kayıtlar**: Fikirler, Referanslar, Komutlar, Bellek |
-| `progress.md` (where we left off, milestones, next) | A project status page kept current by agents |
-| `split.md`, `Owner` attributes, claim/release | Areas: folders owned by a member, rules given to every job |
-| Cockpit tiles (`shortcuts.json`) | Saved commands pinned as tiles, with `{project}`, `{user}` variables |
-| Status bar quota, `/durum` | Quota per agent and per account, `/durum` |
-| Login expiry detection | Per-CLI auth status, "sign in again" button that opens the CLI's own login |
-| Second Claude login | Several accounts per CLI (separate config dirs) |
-| Phone PWA over Tailscale | Phone companion, per-phone tokens |
-| Update from GitHub with `git pull` | Signed installers, auto-update from GitHub Releases |
-| Gemini web driven headless | **Dropped** (terms of service) |
-| Roblox docs / DevForum research tab | Dropped; web research comes through connectors |
+| Channels | A direct channel with each agent, plus channels in a workspace, replicated at every member |
+| **Workers** | Any supported CLI agent: job card with steps, tokens and cost, live view, steer, stop |
+| **Advisors** | Bots with personality profiles that watch the project and talk about it |
+| Capability agents | An agent with tools or connectors only one machine has; later, connectors on another member's computer |
+| **Records** | Ideas, References, Commands, Memory |
+| Projects | A status page kept current by agents; areas (folders a member mostly works on) given to every job as rules |
+| Commands | Saved prompts pinned as tiles, with `{project}` and `{user}` variables |
+| Quota | Per agent and per account, `/status` |
+| Logins | Per-CLI login state, a "sign in again" button that opens the CLI's own login, several accounts per CLI |
+| Phone | A companion over Tailscale, with a key per phone |
+| Updates | Installers built by CI, updates from GitHub Releases |
+| Left out | Driving a model's web app headless (terms of service); a research tab of its own (web research comes through connectors) |
 
 ## 5. The product
 
 ### 5.1 First run (launcher)
 
-1. Language (Türkçe / English) and theme.
+1. Language (Turkish or English) and theme.
 2. Your name and avatar.
 3. Data folder: the default under the user's app data, changeable.
 4. Agents found on this PC: each supported CLI with version and login state, a "sign in" button that opens the
    CLI's own login in a console, and an API-key option. Nothing installed: links and one-line install commands.
 5. Optional: advisor provider keys (free-tier picks first: Groq, NVIDIA NIM, Gemini free tier), voice, Tailscale.
-6. A first workspace with `#genel` and a direct channel per agent; a short tour.
+6. A first workspace with a general channel and a direct channel per agent; a short tour.
 
 ### 5.2 Layout
 
@@ -131,11 +111,11 @@ Discord-like, three columns plus a rail:
 
 - **Rail:** workspaces (each with its icon), a new-workspace button, then the friends button and the conversations
   with friends as round avatars (5.20), the shortcuts panel.
-- **Sidebar:** workspace name, storage and network state, search / command palette (`Ctrl K`), channels, **Pano**
-  (Görevler, Hedefler), **Kayıtlar** (Fikirler, Referanslar, Komutlar, Bellek), "needs attention" inbox, own card
+- **Sidebar:** workspace name, storage and network state, search / command palette (`Ctrl K`), channels, **Board**
+  (Tasks, Goals), **Records** (Ideas, References, Commands, Memory), "needs attention" inbox, own card
   (mic, settings).
 - **Center:** the channel (messages, job cards, goal strip, typing), or the board, a record, a job's live view.
-- **Right, "Loncadakiler":** invite code, **workers** (CLI agents, with state), **advisors** (with profile chip and
+- **Right, the people panel:** invite code, **workers** (CLI agents, with state), **advisors** (with profile chip and
   today's budget), **members** (with role and presence), quota of your own agents.
 - Phone: the same UI in its narrow layout (bottom tabs), from the desktop app over Tailscale.
 - **The shell adapts to its room** (2026-11-11). The crew panel stands beside the page only in a wide window (from
@@ -161,7 +141,7 @@ Discord-like, three columns plus a rail:
 - **Steering:** a message sent to a running job is queued and delivered at the next safe break (Claude Code takes it
   mid-turn; Codex through its app server later; others get it as the next turn). Written on a finished job's card,
   it goes on in that job's conversation as a new job (4.31).
-- **Autonomy ladder**, the same three words everywhere: *Oku* (read), *Düzenle* (edit), *Tam* (full, warned).
+- **Autonomy ladder**, the same three words everywhere: *Read*, *Edit*, *Full* (warned).
   Mapped per CLI (Claude Code `plan` / `acceptEdits` / `bypassPermissions`; Codex `read-only` / `workspace-write` /
   `danger-full-access`; Gemini/agy `plan` / `auto_edit` / `yolo`). Command allow/deny lists where the CLI has them;
   deny wins.
@@ -180,14 +160,14 @@ Discord-like, three columns plus a rail:
 
 - A profile = name, avatar, personality, provider + model, channels it lives in, cadence, daily token budget, its
   own memory space, what it may read.
-- Personalities: **Eleştirel**, **Doğrucu Davut**, **Olumlu** to start, plus custom (a prompt template). Honest
-  takes over praise, as Fabrika's bots learned.
+- Personalities: **Critical**, **Blunt**, **Positive** to start, plus custom (a prompt template). Honest
+  takes over praise.
 - Continuous chatter: they react to activity (a commit, a finished job, a new idea, a goal step) and drop in on
   their own now and then; they answer people and each other. Limits: daily budget per bot, at most a few bot turns
   in a row before a person speaks, quiet hours, small talk only in chosen channels.
 - They read through read-only tools on the owner's machine: git log and diffs, file read and search in the project
   folder, the board, the goal, recent messages. **They never write code and never start jobs**; a suggested job
-  appears as a card with "İş ver".
+  appears as a card with "Run as job".
 - Run on the member who added them, with that member's keys. Spend per bot is visible.
 
 ### 5.5 Commands
@@ -196,16 +176,15 @@ Discord-like, three columns plus a rail:
 |---|---|
 | `/todo <text> [@who]` | A board card; assigned to an agent it becomes a job on one click |
 | `/goal <goal> [@agent]` | Goal mode: plan, approval, step by step with a report each step, until done, the budget ends, or someone stops it |
-| `/meclis [topic]` (`/council`) | Advisors discuss a topic in turn and end with a short summary |
-| `/yarış <task>` (`/race`) | The same task for several agents at once, each in its own worktree; one result is kept (5.18) |
-| `/kaydet` | Save the message, image or answer as an idea or a reference |
-| `/hatırla <fact>` (`/remember`) | Add to personal or workspace memory |
-| `/özet [period]` (`/summary`) | Summary of a channel |
-| `/durum` (`/status`) | Every agent's account, login and quota on every machine |
-| `/yeni-oturum` (`/new-session`) | In an agent's own channel: the agent leaves the conversation and starts the next one fresh |
+| `/council [topic]` | Advisors discuss a topic in turn and end with a short summary |
+| `/race <task>` | The same task for several agents at once, each in its own worktree; one result is kept (5.18) |
+| `/remember <fact>` | Add to personal or workspace memory |
+| `/summary [period]` | Summary of a channel |
+| `/status` | Every agent's account, login and quota on every machine |
+| `/new-session` | In an agent's own channel: the agent leaves the conversation and starts the next one fresh |
 | `/<saved command>` | A saved prompt with variables |
 
-Every command has a Turkish and an English name (`packages/protocol/src/commands.ts`, 2026-11-12). The app offers
+Every command also has a Turkish name (`packages/protocol/src/commands.ts`, 2026-11-12). The app offers
 the name of its language and writes it into the messages it posts for a command; each command answers to all of its
 names whatever the language, so members who use different languages can read and type each other's commands.
 
@@ -215,14 +194,14 @@ names whatever the language, so members who use different languages can read and
 comment per step. Each step continues the person's goal, so it does not break principle 3. Reference: Qwen Code's
 native `/goal`.
 
-### 5.6 Records (Kayıtlar)
+### 5.6 Records
 
-- **Fikirler** (ideas): title, body, tags, status, an advisor's notes section (Fabrika's `ideas/` format).
-- **Referanslar** (references): images and screenshots with notes and tags; attach to a message or a job.
-- **Komutlar**: saved prompts with variables, pinnable as tiles.
-- **Bellek**: see 5.7.
-- Anything in chat can be saved with `/kaydet` or a hover button; any record can be shared back into a channel or
-  attached to a job. Optional later: mirror records as plain files in the project repo (`.lonca/`).
+- **Ideas**: title, body, tags, status, an advisor's notes section.
+- **References**: images and screenshots with notes and tags; attach to a message or a job.
+- **Commands**: saved prompts with variables, pinnable as tiles.
+- **Memory**: see 5.7.
+- Anything in chat can be saved with a hover button; any record can be shared back into a channel or attached to a
+  job. Optional later: mirror records as plain files in the project repo.
 
 ### 5.7 Memory and context
 
@@ -233,7 +212,7 @@ Learned from Hermes: small, bounded, human-editable memory beats a big opaque st
 - **Per advisor**: each bot's own notes, never shared with other bots.
 - **History**: full-text search (SQLite FTS5) over messages, jobs and records, offered to agents as a tool.
 - Writes come as suggestions with their source (which chat, which date), are scanned for injection, and show in
-  Bellek with edit and delete. A "what was recalled" line on each job card.
+  Memory with edit and delete. A "what was recalled" line on each job card.
 - Upkeep (summaries, suggestions) runs on a cheap model from the person's providers.
 
 ### 5.8 Voice
@@ -296,7 +275,7 @@ portal on Wayland, and one searchable panel (`Ctrl /`). Defaults:
 ### 5.11 Team
 
 - **Invite:** an Admin makes a code or link with a role, an expiry (default 24 h) and one use; the joiner asks, an
-  Admin approves ("Ayşe wants to join as Editor"). Codes carry ≥128 bits.
+  Admin approves ("Ada wants to join as Editor"). Codes carry ≥128 bits.
 - **Roles:**
 
 | | Viewer | Editor | Admin |
@@ -309,11 +288,11 @@ portal on Wayland, and one searchable panel (`Ctrl /`). Defaults:
 | Channels, invites, roles, removing members, workspace settings | — | — | ✓ |
 
 - **Agent access,** set by its owner: who may call it (only me / named members / every Editor), the highest mode
-  for others (default *Oku*), "approve others' jobs first" (off by default), folders, connectors, time and token
+  for others (default *Read*), "approve others' jobs first" (off by default), folders, connectors, time and token
   limits.
 - Presence, typing, OS notifications, phone push for needs-attention, an activity feed.
-- **A notification is about what is the person's own, and names who it is from** (2026-11-12; Fabrika announced
-  every bot as "Kaan's Claude", whoever it belonged to). A job that waits for approval rings and notifies only on
+- **A notification is about what is the person's own, and names who it is from** (2026-11-12; every bot was
+  once announced as the same person's, whoever it belonged to). A job that waits for approval rings and notifies only on
   the computer its agent runs on, since only its owner can answer; it used to ring on every member's computer,
   and counted among their waiting jobs. The end of a job is told for this computer's agents and for jobs this
   person asked for (a job carries whose request it is, `by`). Another member's message is announced under the
@@ -339,20 +318,18 @@ the PC. Needs-attention pushes from day one.
 
 A project = a git repo; each member points it at their own clone. Rumpus shows branch, changes, ahead/behind, and
 offers pull/push; jobs can end with a commit (owner's choice). Advisors read commits and diffs. Areas (folders
-a member mostly works on) generalize Fabrika's `split.md`: every job gets them as a record, never a lock (Fabrika
-dropped its claim rule on 2026-10-16 because it only slowed two people down); an agent that changes someone else's
-area says so in its summary. The project's status page generalizes Fabrika's `progress.md` (where it stands,
-milestones, next) and agents keep it current through Rumpus's tools.
+a member mostly works on): every job gets them as a record, never a lock (a claim rule only slows people down); an
+agent that changes someone else's area says so in its summary. The project's status page (where it stands,
+milestones, next) is kept current by agents through Rumpus's tools.
 
 ### 5.14 Agent instructions (system prompts)
 
-Every role ships with a default instruction template modelled on Fabrika's (its system note and the worker, chat
-bot and Blender agent prompts in `app/fabrika.py` and `app/backend/team_claude.py`), and people can change them.
+Every role ships with a default instruction template, and people can change them.
 
 - **Roles with a default:** worker (who you are and for whom, where you run, language, no interactive prompts so
   ask in plain text and end the turn, the autonomy mode, area rules, what to do after the work: summary, board and
   goal updates, commit policy, how to treat channel context), advisor (one per personality: honesty over praise,
-  length, when to stay silent, never offer to do work), goal step (plan, step, report format), `/meclis`
+  length, when to stay silent, never offer to do work), goal step (plan, step, report format), `/council`
   moderator, memory upkeep, quick entry.
 - **Layers,** assembled in this order for every job:
   1. Rumpus's core rules (untrusted context, only people start work, the owner's limits). Shown read-only, because
@@ -366,7 +343,7 @@ bot and Blender agent prompts in `app/fabrika.py` and `app/backend/team_claude.p
 - **Files, not database rows:** Markdown with frontmatter, with history and revert; export and import, and share
   as a workspace preset. When a release changes a default the person edited, Rumpus offers the new default as a
   merge instead of overwriting.
-- **Personalities are presets:** Eleştirel, Doğrucu Davut and Olumlu are editable templates; duplicate one to make
+- **Personalities are presets:** Critical, Blunt and Positive are editable templates; duplicate one to make
   a new advisor.
 - **Character presets for agents** (2026-11-11): twelve ready-made instruction lines an owner picks as chips in the
   agent form instead of writing them (thorough, quick, asks first, decides alone, few words, explains, light
@@ -378,12 +355,12 @@ bot and Blender agent prompts in `app/fabrika.py` and `app/backend/team_claude.p
   nothing.
 - **Text never grants rights.** No instruction layer can widen an agent's mode, folders or connectors; those come
   only from the owner's settings (principle 2).
-- Delivery per driver: Claude Code `--append-system-prompt` (or `--system-prompt` to replace, as Fabrika can);
+- Delivery per driver: Claude Code `--append-system-prompt` (or `--system-prompt` to replace);
   other CLIs through their equivalent, else the first message of the session.
 
 ### 5.15 Specialists
 
-Fabrika's Blender agent made general (2026-11-10): an agent for one kind of work, done the same way every time.
+An agent for one kind of work (2026-11-10), done the same way every time.
 A specialist is an agent with a `specialty`:
 
 - **Role**: one line, shown next to its name and told to the other agents, so a worker knows whom to hand a part to.
@@ -430,7 +407,7 @@ sets is still the person's standing request, made on their word ("set my morning
 
 ### 5.18 Races
 
-One task given to two to four of a person's own agents at once (`/yarış`, `/race`), each in a git worktree of
+One task given to two to four of a person's own agents at once (`/race`), each in a git worktree of
 its own on a branch of its own, made from the commit the first agent's folder is on, so they cannot be in each
 other's way and the main folder is not touched while they work. The card under the person's message shows them
 side by side: what each is doing now, the order they finished in, time, tokens and cost, what each changed (with
@@ -514,7 +491,7 @@ a text channel.
   agent answering in a report channel is told its answer is a report card (start with a `# Title`, attach images).
 - **A card opens the report** over the page: all its text, its images in a gallery and full size (arrows, Esc), what
   the agent wrote while working, the request, and the live view of its job.
-- **Answering a report** ("Yanıtla"): the agent's own channel opens with the report attached to the next message,
+- **Answering a report** ("Answer"): the agent's own channel opens with the report attached to the next message,
   as an object above the box (removable). The sent message carries a `Citation` (id, channel, title, date, agent;
   filled in by the core, not taken from the client) shown as a chip that opens the report again; the job it starts
   gets the report's text in a `<report>` block, as information, and its images as attachments.
@@ -522,13 +499,13 @@ a text channel.
   10 MB, an absolute path or one in the agent's folder) on the current job's answer, at most eight. They are blobs
   of the workspace, kept on the computer that made them; another member's app shows a placeholder until blobs of
   messages sync (below).
-- **Decisions** ("Senin kararın"): a choice that is the person's (spending, publishing, a direction) is a question
+- **Decisions** ("Your decision"): a choice that is the person's (spending, publishing, a direction) is a question
   on the report, not a line in its text: `ask_decision` on the current job's answer, or `decisions` in
   `post_report` (at most six, each with up to five options). The report shows them in a box: each is answered with
-  an option, with words of the person's own, or left to the agent ("Senin kararın"), and the answers go to the
-  agent's own channel as the person's message with the report attached. Anything else is answered with "Yanıtla".
-  "Senin kararın" is the person's words to the agent, so the copy rules let `reports.said.*` use the second person.
-- **Read and pinned**: a report is read once it is opened (or all at once, "Tümü okundu"), and can be marked unread;
+  an option, with words of the person's own, or left to the agent ("Your decision"), and the answers go to the
+  agent's own channel as the person's message with the report attached. Anything else is answered with "Answer".
+  "Your decision" is the person's words to the agent, so the copy rules let `reports.said.*` use the second person.
+- **Read and pinned**: a report is read once it is opened (or all at once, "All read"), and can be marked unread;
   a pin (green when on) keeps it above the days. The marks are this person's, on this computer (`report_marks`,
   not synced). Filters: all, unread, pinned, awaiting a decision; and by agent.
 - **Bub's toast**: a report of this person's (their agent wrote it, or the job was theirs) plays a short chime and
@@ -540,7 +517,7 @@ a text channel.
   first; the page asks again once they arrive.
 - **Efficiency**: on the Reports page and the overview, a dial like a battery's health: the share of the last seven
   days' jobs that were completed out of those that ended (done, failed, stopped), to two decimals, never rounded,
-  with its state in words (İyi, Orta, Zayıf).
+  with its state in words (Good, Fair, Poor).
 
 **The overview's dashboard** (same day): tokens of the last seven days (the total, per day on hover, and where they
 went: input, cache, output, each named beside its color), the efficiency dial with the jobs done, failed and
@@ -574,38 +551,27 @@ and Rumpus dropped it, and the idle session was closed after 20 minutes with the
   and it is cleared when the app opens again (the commands ended with it).
 - The Codex driver reports none for now: only Claude Code's turns of its own are read.
 
-### 5.23 Reminders of what waits on a person (2026-11-18, Kaan)
+### 5.23 Reminders of what waits on a person (2026-11-18, Kaan; once only since 2026-11-23)
 
 Agents ask for approvals and leave questions in their reports, and the person is often away from the screen. An
-agent now taps them on the shoulder, like a colleague would: "Kankaa, pşş", "Eee, ne diyosun?".
+agent whose setting is on taps them on the shoulder once, like a colleague would.
 
 - **What waits.** A job of the agent's that waits for an approval (one asked while it works, or the go-ahead before
   it starts), and an answer or report of the last week with questions (`decisions`) nobody answered: no person's
   message cites it and, outside the reports, nobody wrote in its channel after it. Also a question an agent asks in
-  the text of its answer (Kaan, same day): its last word in a channel in the last two days ends with a question, or
-  says something waits on the person ("Senin kararın", "your call"), and nobody wrote there after it nor cites it
-  (`askedIn`, `store.lastAnswers`). In a team only this computer's own agents remind, and only of what is this
-  person's.
-- **How.** The agent writes where the thing waits, as a message of its own, after showing that it types for a few
-  seconds: in the channel the approval or question was asked in (Kaan, 2026-11-19), in its own channel for a
-  report's question. What waits in two channels is reminded of in each, on its own schedule; the button under any
-  of them, or an answer, stops them all. One line, fifteen minutes after something started to wait, and a
-  notification of it on the person's computer; what it was about is not reminded of again (Kaan, 2026-11-23: a line
-  every few minutes was too many). Off unless the agent's setting turns it on (same day). Nothing is written in quiet
-  hours (Settings, 23:00 to 08:00 by default).
-- **The lines** are put together from pieces in `packages/core/src/nudges.ts`, in the person's language (Turkish
-  and English): no model call, no tokens, and no two in a row the same. They grow less patient as the run goes on
-  (Kaan, same day): the first is calm ("acelesi yok"), the second a reminder, the third an "Eee?", the fourth and
-  fifth impatient, from the sixth on a little theatrical ("burada kök saldı, bak susmam ha"). No exclamation marks
-  and no emoji; they speak as the agent, never as the app.
-- **The button.** Under each line one button, its label different every time and curter as the run goes on
-  ("Bakarım", then "Tamam tamam", then "Tamam, sus artık geldim"). Its only job is to stop the reminders: what waits
-  from that agent now is not reminded of again (kept on this computer), and every earlier reminder's button goes.
-  Something new that starts to wait starts a new run. Answering is optional, but it stops them as surely as the
-  button (Kaan, same day): a person's message in the agent's channel or where something of its waits, naming it, or
-  citing its message (`Nudger.answered`); a line being typed then is not sent. Otherwise the run ends by itself
-  when nothing waits any more.
-- **The setting.** "Bekleyen işleri hatırlatır" in the agent's settings, on by default.
+  the text of its answer: its last word in a channel in the last two days ends with a question, or says something
+  waits on the person ("your call"), and nobody wrote there after it nor cites it (`askedIn`, `store.lastAnswers`).
+  In a team only this computer's own agents remind, and only of what is this person's.
+- **How.** Fifteen minutes after something started to wait, the agent writes one line where it waits, after
+  showing that it types for a few seconds: in the channel the approval or question was asked in, in its own channel
+  for a report's question. The person's computer shows a notification of it. What it was about is not reminded of
+  again; something new that starts to wait gets its own line. A line every few minutes, as at first, was too many
+  (Kaan, 2026-11-23). Nothing is written in quiet hours (Settings, 23:00 to 08:00 by default).
+- **The line** is put together from pieces in `packages/core/src/nudges.ts`, in the person's language: no model
+  call, no tokens. No exclamation marks and no emoji; it speaks as the agent, never as the app.
+- **The button** under the line marks it seen. Answering first, in the agent's channel or where something of its
+  waits, naming it, or citing its message (`Nudger.answered`), means no line is written.
+- **The setting.** "Reminds of waiting work" in the agent's settings, off by default (2026-11-23).
 - Reminders are not part of the conversation: they never reach the agent as channel context. Whether a button was
   pressed is a mark of the computer it is for, not a logged change; other members do not see reminders at all.
 
@@ -615,10 +581,10 @@ agent now taps them on the shoulder, like a colleague would: "Kankaa, pşş", "E
   message, as if a new CLI window opened each time. Going on in a job's conversation was a button and a field of
   its own on the card.
 - **What.** By default the channel's box points at its latest card of an agent of this computer's: a green outline
-  round the box, the card marked, and a line above the box ("Felix ile devam", the request) that scrolls to it. A
+  round the box, the card marked, and a line above the box ("Go on with Felix", the request) that scrolls to it. A
   message sent from there goes on in that job's conversation (`messages.send` with `follow`; a running job is
   steered), without naming the agent. A message that names only other agents is theirs. × above the box sends the
-  next message to a new session; the next card points the box at itself again. The card's "Devam et" points the box
+  next message to a new session; the next card points the box at itself again. The card's "Go on" points the box
   at an older card.
 - Not for another member's agent (it runs on their computer) nor a handed-over part (its conversation ends with it).
 
@@ -669,7 +635,7 @@ become TypeScript test cases for the same security rules.
 
 - Per workspace, one SQLite file: an **append-only event log** (message posted/edited/deleted, job created/step/
   ended, card, goal, record, member, channel, certificate events), each event signed by the author's device key and
-  ordered by a hybrid logical clock (what Fabrika already does for its chat), plus tables built from it and an FTS5
+  ordered by a hybrid logical clock, plus tables built from it and an FTS5
   index.
 - Images and files are content-addressed blobs, fetched when needed.
 - A job's full transcript stays on the machine that ran it; the log keeps its steps and summary; live view streams
@@ -688,7 +654,7 @@ become TypeScript test cases for the same security rules.
   without a window or agents, joined with an invite like a person (Viewer is enough) and approved by an admin. It
   is a member on a member's own machine, not a relay: it sees what its certificate allows, and every event it
   passes on is checked against its author's signature by whoever takes it.
-- Tailscale is detected and guided as in Fabrika: not installed (winget / download), signed out, wrong tailnet.
+- Tailscale is detected and guided: not installed (winget / download), signed out, wrong tailnet.
   Joining a workspace means being in the same tailnet, or the inviter sharing their device with the joiner
   (Tailscale node sharing); the invite screen walks through both.
 - **Roles are certificates:** the workspace has an admin key; each device has a key pair; an Admin signs a
@@ -704,7 +670,7 @@ to hide what a CLI cannot do.
 
 | Driver | v1 | Notes |
 |---|---|---|
-| Claude Code | yes | stream-json in and out, mid-turn steering, interrupt, `rate_limit_event` quota windows, `--mcp-config --strict-mcp-config`, `claude auth status --json`. Fabrika-proven |
+| Claude Code | yes | stream-json in and out, mid-turn steering, interrupt, `rate_limit_event` quota windows, `--mcp-config --strict-mcp-config`, `claude auth status --json` |
 | Codex | yes | `codex exec --json`, resume, sandbox modes, temporary `CODEX_HOME` for connectors; app-server driver later for steering |
 | OpenCode | yes | `run --format json`, `OPENCODE_CONFIG_CONTENT`, `OPENCODE_PERMISSION` |
 | Gemini CLI / Antigravity `agy` | API key or Vertex only | Google forbids third-party use of its OAuth login; warn on OAuth |
@@ -741,7 +707,7 @@ model list from `GET /models` with a tolerant parser, per-model limits. Keys in 
 
 ## 7. Design
 
-Chosen direction: **Grafit & tek vurgu** (artboard 2 on the canvas; the other two stay there for reference).
+Chosen direction: **Graphite & one accent**.
 
 - **Color:** cool graphite surfaces (ground `#0A0B0D`, panels `#0F1013` / `#0C0D10`, cards `#131418` /
   `#191B20`, hairlines at 7% and 12% white), text `#E9ECF1`, secondary `#969CA7`, meta `#8A909B`, **one accent**
@@ -778,20 +744,20 @@ launcher) is impersonal and objective: it names what a control does or states wh
 present in it.
 
 - No feelings, opinions, praise, jokes, greetings, encouragement or apologies; no exclamation marks; no emoji.
-- No addressing the reader: no `sen` / `siz`, no second-person possessives (`kotan`, `ayarların`), no
-  "Hoş geldin". In English no "you" / "your".
-- The app never speaks as "I" or "we" and is never personified ("Rumpus düşünüyor" → "İşleniyor").
-- Buttons are plain verbs or nouns: Kaydet, Durdur, Davet oluştur, Ayarlar.
-- Errors: what happened, the cause when known, the action: "İş başlatılamadı: `claude` bulunamadı. Kurulum
-  komutu kopyalandı."
+- No addressing the reader: no "you" / "your" (in Turkish, no `sen` / `siz` forms and no second-person
+  possessives).
+- The app never speaks as "I" or "we" and is never personified ("Rumpus is thinking" becomes "Processing").
+- Buttons are plain verbs or nouns: Save, Stop, Create invite, Settings.
+- Errors: what happened, the cause when known, the action: "The job could not start: `claude` was not found. The
+  install command was copied."
 
 | Not | But |
 |---|---|
-| Hoş geldin Kaan! Hadi başlayalım | Kurulum · 1 / 5 |
-| Claude Code kotan | Claude Code kotası |
-| Harika, davet gönderildi! | Davet gönderildi. |
-| Bir şeyler ters gitti :( | Bağlantı kurulamadı: Tailscale kapalı. |
-| Buraya bir şeyler yaz… | Mesaj · #genel |
+| Welcome, Kaan! Let's get started | Setup · 1 / 5 |
+| Your Claude Code quota | Claude Code quota |
+| Great, the invite is on its way! | Invite sent. |
+| Oops, something went wrong :( | No connection: Tailscale is off. |
+| Write something here… | Message · #general |
 | Your code was copied! | Code copied. |
 
 This is the app's voice only. What people, agents and advisors write is their own content; advisor personalities
@@ -805,9 +771,9 @@ Each phase ends with something installable that the two of you use for real.
 | Phase | Contents | Done when |
 |---|---|---|
 | **0. Foundation** | Theme choice, tokens and component kit, repo scaffold, CI, Electron shell, first-run launcher, i18n, signed installer, auto-update | An installable empty Rumpus updates itself |
-| **1. Solo core** | Channels, messages, records (ideas, references, commands), Claude Code and Codex drivers with job cards, live view, steering, stop, quota, login state, autonomy ladder, needs-attention inbox, `Ctrl K`, shortcuts, `/todo` board, MCP gateway with Rumpus's own tools, worker instruction templates and their editor | Kaan runs a real non-Roblox project from Rumpus for a week |
-| **2. Advisors and goals** | Provider presets and keys, advisor profiles with editable personality presets and chatter with budgets, `/meclis`, `/goal` with plan approval and comments, worktrees | A goal finishes on its own while the advisors comment |
-| **3. Team** | Peer sync over Tailscale, invites, approval, role certificates, members panel, cross-member jobs, notifications, phone companion | Kaan and Arda run a project together on Rumpus instead of Fabrika's team tab |
+| **1. Solo core** | Channels, messages, records (ideas, references, commands), Claude Code and Codex drivers with job cards, live view, steering, stop, quota, login state, autonomy ladder, needs-attention inbox, `Ctrl K`, shortcuts, `/todo` board, MCP gateway with Rumpus's own tools, worker instruction templates and their editor | Kaan runs a real project from Rumpus for a week |
+| **2. Advisors and goals** | Provider presets and keys, advisor profiles with editable personality presets and chatter with budgets, `/council`, `/goal` with plan approval and comments, worktrees | A goal finishes on its own while the advisors comment |
+| **3. Team** | Peer sync over Tailscale, invites, approval, role certificates, members panel, cross-member jobs, notifications, phone companion | Kaan and Arda run a project together on Rumpus |
 | **4. Memory, voice, connectors** | Memory layers and recall line, voice (local and cloud, custom servers), connector store with OAuth and MCPB | A connector installs in one click and a job is started by voice |
 | **5. Public 1.0** | OpenCode and the generic ACP driver, Linux packages, docs site, contribution guide, security review | Strangers install and use it without help |
 
@@ -817,13 +783,13 @@ Built and verified on Windows:
 
 - pnpm monorepo (`apps/desktop`, `packages/protocol`, `packages/core`, `packages/ui`), Electron 44, TypeScript,
   React 19, Motion, Biome, Vitest; dependencies pinned and at least 7 days old.
-- Design system "Grafit & tek vurgu" as tokens (dark, light, four accents), components and line icons.
+- Design system "Graphite & one accent" as tokens (dark, light, four accents), components and line icons.
 - Electron shell: sandboxed renderer, core in a utility process over MessagePorts, custom title bar, window state,
   single instance, IPC limited to the app's own page.
 - First-run launcher: language, appearance, profile, data folder, CLI agents (found, version, login state without
   spending tokens, the CLI's own login in a console, install commands), Tailscale state. Settings dialog with the
   same parts.
-- The empty shell (rail, sidebar, channel, "Loncadakiler" panel) with installed agents listed.
+- The empty shell (rail, sidebar, channel, people panel) with installed agents listed.
 - Turkish and English, impersonal copy checked by `pnpm check:copy`.
 - Tests: 26 unit tests; the real app through launcher, shell, settings and restart (`pnpm e2e`), also as the
   packaged build; an update found and downloaded from a local feed (`e2e/update.mjs`).
@@ -903,13 +869,13 @@ Left open from Phase 1: a logged-in Codex run (no Codex login on the dev machine
   tolerantly; plain http only for loopback, private networks and Tailscale addresses. The core asks the main
   process for completions over its parent port (`PortLlm`). Tested against a local stand-in server (unit tests and
   `e2e/advisors.mjs`).
-- Advisors: profiles (name, handle, personality preset with an editable prompt: Eleştirel, Doğrucu Davut, Olumlu,
-  Özel; provider and model; channels; how often they speak unasked; a daily token budget; an optional project
+- Advisors: profiles (name, handle, personality preset with an editable prompt: Critical, Blunt, Positive,
+  Custom; provider and model; channels; how often they speak unasked; a daily token budget; an optional project
   folder whose recent commits and git status they see, read only). They answer `@mentions`, comment now and then
   on finished jobs and new ideas, drop in on their own in active channels, and answer each other. Limits in
   code: the budget, quiet hours (Settings → General) for unasked turns, at most three bot turns in a row before a
   person speaks, one unasked turn per channel per hour, one turn at a time per channel. They never write code or
-  start jobs; a `/todo` line in their answer becomes a board card. `/meclis [topic]`: two rounds in turn, then a
+  start jobs; a `/todo` line in their answer becomes a board card. `/council [topic]`: two rounds in turn, then a
   summary. Each advisor runs on the device that added it. Tested with unit tests and `e2e/advisors.mjs`; not yet
   run against a real provider with a real key. Rumpus gathers the channel, the board and git history for them;
   with a project folder they also get read-only tools (`list_files`, `read_file`, `search`, `git_log`,
@@ -936,7 +902,7 @@ Left open from Phase 1: a logged-in Codex run (no Codex login on the dev machine
 
 The details behind 5.11 and 6.5, decided before building.
 
-- **Workspaces.** Several per app: "Kişisel" (never synced, as today) and team workspaces, each in its own folder
+- **Workspaces.** Several per app: "Personal" (never synced, as today) and team workspaces, each in its own folder
   `<data>/workspaces/<id>/` with its own SQLite file. The rail lists them; ＋ creates one or joins with a code.
 - **Device identity.** An Ed25519 key pair made on first start; the private key is sealed with `safeStorage` in
   `<app>/identity.json` and signs in the main process for the core (the same pattern as providers), so it never
@@ -962,7 +928,7 @@ The details behind 5.11 and 6.5, decided before building.
   known peer and pulls what it lacks, so a third member passes on what two others missed. Addresses come from signed
   `device.endpoint` events and `tailscale status --json`.
 - **Invites.** An admin makes a code (role, 24-hour expiry, one use) that carries the workspace id, the inviter's
-  addresses and a 128-bit token. The joiner pastes it; the inviter's app shows "Ayşe wants to join as Editor" to
+  addresses and a 128-bit token. The joiner pastes it; the inviter's app shows "Ada wants to join as Editor" to
   the admins; approval writes `member.certified` and the joiner pulls the workspace. The invite screen walks
   through Tailscale: the same tailnet, or the inviter sharing their device.
 - **Cross-member jobs.** A message that mentions another member's agent syncs like any message; the agent's owner's
@@ -970,7 +936,7 @@ The details behind 5.11 and 6.5, decided before building.
   job card live; the job's steps and end are signed events, the answer a normal message. Approvals go to the
   owner by default.
 - **Built so far:** 3.1. Several workspaces: a registry in `<data>/workspaces.json` next to the personal one, the
-  rail lists them and ＋ makes a team lonca; the open one is a setting. Workspaces in the background keep running
+  rail lists them and ＋ makes a team workspace; the open one is a setting. Workspaces in the background keep running
   (jobs, goals, advisors); their callbacks run in their own scope, so a background job or an agent's tool call reads
   and writes its own workspace, and only the open workspace's events reach the window.
   3.2. The device key (Ed25519, sealed in `<app>/identity.json`, signing in the main process through
@@ -989,33 +955,33 @@ The details behind 5.11 and 6.5, decided before building.
   proves its key, an admin approves, the joiner polls and then pulls everything. Roles: set, remove (the removed
   device hears it for a day), automatic renewal by admins, local actions refused above the role. Tested with two
   cores in one process over loopback (invite, approve, messages both ways, roles, removal) and membership unit tests.
-  3.4 in the app: Davet (role, how long the code lasts, the code to copy, Tailscale guidance), ＋ → Koda katıl, the
-  rail showing a lonca that waits for approval, join requests with Onayla / Reddet (and an OS notification), the
+  3.4 in the app: Invite (role, how long the code lasts, the code to copy, Tailscale guidance), ＋ → Join with a
+  code, the rail showing a workspace that waits for approval, join requests with Approve / Turn down (and an OS notification), the
   members list with online dots, role changes and removal for admins. `e2e/team.mjs` runs two real apps on one PC
   over loopback: invite, join, approve, messages both ways.
   3.5. Agents carry their owner and access (who may give jobs: only the owner or editors; the highest permission
   for others; "approve others' jobs first"). Only the owner's app runs an agent: a mention from another member
   reaches it through sync, the access rules decide, the mode is capped, and with approval on the job waits as
-  "İşe başlama" until the owner allows it. Job states (start, waiting, end) are signed `job.saved` events, so
-  everyone sees the card ("Sahibi: Kaan"); steering, stopping, approving and the live view stay with the owner.
+  "Start the job" until the owner allows it. Job states (start, waiting, end) are signed `job.saved` events, so
+  everyone sees the card ("Owner: Kaan"); steering, stopping, approving and the live view stay with the owner.
   Viewers cannot change the board, records or goals; goals and cards use only own agents; agents' own channels
   belong to the agent's owner. Covered in the two-core unit test and `e2e/team.mjs` (Arda's mention runs Kaan's
   fake Claude Code and the answer comes back).
-  3.6. A live path between members (`/v1/live`, signed like the rest, never stored): "Arda yazıyor" under the
+  3.6. A live path between members (`/v1/live`, signed like the rest, never stored): "Arda is typing" under the
   messages (at most every three seconds, at once again after a send), and another member's running job moving on
   everyone's card about once a second (only the agent's owner may report it). The members list shows who answered
-  the last sync. A message from another member in a background lonca marks it in the rail; while Rumpus is in the
+  the last sync. A message from another member in a background workspace marks it in the rail; while Rumpus is in the
   background a message from another member gives an OS notification.
   0.5.0-alpha.0 (2026-10-18): the packaged app passes all e2e tests; `e2e/tailscale.mjs` (by hand, on a computer
   with Tailscale) has one app listen on its real Tailscale address: the invite carried the computer's own `100.x.y.z:47640` and the
   second app joined and chatted through it.
   3.7. The phone companion: the core serves the built UI on 127.0.0.1:47620 with `tailscale serve` in front for
   HTTPS (`https://<pc>.<tailnet>.ts.net:47621`); requests are the same frames over POST, events a server-sent
-  stream. Settings → Telefon turns it on, shows why it cannot work yet (Tailscale off, no HTTPS certificates in the
+  stream. Settings → Phone turns it on, shows why it cannot work yet (Tailscale off, no HTTPS certificates in the
   tailnet, `tailscale serve` failed, port taken), and pairs a phone with a one-time QR link (ten minutes); each phone
   gets its own key (cookie, or a header and the event address for home-screen apps without cookies; only the hash is
-  kept) and can be removed alone. Writes need the `x-lonca` header and a matching origin. On a narrow screen the UI
-  is one column with a bottom bar (Kanallar, Görevler, Bekleyenler, Loncadakiler, Ayarlar) and full-screen dialogs;
+  kept) and can be removed alone. Writes need the app's own request header and a matching origin. On a narrow screen the UI
+  is one column with a bottom bar (Channels, Tasks, Waiting, People, Settings) and full-screen dialogs;
   settings about the PC itself are not offered on the phone. `e2e/phone.mjs` pairs a narrow window as the phone.
   Pushes: Web Push with no library (RFC 8291 aes128gcm, RFC 8292 VAPID with a key made once on the PC); the phone
   turns them on with one tap (a banner), its service worker shows them, and the PC sends one when a job waits for
@@ -1032,23 +998,23 @@ The details behind 5.11 and 6.5, decided before building.
 - 4.1 Memory: personal sections (profile, notes) in `<app>/memory.json`, on this computer only; workspace sections
   (decisions, conventions, glossary) as signed `memory.saved` events that editors write. Each section has a
   character limit, and all of it goes into agents' prompts (as facts kept by people, not instructions) and into
-  advisors' prompts; a job card says how many sections it recalled. `/hatırla` adds a dated line to the notes.
-  Agents suggest through the MCP tool `suggest_memory`; suggestions wait in Bellek with their source and flags for
+  advisors' prompts; a job card says how many sections it recalled. `/remember` adds a dated line to the notes.
+  Agents suggest through the MCP tool `suggest_memory`; suggestions wait in Memory with their source and flags for
   things that look like steering (instructions, role changes, markup, secrets, passwords in addresses, encoded
   blobs, length) until a person edits and accepts or rejects them. Not yet: upkeep by a cheap model (summaries) and
   per-advisor notes (added as 4.8). Search: the MCP tool `search_workspace` looks through messages, records, board cards, goals and
   project status pages (added with 4.5).
-- 4.2 Projects (5.13), Fabrika's per-game folder made general: a project is shared (name, description, areas as
+- 4.2 Projects (5.13): a project is shared (name, description, areas as
   signed `project.saved` events, the status page as `progress.saved`), its folder is each computer's own clone (a
   local table, never synced). The page shows the clone's git state (branch, upstream, ahead/behind, changes, recent
   commits; fetch at most every five minutes unless asked, `pull --ff-only` and `push`, never forced, git never
-  prompts), the status page ("where it stands", milestones, next; a clone with a Fabrika `progress.md` starts the
-  page from it) and the areas. An agent whose folder is inside a project's clone gets the page and the areas in its
+  prompts), the status page ("where it stands", milestones, next; a clone with a `progress.md` starts the page
+  from it) and the areas. An agent whose folder is inside a project's clone gets the page and the areas in its
   prompt and two MCP tools, `read_status` and `update_status`; advisors whose folder is inside one get the page too.
   Areas are a record, not a lock. Covered by unit tests (git with real repositories, two cores syncing a project and
   a page edit) and `e2e/channel.mjs` (a project from a repository with `progress.md`, the fake agent updating the
   page, a person editing it, the page after a restart).
-- 4.3 Hand-over (Fabrika's `job_request.py`): the MCP tool `hand_over` posts a self-contained part of the person's
+- 4.3 Hand-over: the MCP tool `hand_over` posts a self-contained part of the person's
   request the agent is working on as `@other task`, marked with the request it continues; it runs in a session of
   its own (closed when the part ends), as that person's request: the other agent's access rules and mode cap apply,
   also when it belongs to another member and runs on their computer, and a part never gets more than the handing
@@ -1058,37 +1024,36 @@ The details behind 5.11 and 6.5, decided before building.
   past six parts per request; a part may start up to two hours after the handing job started. The message shows a
   "handed-over part" label. Covered by unit tests on one computer and between two (Kaan's agent hands a part to
   Arda's, which runs capped at read on Arda's computer and answers back).
-- 4.4 Several logins per CLI (Fabrika's second worker on another Claude login): Settings → Agents → Accounts adds an
+- 4.4 Several logins per CLI: Settings → Agents → Accounts adds an
   extra login of Claude Code or Codex on this computer. Each is a config folder of the CLI's own under
   `<app>/accounts/<id>` (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`), signed in with the CLI's own login opened there; its
   state is read with the CLI's status command under that folder. An agent can run on an account; its quota shows
   under the account's name. Accounts stay on this computer (`<app>/accounts.json`); removing one leaves its folder.
   Covered by a unit test and `e2e/channel.mjs` (an account added, signed out, offered in the agent form).
-- 4.5 `/durum` (also in `Ctrl K`): every computer's installed CLIs (version, plan, login state), extra logins and
+- 4.5 `/status` (also in `Ctrl K`): every computer's installed CLIs (version, plan, login state), extra logins and
   latest quota, this computer first. In a team workspace the others are asked over the live link (never stored) and
   answer within seconds, at most every three seconds each; answers are kept to their expected shape. Covered by the
   two-core unit test and `e2e/channel.mjs`.
-- 4.6 `/özet [hours | hafta] [@advisor]`: an advisor of the channel (the one named, else the first) sums up the
+- 4.6 `/summary [hours | week] [@advisor]`: an advisor of the channel (the one named, else the first) sums up the
   channel's last hours (24 by default): decisions, done work, what is open or blocked, who waits on whom. It reads up
   to 300 messages of the period instead of a normal turn's 30, on its own budget and provider; the summary is the
   advisor's message, so Rumpus never speaks as itself. Covered by a unit test.
 - 4.7 Quick entry (5.10): `Ctrl Alt Space` from anywhere (registered globally by the main process; when another app
-  holds it, the palette's "Hızlı giriş" opens the same window) shows a small always-on-top window on the screen the
+  holds it, the palette's "Island" entry opens the same window) shows a small always-on-top window on the screen the
   pointer is on: a channel or agent to write to (the last one used is remembered) and a message box; Enter sends and
   the window hides, as it does on Esc or when it loses focus. It is the same UI bundle with its own connection to the
   core. Its key is rebound in Settings → Shortcuts like the others; the main process registers the new one first and
   keeps the old one when another app holds it. Covered by `e2e/channel.mjs` (opened from the palette, a message sent
-  to #genel, the key listed in Settings) and the packaged build's smoke and channel runs.
+  to #general, the key listed in Settings) and the packaged build's smoke and channel runs.
 - 4.8 Per-advisor notes (5.7): an advisor that ends an answer with a `/not <note>` line keeps the note (dated, at most
   2000 characters, the oldest lines go first) on the computer it runs on; the line is not shown, and the notes go
   into that advisor's prompt only. Its owner reads and edits them in the advisor form. Covered by a unit test.
-- 4.9 Moving from Fabrika: `Ctrl K` → "Fabrika'dan içe aktar" takes a roblox-factory folder and turns its ideas
-  (`ideas/*.md`, front matter kept as status and tags), references (`references/*.json` with their images), saved
-  prompts (`.claude/commands/*.md`) and games with a status page (`games/*/progress.md`, as projects pointed at the game
-  folder) into records and projects of the open workspace. Nothing in the folder changes; things already here (same
-  kind and title, same project name) are skipped; advisors stay quiet about imported ideas. On the real roblox-factory
-  it reads 20 ideas, 40 references, 9 prompts and 7 games. Covered by unit tests and `e2e/channel.mjs`.
-- 4.10 Connectors, the core of the store (5.9), 2026-10-22: Settings → Bağlayıcılar adds an MCP server by hand, a
+- 4.9 Importing an older project folder: `Ctrl K` → import takes a folder laid out as `ideas/*.md` (front matter
+  kept as status and tags), `references/*.json` with their images, saved prompts (`.claude/commands/*.md`) and
+  `games/*/progress.md` (as projects pointed at that folder), and turns them into records and projects of the open
+  workspace. Nothing in the folder changes; things already here (same kind and title, same project name) are
+  skipped; advisors stay quiet about imported ideas. Covered by unit tests and `e2e/channel.mjs`.
+- 4.10 Connectors, the core of the store (5.9), 2026-10-22: Settings → Connectors adds an MCP server by hand, a
   remote one (Streamable HTTP; JSON or event-stream answers, the session id, no redirects, https except loopback,
   private networks and Tailscale) or a local program over stdio (no shell; it gets Rumpus's environment without
   variables that look like keys or tokens, and Rumpus's own). Connectors belong to this computer:
@@ -1107,7 +1072,7 @@ The details behind 5.11 and 6.5, decided before building.
   Claude Code on Haiku called a connector's tools through Rumpus after an approval); the Codex contract test passes
   with the new flag. Not yet: OAuth, MCPB bundles, the team-visible log of tool decisions, and connectors on other
   members' computers.
-- 4.11 The catalog (5.9), 2026-10-22: Bağlayıcılar → Katalogdan ekle shows Rumpus's catalog above a live search of the
+- 4.11 The catalog (5.9), 2026-10-22: Connectors → Add from catalog shows Rumpus's catalog above a live search of the
   official MCP Registry (`/v0.1/servers`, by name, latest active versions), which is marked as community and not
   reviewed. Both install the same way: a registry `server.json` becomes install plans (a Streamable HTTP remote, or
   an npm, PyPI or OCI package run pinned through `npx -y pkg@version`, `uvx pkg@version` or `docker run -i --rm`),
@@ -1126,11 +1091,9 @@ The details behind 5.11 and 6.5, decided before building.
   (Context7, Microsoft Learn, Exa, Firecrawl and Hugging Face answer `initialize` and `tools/list` through Rumpus's
   client) and `LONCA_REAL_NPX=1` (Playwright, Chrome DevTools, Context7 and Firecrawl start through npx on Windows).
   Next for the store: MCPB, a workspace's own allowlist, and the tool-decision log (OAuth: 4.20).
-- 4.12 The first rename (2026-11-10): Serai (Rumpus since 4.21). One constant (`BRAND`) for the name everywhere a person or a model reads it
-  (the UI through `{{app}}` in the locale files), the MCP server agents see (`mcp__serai__*` then), git branch prefixes
-  (`serai/goal-…` then), a new mark (a caravanserai's gate). Invite codes started with `SERAI1.`; `LONCA1.` codes
-  were still read. On first start the former name's data folder is moved to the new one (not yet tried on a real
-  installation). Workspaces are "alan" / "workspace" in the UI.
+- 4.12 The name in one place (2026-11-10): one constant (`BRAND`) for the name everywhere a person or a model
+  reads it (the UI through `{{app}}` in the locale files), the MCP server agents see, git branch prefixes and the
+  mark. Invite codes and data folders of earlier builds are still read.
 - 4.13 Specialists (5.15), 2026-11-10: the `specialty` of an agent, the specialist prompt, the roster given to
   workers, a session per job, the budget (timers, a token check after every usage report), the RESULT line (kept
   on the message, given through `part_status`), lessons (`learn_lesson`, waiting ones in `lessons.pending` on the
@@ -1153,7 +1116,7 @@ The details behind 5.11 and 6.5, decided before building.
   message box empties at once on send (text typed while a message was on its way used to be wiped when it landed;
   `e2e/specialists.mjs` caught it).
 - 4.18 Checks on 2026-11-11: all six e2e scripts pass against the built app; the packaged
-  `Serai-Setup-0.9.0-alpha.0.exe` was built and its unpacked app passes `smoke`, `specialists` and `team`
+  installer of 0.9.0-alpha.0 was built and its unpacked app passes `smoke`, `specialists` and `team`
   (invite link through a second copy). `e2e/real-specialist.mjs` (by hand, one Haiku job): the real Claude Code
   as a code reviewer read the channel, found the planted bug with file and line, kept a lesson through
   `learn_lesson` and ended with a RESULT line that was taken out of the chat. Not yet tried on a real
@@ -1178,16 +1141,16 @@ The details behind 5.11 and 6.5, decided before building.
   applied); `messages.get`, `messages.image`; `attach_image` and `post_report`; the cited report in a job's prompt
   (`JobsDeps.citation`) and the report hint (`REPORT_HINT`); notes posted between tool calls (`Jobs.postNote`).
   UI: `channel/Reports.tsx` (the cards, the report dialog, the lightbox, the cite chip, images under messages), the
-  kind picker under "Kanal oluştur", a group of report channels in the channel list, a button that turns a text
+  kind picker under "Create channel", a group of report channels in the channel list, a button that turns a text
   channel into a report channel and back.
   - Tests: `packages/core/test/reports.test.ts` (refusal, routine, images, a posted report, notes, the answer's
     images and its title, `messages.get`, a cited reply and its prompt, switching kinds; a note giving way to the
     answer); `e2e/reports.mjs` (a report channel from the sidebar, a routine in it, the cards at 1440 and 960 px,
-    the report and its image full size, answering it in the agent's channel). The fake CLI answers "sabah raporu"
-    with a note, an image and a posted report, and a cited message with the report's code.
+    the report and its image full size, answering it in the agent's channel). The fake CLI answers a morning-report
+    request with a note, an image and a posted report, and a cited message with the report's code.
 
-- 4.31 Writing on a job's card, 2026-11-17, asked by Kaan (two things he liked in Fabrika's job drawer): the card's
-  field is "Çalışırken yaz" while the job runs (it was "Yönlendir"; same steering), and "Devam et" once it ended.
+- 4.31 Writing on a job's card, 2026-11-17, asked by Kaan: the card's field is "Write while it works" while the job runs
+  (same steering), and "Go on" once it ended.
   What is written on a finished card is a message in the channel, like a steer, and starts a new job of the same
   agent that goes on in that job's conversation (`Jobs.follow`, through `jobs.steer`): an agent with fresh sessions
   (and a specialist) resumes the earlier job's CLI session, which is now kept when the job ends (its process still
@@ -1198,7 +1161,7 @@ The details behind 5.11 and 6.5, decided before building.
   `FRESH_HISTORY` 12 to 8, and a message in the channel context is cut at 800 characters (2000 before; 600 when
   more than 40 are read), so a turn's prompt stays small.
   - Tests: `accounts.test.ts` (a fresh agent's job written on after it ended: resumed session, no channel context);
-    `e2e/channel.mjs` ("Devam et" on a stopped job's card).
+    `e2e/channel.mjs` ("Go on" on a stopped job's card).
 
 - 4.30 Two subscriptions for one crew, 2026-11-16, asked by Kaan: he runs two Claude logins (the second through a
   shell alias on `~/.claude2`) and wants to work through Rumpus instead of a terminal, without a long conversation
@@ -1331,7 +1294,7 @@ The details behind 5.11 and 6.5, decided before building.
   card looked at on a real phone, reference images still do not travel between members (the same `/v1/blob`
   would carry them), and a notification's click does not yet open what it is about. **Installed on Kaan's
   computer the same day** (`Rumpus-Setup-0.9.0-alpha.0.exe` over the installation of 4.25, the data folder
-  copied to `Rumpus-yedek-2026-11-12` first). The packaged build passes `smoke`, `profiles`, `layout` and
+  copied beside it first). The packaged build passes `smoke`, `profiles`, `layout` and
   `team`; its first `profiles` run found that the answer to one settings change took a later one back for a
   moment (a color picked right after a text field was left): answers and `settings.changed` are now held back
   while a later change of this window is on its way.
@@ -1347,17 +1310,15 @@ The details behind 5.11 and 6.5, decided before building.
   body now clips it, so a phone does not lay the page out wider. `e2e/phone.mjs` now makes its window a phone
   for the browser too (a mobile viewport and touch through the debugging protocol) and checks the page's width
   at once and settled, the manifest and every icon. **Tried on Kaan's computer the same day** (the first real
-  installation since the renames): `Rumpus-Setup-0.9.0-alpha.0.exe` installed for the user; on its first start
-  the data folder of the former name was moved (`%APPDATA%\Serai` to `Rumpus`, a copy kept beside it as
-  `Serai-yedek-2026-11-11`) and the workspace was there; the phone companion turned on and `tailscale serve`
+  installation): `Rumpus-Setup-0.9.0-alpha.0.exe` installed for the user; on its first start the data folder of an
+  earlier build was moved to `%APPDATA%\Rumpus` (a copy kept beside it) and the workspace was there; the phone companion turned on and `tailscale serve`
   answered at the computer's tailnet name over HTTPS with a certificate that verifies; a browser window made a
   phone (mobile viewport, touch) paired through that address, was 390 px wide, in a secure context with its
   service worker, stayed paired after a reload, and Chromium listed no installability errors. The app was
   driven for this over its debugging port and started again without it afterwards. A phone that pairs now
   shows in an open Settings → Phone at once (`phones.changed` on pairing; it used to wait for the panel to be
   opened again). Not yet: an install on a real phone seen by a person (Kaan's phones were off the tailnet that
-  night), iOS, the newer pages (a race, a job's changes) looked at on a phone, and the old Serai installation
-  is still on the computer (its data moved, so it would start empty).
+  night), iOS, and the newer pages (a race, a job's changes) looked at on a phone.
 - 4.24 Races (5.18), 2026-11-11, the third of the three. `Races` (`packages/core/src/races.ts`, kept in
   `<workspace>/races.json` on the computer that started them; `races.start` / `stop` / `pick` / `close`,
   `race.changed`): worktrees under `<data>/worktrees/race-<id>-<n>` on branches `rumpus/race-<id>-<handle>`;
@@ -1417,19 +1378,13 @@ The details behind 5.11 and 6.5, decided before building.
   a subfolder of a repository, no commit yet, line endings, through the core with a stand-in CLI) and
   `e2e/channel.mjs` (the fake CLI edits a file and adds one; the list, a diff, undo of one file and of all, a
   clean `git status` afterwards). Not yet tried with a real CLI.
-- 4.21 The second rename (2026-11-11): Rumpus. `BRAND` holds the name, the slug (`rumpus`: the MCP server agents
-  see, `mcp__rumpus__*`; git branch prefixes, `rumpus/goal-…`; the link scheme, `rumpus://join/…`) and the app id
-  (`io.github.kaanisthatyou.rumpus`), and now a list of former names, latest first. Still accepted: invite codes
-  that start with `SERAI1.` or `LONCA1.` and `serai://` links pasted into the join dialog, a specialist's text
-  copied under the former name, a `.serai/status.md` seed, and on first start the data folder of the latest
-  former name that holds settings (`Serai`, else `Lonca`) is moved to `Rumpus`. Goals that run in a worktree keep
-  the branch name they were given. Places that had the name written by hand now take it from `BRAND` (the
-  launcher, About, the system author in the channel, the palette and the search tools, the invite prefix in the
-  join dialog's hint); the installer config, `productName`, the page title, the phone's service worker, the web
-  app manifest and `e2e/locale.mjs` still hold it as text. The mark stays (a gate; it was drawn as a caravanserai's). Not done:
-  the repository's name, and an installed Serai 0.9.0 is another app to Windows (another app id), so it is
-  removed by hand and does not update into Rumpus; the move of the data folder was tried on a real
-  installation on 2026-11-11 (4.25) and worked. Checked: `pnpm check`, all seven e2e scripts against the built app, and `Rumpus-Setup-0.9.0-alpha.0.exe`
+- 4.21 The name, Rumpus (2026-11-11). `BRAND` holds the name, the slug (`rumpus`: the MCP server agents see,
+  `mcp__rumpus__*`; git branch prefixes, `rumpus/goal-…`; the link scheme, `rumpus://join/…`) and the app id
+  (`io.github.kaanisthatyou.rumpus`). Invite codes, links and data folders of earlier builds are still accepted.
+  Places that had the name written by hand now take it from `BRAND` (the launcher, About, the system author in the
+  channel, the palette and the search tools, the invite prefix in the join dialog's hint); the installer config,
+  `productName`, the page title, the phone's service worker, the web app manifest and `e2e/locale.mjs` still hold
+  it as text. Checked: `pnpm check`, all seven e2e scripts against the built app, and `Rumpus-Setup-0.9.0-alpha.0.exe`
   built with its unpacked app passing `smoke` and `team` (a `rumpus://` link through a second copy).
 - 4.20 Sign-in for remote connectors (5.9), 2026-11-11: a remote server that answers 401 (and has no
   `Authorization` header of the person's own) shows "sign-in needed" with a Sign in button. `connectors.signIn`
@@ -1491,67 +1446,14 @@ The details behind 5.11 and 6.5, decided before building.
 
 From 2026-11-11, for the owners:
 
-- **The name: settled, Rumpus (2026-11-11).** What follows is the record of how. Serai was chosen without a
-  trademark or domain check, and Kaan found it taken (2026-11-11; a web search shows a Zurich smart-home company
-  of that name, and `serai` is registered under .com, .dev, .app, .ai and .io). Kaan asked for an English name. What was checked that day is weak evidence and no trademark search:
-  the registries' own RDAP services for .com / .dev / .app / .ai / .io, and a web search for a product of the same
-  name (done for the Turkish words only; the search quota ran out before the English ones).
-  - English, single words: every one tried is registered under all five endings (Guildhall, Bullpen, Quarterdeck,
-    Muster, Flotilla, Wheelhouse, Roundhouse, Retinue, Joinery, Homeport, Potluck, Tagteam, Manyhands, Deckhand,
-    ...), so a single word means a prefixed or suffixed domain.
-  - English, compounds with unregistered domains: **Crewhall** (.dev .ai .io), **Guildhand**, **Guildyard**,
-    **Guildroom**, **Crewloft** (.dev .app .ai .io each), **Crewbench** (.dev .app .ai), **Benchmates**
-    (.dev .app .io). "Crew" is the word the app already uses for the people and agents of a workspace; "guild" is
-    what Lonca meant.
-  - Turkish words: Avlu (courtyard; .dev and .ai unregistered; an unrelated loyalty app "Avlu Club"), Tezgah
-    (workbench; only .io unregistered), Eyvan (only .dev and .io unregistered; eyva.ai is close), Tayfa (crew; all
-    five registered; a game studio and a children's series use the word). Ruled out: Kalfa (a Claude Code
-    extension has it) and Kovan (Kovant makes agent software).
-  - Second round, later on 2026-11-11: Kaan likes a name with "ai" in it and finds Guildroom good but long. Same
-    evidence (RDAP for the five endings; a web search for a product of that name for the first five below, which
-    found none of that exact name).
-    - Every short English word with "ai" in it that was tried is registered under all five endings (Bailey, Dais,
-      Cairn, Braid, Twain, Mainstay, Liaison, Fairlead, Aircrew, Maindeck, Baize), as are Lanai, Quai, Relais,
-      Sarai, Maidan, Arrai and Essai.
-    - Unregistered under all five: **Aidehall**, Guildaide, Guildmain, Crewmain, Crewdais, Daishall, Braidroom.
-    - Only .com registered: **Aidecamp** (aide-de-camp), Mainhall, Taife (Ottoman Turkish for a crew or a guild's
-      members, where "tayfa" comes from), Hallwai, Serail (ruled out: it means a seraglio).
-    - Ending in "ai" as Serai did: **Balai** (Malay: a hall where a community meets; .dev .ai .io unregistered;
-      a broom in French), **Technai** (Greek: the crafts; .dev .ai unregistered; reads as "tech AI", and Tech AI /
-      TechAI companies exist), Mousai (the Muses; .dev .app), Selesai (Malay: done; .dev .io), Kaikki (Finnish:
-      everyone; .dev .io).
-    - Neighbours found by the searches: Guild.ai (a platform for running agents), Guildless, Guild House and
-      AgentsRoom (a desktop app for coding agents) stand next to Guildroom; aide.dev (agentic coding tools),
-      Aide.app and AICamp next to the Aide- names. CrewAI is why no Crew- name ends in "ai".
-  - Third round, 2026-11-11: Kaan asked for a name in Discord's manner (one everyday English word about talk or
-    noise, two syllables, a little mischievous, saying nothing about the product). Every such word tried is
-    registered under .com, .dev, .app, .ai and .io (Confab, Refrain, Hubbub, Rumpus, Cahoots, Parley, Banter,
-    Ruckus, Fracas, Fray, Uproar, Bedlam, Shindig, Chinwag, Palaver, Kerfuffle, Squabble, Dissent, Concord, Accord,
-    Unison, Troupe, Tidings, Mischief, Gaggle, Clamor, Holler, Hail, Rapport, Jamboree), so such a name means a
-    domain with a word added, as Discord began at discordapp.com. Unregistered that day: rumpushq (.com .dev
-    .app), cahootsapp and cahootshq (.com .dev .app), confabhq (.com .dev .app), troupehq (.com .dev .app),
-    bedlamapp (.com .dev .app), refrainhq (.dev .app), hubbubapp (.dev .app); and under .team: rumpus, cahoots,
-    hubbub, fray, ruckus, uproar, bedlam, squabble, troupe; under .chat: refrain, bedlam, squabble. A web search
-    found no chat or agent product called Rumpus, Cahoots or Hubbub; a tool for managers of small teams is called
-    Confab; Chord (the pun on Discord) is a group chat with AI models. Cahoots sounds like Kahoot.
-  - Others in this field already use Conductor, Squad, All Hands, Stagehand, Motley Crew and Cowork. Chat
-    apps for people and agents found by the same searches: Buzz (Block), Chord, Cumora, Shapes, Zenzap, Kollab,
-    Vokal, Persemble, CoChat, Glue, Hilo Team.
-  Still open about it: no trademark search has been made for Rumpus; its plain domains are registered, and
-  rumpushq (.com .dev .app) and rumpus.team were not on 2026-11-11, nothing has been registered. A new name is a
-  change to `brand.ts` (the former one goes into `formers`), the icon, `electron-builder.yml`, `productName` in
-  `apps/desktop/package.json`, the page title, `sw.js` and `e2e/locale.mjs`.
+- **The name.** Rumpus since 2026-11-11. No trademark search has been made yet; a new name is a change to
+  `brand.ts`, the icon, `electron-builder.yml`, `productName` in `apps/desktop/package.json`, the page title, `sw.js`
+  and `e2e/locale.mjs`.
 - **Earning money.** Kaan (2026-11-10): the product could be published and earn money. The plan so far says
   Apache-2.0 with no hosted service. Ways that fit it: paid signed builds with updates and support while the source
   stays open; a paid team tier (more than a few members, an always-on peer, audit log) on an open core; paid packs
   (specialist sets, connector bundles). Not decided; nothing in the code assumes any of them.
 - **Routines and principle 3.** Routines were added as a person's standing request. If the owners read "only a
   person starts work" more strictly, routines are one switch to remove.
-- **The repository** is `kaanisthatyou/rumpus`, public since 2026-11-13 (Kaan's decision that day), and the
-  landing page is at rumpus.lol. Before it went public, every commit's author address was rewritten from Kaan's
-  personal one to GitHub's private one and the result pushed to a new repository, because GitHub keeps a rewritten
-  repository's old commits reachable (through its pull requests, for one). The repository before that, with its one
-  pull request and the first build of 0.9.0-alpha.0, stays private as `kaanisthatyou/lonca-archive`. The tag
-  `v0.1.0` (the Python prototype) was not pushed to the new one: its push would start the release workflow. The
-  working branch is still called `serai`. Still open: no trademark search for the name, and the installer is
-  unsigned.
+- **The repository** is `kaanisthatyou/rumpus`, public since 2026-11-13, and the landing page is at rumpus.lol.
+  Still open: the installer is unsigned.
