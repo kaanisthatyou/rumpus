@@ -12,9 +12,8 @@ and Codex today; OpenCode and others are planned), shows their work live, and pu
 projects, saved ideas and references, memory and advisor bots around them. Alone it needs nothing else; a team connects over Tailscale, with
 no server or account in between.
 
-**Status: 0.9.0-alpha.0** (2026-11-13), Phase 4 of the plan under way; alpha software, for Windows and Linux.
-Rumpus was called Lonca until 2026-11-10 and Serai until 2026-11-11; the code name `lonca` remains in package
-names and environment variables. The plan, its decisions and every phase's status are in [PLAN.md](PLAN.md).
+**Status: 0.9.6** (2026-11-23), Phase 4 of the plan under way; alpha software, for Windows and Linux. The plan,
+its decisions and every phase's status are in [PLAN.md](PLAN.md).
 
 ## What it refuses
 
