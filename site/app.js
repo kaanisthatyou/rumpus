@@ -22,7 +22,7 @@ const TR = {
   'cta.get': 'Alfayı indir',
   'cta.plan': 'Planı oku',
   'cta.source': 'Kaynağı oku',
-  'hero.note': 'çıktı. Windows ve Linux için 0.9 alfa.',
+  'hero.note': 'çıktı. Windows ve Linux için.',
   'room.title': 'Odanın içi',
   'room.live.h': 'Çalışmasını izle. Yönlendir. Durdur.',
   'room.live.p':
