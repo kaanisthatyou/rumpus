@@ -1636,7 +1636,7 @@
   "notice": {
     "many_one": "{{count}} new message",
     "many_other": "{{count}} new messages",
-    "waiting": "{{name}} · waiting on you"
+    "waiting": "{{name}} · waiting for a decision"
   },
   "reports": {
     "hint": "Reports of routines and agents, with their dates.",
