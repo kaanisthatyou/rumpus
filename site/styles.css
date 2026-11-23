@@ -413,8 +413,124 @@ h2 {
 
 .hero__note {
   flex-basis: 100%;
-  font: 500 14px / 1.4 var(--mono);
-  opacity: 0.72;
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  font: 500 clamp(16px, 1.5vw, 20px) / 1.4 var(--mono);
+}
+
+.hero__note > span {
+  opacity: 0.78;
+}
+
+/* The version, and its easter egg: on hover the 6 gives way to a VI that lights up like a neon sign, drawn here in
+   the page's own type (Kaan, 2026-11-23, after the GTA VI loading screen video). */
+.ver {
+  font: 800 clamp(28px, 2.8vw, 40px) / 1 var(--display);
+  letter-spacing: -1px;
+  color: var(--ink);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.ver__six {
+  position: relative;
+  display: inline-block;
+  transition: margin-right 0.3s var(--out);
+}
+
+.ver:hover .ver__six,
+.ver:focus-visible .ver__six {
+  margin-right: 0.72em;
+}
+
+.ver__d {
+  display: inline-block;
+  transition:
+    opacity 0.15s,
+    transform 0.25s var(--out);
+}
+
+.ver__vi {
+  position: absolute;
+  left: -0.04em;
+  bottom: -0.08em;
+  font-size: 1.32em;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: transparent;
+  background: linear-gradient(180deg, #4b3bd6 0%, #9a2fc9 38%, #e2409f 70%, #ff9f70 100%) 0 0 / 100% 220%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-stroke: 1.5px #fff;
+  paint-order: stroke fill;
+  filter: drop-shadow(0 0 1px #1b0633) drop-shadow(0 0 1px #1b0633) drop-shadow(0 0 8px rgb(255 79 168 / 70%));
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ver:hover .ver__d,
+.ver:focus-visible .ver__d {
+  opacity: 0;
+  transform: scale(0.6);
+}
+
+.ver:hover .ver__vi,
+.ver:focus-visible .ver__vi {
+  animation:
+    vi-on 0.9s steps(1, end) forwards,
+    vi-glow 2.4s ease-in-out 0.9s infinite alternate;
+}
+
+/* A neon sign switching on: a few flickers, then it holds. */
+@keyframes vi-on {
+  0% {
+    opacity: 0.35;
+  }
+
+  12% {
+    opacity: 0;
+  }
+
+  22% {
+    opacity: 0.8;
+  }
+
+  30% {
+    opacity: 0.1;
+  }
+
+  44% {
+    opacity: 1;
+  }
+
+  52% {
+    opacity: 0.4;
+  }
+
+  60%,
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes vi-glow {
+  from {
+    opacity: 1;
+    background-position: 0 0;
+  }
+
+  to {
+    opacity: 1;
+    background-position: 0 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ver:hover .ver__vi,
+  .ver:focus-visible .ver__vi {
+    opacity: 1;
+  }
 }
 
 .hero__win {
