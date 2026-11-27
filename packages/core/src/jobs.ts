@@ -177,10 +177,25 @@ const ownSessions = (agent: Agent) => Boolean(agent.specialty || agent.fresh);
 
 const quotaKey = (kind: CliKind, account?: string) => (account ? `${kind}:${account}` : kind);
 
-/** When the latest of a quota's windows resets (ms), if the CLI said. */
+/** A window this full is the one that stopped the login. */
+const FULL = 0.98;
+
+/**
+ * When a login out of quota has quota again (ms), if the CLI said when its windows reset: the latest reset of the
+ * windows that are full, or, with none known to be full, the first reset after the quota was reported. The same
+ * answer whenever it is asked, so once that time passed the login counts as having quota. The latest of all windows
+ * was taken once, so a job stopped by the five-hour window waited for the weekly one, days later (Kaan, 2026-11-27).
+ */
 function resetsAt(quota: Quota | undefined): number | undefined {
-  const at = Math.max(0, ...Object.values(quota?.windows ?? {}).map((w) => (w.resets ?? 0) * 1000));
-  return at > 0 ? at : undefined;
+  if (!quota) return undefined;
+  const all = Object.values(quota.windows)
+    .filter((w) => (w.resets ?? 0) > 0)
+    .map((w) => ({ at: (w.resets ?? 0) * 1000, full: w.used >= FULL }));
+  if (all.length === 0) return undefined;
+  const full = all.filter((w) => w.full);
+  if (full.length > 0) return Math.max(...full.map((w) => w.at));
+  const after = all.filter((w) => w.at > quota.at);
+  return after.length > 0 ? Math.min(...after.map((w) => w.at)) : Math.max(...all.map((w) => w.at));
 }
 
 export class Jobs {

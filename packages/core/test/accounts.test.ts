@@ -246,9 +246,15 @@ describe('two subscriptions for one crew', () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'], shouldAdvanceTime: true });
     try {
       const resets = Math.floor(Date.now() / 1000) + 10 * 60;
+      // The weekly window resets days later and is not what stopped it: the job waits for the five-hour one.
+      const weekly = Math.floor(Date.now() / 1000) + 4 * 24 * 3600;
       fourth.emit({
         type: 'quota',
-        quota: { windows: { five_hour: { used: 1, resets } }, status: 'rejected', at: Date.now() },
+        quota: {
+          windows: { five_hour: { used: 1, resets }, seven_day: { used: 0.4, resets: weekly } },
+          status: 'rejected',
+          at: Date.now(),
+        },
       });
       fourth.emit({ type: 'end', ok: false, error: "You've hit your limit · resets 5am" });
       fourth.emit({ type: 'exit', code: 1, stderr: '' });
